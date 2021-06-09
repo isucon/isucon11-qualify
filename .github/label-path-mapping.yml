@@ -1,0 +1,8 @@
+backend:
+  - webapp/go/**/*
+frontend:
+  - webapp/front/**/*
+benchmarker:
+  - bench/**/*
+infrastructure:
+  - provissoning/**/*
