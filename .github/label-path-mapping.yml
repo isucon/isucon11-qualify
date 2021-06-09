@@ -5,4 +5,4 @@ frontend:
 benchmarker:
   - bench/**/*
 infrastructure:
-  - provissoning/**/*
+  - provisioning/**/*
