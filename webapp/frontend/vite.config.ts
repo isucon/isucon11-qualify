@@ -4,5 +4,8 @@ import WindiCSS from "vite-plugin-windicss"
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [reactRefresh(), WindiCSS()]
+  plugins: [reactRefresh(), WindiCSS()],
+  esbuild: {
+    jsxInject: `import React from 'react'`
+  }
 })
