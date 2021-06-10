@@ -5,7 +5,8 @@
     "build": "tsc && vite build",
     "serve": "vite preview",
     "lint": "eslint . --ext .js,.ts,.jsx,.tsx",
-    "fmt": "prettier . --write"
+    "fmt": "prettier . --write",
+    "fmt:check": "prettier --check ."
   },
   "dependencies": {
     "react": "^17.0.0",
