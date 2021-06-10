@@ -17,8 +17,6 @@ import (
 	"github.com/isucon/isucandar"
 	"github.com/isucon/isucandar/agent"
 	"github.com/isucon/isucandar/failure"
-	"github.com/isucon/isucon10-portal/bench-tool.go/benchrun"
-	isuxportalResources "github.com/isucon/isucon10-portal/proto.go/isuxportal/resources"
 
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/scenario"
@@ -37,7 +35,8 @@ var (
 	promOut            string
 	showVersion        bool
 
-	reporter benchrun.Reporter
+	// TODO: isucon11-portal に差し替え
+	//reporter benchrun.Reporter
 )
 
 func init() {
@@ -51,7 +50,9 @@ func init() {
 	agent.DefaultTLSConfig.MinVersion = tls.VersionTLS12
 	agent.DefaultTLSConfig.InsecureSkipVerify = false
 
-	flag.StringVar(&targetAddress, "target", benchrun.GetTargetAddress(), "ex: localhost:9292")
+	// TODO: isucon11-portal に差し替え
+	//flag.StringVar(&targetAddress, "target", benchrun.GetTargetAddress(), "ex: localhost:9292")
+	flag.StringVar(&targetAddress, "target", "localhost:9292", "ex: localhost:9292")
 	flag.StringVar(&profileFile, "profile", "", "ex: cpu.out")
 	flag.StringVar(&hostAdvertise, "host-advertise", "local.t.isucon.dev", "hostname to advertise against target")
 	flag.StringVar(&tlsCertificatePath, "tls-cert", "../secrets/cert.pem", "path to TLS certificate for a push service")
@@ -104,24 +105,28 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 	}
 
 	// TODO: isucon11-portal に差し替え
-	err := reporter.Report(&isuxportalResources.BenchmarkResult{
-		SurveyResponse: &isuxportalResources.SurveyResponse{
-			Language: s.Language,
-		},
-		Finished: finish,
-		Passed:   passed,
-		Score:    0, // TODO: 加点 - 減点
-		ScoreBreakdown: &isuxportalResources.BenchmarkResult_ScoreBreakdown{
-			Raw:       0, // TODO: 加点
-			Deduction: 0, // TODO: 減点
-		},
-		Execution: &isuxportalResources.BenchmarkResult_Execution{
-			Reason: reason,
-		},
-	})
-	if err != nil {
-		panic(err)
-	}
+	/*
+		err := reporter.Report(&isuxportalResources.BenchmarkResult{
+			SurveyResponse: &isuxportalResources.SurveyResponse{
+				Language: s.Language,
+			},
+			Finished: finish,
+			Passed:   passed,
+			Score:    0, // TODO: 加点 - 減点
+			ScoreBreakdown: &isuxportalResources.BenchmarkResult_ScoreBreakdown{
+				Raw:       0, // TODO: 加点
+				Deduction: 0, // TODO: 減点
+			},
+			Execution: &isuxportalResources.BenchmarkResult_Execution{
+				Reason: reason,
+			},
+		})
+		if err != nil {
+			panic(err)
+		}
+	*/
+	// TODO: 以下は消す
+	fmt.Println(reason)
 
 	return passed
 }
@@ -181,10 +186,12 @@ func main() {
 	}
 
 	// TODO: isucon11-portal に差し替え
-	reporter, err = benchrun.NewReporter(false)
-	if err != nil {
-		panic(err)
-	}
+	/*
+		reporter, err = benchrun.NewReporter(false)
+		if err != nil {
+			panic(err)
+		}
+	*/
 
 	errorCount := int64(0)
 	b.OnError(func(err error, step *isucandar.BenchmarkStep) {
