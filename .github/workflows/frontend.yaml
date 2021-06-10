@@ -8,6 +8,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CI: true
+    defaults:
+      run:
+        working-directory: webapp/frontend
     steps:
       - uses: actions/setup-node@v1
         with:
@@ -20,6 +23,9 @@ jobs:
     needs: [packages]
     env:
       CI: true
+    defaults:
+      run:
+        working-directory: webapp/frontend
     steps:
       - uses: actions/setup-node@v1
         with:
@@ -33,6 +39,9 @@ jobs:
     needs: [packages]
     env:
       CI: true
+    defaults:
+      run:
+        working-directory: webapp/frontend
     steps:
       - uses: actions/setup-node@v1
         with:
