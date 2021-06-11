@@ -9,16 +9,22 @@ import (
 	"path/filepath"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/gorilla/sessions"
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 	"github.com/labstack/gommon/log"
 )
 
-const NotificationLimit = 20
+const (
+	sessionName = "isucondition"
+)
 
-var db *sqlx.DB
-var mySQLConnectionData *MySQLConnectionEnv
+var (
+	db                  *sqlx.DB
+	sessionStore        sessions.Store
+	mySQLConnectionData *MySQLConnectionEnv
+)
 
 type InitializeResponse struct {
 	Language string `json:"language"`
@@ -69,6 +75,7 @@ func (mc *MySQLConnectionEnv) ConnectDB() (*sqlx.DB, error) {
 }
 
 func init() {
+	sessionStore = sessions.NewCookieStore([]byte(getEnv("SESSION_KEY", "isucondition")))
 }
 
 func main() {
@@ -117,6 +124,20 @@ func main() {
 	// Start server
 	serverPort := fmt.Sprintf(":%v", getEnv("SERVER_PORT", "3000"))
 	e.Logger.Fatal(e.Start(serverPort))
+}
+
+func getSession(r *http.Request) *sessions.Session {
+	session, _ := sessionStore.Get(r, sessionName)
+	return session
+}
+
+func getUserIdFromSession(r *http.Request) (string, error) {
+	session := getSession(r)
+	userID, ok := session.Values["user_id"]
+	if !ok {
+		return "", fmt.Errorf("no session")
+	}
+	return userID.(string), nil
 }
 
 func postInitialize(c echo.Context) error {
@@ -310,7 +331,7 @@ func getIsuSearch(c echo.Context) error {
 	// * session
 	// session が存在しなければ 401
 
-	const limit = 20
+	//const limit = 20
 
 	// input (query_param) (required field はなし, 全て未指定の場合 /api/isu と同じクエリが発行される)
 	//  * name
