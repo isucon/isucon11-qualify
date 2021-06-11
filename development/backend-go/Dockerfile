@@ -1,7 +1,7 @@
 FROM golang:1.16.5-alpine3.13
 
 WORKDIR /development
-COPY development/backend/air.toml .
+COPY development/backend-go/air.toml .
 
 WORKDIR /go/src/isucondition
 

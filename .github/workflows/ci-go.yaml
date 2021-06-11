@@ -1,0 +1,36 @@
+name: ci for go
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - bench/**/*
+      - webapp/go/**/*
+  pull_request:
+    branches: [ main ]
+    paths:
+      - bench/**/*
+      - webapp/go/**/*
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v2
+        with:
+          version: latest
+          working-directory: ./webapp/go
+          args: "--timeout 3m0s"
+  test:
+    name: Integration Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build Go App
+        run: docker-compose up -d -f docker-compose.yml backend-go mysql-backend
+        working-directory: development
+      - name: Test Go App
+        run: target=backend-go docker-compose up --exit-code-from apitest apitest
+        working-directory: development
