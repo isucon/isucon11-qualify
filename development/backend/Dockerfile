@@ -12,6 +12,6 @@ RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSI
     && go get -u github.com/cosmtrek/air
 
 COPY webapp/go/go.mod .
-# COPY webapp/go/go.sum .
+COPY webapp/go/go.sum .
 
 RUN go mod download
