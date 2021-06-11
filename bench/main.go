@@ -39,6 +39,14 @@ var (
 	//reporter benchrun.Reporter
 )
 
+func getEnv(key, defaultValue string) string {
+	val := os.Getenv(key)
+	if val != "" {
+		return val
+	}
+	return defaultValue
+}
+
 func init() {
 	certs, err := x509.SystemCertPool()
 	if err != nil {
@@ -52,7 +60,7 @@ func init() {
 
 	// TODO: isucon11-portal に差し替え
 	//flag.StringVar(&targetAddress, "target", benchrun.GetTargetAddress(), "ex: localhost:9292")
-	flag.StringVar(&targetAddress, "target", "localhost:9292", "ex: localhost:9292")
+	flag.StringVar(&targetAddress, "target", getEnv("TARGET_ADDRESS", "localhost:9292"), "ex: localhost:9292")
 	flag.StringVar(&profileFile, "profile", "", "ex: cpu.out")
 	flag.StringVar(&hostAdvertise, "host-advertise", "local.t.isucon.dev", "hostname to advertise against target")
 	flag.StringVar(&tlsCertificatePath, "tls-cert", "../secrets/cert.pem", "path to TLS certificate for a push service")
