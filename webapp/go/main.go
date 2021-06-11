@@ -186,6 +186,7 @@ func postSignout(c echo.Context) error {
 	return errors.New("not implemented")
 }
 
+// TODO
 // GET /api/user/{user_id}
 // ユーザ情報を取得
 // day2 実装のため skip
