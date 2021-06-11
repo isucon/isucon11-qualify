@@ -1,0 +1,35 @@
+version: "3.8"
+
+services: 
+  backend:
+    build: 
+      context: ..
+      dockerfile: development/backend/Dockerfile
+    environment: 
+      MYSQL_HOST: mysql-backend
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: isucondition
+      MYSQL_USER: isucon
+      MYSQL_PASSWORD: isucon
+    entrypoint: dockerize -wait tcp://mysql-backend:3306 -timeout 60s
+    command: air -c /development/air.toml
+    ports: 
+      - "3000:3000"
+    volumes: 
+      - "../webapp/go:/go/src/isucondition"
+    depends_on: 
+      - mysql-backend
+  
+  mysql-backend:
+    image: mysql:8.0.25
+    restart: always
+    environment: 
+      MYSQL_DATABASE: isucondition
+      MYSQL_USER: isucon
+      MYSQL_PASSWORD: isucon
+      MYSQL_ROOT_PASSWORD: root
+    expose: 
+      - "3306"
+    ports: 
+      - "3306:3306"
+    
