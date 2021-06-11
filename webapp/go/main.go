@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -17,7 +16,9 @@ import (
 )
 
 const (
-	sessionName = "isucondition"
+	sessionName       = "isucondition"
+	searchLimit       = 20
+	notificationLimit = 20
 )
 
 var (
@@ -156,7 +157,8 @@ func postInitialize(c echo.Context) error {
 			mySQLConnectionData.DBName,
 			sqlFile,
 		)
-		if err := exec.Command("bash", "-c", cmdStr).Run(); err != nil {
+		err := exec.Command("bash", "-c", cmdStr).Run()
+		if err != nil {
 			c.Logger().Errorf("Initialize script error : %v", err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
@@ -192,7 +194,7 @@ func postAuthentication(c echo.Context) error {
 
 	// Cookieを付与
 	// 見つかったら 200
-	return errors.New("not implemented")
+	return fmt.Errorf("not implemented")
 }
 
 //  POST /api/signout
@@ -204,7 +206,7 @@ func postSignout(c echo.Context) error {
 	// cookie の max-age を -1 にして Set-Cookie
 
 	// response 200
-	return errors.New("not implemented")
+	return fmt.Errorf("not implemented")
 }
 
 // TODO
@@ -225,7 +227,7 @@ func getMe(c echo.Context) error {
 	//response 200
 	// * user_id
 	// * user_name
-	return errors.New("not implemented")
+	return fmt.Errorf("not implemented")
 }
 
 //  GET /api/catalog/{isu_catalog_id}
@@ -260,7 +262,7 @@ func getCatalog(c echo.Context) error {
 	// 要検討
 
 	// response 200
-	return errors.New("not implemented")
+	return fmt.Errorf("not implemented")
 }
 
 //  GET /api/isu?limit=5
@@ -282,7 +284,7 @@ func getIsuList(c echo.Context) error {
 	// * name
 	// * catalog_id
 	// * charactor  // MEMO: この値を使うのは day2 実装だが、ひとまずフィールドは用意する
-	return errors.New("not implemented")
+	return fmt.Errorf("not implemented")
 }
 
 //  POST /api/isu
@@ -323,15 +325,13 @@ func postIsu(c echo.Context) error {
 	// * catalog_id
 	// * charactor
 	//]
-	return errors.New("not implemented")
+	return fmt.Errorf("not implemented")
 }
 
 //  GET /api/isu/search
 func getIsuSearch(c echo.Context) error {
 	// * session
 	// session が存在しなければ 401
-
-	//const limit = 20
 
 	// input (query_param) (required field はなし, 全て未指定の場合 /api/isu と同じクエリが発行される)
 	//  * name
@@ -375,7 +375,7 @@ func getIsuSearch(c echo.Context) error {
 	// * catalog_id
 	// * charactor
 	//}]
-	return errors.New("not implemented")
+	return fmt.Errorf("not implemented")
 }
 
 //  GET /api/isu/{isu_id}
@@ -402,7 +402,7 @@ func getIsu(c echo.Context) error {
 	// * charactor
 	//}
 
-	return errors.New("not implemented")
+	return fmt.Errorf("not implemented")
 }
 
 //  PUT /api/isu/{isu_id}
@@ -443,7 +443,7 @@ func putIsu(c echo.Context) error {
 	// * catalog_id
 	// * charactor
 	//}
-	return errors.New("not implemented")
+	return fmt.Errorf("not implemented")
 }
 
 //  DELETE /api/isu/{isu_id}
@@ -471,7 +471,7 @@ func deleteIsu(c echo.Context) error {
 	// MEMO: もしコミット時にエラーが発生しうるならば、「ISU協会側はdeactivate済みだがDBはactive」という不整合が発生しうる
 
 	//response 204
-	return errors.New("not implemented")
+	return fmt.Errorf("not implemented")
 }
 
 //  GET /api/isu/{isu_id}/icon
@@ -491,7 +491,7 @@ func getIsuIcon(c echo.Context) error {
 	// response 200
 	// image
 	// MEMO: とりあえず未指定... Content-Type: image/png image/jpg
-	return errors.New("not implemented")
+	return fmt.Errorf("not implemented")
 }
 
 //  PUT /api/isu/{isu_id}/icon
@@ -514,7 +514,7 @@ func putIsuIcon(c echo.Context) error {
 
 	// response 200
 	// {}
-	return errors.New("not implemented")
+	return fmt.Errorf("not implemented")
 }
 
 //  GET /api/isu/{isu_id}/graph
@@ -568,7 +568,7 @@ func getIsuGraph(c echo.Context) error {
 	// data: null,
 	// },
 	// {...}, ...]
-	return errors.New("not implemented")
+	return fmt.Errorf("not implemented")
 }
 
 //  GET /api/notification?
@@ -602,7 +602,7 @@ func getNotifications(c echo.Context) error {
 
 	// response: 200
 	// /api/notification/{isu_id}と同じ
-	return errors.New("not implemented")
+	return fmt.Errorf("not implemented")
 }
 
 //  GET /api/notification/{isu_id}?start_time=
@@ -648,7 +648,7 @@ func getIsuNotifications(c echo.Context) error {
 	//     * condition_level
 	//     * message
 	// },...]
-	return errors.New("not implemented")
+	return fmt.Errorf("not implemented")
 }
 
 // POST /api/isu/{isu_id}/condition
@@ -726,5 +726,5 @@ func postIsuCondition(c echo.Context) error {
 	// トランザクション終了
 
 	// response 201
-	return errors.New("not implemented")
+	return fmt.Errorf("not implemented")
 }
