@@ -2,12 +2,27 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/labstack/gommon/log"
 )
+
+var (
+	catalogs map[string]*IsuCatalog
+)
+
+type IsuCatalog struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	LimitWeight int64  `json:"limit_weight"`
+	Weight      int64  `json:"weight"`
+	Size        string `json:"size"`
+	Maker       string `json:"maker"`
+	Features    string `json:"features"`
+}
 
 func getEnv(key, defaultValue string) string {
 	val := os.Getenv(key)
@@ -18,6 +33,17 @@ func getEnv(key, defaultValue string) string {
 }
 
 func init() {
+	catalogs = map[string]*IsuCatalog{
+		"550e8400-e29b-41d4-a716-446655440000": {
+			ID:          "550e8400-e29b-41d4-a716-446655440000",
+			Name:        "isu0",
+			LimitWeight: 150,
+			Weight:      30,
+			Size:        "W65.5×D66×H114.5~128.5(SH43~52)cm",
+			Maker:       "isu maker",
+			Features:    "headrest,armrest",
+		},
+	}
 }
 
 func main() {
@@ -42,7 +68,16 @@ func main() {
 }
 
 func getCatalog(c echo.Context) error {
-	return fmt.Errorf("not implemented")
+	catalogID := c.QueryParam("catalog_id")
+	if catalogID == "" {
+		// 全件取得
+		catalogsArray := []*IsuCatalog{}
+		for _, catalog := range catalogs {
+			catalogsArray = append(catalogsArray, catalog)
+		}
+		return c.JSON(http.StatusOK, catalogsArray)
+	}
+	return c.JSON(http.StatusOK, catalogs[catalogID])
 }
 
 func postActivate(c echo.Context) error {
