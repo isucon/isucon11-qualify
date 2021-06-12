@@ -202,7 +202,7 @@ func postActivate(c echo.Context) error {
 	if !isPrivateIP(state.targetIP) {
 		return c.NoContent(http.StatusForbidden)
 	}
-	key := state.isuID + state.targetIP
+	key := state.isuID + state.targetIP + strconv.Itoa(state.targetPort)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	conflict := func() bool {
@@ -229,18 +229,30 @@ func postDeactivate(c echo.Context) error {
 	if _, ok := validIsu[isuID]; !ok {
 		return c.NoContent(http.StatusNotFound)
 	}
+	targetIP := c.FormValue("target_ip")
+	if targetIP == "" {
+		return c.NoContent(http.StatusBadRequest)
+	}
+	targetPort, err := strconv.Atoi(c.FormValue("target_port"))
+	if err != nil || !(0 <= targetPort && targetPort < 0x1000) {
+		return c.NoContent(http.StatusBadRequest)
+	}
 
 	state := IsuConditionPosterState{
-		targetIP: c.RealIP(),
-		isuID:    isuID,
+		targetIP:   targetIP,
+		targetPort: targetPort,
+		isuID:      isuID,
 	}
-	key := isuID + state.targetIP
+	key := state.isuID + state.targetIP + strconv.Itoa(state.targetPort)
 
 	func() {
 		activatedIsuMtx.Lock()
 		defer activatedIsuMtx.Unlock()
-		activatedIsu[key].cancelFunc()
-		delete(activatedIsu, key)
+		activatedState, ok := activatedIsu[key]
+		if ok {
+			activatedState.cancelFunc()
+			delete(activatedIsu, key)
+		}
 	}()
 
 	return c.NoContent(http.StatusNoContent)
@@ -274,9 +286,9 @@ func isuConditionPoster(ctx context.Context, state IsuConditionPosterState) {
 		notification, err := json.Marshal(IsuNotification{
 			IsSitting: true,
 			Condition: IsuCondition{
-				IsDirty:      (randEngine.Intn(1) == 0),
-				IsOverweight: (randEngine.Intn(1) == 0),
-				IsBroken:     (randEngine.Intn(1) == 0),
+				IsDirty:      (randEngine.Intn(2) == 0),
+				IsOverweight: (randEngine.Intn(2) == 0),
+				IsBroken:     (randEngine.Intn(2) == 0),
 			},
 			Message:   "今日もいい天気",
 			Timestamp: nowTime.Format("2006-01-02 15:04:05 -0700"),
