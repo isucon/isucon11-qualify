@@ -1,12 +1,17 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"sync"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -42,8 +47,20 @@ type ActivatedIsuState struct {
 }
 
 type IsuConditionPosterState struct {
-	targetIP string
-	isuID    string
+	targetIP   string
+	targetPort int
+	isuID      string
+}
+type IsuCondition struct {
+	IsDirty      bool `json:"is_dirty"`
+	IsOverweight bool `json:"is_overweight"`
+	IsBroken     bool `json:"is_broken"`
+}
+type IsuNotification struct {
+	IsSitting bool         `json:"is_sitting"`
+	Condition IsuCondition `json:"condition"`
+	Message   string       `json:"message"`
+	Timestamp string       `json:"timestamp"`
 }
 
 func getEnv(key string, defaultValue string) string {
@@ -122,6 +139,8 @@ func init() {
 		}
 		privateIPBlocks = append(privateIPBlocks, block)
 	}
+
+	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = 32
 }
 
 func main() {
@@ -163,18 +182,27 @@ func postActivate(c echo.Context) error {
 	if isuID == "" {
 		return c.NoContent(http.StatusBadRequest)
 	}
-	if _, ok := validIsu[isuID]; !ok {
-		return c.NoContent(http.StatusNotFound)
+	targetIP := c.FormValue("target_ip")
+	if targetIP == "" {
+		return c.NoContent(http.StatusBadRequest)
+	}
+	targetPort, err := strconv.Atoi(c.FormValue("target_port"))
+	if err != nil || !(0 <= targetPort && targetPort < 0x1000) {
+		return c.NoContent(http.StatusBadRequest)
 	}
 
 	state := IsuConditionPosterState{
-		targetIP: c.RealIP(),
-		isuID:    isuID,
+		targetIP:   targetIP,
+		targetPort: targetPort,
+		isuID:      isuID,
+	}
+	if _, ok := validIsu[state.isuID]; !ok {
+		return c.NoContent(http.StatusNotFound)
 	}
 	if !isPrivateIP(state.targetIP) {
 		return c.NoContent(http.StatusForbidden)
 	}
-	key := isuID + state.targetIP
+	key := state.isuID + state.targetIP
 
 	ctx, cancel := context.WithCancel(context.Background())
 	conflict := func() bool {
@@ -224,5 +252,55 @@ func postDie(c echo.Context) error {
 }
 
 func isuConditionPoster(ctx context.Context, state IsuConditionPosterState) {
-	// TODO
+	targetURL := fmt.Sprintf(
+		"http://%s:%d/api/isu/%s/condition",
+		state.targetIP, state.targetPort, state.isuID,
+	)
+	randEngine := rand.New(rand.NewSource(0))
+
+	timer := time.NewTicker(2 * time.Second)
+	defer timer.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+		}
+
+		//乱数初期化（逆算できるように）
+		nowTime := time.Now()
+		randEngine.Seed(nowTime.UnixNano()/1000000000 + 961054102)
+
+		notification, err := json.Marshal(IsuNotification{
+			IsSitting: true,
+			Condition: IsuCondition{
+				IsDirty:      (randEngine.Intn(1) == 0),
+				IsOverweight: (randEngine.Intn(1) == 0),
+				IsBroken:     (randEngine.Intn(1) == 0),
+			},
+			Message:   "今日もいい天気",
+			Timestamp: nowTime.Format("2006-01-02 15:04:05 -0700"),
+		})
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+
+		func() {
+			resp, err := http.Post(
+				targetURL, "application/json",
+				bytes.NewBuffer(notification),
+			)
+			if err != nil {
+				log.Error(err)
+				return
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != 201 {
+				log.Errorf("failed to `POST %s` with status=`%s`", targetURL, resp.Status)
+				return
+			}
+		}()
+	}
 }
