@@ -12,7 +12,7 @@ CREATE TABLE `isu` (
 
 DROP TABLE IF EXISTS `isu_log`;
 CREATE TABLE `isu_log` (
-  `isu_id` VARCHAR(255),
+  `isu_id` CHAR(36),
   `timestamp` DATETIME,
   `condition` VARCHAR(255) NOT NULL,
   `message` VARCHAR(255) NOT NULL,
@@ -22,7 +22,7 @@ CREATE TABLE `isu_log` (
 
 DROP TABLE IF EXISTS `graph`;
 CREATE TABLE `graph` (
-  `isu_id` VARCHAR(255),
+  `isu_id` CHAR(36),
   `start_at` DATETIME,
   `data` JSON NOT NULL,
   `created_at` DATETIME(6) NOT NULL,
