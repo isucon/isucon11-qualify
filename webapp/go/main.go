@@ -51,7 +51,7 @@ type MySQLConnectionEnv struct {
 	Password string
 }
 
-func getEnv(key, defaultValue string) string {
+func getEnv(key string, defaultValue string) string {
 	val := os.Getenv(key)
 	if val != "" {
 		return val
