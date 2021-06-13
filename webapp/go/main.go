@@ -53,7 +53,7 @@ type MySQLConnectionEnv struct {
 type initializeResponse struct {
 	Language string `json:"language"`
 }
-type meResponse struct {
+type getMeResponse struct {
 }
 type graphResponse struct {
 }
