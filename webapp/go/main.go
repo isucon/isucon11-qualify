@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/sessions"
@@ -27,19 +28,50 @@ var (
 	mySQLConnectionData *MySQLConnectionEnv
 )
 
-type User struct {
-}
-
 type Isu struct {
+	UUID        string    `db:"uuid" json:"uuid"`
+	Name        string    `db:"name" json:"name"`
+	Image       []byte    `db:"image" json:"-"`
+	CatalogUUID string    `db:"catalog_uuid" json:"catalog_uuid"`
+	Character   string    `db:"character" json:"character"`
+	UserUUID    string    `db:"user_uuid" json:"-"`
+	IsDeleted   bool      `db:"is_deleted" json:"-"`
+	CreatedAt   time.Time `db:"created_at" json:"-"`
+	UpdatedAt   time.Time `db:"updated_at" json:"-"`
 }
 
 type Catalog struct {
 }
 
 type IsuLog struct {
+	IsuUUID   string    `db:"isu_uuid" json:"isu_uuid"`
+	Timestamp time.Time `db:"timestamp" json:"timestamp"`
+	Condition string    `db:"condition" json:"condition"`
+	Message   string    `db:"message" json:"message"`
+	CreatedAt time.Time `db:"created_at" json:"-"`
 }
 
+//グラフ表示用  一時間のsummry 詳細
+// TODO: 動作確認
+type GraphData struct {
+	Score   int32                  `db:"score" json:"score"`
+	Sitting int32                  `db:"sitting" json:"sitting"`
+	Detail  map[string]interface{} `db:"detail" json:"detail"`
+}
+
+//グラフ表示用  一時間のsummry
 type Graph struct {
+	IsuUUID   string    `db:"isu_uuid"`
+	StartAt   time.Time `db:"created_at"`
+	Data      GraphData `db:"data"`
+	CreatedAt time.Time `db:"created_at"`
+	UpdatedAt time.Time `db:"updated_at"`
+}
+
+type User struct {
+	UUID      string    `db:"uuid"`
+	Name      string    `db:"name"`
+	CreatedAt time.Time `db:"created_at"`
 }
 
 type MySQLConnectionEnv struct {
