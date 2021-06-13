@@ -23,7 +23,7 @@ var (
 
 	catalogs        map[string]*IsuCatalog
 	validIsu        map[string]IsuState
-	charactorList   []string
+	characterList   []string
 	activatedIsu    = map[string]ActivatedIsuState{} //key=isuID+targetIP
 	activatedIsuMtx = sync.Mutex{}
 )
@@ -40,7 +40,7 @@ type IsuCatalog struct {
 
 type IsuState struct {
 	CatalogID string `json:"catalog_id"`
-	Charactor string `json:"charactor"`
+	Character string `json:"character"`
 }
 type ActivatedIsuState struct {
 	cancelFunc context.CancelFunc
