@@ -24,7 +24,7 @@ var (
 	catalogs        map[string]*IsuCatalog
 	validIsu        map[string]IsuState
 	characterList   []string
-	activatedIsu    = map[string]ActivatedIsuState{} //key=isuID+targetIP
+	activatedIsu    = map[string]ActivatedIsuState{}
 	activatedIsuMtx = sync.Mutex{}
 )
 
@@ -42,20 +42,23 @@ type IsuState struct {
 	CatalogID string `json:"catalog_id"`
 	Character string `json:"character"`
 }
+
 type ActivatedIsuState struct {
 	cancelFunc context.CancelFunc
 }
 
-type isuConditionPoster struct {
-	targetIP   string
-	targetPort int
-	isuID      string
+type IsuConditionPoster struct {
+	TargetIP   string `json:"target_ip"`
+	TargetPort int    `json:"target_port"`
+	IsuID      string `json:"isu_id"`
 }
+
 type IsuCondition struct {
 	IsDirty      bool `json:"is_dirty"`
 	IsOverweight bool `json:"is_overweight"`
 	IsBroken     bool `json:"is_broken"`
 }
+
 type IsuNotification struct {
 	IsSitting bool         `json:"is_sitting"`
 	Condition IsuCondition `json:"condition"`
@@ -178,32 +181,65 @@ func getCatalog(c echo.Context) error {
 }
 
 func postActivate(c echo.Context) error {
-	isuID := c.FormValue("isu_id")
-	if isuID == "" {
+	state := &IsuConditionPoster{}
+	err := c.Bind(state)
+	if err != nil {
 		return c.NoContent(http.StatusBadRequest)
 	}
-	targetIP := c.FormValue("target_ip")
-	if targetIP == "" {
-		return c.NoContent(http.StatusBadRequest)
-	}
-	targetPort, err := strconv.Atoi(c.FormValue("target_port"))
-	if err != nil || !(0 <= targetPort && targetPort < 0x1000) {
+	if !(0 <= state.TargetPort && state.TargetPort < 0x1000) {
 		return c.NoContent(http.StatusBadRequest)
 	}
 
-	state := &isuConditionPoster{
-		targetIP:   targetIP,
-		targetPort: targetPort,
-		isuID:      isuID,
-	}
-	isuState, ok := validIsu[state.isuID]
+	isuState, ok := validIsu[state.IsuID]
 	if !ok {
 		return c.NoContent(http.StatusNotFound)
 	}
-	if !isPrivateIP(state.targetIP) {
+	if !isPrivateIP(state.TargetIP) {
 		return c.NoContent(http.StatusForbidden)
 	}
-	key := state.isuID + state.targetIP + strconv.Itoa(state.targetPort)
+
+	err = state.startPosting()
+	if err != nil {
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	return c.JSON(http.StatusAccepted, isuState)
+}
+
+func postDeactivate(c echo.Context) error {
+	state := &IsuConditionPoster{}
+	err := c.Bind(state)
+	if err != nil {
+		return c.NoContent(http.StatusBadRequest)
+	}
+	if !(0 <= state.TargetPort && state.TargetPort < 0x1000) {
+		return c.NoContent(http.StatusBadRequest)
+	}
+	if _, ok := validIsu[state.IsuID]; !ok {
+		return c.NoContent(http.StatusNotFound)
+	}
+
+	err = state.stopPosting()
+	if err != nil {
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	return c.NoContent(http.StatusNoContent)
+}
+
+func postDie(c echo.Context) error {
+	password := c.FormValue("password")
+	if password == "U,YaCLe9tAnW8EdYphW)Wc/dN)5pPQ/3ue_af4rz" {
+		os.Exit(0)
+	}
+	return echo.NewHTTPError(http.StatusNotFound, "Not Found")
+}
+
+func (state *IsuConditionPoster) getKey() string {
+	return state.IsuID + state.TargetIP + strconv.Itoa(state.TargetPort)
+}
+func (state *IsuConditionPoster) startPosting() error {
+	key := state.getKey()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	conflict := func() bool {
@@ -218,53 +254,24 @@ func postActivate(c echo.Context) error {
 	if !conflict {
 		go state.keepPosting(ctx)
 	}
-
-	return c.JSON(http.StatusAccepted, isuState)
+	return nil
 }
+func (state *IsuConditionPoster) stopPosting() error {
+	key := state.getKey()
 
-func postDeactivate(c echo.Context) error {
-	isuID := c.FormValue("isu_id")
-	if isuID == "" {
-		return c.NoContent(http.StatusBadRequest)
+	activatedIsuMtx.Lock()
+	defer activatedIsuMtx.Unlock()
+	activatedState, ok := activatedIsu[key]
+	if ok {
+		activatedState.cancelFunc()
+		delete(activatedIsu, key)
 	}
-	if _, ok := validIsu[isuID]; !ok {
-		return c.NoContent(http.StatusNotFound)
-	}
-	targetIP := c.FormValue("target_ip")
-	if targetIP == "" {
-		return c.NoContent(http.StatusBadRequest)
-	}
-	targetPort, err := strconv.Atoi(c.FormValue("target_port"))
-	if err != nil || !(0 <= targetPort && targetPort < 0x1000) {
-		return c.NoContent(http.StatusBadRequest)
-	}
-
-	key := isuID + targetIP + strconv.Itoa(targetPort)
-	func() {
-		activatedIsuMtx.Lock()
-		defer activatedIsuMtx.Unlock()
-		activatedState, ok := activatedIsu[key]
-		if ok {
-			activatedState.cancelFunc()
-			delete(activatedIsu, key)
-		}
-	}()
-
-	return c.NoContent(http.StatusNoContent)
+	return nil
 }
-
-func postDie(c echo.Context) error {
-	password := c.FormValue("password")
-	if password == "U,YaCLe9tAnW8EdYphW)Wc/dN)5pPQ/3ue_af4rz" {
-		os.Exit(0)
-	}
-	return echo.NewHTTPError(http.StatusNotFound, "Not Found")
-}
-
-func (state *isuConditionPoster) keepPosting(ctx context.Context) {
+func (state *IsuConditionPoster) keepPosting(ctx context.Context) {
 	targetURL := fmt.Sprintf(
 		"http://%s:%d/api/isu/%s/condition",
-		state.targetIP, state.targetPort, state.isuID,
+		state.TargetIP, state.TargetPort, state.IsuID,
 	)
 	randEngine := rand.New(rand.NewSource(0))
 
