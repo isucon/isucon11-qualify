@@ -259,8 +259,11 @@ func postDeactivate(c echo.Context) error {
 }
 
 func postDie(c echo.Context) error {
-	os.Exit(0)
-	return nil
+	password := c.FormValue("password")
+	if password == "U,YaCLe9tAnW8EdYphW)Wc/dN)5pPQ/3ue_af4rz" {
+		os.Exit(0)
+	}
+	return echo.NewHTTPError(http.StatusNotFound, "Not Found")
 }
 
 func isuConditionPoster(ctx context.Context, state IsuConditionPosterState) {
