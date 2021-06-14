@@ -82,14 +82,17 @@ type MySQLConnectionEnv struct {
 	Password string
 }
 
-type initializeResponse struct {
+type InitializeResponse struct {
 	Language string `json:"language"`
 }
-type getMeResponse struct {
+
+type GetMeResponse struct {
 }
-type graphResponse struct {
+
+type GraphResponse struct {
 }
-type notificationResponse struct {
+
+type NotificationResponse struct {
 }
 
 func getEnv(key string, defaultValue string) string {
@@ -205,7 +208,7 @@ func postInitialize(c echo.Context) error {
 		}
 	}
 
-	return c.JSON(http.StatusOK, initializeResponse{
+	return c.JSON(http.StatusOK, InitializeResponse{
 		Language: "go",
 	})
 }
