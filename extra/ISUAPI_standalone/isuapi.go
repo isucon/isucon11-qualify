@@ -154,7 +154,7 @@ func main() {
 	e.Use(middleware.Recover())
 
 	// Initialize
-	e.GET("/api/catalog", getCatalog)
+	e.GET("/api/catalog/:catalog_id", getCatalog)
 	e.POST("/api/activate", postActivate)
 	e.POST("/api/deactivate", postDeactivate)
 	e.POST("/api/die", postDie)
@@ -165,7 +165,7 @@ func main() {
 }
 
 func getCatalog(c echo.Context) error {
-	catalogID := c.QueryParam("catalog_id")
+	catalogID := c.Param("catalog_id")
 	if catalogID == "" {
 		// 全件取得
 		catalogsArray := []*IsuCatalog{}
@@ -191,7 +191,7 @@ func postActivate(c echo.Context) error {
 		return c.NoContent(http.StatusBadRequest)
 	}
 
-	state := &IsuConditionPoster{
+	state := &isuConditionPoster{
 		targetIP:   targetIP,
 		targetPort: targetPort,
 		isuID:      isuID,
@@ -215,7 +215,7 @@ func postActivate(c echo.Context) error {
 		return false
 	}()
 	if !conflict {
-		go state.isuConditionPoster(ctx)
+		go state.keepPosting(ctx)
 	}
 
 	return c.JSON(http.StatusAccepted, validIsu[isuID])
