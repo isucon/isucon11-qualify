@@ -46,7 +46,7 @@ type ActivatedIsuState struct {
 	cancelFunc context.CancelFunc
 }
 
-type IsuConditionPosterState struct {
+type isuConditionPoster struct {
 	targetIP   string
 	targetPort int
 	isuID      string
@@ -191,7 +191,7 @@ func postActivate(c echo.Context) error {
 		return c.NoContent(http.StatusBadRequest)
 	}
 
-	state := IsuConditionPosterState{
+	state := &IsuConditionPoster{
 		targetIP:   targetIP,
 		targetPort: targetPort,
 		isuID:      isuID,
@@ -215,7 +215,7 @@ func postActivate(c echo.Context) error {
 		return false
 	}()
 	if !conflict {
-		go isuConditionPoster(ctx, state)
+		go state.isuConditionPoster(ctx)
 	}
 
 	return c.JSON(http.StatusAccepted, validIsu[isuID])
@@ -238,13 +238,7 @@ func postDeactivate(c echo.Context) error {
 		return c.NoContent(http.StatusBadRequest)
 	}
 
-	state := IsuConditionPosterState{
-		targetIP:   targetIP,
-		targetPort: targetPort,
-		isuID:      isuID,
-	}
-	key := state.isuID + state.targetIP + strconv.Itoa(state.targetPort)
-
+	key := isuID + targetIP + strconv.Itoa(targetPort)
 	func() {
 		activatedIsuMtx.Lock()
 		defer activatedIsuMtx.Unlock()
@@ -266,7 +260,7 @@ func postDie(c echo.Context) error {
 	return echo.NewHTTPError(http.StatusNotFound, "Not Found")
 }
 
-func isuConditionPoster(ctx context.Context, state IsuConditionPosterState) {
+func (state *isuConditionPoster) keepPosting(ctx context.Context) {
 	targetURL := fmt.Sprintf(
 		"http://%s:%d/api/isu/%s/condition",
 		state.targetIP, state.targetPort, state.isuID,
@@ -308,13 +302,13 @@ func isuConditionPoster(ctx context.Context, state IsuConditionPosterState) {
 			)
 			if err != nil {
 				log.Error(err)
-				return
+				return // goto next loop
 			}
 			defer resp.Body.Close()
 
 			if resp.StatusCode != 201 {
 				log.Errorf("failed to `POST %s` with status=`%s`", targetURL, resp.Status)
-				return
+				return // goto next loop
 			}
 		}()
 	}
