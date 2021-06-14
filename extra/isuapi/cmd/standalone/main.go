@@ -196,7 +196,8 @@ func postActivate(c echo.Context) error {
 		targetPort: targetPort,
 		isuID:      isuID,
 	}
-	if _, ok := validIsu[state.isuID]; !ok {
+	isuState, ok := validIsu[state.isuID]
+	if !ok {
 		return c.NoContent(http.StatusNotFound)
 	}
 	if !isPrivateIP(state.targetIP) {
@@ -218,7 +219,7 @@ func postActivate(c echo.Context) error {
 		go state.keepPosting(ctx)
 	}
 
-	return c.JSON(http.StatusAccepted, validIsu[isuID])
+	return c.JSON(http.StatusAccepted, isuState)
 }
 
 func postDeactivate(c echo.Context) error {
