@@ -27,14 +27,13 @@ var (
 	mySQLConnectionData *MySQLConnectionEnv
 )
 
-type InitializeResponse struct {
-	Language string `json:"language"`
-}
-
 type User struct {
 }
 
 type Isu struct {
+}
+
+type Catalog struct {
 }
 
 type IsuLog struct {
@@ -49,6 +48,19 @@ type MySQLConnectionEnv struct {
 	User     string
 	DBName   string
 	Password string
+}
+
+type InitializeResponse struct {
+	Language string `json:"language"`
+}
+
+type GetMeResponse struct {
+}
+
+type GraphResponse struct {
+}
+
+type NotificationResponse struct {
 }
 
 func getEnv(key string, defaultValue string) string {
