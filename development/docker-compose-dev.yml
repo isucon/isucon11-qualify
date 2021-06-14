@@ -4,7 +4,7 @@ services:
   backend-go:
     build:
       context: ..
-      dockerfile: development/backend-go/Dockerfile-dev
+      dockerfile: development/backend-go/dev.dockerfile
     environment:
       MYSQL_HOST: mysql-backend
       MYSQL_PORT: 3306

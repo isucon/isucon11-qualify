@@ -3,7 +3,7 @@ services:
   backend:
     build:
       context: ..
-      dockerfile: development/backend-${target}/Dockerfile-ci
+      dockerfile: development/backend-${target}/ci.dockerfile
     environment:
       MYSQL_HOST: mysql-backend
       MYSQL_PORT: 3306
@@ -31,7 +31,7 @@ services:
   apitest:
     build:
       context: ..
-      dockerfile: development/apitest/Dockerfile
+      dockerfile: development/apitest/ci.dockerfile
     environment:
       TARGET_ADDRESS: backend
     depends_on:
