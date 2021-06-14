@@ -1,4 +1,4 @@
-module github.com/isucon/isucon11-qualify/bench/ISUAPI/standalone
+module github.com/isucon/isucon11-qualify/extra/isuapi
 
 go 1.16
 
