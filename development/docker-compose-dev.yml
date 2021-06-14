@@ -1,6 +1,7 @@
 version: "3.8"
 services:
-  backend:
+
+  backend-go:
     build:
       context: ..
       dockerfile: development/backend-go/Dockerfile-dev
@@ -18,6 +19,10 @@ services:
       - "../webapp/go:/go/src/isucondition"
     depends_on:
       - mysql-backend
+  # MEMO: 各言語用のコンテナをここ以下に列挙
+  # backend-python:
+  # ...
+
   mysql-backend:
     image: mysql:8.0.25
     restart: always
