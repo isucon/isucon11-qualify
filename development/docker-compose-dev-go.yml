@@ -1,9 +1,9 @@
 version: "3.8"
 services:
-  backend-go:
+  backend:
     build:
       context: ..
-      dockerfile: development/backend-go/Dockerfile
+      dockerfile: development/backend-go/Dockerfile-dev
     environment:
       MYSQL_HOST: mysql-backend
       MYSQL_PORT: 3306
@@ -18,7 +18,6 @@ services:
       - "../webapp/go:/go/src/isucondition"
     depends_on:
       - mysql-backend
-
   mysql-backend:
     image: mysql:8.0.25
     restart: always
@@ -31,12 +30,3 @@ services:
       - "3306"
     ports:
       - "3306:3306"
-
-  apitest:
-    build:
-      context: ..
-      dockerfile: development/apitest/Dockerfile
-    environment:
-      TARGET_ADDRESS: $target
-    depends_on:
-      - mysql-backend
