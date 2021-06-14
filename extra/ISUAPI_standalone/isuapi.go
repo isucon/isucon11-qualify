@@ -281,7 +281,7 @@ func (state *isuConditionPoster) keepPosting(ctx context.Context) {
 		randEngine.Seed(nowTime.UnixNano()/1000000000 + 961054102)
 
 		notification, err := json.Marshal(IsuNotification{
-			IsSitting: true,
+			IsSitting: (randEngine.Intn(100) <= 70),
 			Condition: IsuCondition{
 				IsDirty:      (randEngine.Intn(2) == 0),
 				IsOverweight: (randEngine.Intn(2) == 0),
