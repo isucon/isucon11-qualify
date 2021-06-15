@@ -52,18 +52,17 @@ type IsuLog struct {
 }
 
 //グラフ表示用  一時間のsummry 詳細
-// TODO: 動作確認
 type GraphData struct {
-	Score   int32                  `db:"score" json:"score"`
-	Sitting int32                  `db:"sitting" json:"sitting"`
-	Detail  map[string]interface{} `db:"detail" json:"detail"`
+	Score   int32            `json:"score"`
+	Sitting int32            `json:"sitting"`
+	Detail  map[string]int32 `json:"detail"`
 }
 
 //グラフ表示用  一時間のsummry
 type Graph struct {
 	JIAIsuUUID string    `db:"jia_isu_uuid"`
-	StartAt    time.Time `db:"created_at"`
-	Data       GraphData `db:"data"`
+	StartAt    time.Time `db:"start_at"`
+	Data       string    `db:"data"`
 	CreatedAt  time.Time `db:"created_at"`
 	UpdatedAt  time.Time `db:"updated_at"`
 }
