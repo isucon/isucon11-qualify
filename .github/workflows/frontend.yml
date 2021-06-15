@@ -1,6 +1,14 @@
 name: frontend
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - webapp/frontend/**/*
+  pull_request:
+    branches: [ main ]
+    paths:
+      - webapp/frontend/**/*
 
 jobs:
   packages:

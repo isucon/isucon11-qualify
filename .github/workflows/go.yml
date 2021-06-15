@@ -1,0 +1,38 @@
+name: ci for go
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - bench/**/*
+      - webapp/go/**/*
+  pull_request:
+    branches: [ main ]
+    paths:
+      - bench/**/*
+      - webapp/go/**/*
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v2
+        with:
+          version: latest
+          working-directory: ./webapp/go
+          # 各エンドポイント実装完了 (step3) までは一部linterを無効化
+          #args: "--timeout 3m0s"
+          args: "--timeout 3m0s -D deadcode -D unused -D varcheck"
+  test:
+    name: Integration Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build Go App
+        run: target=go docker-compose -f docker-compose-ci.yml up -d --build -- backend mysql-backend
+        working-directory: development
+      - name: Test Go App
+        run: docker-compose -f docker-compose-ci.yml up --exit-code-from apitest -- apitest
+        working-directory: development

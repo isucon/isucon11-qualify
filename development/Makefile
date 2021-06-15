@@ -1,5 +1,7 @@
-up:
-	docker-compose -f docker-compose.yml up --build
+.PHONY: up-go
+up-go:
+	docker-compose -f docker-compose-dev.yml up --build -- backend-go mysql-backend
 
-down:
-	docker-compose -f docker-compose.yml down
+.PHONY: down-go
+down-go:
+	docker-compose -f docker-compose-dev.yml down
