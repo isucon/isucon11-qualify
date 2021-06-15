@@ -1,0 +1,338 @@
+---
+openapi: "3.0.3"
+info:
+  title: 'ISU-CONDITION API'
+  description: "ISU-CONDITON's APIs of backend"
+  termsOfService: 'http://example.com'
+  contact:
+    name:  'ISU-CONDITION support'
+    url:   'https://github.com/isucon/isucon11-qualify/issues'
+  license:
+      name: 'MIT License'
+      url:  'https://opensource.org/licenses/MIT'
+  version: '1.0.0'
+
+paths:
+  /initialize:
+    post:
+      tags: [backend]
+      summary: '/initialize'
+      description: Initialize application to prepare benchmark.
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: 'boolean'
+
+
+  /api/auth:
+    post:
+      tags: [backend]
+      summary: 'api/auth'
+      description: ''
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: 'boolean'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: 'boolean'
+        '403':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: 'boolean'
+
+
+  /api/signout:
+    post:
+      tags: [backend]
+      summary: '/api/signout'
+      description: ''
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: 'boolean'
+
+
+  /api/user/me:
+    get:
+      tags: [backend]
+      summary: '/api/user/me'
+      description: 'ユーザー自身の情報を取得'
+      responses:
+        '200':
+          description: 'ユーザー自身の情報を返却'
+          content:
+            application/json:
+              schema:
+                type: 'object'
+                properties:
+                  "JIAUserId":
+                    type: string
+                required:
+                  - "JIAUserId"
+                example:
+                  "JIAUserId": xxxxxx
+        '401':
+          description: '未ログイン時の操作エラー'
+          content:
+            application/json:
+              schema:
+                $ref:  "#/components/schemas/UnauthorizedError"
+
+
+  /api/catalog/{isu_catalog_id}:
+    get:
+      tags: [backend]
+      summary: '/api/catalog/{isu_catalog_id}'
+      description: 'JIAにカタログ情報を問い合わせる'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: 'boolean'
+
+
+  /api/isu:
+    get:
+      tags: [backend]
+      summary: '/api/isu'
+      description: '自分の ISU 一覧を取得'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: 'boolean'
+
+    post:
+      tags: [backend]
+      summary: '/api/isu'
+      description: '自分のISUの登録'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: 'boolean'
+
+
+  /api/isu/search:
+    get:
+      tags: [backend]
+      summary: '/api/isu/search'
+      description: '自分の ISU を検索'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: 'boolean'
+
+
+  /api/isu/{isu_id}:
+    get:
+      tags: [backend]
+      summary: '/api/isu/{isu_id}'
+      description: '椅子の情報を取得する'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: 'boolean'
+
+    put:
+      tags: [backend]
+      summary: '/api/isu/{isu_id}'
+      description: '自分の所有しているISUの情報を変更する'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: 'boolean'
+
+    delete:
+      tags: [backend]
+      summary: '/api/isu/{isu_id}'
+      description: '自分の所有しているISUを削除する'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: 'boolean'
+
+
+  /api/isu/{isu_id}/icon:
+    get:
+      tags: [backend]
+      summary: '/api/isu/{isu_id}/icon'
+      description: 'ISUのアイコンを取得する'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: 'boolean'
+
+    put:
+      tags: [backend]
+      summary: '/api/isu/{isu_id}/icon'
+      description: 'ISUのアイコンを登録する'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: 'boolean'
+
+
+  /api/isu/{isu_id}/graph:
+    get:
+      tags: [backend]
+      summary: '/api/isu/{isu_id}/graph'
+      description: 'グラフ描画のための情報を計算して返却する'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: 'boolean'
+
+
+  /api/notification:
+    get:
+      tags: [backend]
+      summary: '/api/notification'
+      description: '自分の所持椅子の通知を取得する'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: 'boolean'
+
+
+  /api/notification/{isu_id}:
+    get:
+      tags: [backend]
+      summary: '/api/notification/{isu_id}'
+      description: '自分の所持椅子のうち、指定したisu_idの通知を取得する'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: 'boolean'
+
+
+  /api/isu/{isu_id}/condition:
+    get:
+      tags: [backend]
+      summary: '/api/isu/{isu_id}/condition'
+      description: 'ISUからのセンサデータを受け取る'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: 'boolean'
+
+
+
+components:
+  schemas:
+    BadRequestError:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string
+      example:
+        code: 400
+        message: 'Error Message'
+
+    UnauthorizedError:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string
+      example:
+        code: 401
+        message: 'You are not signed in.'
+
+    ForbiddenError:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string
+      example:
+        code: 403
+        message: 'Error Message'
+    
+    NotFoundError:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string
+      example:
+        code: 404
+        message: 'Error Message'
+
+    ConflictError:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string
+      example:
+        code: 409
+        message: 'Error Message'
+
+# #security:
+tags:
+  - name: backend
+    description: 'API of ISU-CONDITION'
+...
