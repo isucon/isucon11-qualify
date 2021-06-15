@@ -41,23 +41,23 @@ type Isu struct {
 }
 
 type CatalogFromJIA struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	LimitWeight int64  `json:"limit_weight"`
-	Weight      int64  `json:"weight"`
-	Size        string `json:"size"`
-	Maker       string `json:"maker"`
-	Features    string `json:"features"`
+	JIACatalogID string `json:"catalog_id"`
+	Name         string `json:"name"`
+	LimitWeight  int64  `json:"limit_weight"`
+	Weight       int64  `json:"weight"`
+	Size         string `json:"size"`
+	Maker        string `json:"maker"`
+	Features     string `json:"features"`
 }
 
 type Catalog struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	LimitWeight int64  `json:"limit_weight"`
-	Weight      int64  `json:"weight"`
-	Size        string `json:"size"`
-	Maker       string `json:"maker"`
-	Tags        string `json:"tags"`
+	JIACatalogID string `json:"jia_catalog_id"`
+	Name         string `json:"name"`
+	LimitWeight  int64  `json:"limit_weight"`
+	Weight       int64  `json:"weight"`
+	Size         string `json:"size"`
+	Maker        string `json:"maker"`
+	Tags         string `json:"tags"`
 }
 
 type IsuLog struct {
