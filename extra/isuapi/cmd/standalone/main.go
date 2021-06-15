@@ -169,14 +169,6 @@ func main() {
 
 func getCatalog(c echo.Context) error {
 	catalogID := c.Param("catalog_id")
-	if catalogID == "" {
-		// 全件取得
-		catalogsArray := []*IsuCatalog{}
-		for _, catalog := range catalogs {
-			catalogsArray = append(catalogsArray, catalog)
-		}
-		return c.JSON(http.StatusOK, catalogsArray)
-	}
 	return c.JSON(http.StatusOK, catalogs[catalogID])
 }
 
