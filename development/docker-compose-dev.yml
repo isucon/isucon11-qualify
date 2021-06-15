@@ -16,7 +16,8 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - "../webapp/go:/go/src/isucondition"
+      - "../webapp/go:/webapp/go"
+      - "../webapp/mysql/db/0_Schema.sql:/webapp/mysql/db/0_Schema.sql"
     depends_on:
       - mysql-backend
   # MEMO: 各言語用のコンテナをここ以下に列挙
