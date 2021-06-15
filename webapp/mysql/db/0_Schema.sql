@@ -17,6 +17,7 @@ DROP TABLE IF EXISTS `isu_log`;
 CREATE TABLE `isu_log` (
   `jia_isu_uuid` CHAR(36),
   `timestamp` DATETIME,
+  `is_sitting` TINYINT(1) NOT NULL,
   `condition` VARCHAR(255) NOT NULL,
   `message` VARCHAR(255) NOT NULL,
   `created_at` DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
