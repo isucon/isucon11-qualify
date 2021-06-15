@@ -7,7 +7,7 @@ RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSI
     && tar -C /usr/local/bin -xzvf dockerize-alpine-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
     && rm dockerize-alpine-linux-amd64-$DOCKERIZE_VERSION.tar.gz
 
-COPY webapp/go/go.mod webapp/go/go.sum .
+COPY webapp/go/go.mod webapp/go/go.sum ./
 RUN go mod download
 
 COPY webapp/go/ .
