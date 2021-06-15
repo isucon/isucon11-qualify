@@ -29,26 +29,26 @@ var (
 )
 
 type Isu struct {
-	UUID        string    `db:"uuid" json:"uuid"`
-	Name        string    `db:"name" json:"name"`
-	Image       []byte    `db:"image" json:"-"`
-	CatalogUUID string    `db:"catalog_uuid" json:"catalog_uuid"`
-	Character   string    `db:"character" json:"character"`
-	UserUUID    string    `db:"user_uuid" json:"-"`
-	IsDeleted   bool      `db:"is_deleted" json:"-"`
-	CreatedAt   time.Time `db:"created_at" json:"-"`
-	UpdatedAt   time.Time `db:"updated_at" json:"-"`
+	JIAIsuUUID   string    `db:"jia_isu_uuid" json:"jia_isu_uuid"`
+	Name         string    `db:"name" json:"name"`
+	Image        []byte    `db:"image" json:"-"`
+	JIACatalogID string    `db:"jia_catalog_id" json:"jia_catalog_id"`
+	Character    string    `db:"character" json:"character"`
+	JIAUserID    string    `db:"jia_user_id" json:"-"`
+	IsDeleted    bool      `db:"is_deleted" json:"-"`
+	CreatedAt    time.Time `db:"created_at" json:"-"`
+	UpdatedAt    time.Time `db:"updated_at" json:"-"`
 }
 
 type Catalog struct {
 }
 
 type IsuLog struct {
-	IsuUUID   string    `db:"isu_uuid" json:"isu_uuid"`
-	Timestamp time.Time `db:"timestamp" json:"timestamp"`
-	Condition string    `db:"condition" json:"condition"`
-	Message   string    `db:"message" json:"message"`
-	CreatedAt time.Time `db:"created_at" json:"-"`
+	JIAIsuUUID string    `db:"jia_isu_uuid" json:"jia_isu_uuid"`
+	Timestamp  time.Time `db:"timestamp" json:"timestamp"`
+	Condition  string    `db:"condition" json:"condition"`
+	Message    string    `db:"message" json:"message"`
+	CreatedAt  time.Time `db:"created_at" json:"-"`
 }
 
 //グラフ表示用  一時間のsummry 詳細
@@ -61,15 +61,15 @@ type GraphData struct {
 
 //グラフ表示用  一時間のsummry
 type Graph struct {
-	IsuUUID   string    `db:"isu_uuid"`
-	StartAt   time.Time `db:"created_at"`
-	Data      GraphData `db:"data"`
-	CreatedAt time.Time `db:"created_at"`
-	UpdatedAt time.Time `db:"updated_at"`
+	JIAIsuUUID string    `db:"jia_isu_uuid"`
+	StartAt    time.Time `db:"created_at"`
+	Data       GraphData `db:"data"`
+	CreatedAt  time.Time `db:"created_at"`
+	UpdatedAt  time.Time `db:"updated_at"`
 }
 
 type User struct {
-	UUID      string    `db:"uuid"`
+	JIAUserID string    `db:"jia_user_id"`
 	Name      string    `db:"name"`
 	CreatedAt time.Time `db:"created_at"`
 }
