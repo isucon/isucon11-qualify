@@ -50,7 +50,7 @@ type ActivatedIsuState struct {
 type IsuConditionPoster struct {
 	TargetIP   string `json:"target_ip"`
 	TargetPort int    `json:"target_port"`
-	IsuID      string `json:"isu_id"`
+	IsuUUID    string `json:"isu_uuid"`
 }
 
 type IsuCondition struct {
@@ -186,7 +186,7 @@ func postActivate(c echo.Context) error {
 		return c.NoContent(http.StatusBadRequest)
 	}
 
-	isuState, ok := validIsu[state.IsuID]
+	isuState, ok := validIsu[state.IsuUUID]
 	if !ok {
 		return c.NoContent(http.StatusNotFound)
 	}
@@ -211,7 +211,7 @@ func postDeactivate(c echo.Context) error {
 	if !(0 <= state.TargetPort && state.TargetPort < 0x1000) {
 		return c.NoContent(http.StatusBadRequest)
 	}
-	if _, ok := validIsu[state.IsuID]; !ok {
+	if _, ok := validIsu[state.IsuUUID]; !ok {
 		return c.NoContent(http.StatusNotFound)
 	}
 
@@ -232,7 +232,7 @@ func postDie(c echo.Context) error {
 }
 
 func (state *IsuConditionPoster) getKey() string {
-	return state.IsuID + state.TargetIP + strconv.Itoa(state.TargetPort)
+	return state.IsuUUID + state.TargetIP + strconv.Itoa(state.TargetPort)
 }
 func (state *IsuConditionPoster) startPosting() error {
 	key := state.getKey()
@@ -267,7 +267,7 @@ func (state *IsuConditionPoster) stopPosting() error {
 func (state *IsuConditionPoster) keepPosting(ctx context.Context) {
 	targetURL := fmt.Sprintf(
 		"http://%s:%d/api/isu/%s/condition",
-		state.TargetIP, state.TargetPort, state.IsuID,
+		state.TargetIP, state.TargetPort, state.IsuUUID,
 	)
 	randEngine := rand.New(rand.NewSource(0))
 
