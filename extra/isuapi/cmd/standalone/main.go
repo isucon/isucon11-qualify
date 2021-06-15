@@ -169,7 +169,11 @@ func main() {
 
 func getCatalog(c echo.Context) error {
 	catalogID := c.Param("catalog_id")
-	return c.JSON(http.StatusOK, catalogs[catalogID])
+	catalog, ok := catalogs[catalogID]
+	if !ok {
+		return c.NoContent(http.StatusNotFound)
+	}
+	return c.JSON(http.StatusOK, catalog)
 }
 
 func postActivate(c echo.Context) error {
