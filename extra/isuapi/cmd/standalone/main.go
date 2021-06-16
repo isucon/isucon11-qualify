@@ -226,6 +226,7 @@ func postDeactivate(c echo.Context) error {
 
 	err = state.stopPosting()
 	if err != nil {
+		c.Logger().Errorf("failed to stopPosting: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 
