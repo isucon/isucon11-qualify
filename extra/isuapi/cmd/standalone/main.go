@@ -53,17 +53,17 @@ type IsuConditionPoster struct {
 	IsuUUID    string `json:"isu_uuid"`
 }
 
-type IsuCondition struct {
-	IsDirty      bool `json:"is_dirty"`
-	IsOverweight bool `json:"is_overweight"`
-	IsBroken     bool `json:"is_broken"`
-}
+// type IsuCondition struct {
+// 	IsDirty      bool
+// 	IsOverweight bool
+// 	IsBroken     bool
+// }
 
 type IsuNotification struct {
-	IsSitting bool         `json:"is_sitting"`
-	Condition IsuCondition `json:"condition"`
-	Message   string       `json:"message"`
-	Timestamp string       `json:"timestamp"`
+	IsSitting bool   `json:"is_sitting"`
+	Condition string `json:"condition"`
+	Message   string `json:"message"`
+	Timestamp string `json:"timestamp"`
 }
 
 func getEnv(key string, defaultValue string) string {
@@ -304,11 +304,11 @@ func (state *IsuConditionPoster) keepPosting(ctx context.Context) {
 
 		notification, err := json.Marshal(IsuNotification{
 			IsSitting: (randEngine.Intn(100) <= 70),
-			Condition: IsuCondition{
-				IsDirty:      (randEngine.Intn(2) == 0),
-				IsOverweight: (randEngine.Intn(2) == 0),
-				IsBroken:     (randEngine.Intn(2) == 0),
-			},
+			Condition: fmt.Sprintf("is_dirty=%v,is_overweight=%v,is_broken=%v",
+				(randEngine.Intn(2) == 0),
+				(randEngine.Intn(2) == 0),
+				(randEngine.Intn(2) == 0),
+			),
 			Message:   "今日もいい天気",
 			Timestamp: nowTime.Format("2006-01-02 15:04:05 -0700"),
 		})
