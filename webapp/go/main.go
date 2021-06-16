@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -327,23 +328,36 @@ func getCatalog(c echo.Context) error {
 //  GET /api/isu?limit=5
 // 自分の ISU 一覧を取得
 func getIsuList(c echo.Context) error {
-	// * session
-	// session が存在しなければ 401
+	jiaUserId, err := getUserIdFromSession(c.Request())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not sign in")
+	}
 
-	// input
-	//     * limit: 取得件数（利用用途的には固定だが一般的な話で指定可能にする。ベンチもやる）
+	limitStr := c.QueryParam("limit")
+	var limit int
+	if limitStr != "" {
+		limit, err = strconv.Atoi(limitStr)
+		if err != nil || limit <= 0 {
+			return echo.NewHTTPError(http.StatusBadRequest, "invalid value: limit")
+		}
+	}
 
-	// SELECT * FROM isu WHERE jia_user_id = {jia_user_id} and is_deleted=false LIMIT {limit} order by created_at;
-	// (catalogは取らない)
-	// 画像までSQLで取ってくるボトルネック
-	// imageも最初はとってるけどレスポンスに含まれてないからselect時に持ってくる必要ない
+	var isuList []Isu
+	if limitStr != "" {
+		err := db.Select(&isuList, "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = FALSE ORDER BY `created_at` LIMIT ?", jiaUserId, limit)
+		if err != nil {
+			c.Logger().Errorf(err.Error())
+			return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+		}
+	} else {
+		err := db.Select(&isuList, "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = FALSE ORDER BY `created_at`", jiaUserId)
+		if err != nil {
+			c.Logger().Errorf(err.Error())
+			return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+		}
+	}
 
-	// response 200
-	// * id
-	// * name
-	// * jia_catalog_id
-	// * charactor  // MEMO: この値を使うのは day2 実装だが、ひとまずフィールドは用意する
-	return fmt.Errorf("not implemented")
+	return c.JSON(http.StatusOK, isuList)
 }
 
 //  POST /api/isu
