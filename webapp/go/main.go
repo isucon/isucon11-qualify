@@ -231,18 +231,14 @@ func postSignout(c echo.Context) error {
 // func getUser(c echo.Context) error {
 // }
 
-//  GET /api/user/me
-// 自分のユーザー情報を取得
 func getMe(c echo.Context) error {
-	// * session
-	// session が存在しなければ 401
+	userId, err := getUserIdFromSession(c.Request())
+	if err != nil {
+		return ErrUnauthorized
+	}
 
-	// SELECT user_id, user_name FROM users WHERE user_id = {user_id};
-
-	//response 200
-	// * user_id
-	// * user_name
-	return fmt.Errorf("not implemented")
+	response := GetMeResponse{JIAUserId: userId}
+	return c.JSON(http.StatusOK, response)
 }
 
 //  GET /api/catalog/{isu_catalog_id}
