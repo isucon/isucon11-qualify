@@ -171,7 +171,8 @@ func getCatalog(c echo.Context) error {
 	catalogID := c.Param("catalog_id")
 	catalog, ok := catalogs[catalogID]
 	if !ok {
-		return c.NoContent(http.StatusNotFound)
+		c.Logger().Errorf("bad catalog_id: %v", catalogID)
+		return echo.NewHTTPError(http.StatusNotFound)
 	}
 	return c.JSON(http.StatusOK, catalog)
 }
@@ -180,23 +181,28 @@ func postActivate(c echo.Context) error {
 	state := &IsuConditionPoster{}
 	err := c.Bind(state)
 	if err != nil {
-		return c.NoContent(http.StatusBadRequest)
+		c.Logger().Errorf("failed to bind: %v", err)
+		return echo.NewHTTPError(http.StatusBadRequest)
 	}
 	if !(0 <= state.TargetPort && state.TargetPort < 0x1000) {
-		return c.NoContent(http.StatusBadRequest)
+		c.Logger().Errorf("bad port: %v", state.TargetPort)
+		return echo.NewHTTPError(http.StatusBadRequest)
 	}
 
 	isuState, ok := validIsu[state.IsuUUID]
 	if !ok {
-		return c.NoContent(http.StatusNotFound)
+		c.Logger().Errorf("bad isu_uuid: %v", state.IsuUUID)
+		return echo.NewHTTPError(http.StatusNotFound)
 	}
 	if !isPrivateIP(state.TargetIP) {
-		return c.NoContent(http.StatusForbidden)
+		c.Logger().Errorf("bad ip: %v", state.TargetIP)
+		return echo.NewHTTPError(http.StatusForbidden)
 	}
 
 	err = state.startPosting()
 	if err != nil {
-		return c.NoContent(http.StatusInternalServerError)
+		c.Logger().Errorf("failed to startPosting: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 
 	return c.JSON(http.StatusAccepted, isuState)
@@ -206,18 +212,21 @@ func postDeactivate(c echo.Context) error {
 	state := &IsuConditionPoster{}
 	err := c.Bind(state)
 	if err != nil {
-		return c.NoContent(http.StatusBadRequest)
+		c.Logger().Errorf("failed to bind: %v", err)
+		return echo.NewHTTPError(http.StatusBadRequest)
 	}
 	if !(0 <= state.TargetPort && state.TargetPort < 0x1000) {
-		return c.NoContent(http.StatusBadRequest)
+		c.Logger().Errorf("bad port: %v", state.TargetPort)
+		return echo.NewHTTPError(http.StatusBadRequest)
 	}
 	if _, ok := validIsu[state.IsuUUID]; !ok {
-		return c.NoContent(http.StatusNotFound)
+		c.Logger().Errorf("bad isu_uuid: %v", state.IsuUUID)
+		return echo.NewHTTPError(http.StatusNotFound)
 	}
 
 	err = state.stopPosting()
 	if err != nil {
-		return c.NoContent(http.StatusInternalServerError)
+		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 
 	return c.NoContent(http.StatusNoContent)
