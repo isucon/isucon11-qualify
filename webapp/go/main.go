@@ -457,7 +457,7 @@ func getIsu(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusNotFound, "isu not found")
 	}
 	if err != nil {
-		c.Logger().Errorf(err.Error())
+		c.Logger().Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
 	}
 
