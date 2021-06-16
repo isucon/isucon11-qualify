@@ -745,7 +745,7 @@ func postIsuCondition(c echo.Context) error {
 	//  * message
 	//	* timestamp（秒まで）
 
-	jiaIsuUUID := c.Param("isu_uuid")
+	jiaIsuUUID := c.Param("jia_isu_uuid")
 	var request NotificationRequest
 	err := c.Bind(&request)
 	if jiaIsuUUID == "" || err != nil {
