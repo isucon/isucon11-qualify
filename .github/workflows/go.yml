@@ -5,11 +5,15 @@ on:
     paths:
       - bench/**/*
       - webapp/go/**/*
+      - development/**/*
+      - .github/workflows/go.yml
   pull_request:
     branches: [ main ]
     paths:
       - bench/**/*
       - webapp/go/**/*
+      - development/**/*
+      - .github/workflows/go.yml
 
 jobs:
   lint:
