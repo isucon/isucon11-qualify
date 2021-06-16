@@ -234,8 +234,16 @@ func postDeactivate(c echo.Context) error {
 }
 
 func postDie(c echo.Context) error {
-	password := c.FormValue("password")
-	if password == "U,YaCLe9tAnW8EdYphW)Wc/dN)5pPQ/3ue_af4rz" {
+	input := &struct {
+		password string `json:"password"`
+	}{}
+	err := c.Bind(input)
+	if err != nil {
+		c.Logger().Errorf("failed to bind: %v", err)
+		return echo.NewHTTPError(http.StatusBadRequest)
+	}
+
+	if input.password == "U,YaCLe9tAnW8EdYphW)Wc/dN)5pPQ/3ue_af4rz" {
 		os.Exit(0)
 	}
 	return echo.NewHTTPError(http.StatusNotFound, "Not Found")
