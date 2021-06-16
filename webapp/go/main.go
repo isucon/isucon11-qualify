@@ -328,7 +328,7 @@ func getCatalog(c echo.Context) error {
 func getIsuList(c echo.Context) error {
 	jiaUserId, err := getUserIdFromSession(c.Request())
 	if err != nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, "you are not sign in")
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not signed in")
 	}
 
 	limitStr := c.QueryParam("limit")
