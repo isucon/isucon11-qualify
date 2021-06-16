@@ -344,8 +344,8 @@ func getIsuList(c echo.Context) error {
 	if limitStr != "" {
 		err := db.Select(
 			&isuList,
-			"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = FALSE ORDER BY `created_at` LIMIT ?",
-			jiaUserId, limit)
+			"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = ? ORDER BY `created_at` LIMIT ?",
+			jiaUserId, false, limit)
 		if err != nil {
 			c.Logger().Errorf(err.Error())
 			return echo.NewHTTPError(http.StatusInternalServerError, "db error")
@@ -353,8 +353,8 @@ func getIsuList(c echo.Context) error {
 	} else {
 		err := db.Select(
 			&isuList,
-			"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = FALSE ORDER BY `created_at`",
-			jiaUserId)
+			"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = ? ORDER BY `created_at`",
+			jiaUserId, false)
 		if err != nil {
 			c.Logger().Errorf(err.Error())
 			return echo.NewHTTPError(http.StatusInternalServerError, "db error")
