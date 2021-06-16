@@ -23,7 +23,8 @@ const (
 	notificationLimit           = 20
 	notificationTimestampFormat = "2006-01-02 15:04:05 -0700"
 )
-const scorePerCondition = map[string]int64{
+
+var scorePerCondition = map[string]int{
 	"is_dirty":      -1,
 	"is_overweight": -1,
 	"is_broken":     -5,
@@ -50,8 +51,8 @@ type Isu struct {
 type CatalogFromJIA struct {
 	JIACatalogID string `json:"catalog_id"`
 	Name         string `json:"name"`
-	LimitWeight  int64  `json:"limit_weight"`
-	Weight       int64  `json:"weight"`
+	LimitWeight  int    `json:"limit_weight"`
+	Weight       int    `json:"weight"`
 	Size         string `json:"size"`
 	Maker        string `json:"maker"`
 	Features     string `json:"features"`
@@ -60,8 +61,8 @@ type CatalogFromJIA struct {
 type Catalog struct {
 	JIACatalogID string `json:"jia_catalog_id"`
 	Name         string `json:"name"`
-	LimitWeight  int64  `json:"limit_weight"`
-	Weight       int64  `json:"weight"`
+	LimitWeight  int    `json:"limit_weight"`
+	Weight       int    `json:"weight"`
 	Size         string `json:"size"`
 	Maker        string `json:"maker"`
 	Tags         string `json:"tags"`
@@ -78,9 +79,9 @@ type IsuLog struct {
 
 //グラフ表示用  一時間のsummry 詳細
 type GraphData struct {
-	Score   int64            `json:"score"`
-	Sitting int64            `json:"sitting"`
-	Detail  map[string]int64 `json:"detail"`
+	Score   int            `json:"score"`
+	Sitting int            `json:"sitting"`
+	Detail  map[string]int `json:"detail"`
 }
 
 //グラフ表示用  一時間のsummry
@@ -829,11 +830,11 @@ func postIsuCondition(c echo.Context) error {
 		return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), 0, 0, 0, t.Location())
 	}
 	//スコア計算をする関数
-	calculateGraph := func(isuLogCluster []IsuLog) (GraphData, error) {
-		var graph GraphData
+	calculateGraph := func(isuLogCluster []IsuLog) (*GraphData, error) {
+		graph := new(GraphData)
 
 		//sitting
-		sittingCount := 0
+		var sittingCount int = 0
 		for _, log := range isuLogCluster {
 			if log.IsSitting {
 				sittingCount += 1
@@ -842,14 +843,40 @@ func postIsuCondition(c echo.Context) error {
 		graph.Sitting = sittingCount * 100 / len(isuLogCluster)
 
 		//score&detail
+		graph.Score = 100
+		graph.Detail["is_dirty"] = 0
+		graph.Detail["is_overweight"] = 0
+		graph.Detail["is_broken"] = 0
 		for _, log := range isuLogCluster {
-			var data GraphData
-			err := json.Unmarshal([]byte(log.Condition), data)
-			if log.Condition {
-				sittingCount += 1
+			var conditoin IsuCondition
+			err := json.Unmarshal([]byte(log.Condition), conditoin)
+			if err != nil {
+				return nil, err
+			}
+			if conditoin.IsDirty {
+				graph.Score += scorePerCondition["is_dirty"]
+				graph.Detail["is_dirty"] += scorePerCondition["is_dirty"]
+			}
+			if conditoin.IsOverweight {
+				graph.Score += scorePerCondition["is_overweight"]
+				graph.Detail["is_overweight"] += scorePerCondition["is_overweight"]
+			}
+			if conditoin.IsBroken {
+				graph.Score += scorePerCondition["is_broken"]
+				graph.Detail["is_broken"] += scorePerCondition["is_broken"]
 			}
 		}
+		if graph.Detail["is_dirty"] == 0 {
+			delete(graph.Detail, "is_dirty")
+		}
+		if graph.Detail["is_overweight"] == 0 {
+			delete(graph.Detail, "is_overweight")
+		}
+		if graph.Detail["is_broken"] == 0 {
+			delete(graph.Detail, "is_broken")
+		}
 
+		return graph, nil
 	}
 	err = rows.StructScan(&tmpIsuLog)
 	if err != nil {
