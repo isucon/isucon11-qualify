@@ -347,7 +347,7 @@ func getIsuList(c echo.Context) error {
 			"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = ? ORDER BY `created_at` LIMIT ?",
 			jiaUserId, false, limit)
 		if err != nil {
-			c.Logger().Errorf(err.Error())
+			c.Logger().Error(err)
 			return echo.NewHTTPError(http.StatusInternalServerError, "db error")
 		}
 	} else {
@@ -356,7 +356,7 @@ func getIsuList(c echo.Context) error {
 			"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = ? ORDER BY `created_at`",
 			jiaUserId, false)
 		if err != nil {
-			c.Logger().Errorf(err.Error())
+			c.Logger().Error(err)
 			return echo.NewHTTPError(http.StatusInternalServerError, "db error")
 		}
 	}
