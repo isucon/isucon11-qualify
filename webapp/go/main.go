@@ -232,7 +232,7 @@ func postSignout(c echo.Context) error {
 func getMe(c echo.Context) error {
 	userId, err := getUserIdFromSession(c.Request())
 	if err != nil {
-		return echo.NewHTTPError(http.StatusUnauthorized)
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not signed in")
 	}
 
 	response := GetMeResponse{JIAUserId: userId}
