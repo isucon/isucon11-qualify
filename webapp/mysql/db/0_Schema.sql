@@ -5,6 +5,7 @@ DROP TABLE IF EXISTS `graph`;
 DROP TABLE IF EXISTS `isu_log`;
 DROP TABLE IF EXISTS `isu`;
 DROP TABLE IF EXISTS `user`;
+
 CREATE TABLE `isu` (
   `jia_isu_uuid` CHAR(36) PRIMARY KEY,
   `name` VARCHAR(255) NOT NULL,
