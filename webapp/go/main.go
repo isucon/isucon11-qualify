@@ -772,7 +772,7 @@ func postIsuCondition(c echo.Context) error {
 	// トランザクション開始
 	tx, err := db.Beginx()
 	if err != nil {
-		c.Logger().Errorf("failed to begin tx: %v", err)
+		c.Logger().Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to begin tx")
 	}
 	defer tx.Rollback()
@@ -784,7 +784,7 @@ func postIsuCondition(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusNotFound, "isu not found")
 	}
 	if err != nil {
-		c.Logger().Errorf("failed to select : %v", err)
+		c.Logger().Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to select")
 	}
 
@@ -800,7 +800,7 @@ func postIsuCondition(c echo.Context) error {
 		timestamp, jiaIsuUUID,
 	)
 	if err != nil {
-		c.Logger().Errorf("failed to select : %v", err)
+		c.Logger().Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to select")
 	}
 	if count != 0 {
@@ -812,7 +812,7 @@ func postIsuCondition(c echo.Context) error {
 		jiaIsuUUID, timestamp, request.IsSitting, conditionStr, request.Message,
 	)
 	if err != nil {
-		c.Logger().Errorf("failed to insert: %v", err)
+		c.Logger().Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert")
 	}
 
@@ -822,7 +822,7 @@ func postIsuCondition(c echo.Context) error {
 	var tmpIsuLog IsuLog
 	rows, err := tx.Queryx("SELECT * FROM `isu_log` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` ASC", jiaIsuUUID)
 	if err != nil || !rows.Next() {
-		c.Logger().Errorf("failed to select: %v", err)
+		c.Logger().Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to select")
 	}
 	//分以下を切り捨て、一時間単位にする関数
@@ -880,7 +880,7 @@ func postIsuCondition(c echo.Context) error {
 	}
 	err = rows.StructScan(&tmpIsuLog)
 	if err != nil {
-		c.Logger().Errorf("failed to StructScan: %v", err)
+		c.Logger().Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to select")
 	}
 	startTime := truncateAfterHours(tmpIsuLog.Timestamp)
@@ -888,7 +888,7 @@ func postIsuCondition(c echo.Context) error {
 	for rows.Next() {
 		err = rows.StructScan(&tmpIsuLog)
 		if err != nil {
-			c.Logger().Errorf("failed to StructScan: %v", err)
+			c.Logger().Error(err)
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to select")
 		}
 		tmpTime := truncateAfterHours(tmpIsuLog.Timestamp)
@@ -896,7 +896,7 @@ func postIsuCondition(c echo.Context) error {
 			//tmpTimeは次の一時間なので、それ以外を使ってスコア計算
 			data, err := calculateGraph(isuLogCluster)
 			if err != nil {
-				c.Logger().Errorf("failed to calculate graph: %v", err)
+				c.Logger().Error(err)
 				return echo.NewHTTPError(http.StatusInternalServerError, "failed to calculate graph")
 			}
 
@@ -932,7 +932,7 @@ func postIsuCondition(c echo.Context) error {
 	// トランザクション終了
 	err = tx.Commit()
 	if err != nil {
-		c.Logger().Errorf("failed to commit tx: %v", err)
+		c.Logger().Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit tx")
 	}
 
