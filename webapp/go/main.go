@@ -43,8 +43,8 @@ type Isu struct {
 type CatalogFromJIA struct {
 	JIACatalogID string `json:"catalog_id"`
 	Name         string `json:"name"`
-	LimitWeight  int64  `json:"limit_weight"`
-	Weight       int64  `json:"weight"`
+	LimitWeight  int    `json:"limit_weight"`
+	Weight       int    `json:"weight"`
 	Size         string `json:"size"`
 	Maker        string `json:"maker"`
 	Features     string `json:"features"`
@@ -53,8 +53,8 @@ type CatalogFromJIA struct {
 type Catalog struct {
 	JIACatalogID string `json:"jia_catalog_id"`
 	Name         string `json:"name"`
-	LimitWeight  int64  `json:"limit_weight"`
-	Weight       int64  `json:"weight"`
+	LimitWeight  int    `json:"limit_weight"`
+	Weight       int    `json:"weight"`
 	Size         string `json:"size"`
 	Maker        string `json:"maker"`
 	Tags         string `json:"tags"`
@@ -70,9 +70,9 @@ type IsuLog struct {
 
 //グラフ表示用  一時間のsummry 詳細
 type GraphData struct {
-	Score   int64            `json:"score"`
-	Sitting int64            `json:"sitting"`
-	Detail  map[string]int64 `json:"detail"`
+	Score   int            `json:"score"`
+	Sitting int            `json:"sitting"`
+	Detail  map[string]int `json:"detail"`
 }
 
 //グラフ表示用  一時間のsummry
