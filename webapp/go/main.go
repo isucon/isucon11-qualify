@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -17,9 +18,10 @@ import (
 )
 
 const (
-	sessionName       = "isucondition"
-	searchLimit       = 20
-	notificationLimit = 20
+	sessionName                 = "isucondition"
+	searchLimit                 = 20
+	notificationLimit           = 20
+	notificationTimestampFormat = "2006-01-02 15:04:05 -0700"
 )
 
 var (
@@ -107,6 +109,17 @@ type GetMeResponse struct {
 type GraphResponse struct {
 }
 
+type IsuCondition struct {
+	IsDirty      bool `json:"is_dirty"`
+	IsOverweight bool `json:"is_overweight"`
+	IsBroken     bool `json:"is_broken"`
+}
+type NotificationRequest struct {
+	IsSitting bool         `json:"is_sitting"`
+	Condition IsuCondition `json:"condition"`
+	Message   string       `json:"message"`
+	Timestamp string       `json:"timestamp"` //Format("2006-01-02 15:04:05 -0700")
+}
 type NotificationResponse struct {
 }
 
@@ -730,26 +743,68 @@ func postIsuCondition(c echo.Context) error {
 	//    }
 	//  * message
 	//	* timestamp（秒まで）
-	// invalid ならば 400
 
-	//  memo (実装しないやつ)
-	// 	* condition: {
-	//      sitting: {message: "hoge"},
-	//      dirty:   {message: "ほこりがたまってる"},
-	//      over_weight:  {message: "右足が辛い"}
-	//    }
+	jiaIsuUUID := c.Param("isu_uuid")
+	var request NotificationRequest
+	err := c.Bind(&request)
+	if jiaIsuUUID == "" || err != nil {
+		// invalid ならば 400
+		return echo.NewHTTPError(http.StatusBadRequest)
+	}
+
+	//Parse
+	timestamp, err := time.Parse(notificationTimestampFormat, request.Timestamp)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest)
+	}
+	conditionStr, err := json.Marshal(request.Condition)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest)
+	}
 
 	// トランザクション開始
+	committed := false
+	tx, err := db.Beginx()
+	if err != nil {
+		c.Logger().Errorf("failed to begin tx: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	defer func() {
+		if !committed {
+			tx.Rollback()
+		}
+	}()
 
-	// DBから jia_isu_uuid が存在するかを確認
-	// 		SELECT id from isu where id = `jia_isu_uuid` and is_deleted=false
-	// 存在しない場合 404 を返す
+	// jia_isu_uuid が存在するかを確認
+	count := 0
+	err = tx.Get(&count, "SELECT count(*) FROM `isu` WHERE `jia_isu_uuid` = ?  and `is_deleted`=false", jiaIsuUUID)
+	if count == 0 {
+		return echo.NewHTTPError(http.StatusNotFound)
+	}
+	if err != nil {
+		c.Logger().Errorf("failed : %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
 
 	//  memo → getNotifications にて実装
 	// conditionをもとにlevelを計算する（info, warning, critical)
 	// info 悪いコンディション数が0
 	// warning 悪いコンディション数がN個以上
 	// critical 悪いコンディション数がM個以上
+
+	//isu_logに記録
+	_, err = tx.Exec("INSERT INTO `isu_log`"+
+		"	(`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`) VALUES (?, ?, ?, ?, ?)",
+		jiaIsuUUID, timestamp, request.IsSitting, conditionStr, request.Message,
+	)
+	if err != nil {
+		if err != sql.ErrConflict {
+			return echo.NewHTTPError(http.StatusBadRequest)
+		} else {
+			c.Logger().Errorf("failed : %v", err)
+			return echo.NewHTTPError(http.StatusInternalServerError)
+		}
+	}
 
 	// 受け取った値をDBにINSERT  // conditionはtextカラム（初期実装）
 	// 		INSERT INTO isu_log VALUES(jia_isu_uuid, message, timestamp, conditions );
@@ -783,6 +838,12 @@ func postIsuCondition(c echo.Context) error {
 	//^^^^^^^^^^^^^^^ memoここまで ^^^^^^^^^^^
 
 	// トランザクション終了
+	err = tx.Commit()
+	if err != nil {
+		c.Logger().Errorf("failed to commit tx: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	committed = true
 
 	// response 201
 	return fmt.Errorf("not implemented")
