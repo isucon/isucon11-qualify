@@ -1,7 +1,7 @@
 FROM golang:1.16.5-alpine3.13
 
 WORKDIR /webapp/mysql/db
-COPY webapp/mysql/db/0_Schema.sql .
+COPY webapp/mysql/db/ .
 
 WORKDIR /webapp/go
 
