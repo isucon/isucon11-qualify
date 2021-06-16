@@ -25,6 +25,8 @@ var (
 	db                  *sqlx.DB
 	sessionStore        sessions.Store
 	mySQLConnectionData *MySQLConnectionEnv
+
+	ErrUnauthorized     = echo.NewHTTPError(http.StatusUnauthorized)
 )
 
 type User struct {
