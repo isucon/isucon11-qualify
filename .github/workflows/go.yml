@@ -27,8 +27,8 @@ jobs:
           version: latest
           working-directory: ./webapp/go
           # 各エンドポイント実装完了 (step3) までは一部linterを無効化
-          #args: "--timeout 3m0s"
-          args: "--timeout 3m0s -D deadcode -D unused -D varcheck"
+          #args: "--timeout 3m0s -D errcheck"
+          args: "--timeout 3m0s -D errcheck -D deadcode -D unused -D varcheck"
   test:
     name: Integration Test
     runs-on: ubuntu-latest
