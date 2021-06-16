@@ -25,8 +25,6 @@ var (
 	db                  *sqlx.DB
 	sessionStore        sessions.Store
 	mySQLConnectionData *MySQLConnectionEnv
-
-	ErrUnauthorized     = echo.NewHTTPError(http.StatusUnauthorized)
 )
 
 type User struct {
@@ -234,7 +232,7 @@ func postSignout(c echo.Context) error {
 func getMe(c echo.Context) error {
 	userId, err := getUserIdFromSession(c.Request())
 	if err != nil {
-		return ErrUnauthorized
+		return echo.NewHTTPError(http.StatusUnauthorized)
 	}
 
 	response := GetMeResponse{JIAUserId: userId}
