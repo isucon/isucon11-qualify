@@ -296,10 +296,10 @@ func postAuthentication(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	c.SetCookie(&http.Cookie{
-		Name:  "jia_user_id",
-		Value: jiaUserId,
-	})
+	session := getSession(c.Request())
+	session.Values["jia_user_id"] = jiaUserId
+	session.Save(c.Request(), c.Response())
+
 	return c.NoContent(http.StatusOK)
 }
 
