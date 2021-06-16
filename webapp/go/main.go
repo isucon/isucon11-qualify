@@ -70,9 +70,9 @@ type IsuLog struct {
 
 //グラフ表示用  一時間のsummry 詳細
 type GraphData struct {
-	Score   int32            `json:"score"`
-	Sitting int32            `json:"sitting"`
-	Detail  map[string]int32 `json:"detail"`
+	Score   int64            `json:"score"`
+	Sitting int64            `json:"sitting"`
+	Detail  map[string]int64 `json:"detail"`
 }
 
 //グラフ表示用  一時間のsummry
