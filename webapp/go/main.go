@@ -86,7 +86,6 @@ type Graph struct {
 
 type User struct {
 	JIAUserID string    `db:"jia_user_id"`
-	Name      string    `db:"name"`
 	CreatedAt time.Time `db:"created_at"`
 }
 
