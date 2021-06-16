@@ -749,24 +749,24 @@ func postIsuCondition(c echo.Context) error {
 	err := c.Bind(&request)
 	if jiaIsuUUID == "" || err != nil {
 		// invalid ならば 400
-		return echo.NewHTTPError(http.StatusBadRequest)
+		return echo.NewHTTPError(http.StatusBadRequest, "bad request")
 	}
 
 	//Parse
 	timestamp, err := time.Parse(notificationTimestampFormat, request.Timestamp)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest)
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid timestamp")
 	}
 	conditionStr, err := json.Marshal(request.Condition)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest)
+		return echo.NewHTTPError(http.StatusBadRequest, "condition has bad format")
 	}
 
 	// トランザクション開始
 	tx, err := db.Beginx()
 	if err != nil {
 		c.Logger().Errorf("failed to begin tx: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to begin tx")
 	}
 	defer tx.Rollback()
 
@@ -774,11 +774,11 @@ func postIsuCondition(c echo.Context) error {
 	count := 0
 	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_isu_uuid` = ?  and `is_deleted`=false", jiaIsuUUID)
 	if count == 0 {
-		return echo.NewHTTPError(http.StatusNotFound)
+		return echo.NewHTTPError(http.StatusNotFound, "isu not found")
 	}
 	if err != nil {
-		c.Logger().Errorf("failed : %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		c.Logger().Errorf("failed to select : %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to select")
 	}
 
 	//  memo → getNotifications にて実装
@@ -793,11 +793,11 @@ func postIsuCondition(c echo.Context) error {
 		timestamp, jiaIsuUUID,
 	)
 	if err != nil {
-		c.Logger().Errorf("failed : %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		c.Logger().Errorf("failed to select : %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to select")
 	}
 	if count != 0 {
-		return echo.NewHTTPError(http.StatusConflict)
+		return echo.NewHTTPError(http.StatusConflict, "isu_log already exist")
 	}
 	//insert
 	_, err = tx.Exec("INSERT INTO `isu_log`"+
@@ -805,8 +805,8 @@ func postIsuCondition(c echo.Context) error {
 		jiaIsuUUID, timestamp, request.IsSitting, conditionStr, request.Message,
 	)
 	if err != nil {
-		c.Logger().Errorf("failed : %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		c.Logger().Errorf("failed to insert: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert")
 	}
 
 	// getGraph用のデータを計算
@@ -841,7 +841,7 @@ func postIsuCondition(c echo.Context) error {
 	err = tx.Commit()
 	if err != nil {
 		c.Logger().Errorf("failed to commit tx: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit tx")
 	}
 
 	// response 201
