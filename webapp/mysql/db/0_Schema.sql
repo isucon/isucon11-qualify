@@ -1,6 +1,10 @@
 -- TODO: 各カラムの varchar の大きさを調整する (#51)
 
+DROP TABLE IF EXISTS `isu_association_config`;
+DROP TABLE IF EXISTS `graph`;
+DROP TABLE IF EXISTS `isu_log`;
 DROP TABLE IF EXISTS `isu`;
+DROP TABLE IF EXISTS `user`;
 CREATE TABLE `isu` (
   `jia_isu_uuid` CHAR(36) PRIMARY KEY,
   `name` VARCHAR(255) NOT NULL,
@@ -13,7 +17,6 @@ CREATE TABLE `isu` (
   `updated_at` DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
 
-DROP TABLE IF EXISTS `isu_log`;
 CREATE TABLE `isu_log` (
   `jia_isu_uuid` CHAR(36),
   `timestamp` DATETIME,
@@ -24,7 +27,6 @@ CREATE TABLE `isu_log` (
   PRIMARY KEY(`jia_isu_uuid`,`timestamp`)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
 
-DROP TABLE IF EXISTS `graph`;
 CREATE TABLE `graph` (
   `jia_isu_uuid` CHAR(36),
   `start_at` DATETIME,
@@ -34,13 +36,11 @@ CREATE TABLE `graph` (
   PRIMARY KEY(`jia_isu_uuid`,`start_at`)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
 
-DROP TABLE IF EXISTS `user`;
 CREATE TABLE `user` (
   `jia_user_id` VARCHAR(255) PRIMARY KEY,
   `created_at` DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
 
-DROP TABLE IF EXISTS `isu_association_config`;
 CREATE TABLE `isu_association_config` (
   `name` VARCHAR(255) PRIMARY KEY,
   `url` VARCHAR(255) NOT NULL UNIQUE
