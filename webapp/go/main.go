@@ -844,6 +844,7 @@ func postIsuCondition(c echo.Context) error {
 
 		//score&detail
 		graph.Score = 100
+		graph.Detail = map[string]int{}
 		graph.Detail["is_dirty"] = 0
 		graph.Detail["is_overweight"] = 0
 		graph.Detail["is_broken"] = 0
