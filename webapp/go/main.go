@@ -23,6 +23,11 @@ const (
 	notificationLimit           = 20
 	notificationTimestampFormat = "2006-01-02 15:04:05 -0700"
 )
+const scorePerCondition = map[string]int64{
+	"is_dirty":      -1,
+	"is_overweight": -1,
+	"is_broken":     -5,
+}
 
 var (
 	db                  *sqlx.DB
@@ -65,6 +70,7 @@ type Catalog struct {
 type IsuLog struct {
 	JIAIsuUUID string    `db:"jia_isu_uuid" json:"jia_isu_uuid"`
 	Timestamp  time.Time `db:"timestamp" json:"timestamp"`
+	IsSitting  bool      `db:"is_sitting" json:"is_sitting"`
 	Condition  string    `db:"condition" json:"condition"`
 	Message    string    `db:"message" json:"message"`
 	CreatedAt  time.Time `db:"created_at" json:"-"`
@@ -789,7 +795,7 @@ func postIsuCondition(c echo.Context) error {
 
 	//isu_logに記録
 	//confilct確認
-	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu_log` WHERE (`timestamp`, `jia_isu_uuid`) = (?, ?)",
+	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu_log` WHERE (`timestamp`, `jia_isu_uuid`) = (?, ?)  FOR UPDATE",
 		timestamp, jiaIsuUUID,
 	)
 	if err != nil {
@@ -810,10 +816,69 @@ func postIsuCondition(c echo.Context) error {
 	}
 
 	// getGraph用のデータを計算
+	// IsuLogを一時間ごとの区切りに分け、区切りごとにスコアを計算する
+	var isuLogCluster []IsuLog // 一時間ごとの纏まり
+	var tmpIsuLog IsuLog
+	rows, err := tx.Queryx("SELECT * FROM `isu_log` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` ASC", jiaIsuUUID)
+	if err != nil || !rows.Next() {
+		c.Logger().Errorf("failed to select: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to select")
+	}
+	//分以下を切り捨て、一時間単位にする関数
+	truncateAfterHours := func(t time.Time) time.Time {
+		return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), 0, 0, 0, t.Location())
+	}
+	//スコア計算をする関数
+	calculateGraph := func(isuLogCluster []IsuLog) (GraphData, error) {
+		var graph GraphData
 
-	// 初期実装では該当するisu_idのものを全レンジ再計算
-	// SELECT * from isu_log where jia_isu_uuid = `jia_isu_uuid`;
-	// ↑ and timestamp-1h<timestamp and timestamp < timestamp+1hをつけることも検討
+		//sitting
+		sittingCount := 0
+		for _, log := range isuLogCluster {
+			if log.IsSitting {
+				sittingCount += 1
+			}
+		}
+		graph.Sitting = sittingCount * 100 / len(isuLogCluster)
+
+		//score&detail
+		for _, log := range isuLogCluster {
+			var data GraphData
+			err := json.Unmarshal([]byte(log.Condition), data)
+			if log.Condition {
+				sittingCount += 1
+			}
+		}
+
+	}
+	err = rows.StructScan(&tmpIsuLog)
+	if err != nil {
+		c.Logger().Errorf("failed to StructScan: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to select")
+	}
+	startTime := truncateAfterHours(tmpIsuLog.Timestamp)
+	isuLogCluster = []IsuLog{tmpIsuLog}
+	for rows.Next() {
+		err = rows.StructScan(&tmpIsuLog)
+		if err != nil {
+			c.Logger().Errorf("failed to StructScan: %v", err)
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to select")
+		}
+		tmpTime := truncateAfterHours(tmpIsuLog.Timestamp)
+		if startTime != tmpTime {
+			//tmpTimeは次の一時間なので、それ以外を使ってスコア計算
+			data, err := calculateGraph(isuLogCluster)
+			if err != nil {
+				c.Logger().Errorf("failed to calculate graph: %v", err)
+				return echo.NewHTTPError(http.StatusInternalServerError, "failed to calculate graph")
+			}
+
+			startTime = tmpTime
+			isuLogCluster = isuLogCluster[:0]
+		}
+		isuLogCluster = append(isuLogCluster, tmpIsuLog)
+	}
+
 	// isu_logを一時間ごとに区切るfor {
 	//  if (区切り) {
 	//    sumを取って減点を生成(ただし0以上にする)
