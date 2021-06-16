@@ -325,8 +325,6 @@ func getCatalog(c echo.Context) error {
 	return fmt.Errorf("not implemented")
 }
 
-//  GET /api/isu?limit=5
-// 自分の ISU 一覧を取得
 func getIsuList(c echo.Context) error {
 	jiaUserId, err := getUserIdFromSession(c.Request())
 	if err != nil {
