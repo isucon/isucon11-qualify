@@ -55,6 +55,7 @@ type InitializeResponse struct {
 }
 
 type GetMeResponse struct {
+	JIAUserId string `json:"jia_user_id"`
 }
 
 type GraphResponse struct {
