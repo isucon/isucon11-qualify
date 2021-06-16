@@ -65,7 +65,7 @@ type IsuLog struct {
 	Timestamp  time.Time `db:"timestamp" json:"timestamp"`
 	Condition  string    `db:"condition" json:"condition"`
 	Message    string    `db:"message" json:"message"`
-	CreatedAt  time.Time `db:"created_at" json:"-"`
+	CreatedAt  time.Time `db:"created_at" json:"created_at"`
 }
 
 //グラフ表示用  一時間のsummry 詳細
