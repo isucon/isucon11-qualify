@@ -1,6 +1,8 @@
 package main
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -440,28 +442,25 @@ func getIsuSearch(c echo.Context) error {
 //  GET /api/isu/{jia_isu_uuid}
 // 椅子の情報を取得する
 func getIsu(c echo.Context) error {
-	// * session
-	// session が存在しなければ 401
+	jiaUserID, err := getUserIdFromSession(c.Request())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not sign in")
+	}
 
-	// input
-	//		* jia_isu_uuid: 椅子固有のID
+	jiaIsuUUID := c.Param("jia_isu_uuid")
 
-	// SELECT (*) FROM isu WHERE jia_user_id = `jia_user_id` and jia_isu_uuid = `jia_isu_uuid` and is_deleted=false;
-	// 見つからなければ404
-	// user_idがリクエストユーザーのものでなければ404
-	// 画像までSQLで取ってくるボトルネック
-	// imageも最初はとってるけどレスポンスに含まれてないからselect時に持ってくる必要ない
 	// MEMO: jia_user_id 判別はクエリに入れずその後のロジックとする？ (一通り完成した後に要考慮)
+	var isu Isu
+	err = db.Get(&isu, "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?", jiaUserID, jiaIsuUUID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return echo.NewHTTPError(http.StatusNotFound, "isu not found")
+	}
+	if err != nil {
+		c.Logger().Errorf(err.Error())
+		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+	}
 
-	// response  200
-	//{
-	// * id
-	// * name
-	// * jia_catalog_id
-	// * charactor
-	//}
-
-	return fmt.Errorf("not implemented")
+	return c.JSON(http.StatusOK, isu)
 }
 
 //  PUT /api/isu/{jia_isu_uuid}
