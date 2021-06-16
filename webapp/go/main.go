@@ -449,7 +449,7 @@ func getIsu(c echo.Context) error {
 
 	jiaIsuUUID := c.Param("jia_isu_uuid")
 
-	// MEMO: jia_user_id 判別はクエリに入れずその後のロジックとする？ (一通り完成した後に要考慮)
+	// TODO: jia_user_id 判別はクエリに入れずその後のロジックとする？ (一通り完成した後に要考慮)
 	var isu Isu
 	err = db.Get(&isu, "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?", jiaUserID, jiaIsuUUID)
 	if errors.Is(err, sql.ErrNoRows) {
