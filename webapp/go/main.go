@@ -732,12 +732,6 @@ func getIsuNotifications(c echo.Context) error {
 
 // POST /api/isu/{jia_isu_uuid}/condition
 // ISUからのセンサデータを受け取る
-// MEMO: 初期実装では認証をしない（isu_id 知ってるなら大丈夫だろ〜）
-// MEMO: Day2 ISU協会からJWT発行や秘密鍵公開鍵ペアでDBに公開鍵を入れる？
-// MEMO: ログが一件増えるくらいはどっちでもいいのでミスリーディングにならないようトランザクションはとらない方針
-// MEMO: 1970/1/1みたいな時を超えた古代からのリクエストがきた場合に、ここの時点で弾いてしまうのか、受け入れるか → 受け入れる (ただし jia_isu_uuid と timpestamp の primary 制約に違反するリクエストが来たら 409 を返す)
-// MEMO: DB Schema における conditions の型は取り敢えず string で、困ったら考える
-//     (conditionカラム: is_dirty=true,is_overweight=false)
 func postIsuCondition(c echo.Context) error {
 	// input (path_param)
 	//	* jia_isu_uuid
@@ -787,12 +781,6 @@ func postIsuCondition(c echo.Context) error {
 		c.Logger().Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to select")
 	}
-
-	//  memo → getNotifications にて実装
-	// conditionをもとにlevelを計算する（info, warning, critical)
-	// info 悪いコンディション数が0
-	// warning 悪いコンディション数がN個以上
-	// critical 悪いコンディション数がM個以上
 
 	//isu_logに記録
 	//confilct確認
@@ -900,6 +888,7 @@ func postIsuCondition(c echo.Context) error {
 		}
 		return nil
 	}
+	//一時間ごとに区切る
 	err = rows.StructScan(&tmpIsuLog)
 	if err != nil {
 		c.Logger().Error(err)
@@ -922,6 +911,7 @@ func postIsuCondition(c echo.Context) error {
 				return echo.NewHTTPError(http.StatusInternalServerError, "failed to save graph")
 			}
 
+			//次の一時間の探索
 			startTime = tmpTime
 			isuLogCluster = isuLogCluster[:0]
 		}
@@ -934,29 +924,6 @@ func postIsuCondition(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to save graph")
 	}
 
-	// isu_logを一時間ごとに区切るfor {
-	//  if (区切り) {
-	//    sumを取って減点を生成(ただし0以上にする)
-	//    割合からsittingを生成
-	//    ここもう少し重くしたい
-	// https://dev.mysql.com/doc/refman/5.6/ja/insert-on-duplicate.html
-	// dataはJSON型
-	//    INSERT INTO graph VALUES(jia_isu_uuid, time_start, time_end, data) ON DUPLICATE KEY UPDATE;
-	// data: {
-	//   score: 70,//>=0
-	//   sitting: 50 (%),
-	//   detail: {
-	//     dirty: -10,
-	//     over_weight: -20
-	//   }
-	// }
-	//vvvvvvvvvv memoここから vvvvvvvvvv
-	// 一時間ごとに集積した着席時間
-	//   condition における総件数からの、座っている/いないによる割合
-	// conditionを何件か集めて、ISUにとっての快適度数みたいな値を算出する
-	//   減点方式 conditionの種類ごとの点数*件数
-	//^^^^^^^^^^^^^^^ memoここまで ^^^^^^^^^^^
-
 	// トランザクション終了
 	err = tx.Commit()
 	if err != nil {
@@ -964,6 +931,5 @@ func postIsuCondition(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit tx")
 	}
 
-	// response 201
 	return c.NoContent(http.StatusCreated)
 }
