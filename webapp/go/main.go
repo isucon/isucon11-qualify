@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/sessions"
@@ -27,19 +28,65 @@ var (
 	mySQLConnectionData *MySQLConnectionEnv
 )
 
-type User struct {
+type Isu struct {
+	JIAIsuUUID   string    `db:"jia_isu_uuid" json:"jia_isu_uuid"`
+	Name         string    `db:"name" json:"name"`
+	Image        []byte    `db:"image" json:"-"`
+	JIACatalogID string    `db:"jia_catalog_id" json:"jia_catalog_id"`
+	Character    string    `db:"character" json:"character"`
+	JIAUserID    string    `db:"jia_user_id" json:"-"`
+	IsDeleted    bool      `db:"is_deleted" json:"-"`
+	CreatedAt    time.Time `db:"created_at" json:"-"`
+	UpdatedAt    time.Time `db:"updated_at" json:"-"`
 }
 
-type Isu struct {
+type CatalogFromJIA struct {
+	JIACatalogID string `json:"catalog_id"`
+	Name         string `json:"name"`
+	LimitWeight  int64  `json:"limit_weight"`
+	Weight       int64  `json:"weight"`
+	Size         string `json:"size"`
+	Maker        string `json:"maker"`
+	Features     string `json:"features"`
 }
 
 type Catalog struct {
+	JIACatalogID string `json:"jia_catalog_id"`
+	Name         string `json:"name"`
+	LimitWeight  int64  `json:"limit_weight"`
+	Weight       int64  `json:"weight"`
+	Size         string `json:"size"`
+	Maker        string `json:"maker"`
+	Tags         string `json:"tags"`
 }
 
 type IsuLog struct {
+	JIAIsuUUID string    `db:"jia_isu_uuid" json:"jia_isu_uuid"`
+	Timestamp  time.Time `db:"timestamp" json:"timestamp"`
+	Condition  string    `db:"condition" json:"condition"`
+	Message    string    `db:"message" json:"message"`
+	CreatedAt  time.Time `db:"created_at" json:"created_at"`
 }
 
+//グラフ表示用  一時間のsummry 詳細
+type GraphData struct {
+	Score   int64            `json:"score"`
+	Sitting int64            `json:"sitting"`
+	Detail  map[string]int64 `json:"detail"`
+}
+
+//グラフ表示用  一時間のsummry
 type Graph struct {
+	JIAIsuUUID string    `db:"jia_isu_uuid"`
+	StartAt    time.Time `db:"start_at"`
+	Data       string    `db:"data"`
+	CreatedAt  time.Time `db:"created_at"`
+	UpdatedAt  time.Time `db:"updated_at"`
+}
+
+type User struct {
+	JIAUserID string    `db:"jia_user_id"`
+	CreatedAt time.Time `db:"created_at"`
 }
 
 type MySQLConnectionEnv struct {
@@ -83,7 +130,7 @@ func NewMySQLConnectionEnv() *MySQLConnectionEnv {
 
 //ConnectDB データベースに接続する
 func (mc *MySQLConnectionEnv) ConnectDB() (*sqlx.DB, error) {
-	dsn := fmt.Sprintf("%v:%v@tcp(%v:%v)/%v", mc.User, mc.Password, mc.Host, mc.Port, mc.DBName)
+	dsn := fmt.Sprintf("%v:%v@tcp(%v:%v)/%v?parseTime=true&loc=Local", mc.User, mc.Password, mc.Host, mc.Port, mc.DBName)
 	return sqlx.Open("mysql", dsn)
 }
 
