@@ -1,9 +1,11 @@
 package main
 
 import (
+	"crypto/ecdsa"
 	"database/sql"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -21,15 +23,18 @@ import (
 )
 
 const (
-	sessionName       = "isucondition"
-	searchLimit       = 20
-	notificationLimit = 20
+	sessionName            = "isucondition"
+	searchLimit            = 20
+	notificationLimit      = 20
+	jwtVerificationKeyPath = "../ec256-public.pem"
 )
 
 var (
 	db                  *sqlx.DB
 	sessionStore        sessions.Store
 	mySQLConnectionData *MySQLConnectionEnv
+
+	jwtVerificationKey *ecdsa.PublicKey
 )
 
 type Isu struct {
@@ -139,7 +144,18 @@ func (mc *MySQLConnectionEnv) ConnectDB() (*sqlx.DB, error) {
 }
 
 func init() {
+	var err error
+
 	sessionStore = sessions.NewCookieStore([]byte(getEnv("SESSION_KEY", "isucondition")))
+
+	key, err := ioutil.ReadFile(jwtVerificationKeyPath)
+	if err != nil {
+		log.Fatalf("Unable to read file: %v", err)
+	}
+	jwtVerificationKey, err = jwt.ParseECPublicKeyFromPEM(key)
+	if err != nil {
+		log.Fatalf("Unable to parse ECDSA public key: %v", err)
+	}
 }
 
 func main() {
@@ -232,20 +248,16 @@ func postInitialize(c echo.Context) error {
 	})
 }
 
-var (
-	jwtSecretKey = "hogefugapiyo"
-)
-
 //  POST /api/auth
 func postAuthentication(c echo.Context) error {
 	reqJwt := strings.TrimPrefix(c.Request().Header.Get("Authorization"), "Bearer ")
 
 	// verify JWT
 	token, err := jwt.Parse(reqJwt, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+		if _, ok := token.Method.(*jwt.SigningMethodECDSA); !ok {
 			return nil, jwt.NewValidationError(fmt.Sprintf("Unexpected signing method: %v", token.Header["alg"]), jwt.ValidationErrorSignatureInvalid)
 		}
-		return []byte(jwtSecretKey), nil
+		return jwtVerificationKey, nil
 	})
 	if err != nil {
 		return c.String(http.StatusForbidden, "forbidden")
