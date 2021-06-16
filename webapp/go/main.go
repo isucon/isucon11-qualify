@@ -8,8 +8,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
+	"github.com/dgrijalva/jwt-go"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/sessions"
 	"github.com/jmoiron/sqlx"
@@ -230,32 +232,63 @@ func postInitialize(c echo.Context) error {
 	})
 }
 
+var (
+	jwtSecretKey = "hogefugapiyo"
+)
+
 //  POST /api/auth
 func postAuthentication(c echo.Context) error {
-	// ユーザからの入力
-	// * jwt
+	reqJwt := strings.TrimPrefix(c.Request().Header.Get("Authorization"), "Bearer ")
 
-	// jwt の verify
-	// NG だったら resp 400(Bad Request) or 403(期限切れとか)
+	// verify JWT
+	token, err := jwt.Parse(reqJwt, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, jwt.NewValidationError(fmt.Sprintf("Unexpected signing method: %v", token.Header["alg"]), jwt.ValidationErrorSignatureInvalid)
+		}
+		return []byte(jwtSecretKey), nil
+	})
+	if err != nil {
+		return c.String(http.StatusForbidden, "forbidden")
+	}
 
-	// jwt から username を取得
-	//なかったら 400
+	// get jia_user_id from JWT Payload
+	claims := token.Claims.(jwt.MapClaims)
+	jiaUserId, ok := claims["jia_user_id"].(string)
+	if !ok {
+		return c.String(http.StatusBadRequest, "invalid JWT payload")
+	}
 
-	// トランザクション開始
+	if err := func() error {
+		tx, err := db.Beginx()
+		if err != nil {
+			return fmt.Errorf("failed to begin tx: %v", err)
+		}
+		defer tx.Rollback()
 
-	// DB にて存在確認
-	// SELECT COUNT(*) FROM users WHERE username = `username`;
+		var userNum int
+		if err := tx.QueryRow("SELECT COUNT(*) FROM user WHERE `jia_user_id` = ? FOR UPDATE", jiaUserId).Scan(&userNum); err != nil {
+			return fmt.Errorf("select user: %w", err)
+		} else if userNum == 1 {
+			// user already signup. only return cookie
+			return nil
+		}
+		if _, err := tx.Exec("INSERT INTO user (`jia_user_id`) VALUES (?)", jiaUserId); err != nil {
+			return fmt.Errorf("insert user: %w", err)
+		}
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("commit tx: %w", err)
+		}
+		return nil
+	}(); err != nil {
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
 
-	// もし見つからなかったら
-	// INSERT INTO users(username) VALUES(`username`); //uniqueなのでtx無しでこれだけでもOK(ダミーの改善点)
-	// すでに存在するユーザー名なら409 ← 上で存在確認してるけど、このレベルのハンドリングつける？
-	// 失敗したら500
-
-	// トランザクション終了
-
-	// Cookieを付与
-	// 見つかったら 200
-	return fmt.Errorf("not implemented")
+	c.SetCookie(&http.Cookie{
+		Name:  "jia_user_id",
+		Value: jiaUserId,
+	})
+	return c.NoContent(http.StatusOK)
 }
 
 //  POST /api/signout
