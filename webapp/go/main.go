@@ -73,14 +73,14 @@ type IsuLog struct {
 	IsSitting  bool      `db:"is_sitting" json:"is_sitting"`
 	Condition  string    `db:"condition" json:"condition"`
 	Message    string    `db:"message" json:"message"`
-	CreatedAt  time.Time `db:"created_at" json:"-"`
+	CreatedAt  time.Time `db:"created_at" json:"created_at"`
 }
 
 //グラフ表示用  一時間のsummry 詳細
 type GraphData struct {
-	Score   int32            `json:"score"`
-	Sitting int32            `json:"sitting"`
-	Detail  map[string]int32 `json:"detail"`
+	Score   int64            `json:"score"`
+	Sitting int64            `json:"sitting"`
+	Detail  map[string]int64 `json:"detail"`
 }
 
 //グラフ表示用  一時間のsummry
