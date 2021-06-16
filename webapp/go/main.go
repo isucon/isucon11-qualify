@@ -763,21 +763,16 @@ func postIsuCondition(c echo.Context) error {
 	}
 
 	// トランザクション開始
-	committed := false
 	tx, err := db.Beginx()
 	if err != nil {
 		c.Logger().Errorf("failed to begin tx: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
-	defer func() {
-		if !committed {
-			tx.Rollback()
-		}
-	}()
+	defer tx.Rollback()
 
 	// jia_isu_uuid が存在するかを確認
 	count := 0
-	err = tx.Get(&count, "SELECT count(*) FROM `isu` WHERE `jia_isu_uuid` = ?  and `is_deleted`=false", jiaIsuUUID)
+	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_isu_uuid` = ?  and `is_deleted`=false", jiaIsuUUID)
 	if count == 0 {
 		return echo.NewHTTPError(http.StatusNotFound)
 	}
@@ -793,24 +788,29 @@ func postIsuCondition(c echo.Context) error {
 	// critical 悪いコンディション数がM個以上
 
 	//isu_logに記録
+	//confilct確認
+	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu_log` WHERE (`timestamp`, `jia_isu_uuid`) = (?, ?)",
+		timestamp, jiaIsuUUID,
+	)
+	if err != nil {
+		c.Logger().Errorf("failed : %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	if count != 0 {
+		return echo.NewHTTPError(http.StatusConflict)
+	}
+	//insert
 	_, err = tx.Exec("INSERT INTO `isu_log`"+
 		"	(`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`) VALUES (?, ?, ?, ?, ?)",
 		jiaIsuUUID, timestamp, request.IsSitting, conditionStr, request.Message,
 	)
 	if err != nil {
-		if err != sql.ErrConflict {
-			return echo.NewHTTPError(http.StatusBadRequest)
-		} else {
-			c.Logger().Errorf("failed : %v", err)
-			return echo.NewHTTPError(http.StatusInternalServerError)
-		}
+		c.Logger().Errorf("failed : %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 
-	// 受け取った値をDBにINSERT  // conditionはtextカラム（初期実装）
-	// 		INSERT INTO isu_log VALUES(jia_isu_uuid, message, timestamp, conditions );
-	// もし primary 制約により insert が失敗したら 409
-
 	// getGraph用のデータを計算
+
 	// 初期実装では該当するisu_idのものを全レンジ再計算
 	// SELECT * from isu_log where jia_isu_uuid = `jia_isu_uuid`;
 	// ↑ and timestamp-1h<timestamp and timestamp < timestamp+1hをつけることも検討
@@ -843,8 +843,7 @@ func postIsuCondition(c echo.Context) error {
 		c.Logger().Errorf("failed to commit tx: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
-	committed = true
 
 	// response 201
-	return fmt.Errorf("not implemented")
+	return c.NoContent(http.StatusCreated)
 }
