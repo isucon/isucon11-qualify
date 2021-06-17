@@ -508,29 +508,44 @@ func putIsu(c echo.Context) error {
 //  DELETE /api/isu/{jia_isu_uuid}
 // 所有しているISUを削除する
 func deleteIsu(c echo.Context) error {
-	// * session
-	// session が存在しなければ 401
+	jiaUserID, err := getUserIdFromSession(c.Request())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not signed in")
+	}
 
-	// input
-	// 		* jia_isu_uuid: 椅子の固有ID
+	jiaIsuUUID := c.Param("jia_isu_uuid")
 
-	// トランザクション開始
+	tx, err := db.Beginx()
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+	}
+	defer tx.Rollback()
 
-	// DBから当該のISUが存在するか検索
-	// SELECT (*) FROM isu WHERE jia_user_id = `jia_user_id` and jia_isu_uuid = `jia_isu_uuid` and is_deleted=false;
-	// 存在しない場合 404 を返す
+	var count int
+	err = tx.Get(
+		&count,
+		"SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
+		jiaUserID, jiaIsuUUID)
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+	}
+	if count == 0 {
+		return echo.NewHTTPError(http.StatusNotFound, "isu not found")
+	}
 
-	// 存在する場合 ISU　の削除フラグを有効にして 204 を返す
-	// UPDATE isu SET is_deleted = true WHERE jia_isu_uuid = `jia_isu_uuid`;
+	_, err = tx.Exec("UPDATE `isu` SET `is_deleted` = true WHERE `jia_isu_uuid` = ?", jiaIsuUUID)
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+	}
 
-	// ISU協会にdectivateを送る
-	// MEMO: ISU協会へのリクエストが失敗した時に DB をロールバックできるから
+	// TODO(okimoto) ISU協会にdectivateを送る
 
-	// トランザクション終了
-	// MEMO: もしコミット時にエラーが発生しうるならば、「ISU協会側はdeactivate済みだがDBはactive」という不整合が発生しうる
+	tx.Commit()
 
-	//response 204
-	return fmt.Errorf("not implemented")
+	return c.NoContent(http.StatusNoContent)
 }
 
 //  GET /api/isu/{jia_isu_uuid}/icon
