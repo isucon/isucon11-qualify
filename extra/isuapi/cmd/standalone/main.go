@@ -182,6 +182,7 @@ func postAuth(c echo.Context) error {
 	}
 
 	passwordMap := map[string]string{
+		"isucon":  "isucon",
 		"isucon1": "isucon1",
 		"isucon2": "isucon2",
 		"isucon3": "isucon3",
