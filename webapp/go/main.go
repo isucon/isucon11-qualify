@@ -733,20 +733,18 @@ func postIsuCondition(c echo.Context) error {
 	//	* jia_isu_uuid
 	// input (body)
 	//  * is_sitting:  true/false,
-	// 	* condition: {
-	//      is_dirty:    true/false,
-	//      is_overweight: true/false,
-	//      is_broken:   true/false,
-	//    }
+	// 	* condition: "is_dirty=true/false,is_overweight=true/false,..."
 	//  * message
 	//	* timestamp（秒まで）
 
 	jiaIsuUUID := c.Param("jia_isu_uuid")
+	if jiaIsuUUID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "jia_isu_uuid is missing")
+	}
 	var request NotificationRequest
 	err := c.Bind(&request)
-	if jiaIsuUUID == "" || err != nil {
-		// invalid ならば 400
-		return echo.NewHTTPError(http.StatusBadRequest, "bad request")
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "bad request body")
 	}
 
 	//Parse
