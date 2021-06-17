@@ -738,6 +738,7 @@ func postIsuCondition(c echo.Context) error {
 	//  * message
 	//	* timestamp（秒まで）
 
+	//TODO: 記法の統一
 	jiaIsuUUID := c.Param("jia_isu_uuid")
 	if jiaIsuUUID == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "jia_isu_uuid is missing")
@@ -745,6 +746,7 @@ func postIsuCondition(c echo.Context) error {
 	var request PostIsuConditionRequest
 	err := c.Bind(&request)
 	if err != nil {
+		//TODO: 記法の統一
 		return echo.NewHTTPError(http.StatusBadRequest, "bad request body")
 	}
 
@@ -764,7 +766,7 @@ func postIsuCondition(c echo.Context) error {
 
 	// jia_isu_uuid が存在するかを確認
 	var count int
-	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_isu_uuid` = ?  and `is_deleted`=false", jiaIsuUUID)
+	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_isu_uuid` = ?  and `is_deleted`=false", jiaIsuUUID) //TODO: 記法の統一
 	if err != nil {
 		c.Logger().Errorf("failed to select: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError)
@@ -775,7 +777,7 @@ func postIsuCondition(c echo.Context) error {
 
 	//isu_logに記録
 	//confilct確認
-	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu_log` WHERE (`timestamp`, `jia_isu_uuid`) = (?, ?)  FOR UPDATE",
+	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu_log` WHERE (`timestamp`, `jia_isu_uuid`) = (?, ?)  FOR UPDATE", //TODO: 記法の統一
 		timestamp, jiaIsuUUID,
 	)
 	if err != nil {
