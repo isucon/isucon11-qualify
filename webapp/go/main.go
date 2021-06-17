@@ -344,7 +344,7 @@ func getIsuList(c echo.Context) error {
 	if limitStr != "" {
 		err := db.Select(
 			&isuList,
-			"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = false ORDER BY `created_at` LIMIT ?",
+			"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = false ORDER BY `created_at` DESC LIMIT ?",
 			jiaUserID, limit)
 		if err != nil {
 			c.Logger().Error(err)
@@ -353,7 +353,7 @@ func getIsuList(c echo.Context) error {
 	} else {
 		err := db.Select(
 			&isuList,
-			"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = false ORDER BY `created_at`",
+			"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = false ORDER BY `created_at` DESC",
 			jiaUserID)
 		if err != nil {
 			c.Logger().Error(err)
