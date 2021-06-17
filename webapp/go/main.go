@@ -258,7 +258,13 @@ func postAuthentication(c echo.Context) error {
 		return jwtVerificationKey, nil
 	})
 	if err != nil {
-		return c.String(http.StatusForbidden, "forbidden")
+		switch err.(type) {
+		case *jwt.ValidationError:
+			return c.String(http.StatusForbidden, "forbidden")
+		default:
+			c.Logger().Errorf("unknown error: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
 	}
 
 	// get jia_user_id from JWT Payload
@@ -271,7 +277,7 @@ func postAuthentication(c echo.Context) error {
 	err = func() error {
 		tx, err := db.Beginx()
 		if err != nil {
-			return fmt.Errorf("failed to begin tx: %v", err)
+			return fmt.Errorf("failed to begin tx: %w", err)
 		}
 		defer tx.Rollback()
 
@@ -294,7 +300,7 @@ func postAuthentication(c echo.Context) error {
 		return nil
 	}()
 	if err != nil {
-		c.Logger().Error(err)
+		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -302,7 +308,7 @@ func postAuthentication(c echo.Context) error {
 	session.Values["jia_user_id"] = jiaUserId
 	err = session.Save(c.Request(), c.Response())
 	if err != nil {
-		c.Logger().Error(err)
+		c.Logger().Errorf("failed to set cookie: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
