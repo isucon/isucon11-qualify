@@ -764,14 +764,14 @@ func postIsuCondition(c echo.Context) error {
 	defer tx.Rollback()
 
 	// jia_isu_uuid が存在するかを確認
-	count := 0
+	var count int
 	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_isu_uuid` = ?  and `is_deleted`=false", jiaIsuUUID)
-	if count == 0 {
-		return echo.NewHTTPError(http.StatusNotFound, "isu not found")
-	}
 	if err != nil {
 		c.Logger().Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to select")
+	}
+	if count == 0 {
+		return echo.NewHTTPError(http.StatusNotFound, "isu not found")
 	}
 
 	//isu_logに記録
@@ -815,7 +815,7 @@ func postIsuCondition(c echo.Context) error {
 		graph := new(GraphData)
 
 		//sitting
-		var sittingCount int = 0
+		sittingCount := 0
 		for _, log := range isuLogCluster {
 			if log.IsSitting {
 				sittingCount += 1
