@@ -102,7 +102,7 @@ type InitializeResponse struct {
 }
 
 type GetMeResponse struct {
-	JIAUserId string `json:"jia_user_id"`
+	JIAUserID string `json:"jia_user_id"`
 }
 
 type GraphResponse struct {
@@ -277,12 +277,12 @@ func postSignout(c echo.Context) error {
 // }
 
 func getMe(c echo.Context) error {
-	userId, err := getUserIdFromSession(c.Request())
+	userID, err := getUserIdFromSession(c.Request())
 	if err != nil {
 		return echo.NewHTTPError(http.StatusUnauthorized, "you are not signed in")
 	}
 
-	response := GetMeResponse{JIAUserId: userId}
+	response := GetMeResponse{JIAUserID: userID}
 	return c.JSON(http.StatusOK, response)
 }
 
