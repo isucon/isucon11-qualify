@@ -1,7 +1,9 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -117,9 +119,14 @@ type GetMeResponse struct {
 type GraphResponse struct {
 }
 
-type IsuConditionRequest struct {
-}
-type IsuConditionResponse struct {
+type GetIsuConditionResponse struct {
+	JIAIsuUUID     string    `json:"jia_isu_uuid"`
+	IsuName        string    `json:"isu_name"`
+	Timestamp      time.Time `json:"timestamp"`
+	IsSitting      bool      `json:"is_sitting"`
+	Condition      string    `json:"condition"`
+	ConditionLevel string    `json:"condition_level"`
+	Message        string    `json:"message"`
 }
 
 type PostIsuConditionRequest struct {
@@ -683,56 +690,126 @@ func getAllIsuConditions(c echo.Context) error {
 	return fmt.Errorf("not implemented")
 }
 
-//  GET /api/condition/{jia_isu_uuid}?start_time=
+//  GET /api/condition/{jia_isu_uuid}?
 // 自分の所持椅子のうち、指定した椅子の通知を取得する
 func getIsuConditions(c echo.Context) error {
-	jiaUserID, err := getUserIdFromSession(c.Request())
-	if err != nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, "you are not sign in")
-	}
-	jiaIsuUUID := c.Param("jia_isu_uuid")
-	if jiaIsuUUID == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "jia_isu_uuid is missing")
-	}
-
 	// input
 	//     * jia_isu_uuid: 椅子の固有番号(path_param)
 	//     * start_time: 開始時間
 	//     * cursor_end_time: 終了時間 (required)
-	//     * cursor_isu_id (required)
+	//     * cursor_jia_isu_uuid (required)
 	//     * condition_level: critical,warning,info (csv)
 	//               critical: conditions (is_dirty,is_overweight,is_broken) のうちtrueが3個
 	//               warning: conditionsのうちtrueのものが1 or 2個
 	//               info: warning無し
-	//     * MEMO day2実装: message (文字列検索)
+	//     * TODO: day2実装: message (文字列検索)
 
-	// memo
-	// 例: Google Cloud Logging の URL https://console.cloud.google.com/logs/query;query=resource.type%3D%22gce_instance%22%20resource.labels.instance_id%3D%22<DB_NAME>%22?authuser=1&project=<PROJECT_ID>&query=%0A
-
-	// cookieからユーザID取得
+	// jiaUserID, err := getUserIdFromSession(c.Request())
+	// if err != nil {
+	// 	return echo.NewHTTPError(http.StatusUnauthorized, "you are not sign in")
+	// }
+	var err error
+	jiaUserID := "isucon"
+	jiaIsuUUID := c.Param("jia_isu_uuid")
+	if jiaIsuUUID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "jia_isu_uuid is missing")
+	}
+	//required query param
+	cursorEndTime, err := time.Parse(conditionTimestampFormat, c.QueryParam("cursor_end_time"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "bad format: cursor_end_time")
+	}
+	cursorJiaIsuUUID := c.QueryParam("cursor_jia_isu_uuid")
+	if cursorJiaIsuUUID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "cursor_jia_isu_uuid is missing")
+	}
+	conditionLevel := c.QueryParam("condition_level")
+	if conditionLevel == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "condition_level is missing")
+	}
+	//optional query param
+	startTimeStr := c.QueryParam("jia_isu_uuid")
+	var startTime time.Time
+	if startTimeStr != "" {
+		startTime, err = time.Parse(conditionTimestampFormat, startTimeStr)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, "bad format: cursor_end_time")
+		}
+	}
 
 	// isu_id存在確認、ユーザの所持椅子か確認
-	// 対象isu_idのisu_name取得
-	// 存在しなければ404
+	var isuName string
+	err = db.Get(&isuName,
+		"SELECT name FROM `isu` WHERE `jia_isu_uuid` = ? AND `jia_user_id` = ? AND `is_deleted` = false",
+		jiaIsuUUID, jiaUserID,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return echo.NewHTTPError(http.StatusNotFound, "isu not found")
+	}
+	if err != nil {
+		c.Logger().Errorf("failed to select: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
 
 	// 対象isu_idの通知を取得(limit, cursorで絞り込み）
-	// select * from isu_log where jia_isu_uuid = {jia_isu_uuid} AND (isu_log.created_a, jia_isu_uuid) < (cursor.end_time, cursor.jia_isu_uuid) order by created_at desc, jia_isu_uuid desc limit ?
-	// MEMO: ↑で実装する
+	conditions := []IsuLog{}
+	if startTimeStr == "" {
+		err = db.Select(&conditions,
+			"SELECT * FROM `isu_log` WHERE `jia_isu_uuid` = ?"+
+				"	AND (`timestamp`, `jia_isu_uuid`) < (?, ?)"+
+				"	ORDER BY `created_at` desc, `jia_isu_uuid` desc limit ?",
+			jiaIsuUUID, cursorEndTime, cursorJiaIsuUUID, conditionLimit,
+		)
+	} else {
+		err = db.Select(&conditions,
+			"SELECT * FROM `isu_log` WHERE `jia_isu_uuid` = ?"+
+				"	AND (`timestamp`, `jia_isu_uuid`) < (?, ?)"+
+				"	AND ? <= `timestamp`"+
+				"	ORDER BY `created_at` desc, `jia_isu_uuid` desc limit ?",
+			jiaIsuUUID, cursorEndTime, cursorJiaIsuUUID, startTime, conditionLimit,
+		)
+	}
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			c.Logger().Errorf("failed to select: %v", err)
+			return echo.NewHTTPError(http.StatusInternalServerError)
+		}
+	}
 
-	//for {
-	// conditions を元に condition_level (critical,warning,info) を算出
-	//}
+	//condition_levelでの絞り込み
+	conditionsResponse := []GetIsuConditionResponse{}
+	for _, c := range conditions {
 
-	// response: 200
-	// [{
-	//     * jia_isu_uuid
-	//     * isu_name
-	//     * timestamp
-	//     * conditions: {"is_dirty": boolean, "is_overweight": boolean,"is_broken": boolean}
-	//     * condition_level
-	//     * message
-	// },...]
-	return fmt.Errorf("not implemented")
+		var conditionLevel string
+		add := false
+		warnCount := strings.Count(c.Condition, "=true")
+		if strings.Contains(conditionLevel, "critical") && warnCount == 3 {
+			conditionLevel = "critical"
+			add = true
+		} else if strings.Contains(conditionLevel, "warning") && (warnCount == 1 || warnCount == 2) {
+			conditionLevel = "warning"
+			add = true
+		} else if strings.Contains(conditionLevel, "info") && warnCount == 0 {
+			conditionLevel = "info"
+			add = true
+		}
+
+		//GetIsuConditionResponseに変換
+		data := GetIsuConditionResponse{
+			JIAIsuUUID:     c.JIAIsuUUID,
+			IsuName:        isuName,
+			Timestamp:      c.Timestamp,
+			IsSitting:      c.IsSitting,
+			Condition:      c.Condition,
+			ConditionLevel: conditionLevel,
+			Message:        c.Message,
+		}
+		if add {
+			conditionsResponse = append(conditionsResponse, data)
+		}
+	}
+
+	return c.JSON(http.StatusOK, conditionsResponse)
 }
 
 // POST /api/isu/{jia_isu_uuid}/condition
