@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/sessions"
@@ -27,19 +28,65 @@ var (
 	mySQLConnectionData *MySQLConnectionEnv
 )
 
-type User struct {
+type Isu struct {
+	JIAIsuUUID   string    `db:"jia_isu_uuid" json:"jia_isu_uuid"`
+	Name         string    `db:"name" json:"name"`
+	Image        []byte    `db:"image" json:"-"`
+	JIACatalogID string    `db:"jia_catalog_id" json:"jia_catalog_id"`
+	Character    string    `db:"character" json:"character"`
+	JIAUserID    string    `db:"jia_user_id" json:"-"`
+	IsDeleted    bool      `db:"is_deleted" json:"-"`
+	CreatedAt    time.Time `db:"created_at" json:"-"`
+	UpdatedAt    time.Time `db:"updated_at" json:"-"`
 }
 
-type Isu struct {
+type CatalogFromJIA struct {
+	JIACatalogID string `json:"catalog_id"`
+	Name         string `json:"name"`
+	LimitWeight  int    `json:"limit_weight"`
+	Weight       int    `json:"weight"`
+	Size         string `json:"size"`
+	Maker        string `json:"maker"`
+	Features     string `json:"features"`
 }
 
 type Catalog struct {
+	JIACatalogID string `json:"jia_catalog_id"`
+	Name         string `json:"name"`
+	LimitWeight  int    `json:"limit_weight"`
+	Weight       int    `json:"weight"`
+	Size         string `json:"size"`
+	Maker        string `json:"maker"`
+	Tags         string `json:"tags"`
 }
 
 type IsuLog struct {
+	JIAIsuUUID string    `db:"jia_isu_uuid" json:"jia_isu_uuid"`
+	Timestamp  time.Time `db:"timestamp" json:"timestamp"`
+	Condition  string    `db:"condition" json:"condition"`
+	Message    string    `db:"message" json:"message"`
+	CreatedAt  time.Time `db:"created_at" json:"created_at"`
 }
 
+//グラフ表示用  一時間のsummry 詳細
+type GraphData struct {
+	Score   int            `json:"score"`
+	Sitting int            `json:"sitting"`
+	Detail  map[string]int `json:"detail"`
+}
+
+//グラフ表示用  一時間のsummry
 type Graph struct {
+	JIAIsuUUID string    `db:"jia_isu_uuid"`
+	StartAt    time.Time `db:"start_at"`
+	Data       string    `db:"data"`
+	CreatedAt  time.Time `db:"created_at"`
+	UpdatedAt  time.Time `db:"updated_at"`
+}
+
+type User struct {
+	JIAUserID string    `db:"jia_user_id"`
+	CreatedAt time.Time `db:"created_at"`
 }
 
 type MySQLConnectionEnv struct {
@@ -84,7 +131,7 @@ func NewMySQLConnectionEnv() *MySQLConnectionEnv {
 
 //ConnectDB データベースに接続する
 func (mc *MySQLConnectionEnv) ConnectDB() (*sqlx.DB, error) {
-	dsn := fmt.Sprintf("%v:%v@tcp(%v:%v)/%v", mc.User, mc.Password, mc.Host, mc.Port, mc.DBName)
+	dsn := fmt.Sprintf("%v:%v@tcp(%v:%v)/%v?parseTime=true&loc=Local", mc.User, mc.Password, mc.Host, mc.Port, mc.DBName)
 	return sqlx.Open("mysql", dsn)
 }
 
@@ -109,20 +156,20 @@ func main() {
 	e.POST("/api/signout", postSignout)
 	e.GET("/api/user/me", getMe)
 
-	e.GET("/api/catalog/:isu_catalog_id", getCatalog)
+	e.GET("/api/catalog/:jia_catalog_id", getCatalog)
 	e.GET("/api/isu", getIsuList)
 	e.POST("/api/isu", postIsu)
 	e.GET("/api/isu/search", getIsuSearch)
-	e.GET("/api/isu/:isu_id", getIsu)
-	e.PUT("/api/isu/:isu_id", putIsu)
-	e.DELETE("/api/isu/:isu_id", deleteIsu)
-	e.GET("/api/isu/:isu_id/icon", getIsuIcon)
-	e.PUT("/api/isu/:isu_id/icon", putIsuIcon)
-	e.GET("/api/isu/:isu_id/graph", getIsuGraph)
+	e.GET("/api/isu/:jia_isu_uuid", getIsu)
+	e.PUT("/api/isu/:jia_isu_uuid", putIsu)
+	e.DELETE("/api/isu/:jia_isu_uuid", deleteIsu)
+	e.GET("/api/isu/:jia_isu_uuid/icon", getIsuIcon)
+	e.PUT("/api/isu/:jia_isu_uuid/icon", putIsuIcon)
+	e.GET("/api/isu/:jia_isu_uuid/graph", getIsuGraph)
 	e.GET("/api/notification", getNotifications)
-	e.GET("/api/notification/:isu_id", getIsuNotifications)
+	e.GET("/api/notification/:jia_isu_uuid", getIsuNotifications)
 
-	e.POST("/api/isu/:isu_id/condition", postIsuCondition)
+	e.POST("/api/isu/:jia_isu_uuid/condition", postIsuCondition)
 
 	mySQLConnectionData = NewMySQLConnectionEnv()
 
@@ -147,7 +194,7 @@ func getSession(r *http.Request) *sessions.Session {
 
 func getUserIdFromSession(r *http.Request) (string, error) {
 	session := getSession(r)
-	userID, ok := session.Values["user_id"]
+	userID, ok := session.Values["jia_user_id"]
 	if !ok {
 		return "", fmt.Errorf("no session")
 	}
@@ -223,7 +270,7 @@ func postSignout(c echo.Context) error {
 }
 
 // TODO
-// GET /api/user/{user_id}
+// GET /api/user/{jia_user_id}
 // ユーザ情報を取得
 // day2 実装のため skip
 // func getUser(c echo.Context) error {
@@ -239,7 +286,7 @@ func getMe(c echo.Context) error {
 	return c.JSON(http.StatusOK, response)
 }
 
-//  GET /api/catalog/{isu_catalog_id}
+//  GET /api/catalog/{jia_catalog_id}
 // MEMO: 外部APIのドキュメントに「競技期間中は不変」「read onlyである」「叩く頻度は変えて良い」を明記
 // MEMO: ISU協会のrespと当Appのrespのフォーマットは合わせる?  → 合わせない
 // MEMO: day2: ISU 協会の問い合わせ内容をまるっとキャッシュするだけだと減点する仕組みを実装する
@@ -251,7 +298,7 @@ func getCatalog(c echo.Context) error {
 
 	// ISU 協会に問い合わせる  (想定解はキャッシュ)
 	// request
-	// * isu_catalog_id
+	// * jia_catalog_id
 	// response
 	// * isu_catalog_name
 	// * isu_catalog_limit_weight
@@ -283,7 +330,7 @@ func getIsuList(c echo.Context) error {
 	// input
 	//     * limit: 取得件数（利用用途的には固定だが一般的な話で指定可能にする。ベンチもやる）
 
-	// SELECT * FROM isu WHERE user_id = {user_id} and is_deleted=false LIMIT {limit} order by created_at;
+	// SELECT * FROM isu WHERE jia_user_id = {jia_user_id} and is_deleted=false LIMIT {limit} order by created_at;
 	// (catalogは取らない)
 	// 画像までSQLで取ってくるボトルネック
 	// imageも最初はとってるけどレスポンスに含まれてないからselect時に持ってくる必要ない
@@ -291,7 +338,7 @@ func getIsuList(c echo.Context) error {
 	// response 200
 	// * id
 	// * name
-	// * catalog_id
+	// * jia_catalog_id
 	// * charactor  // MEMO: この値を使うのは day2 実装だが、ひとまずフィールドは用意する
 	return fmt.Errorf("not implemented")
 }
@@ -303,7 +350,7 @@ func postIsu(c echo.Context) error {
 	// session が存在しなければ 401
 
 	// input
-	// 		isu_id: 椅子固有のID（衝突しないようにUUID的なもの設定）
+	// 		jia_isu_uuid: 椅子固有のID（衝突しないようにUUID的なもの設定）
 	// 		isu_name: 椅子の名前
 
 	// req := contextからいい感じにinputとuser_idを取得
@@ -311,19 +358,19 @@ func postIsu(c echo.Context) error {
 	// (catalog,charactor), err := 外部API
 	// ISU 協会にactivate
 	// request
-	// 	* isu_id
+	// 	* jia_isu_uuid
 	// response
-	// 	* catalog_id
+	// 	* jia_catalog_id
 	// 	* charactor
 	// レスポンスが200以外なら横流し
 	// 404, 403(認証拒否), 400, 5xx
 	// 403はday2
 
 	// imageはデフォルトを挿入
-	// INSERT INTO isu VALUES (isu_id, isu_name, image, catalog_, charactor, user_id);
-	// isu_id 重複時 409
+	// INSERT INTO isu VALUES (jia_isu_uuid, isu_name, image, catalog_, charactor, jia_user_id);
+	// jia_isu_uuid 重複時 409
 
-	// SELECT (*) FROM isu WHERE user_id = `user_id` and isu_id = `isu_id` and is_deleted=false;
+	// SELECT (*) FROM isu WHERE jia_user_id = `jia_user_id` and jia_isu_uuid = `jia_isu_uuid` and is_deleted=false;
 	// 画像までSQLで取ってくるボトルネック
 	// imageも最初はとってるけどレスポンスに含まれてないからselect時に持ってくる必要ない
 
@@ -331,7 +378,7 @@ func postIsu(c echo.Context) error {
 	//{
 	// * id
 	// * name
-	// * catalog_id
+	// * jia_catalog_id
 	// * charactor
 	//]
 	return fmt.Errorf("not implemented")
@@ -358,7 +405,7 @@ func getIsuSearch(c echo.Context) error {
 	// ISUテーブルにカラム追加してcatalog情報入れちゃうパターンならJOIN不要かも？
 
 	// 持っている椅子を数件取得 (非効率な検索ロジック)
-	// SELECT (*) FROM isu WHERE user_id = `user_id` AND is_deleted=false
+	// SELECT (*) FROM isu WHERE jia_user_id = `jia_user_id` AND is_deleted=false
 	//   AND name LIKE CONCAT('%', ?, '%')
 	//   AND charactor = `charactor`
 	//   ORDER BY created_at;
@@ -381,47 +428,47 @@ func getIsuSearch(c echo.Context) error {
 	//[{
 	// * id
 	// * name
-	// * catalog_id
+	// * jia_catalog_id
 	// * charactor
 	//}]
 	return fmt.Errorf("not implemented")
 }
 
-//  GET /api/isu/{isu_id}
+//  GET /api/isu/{jia_isu_uuid}
 // 椅子の情報を取得する
 func getIsu(c echo.Context) error {
 	// * session
 	// session が存在しなければ 401
 
 	// input
-	//		* isu_id: 椅子固有のID
+	//		* jia_isu_uuid: 椅子固有のID
 
-	// SELECT (*) FROM isu WHERE user_id = `user_id` and isu_id = `isu_id` and is_deleted=false;
+	// SELECT (*) FROM isu WHERE jia_user_id = `jia_user_id` and jia_isu_uuid = `jia_isu_uuid` and is_deleted=false;
 	// 見つからなければ404
 	// user_idがリクエストユーザーのものでなければ404
 	// 画像までSQLで取ってくるボトルネック
 	// imageも最初はとってるけどレスポンスに含まれてないからselect時に持ってくる必要ない
-	// MEMO: user_id 判別はクエリに入れずその後のロジックとする？ (一通り完成した後に要考慮)
+	// MEMO: jia_user_id 判別はクエリに入れずその後のロジックとする？ (一通り完成した後に要考慮)
 
 	// response  200
 	//{
 	// * id
 	// * name
-	// * catalog_id
+	// * jia_catalog_id
 	// * charactor
 	//}
 
 	return fmt.Errorf("not implemented")
 }
 
-//  PUT /api/isu/{isu_id}
+//  PUT /api/isu/{jia_isu_uuid}
 // 自分の所有しているISUの情報を変更する
 func putIsu(c echo.Context) error {
 	// * session
 	// session が存在しなければ 401
 
 	// input (path_param)
-	// 	* isu_id: 椅子固有のID
+	// 	* jia_isu_uuid: 椅子固有のID
 	// input (body)
 	// 	* isu_name: 椅子の名称
 	// invalid ならば 400
@@ -431,15 +478,15 @@ func putIsu(c echo.Context) error {
 	// MEMO: dummy のボトルネック
 	// current_userが認可された操作か確認
 	//     * isu_idがcurrent_userのものか
-	// SELECT COUNT(*) FROM isu WHERE user_id = `user_id` and isu_id = `isu_id` and is_deleted=false;
+	// SELECT COUNT(*) FROM isu WHERE jia_user_id = `jia_user_id` and jia_isu_uuid = `jia_isu_uuid` and is_deleted=false;
 	// NGならエラーを返す
 	//   404 not found
 
 	// DBを更新
-	// UPDATE isu SET isu_name=? WHERE isu_id = `isu_id`;
+	// UPDATE isu SET isu_name=? WHERE jia_isu_uuid = `jia_isu_uuid`;
 
 	//更新後の値取得
-	// SELECT (*) FROM isu WHERE user_id = `user_id` and isu_id = `isu_id` and is_deleted=false;
+	// SELECT (*) FROM isu WHERE jia_user_id = `jia_user_id` and jia_isu_uuid = `jia_isu_uuid` and is_deleted=false;
 	// 画像までSQLで取ってくるボトルネック
 	// imageも最初はとってるけどレスポンスに含まれてないからselect時に持ってくる必要ない
 
@@ -449,29 +496,29 @@ func putIsu(c echo.Context) error {
 	//{
 	// * id
 	// * name
-	// * catalog_id
+	// * jia_catalog_id
 	// * charactor
 	//}
 	return fmt.Errorf("not implemented")
 }
 
-//  DELETE /api/isu/{isu_id}
+//  DELETE /api/isu/{jia_isu_uuid}
 // 所有しているISUを削除する
 func deleteIsu(c echo.Context) error {
 	// * session
 	// session が存在しなければ 401
 
 	// input
-	// 		* isu_id: 椅子の固有ID
+	// 		* jia_isu_uuid: 椅子の固有ID
 
 	// トランザクション開始
 
 	// DBから当該のISUが存在するか検索
-	// SELECT (*) FROM isu WHERE user_id = `user_id` and isu_id = `isu_id` and is_deleted=false;
+	// SELECT (*) FROM isu WHERE jia_user_id = `jia_user_id` and jia_isu_uuid = `jia_isu_uuid` and is_deleted=false;
 	// 存在しない場合 404 を返す
 
 	// 存在する場合 ISU　の削除フラグを有効にして 204 を返す
-	// UPDATE isu SET is_deleted = true WHERE isu_id = `isu_id`;
+	// UPDATE isu SET is_deleted = true WHERE jia_isu_uuid = `jia_isu_uuid`;
 
 	// ISU協会にdectivateを送る
 	// MEMO: ISU協会へのリクエストが失敗した時に DB をロールバックできるから
@@ -483,7 +530,7 @@ func deleteIsu(c echo.Context) error {
 	return fmt.Errorf("not implemented")
 }
 
-//  GET /api/isu/{isu_id}/icon
+//  GET /api/isu/{jia_isu_uuid}/icon
 // ISUのアイコンを取得する
 // MEMO: ヘッダーとかでキャッシュ効くようにするのが想定解？(ただしPUTはあることに注意)
 //       nginxで認証だけ外部に投げるみたいなのもできるっぽい？（ちゃんと読んでいない）
@@ -493,7 +540,7 @@ func getIsuIcon(c echo.Context) error {
 	// * session
 	// session が存在しなければ 401
 
-	// SELECT image FROM isu WHERE user_id = `user_id` and isu_id = `isu_id` and is_deleted=false;
+	// SELECT image FROM isu WHERE jia_user_id = `jia_user_id` and jia_isu_uuid = `jia_isu_uuid` and is_deleted=false;
 	// 見つからなければ404
 	// user_idがリクエストユーザーのものでなければ404
 
@@ -503,7 +550,7 @@ func getIsuIcon(c echo.Context) error {
 	return fmt.Errorf("not implemented")
 }
 
-//  PUT /api/isu/{isu_id}/icon
+//  PUT /api/isu/{jia_isu_uuid}/icon
 // ISUのアイコンを登録する
 // multipart/form-data
 // MEMO: DB 内の image は longblob
@@ -513,11 +560,11 @@ func putIsuIcon(c echo.Context) error {
 
 	//トランザクション開始
 
-	// SELECT image FROM isu WHERE user_id = `user_id` and isu_id = `isu_id` and is_deleted=false;
+	// SELECT image FROM isu WHERE jia_user_id = `jia_user_id` and jia_isu_uuid = `jia_isu_uuid` and is_deleted=false;
 	// 見つからなければ404
 	// user_idがリクエストユーザーのものでなければ404
 
-	// UPDATE isu SET image=? WHERE user_id = `user_id` and isu_id = `isu_id` and is_deleted=false;
+	// UPDATE isu SET image=? WHERE jia_user_id = `jia_user_id` and jia_isu_uuid = `jia_isu_uuid` and is_deleted=false;
 
 	//トランザクション終了
 
@@ -526,7 +573,7 @@ func putIsuIcon(c echo.Context) error {
 	return fmt.Errorf("not implemented")
 }
 
-//  GET /api/isu/{isu_id}/graph
+//  GET /api/isu/{jia_isu_uuid}/graph
 // グラフ描画のための情報を計算して返却する
 // ユーザーがISUの機嫌を知りたい
 // この時間帯とか、この日とかの機嫌を知りたい
@@ -537,22 +584,22 @@ func getIsuGraph(c echo.Context) error {
 	// session が存在しなければ 401
 
 	// input (path_param)
-	//	* isu_id: 椅子の固有ID
+	//	* jia_isu_uuid: 椅子の固有ID
 	// input (query_param)
 	//	* date (required)
 	//		YYYY-MM-DD
 	//
 
 	// 自分のISUかチェック
-	// SELECT count(*) from isu where user_id=`user_id` and id = `isu_id` and is_deleted=false;
+	// SELECT count(*) from isu where jia_user_id=`jia_user_id` and id = `jia_isu_uuid` and is_deleted=false;
 	// エラー: response 404
 
 	// MEMO: シナリオ的にPostIsuConditionでgraphを生成する方がボトルネックになる想定なので初期実装はgraphテーブル作る
 	// DBを検索。グラフ描画に必要な情報を取得
 	// ボトルネック用に事前計算したものを取得
-	// graphは POST /api/isu/{isu_id}/condition で生成
+	// graphは POST /api/isu/{jia_isu_uuid}/condition で生成
 	// SELECT * from graph
-	//   WHERE isu_id = `isu_id` AND date<=start_at AND start_at < (date+1day)
+	//   WHERE jia_isu_uuid = `jia_isu_uuid` AND date<=start_at AND start_at < (date+1day)
 
 	//SQLのレスポンスを成形
 	//nullチェック
@@ -588,40 +635,40 @@ func getNotifications(c echo.Context) error {
 	// * session
 	// session が存在しなければ 401
 
-	// input {isu_id}が無い以外は、/api/notification/{isu_id}と同じ
+	// input {jia_isu_uuid}が無い以外は、/api/notification/{jia_isu_uuid}と同じ
 	//
 
 	// cookieからユーザID取得
 	// ユーザの所持椅子取得
-	// SELECT * FROM isu where user_id = ?;
+	// SELECT * FROM isu where jia_user_id = ?;
 
-	// ユーザの所持椅子毎に /api/notificaiton/{isu_id} を叩く（こことマージ含めてボトルネック）
+	// ユーザの所持椅子毎に /api/notificaiton/{jia_isu_uuid} を叩く（こことマージ含めてボトルネック）
 	// query_param は GET /api/notification (ここ) のリクエストと同じものを使い回す
 
 	// ユーザの所持椅子ごとのデータをマージ（ここと個別取得部分含めてボトルネック）
 	// 通知時間帯でソートして、limit件数（固定）該当するデータを返す
 	// MEMO: 改善後はこんな感じのSQLで一発でとる
-	// select * from isu_log where (isu_log.created_at, isu_id) < (cursor.end_time, cursor.isu_id)
-	//  order by created_at desc,isu_id desc limit ?
+	// select * from isu_log where (isu_log.created_at, jia_isu_uuid) < (cursor.end_time, cursor.jia_isu_uuid)
+	//  order by created_at desc,jia_isu_uuid desc limit ?
 	// 10.1.36-MariaDB で確認
 
 	//memo（没）
-	// (select * from isu_log where (isu_log.created_at=cursor.end_time and isu_id < cursor.isu_id)
-	//   or isu_log.created_at<cursor.end_time order by created_at desc,isu_id desc limit ?)
+	// (select * from isu_log where (isu_log.created_at=cursor.end_time and jia_isu_uuid < cursor.jia_isu_uuid)
+	//   or isu_log.created_at<cursor.end_time order by created_at desc,jia_isu_uuid desc limit ?)
 
 	// response: 200
-	// /api/notification/{isu_id}と同じ
+	// /api/notification/{jia_isu_uuid}と同じ
 	return fmt.Errorf("not implemented")
 }
 
-//  GET /api/notification/{isu_id}?start_time=
+//  GET /api/notification/{jia_isu_uuid}?start_time=
 // 自分の所持椅子のうち、指定したisu_idの通知を取得する
 func getIsuNotifications(c echo.Context) error {
 	// * session
 	// session が存在しなければ 401
 
 	// input
-	//     * isu_id: 椅子の固有番号(path_param)
+	//     * jia_isu_uuid: 椅子の固有番号(path_param)
 	//     * start_time: 開始時間
 	//     * cursor_end_time: 終了時間 (required)
 	//     * cursor_isu_id (required)
@@ -641,7 +688,7 @@ func getIsuNotifications(c echo.Context) error {
 	// 存在しなければ404
 
 	// 対象isu_idの通知を取得(limit, cursorで絞り込み）
-	// select * from isu_log where isu_id = {isu_id} AND (isu_log.created_a, isu_id) < (cursor.end_time, cursor.isu_id) order by created_at desc, isu_id desc limit ?
+	// select * from isu_log where jia_isu_uuid = {jia_isu_uuid} AND (isu_log.created_a, jia_isu_uuid) < (cursor.end_time, cursor.jia_isu_uuid) order by created_at desc, jia_isu_uuid desc limit ?
 	// MEMO: ↑で実装する
 
 	//for {
@@ -650,7 +697,7 @@ func getIsuNotifications(c echo.Context) error {
 
 	// response: 200
 	// [{
-	//     * isu_id
+	//     * jia_isu_uuid
 	//     * isu_name
 	//     * timestamp
 	//     * conditions: {"is_dirty": boolean, "is_overweight": boolean,"is_broken": boolean}
@@ -660,17 +707,17 @@ func getIsuNotifications(c echo.Context) error {
 	return fmt.Errorf("not implemented")
 }
 
-// POST /api/isu/{isu_id}/condition
+// POST /api/isu/{jia_isu_uuid}/condition
 // ISUからのセンサデータを受け取る
 // MEMO: 初期実装では認証をしない（isu_id 知ってるなら大丈夫だろ〜）
 // MEMO: Day2 ISU協会からJWT発行や秘密鍵公開鍵ペアでDBに公開鍵を入れる？
 // MEMO: ログが一件増えるくらいはどっちでもいいのでミスリーディングにならないようトランザクションはとらない方針
-// MEMO: 1970/1/1みたいな時を超えた古代からのリクエストがきた場合に、ここの時点で弾いてしまうのか、受け入れるか → 受け入れる (ただし isu_id と timpestamp の primary 制約に違反するリクエストが来たら 409 を返す)
+// MEMO: 1970/1/1みたいな時を超えた古代からのリクエストがきた場合に、ここの時点で弾いてしまうのか、受け入れるか → 受け入れる (ただし jia_isu_uuid と timpestamp の primary 制約に違反するリクエストが来たら 409 を返す)
 // MEMO: DB Schema における conditions の型は取り敢えず string で、困ったら考える
 //     (conditionカラム: is_dirty=true,is_overweight=false)
 func postIsuCondition(c echo.Context) error {
 	// input (path_param)
-	//	* isu_id
+	//	* jia_isu_uuid
 	// input (body)
 	//  * is_sitting:  true/false,
 	// 	* condition: {
@@ -691,8 +738,8 @@ func postIsuCondition(c echo.Context) error {
 
 	// トランザクション開始
 
-	// DBから isu_id が存在するかを確認
-	// 		SELECT id from isu where id = `isu_id` and is_deleted=false
+	// DBから jia_isu_uuid が存在するかを確認
+	// 		SELECT id from isu where id = `jia_isu_uuid` and is_deleted=false
 	// 存在しない場合 404 を返す
 
 	//  memo → getNotifications にて実装
@@ -702,12 +749,12 @@ func postIsuCondition(c echo.Context) error {
 	// critical 悪いコンディション数がM個以上
 
 	// 受け取った値をDBにINSERT  // conditionはtextカラム（初期実装）
-	// 		INSERT INTO isu_log VALUES(isu_id, message, timestamp, conditions );
+	// 		INSERT INTO isu_log VALUES(jia_isu_uuid, message, timestamp, conditions );
 	// もし primary 制約により insert が失敗したら 409
 
 	// getGraph用のデータを計算
 	// 初期実装では該当するisu_idのものを全レンジ再計算
-	// SELECT * from isu_log where isu_id = `isu_id`;
+	// SELECT * from isu_log where jia_isu_uuid = `jia_isu_uuid`;
 	// ↑ and timestamp-1h<timestamp and timestamp < timestamp+1hをつけることも検討
 	// isu_logを一時間ごとに区切るfor {
 	//  if (区切り) {
@@ -716,7 +763,7 @@ func postIsuCondition(c echo.Context) error {
 	//    ここもう少し重くしたい
 	// https://dev.mysql.com/doc/refman/5.6/ja/insert-on-duplicate.html
 	// dataはJSON型
-	//    INSERT INTO graph VALUES(isu_id, time_start, time_end, data) ON DUPLICATE KEY UPDATE;
+	//    INSERT INTO graph VALUES(jia_isu_uuid, time_start, time_end, data) ON DUPLICATE KEY UPDATE;
 	// data: {
 	//   score: 70,//>=0
 	//   sitting: 50 (%),
