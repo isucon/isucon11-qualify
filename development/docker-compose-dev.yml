@@ -49,6 +49,8 @@ services:
     restart: always
     working_dir: /isuapi
     command: ["go", "run", "./cmd/standalone/"]
+    environment:
+      JWT_SECRETKEY_PATH: /webapp/ec256-private.pem
     ports:
       - "5000:5000"
     volumes:
