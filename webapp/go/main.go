@@ -918,14 +918,10 @@ func calculateGraph(isuLogCluster []IsuLog) (*GraphData, error) {
 			}
 		}
 	}
-	if graph.Detail["is_dirty"] == 0 {
-		delete(graph.Detail, "is_dirty")
-	}
-	if graph.Detail["is_overweight"] == 0 {
-		delete(graph.Detail, "is_overweight")
-	}
-	if graph.Detail["is_broken"] == 0 {
-		delete(graph.Detail, "is_broken")
+	for key := range scorePerCondition {
+		if graph.Detail[key] == 0 {
+			delete(graph.Detail, key)
+		}
 	}
 
 	return graph, nil
