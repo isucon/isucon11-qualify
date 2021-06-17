@@ -104,6 +104,7 @@ type InitializeResponse struct {
 }
 
 type GetMeResponse struct {
+	JIAUserID string `json:"jia_user_id"`
 }
 
 type GraphResponse struct {
@@ -277,18 +278,14 @@ func postSignout(c echo.Context) error {
 // func getUser(c echo.Context) error {
 // }
 
-//  GET /api/user/me
-// 自分のユーザー情報を取得
 func getMe(c echo.Context) error {
-	// * session
-	// session が存在しなければ 401
+	userID, err := getUserIdFromSession(c.Request())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not signed in") // TODO 記法が決まったら修正
+	}
 
-	// SELECT jia_user_id, user_name FROM users WHERE jia_user_id = {jia_user_id};
-
-	//response 200
-	// * jia_user_id
-	// * user_name
-	return fmt.Errorf("not implemented")
+	response := GetMeResponse{JIAUserID: userID}
+	return c.JSON(http.StatusOK, response)
 }
 
 //  GET /api/catalog/{jia_catalog_id}
