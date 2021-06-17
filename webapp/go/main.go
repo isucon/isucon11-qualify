@@ -704,12 +704,10 @@ func getIsuConditions(c echo.Context) error {
 	//               info: warning無し
 	//     * TODO: day2実装: message (文字列検索)
 
-	// jiaUserID, err := getUserIdFromSession(c.Request())
-	// if err != nil {
-	// 	return echo.NewHTTPError(http.StatusUnauthorized, "you are not sign in")
-	// }
-	var err error
-	jiaUserID := "isucon"
+	jiaUserID, err := getUserIdFromSession(c.Request())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not sign in")
+	}
 	jiaIsuUUID := c.Param("jia_isu_uuid")
 	if jiaIsuUUID == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "jia_isu_uuid is missing")
