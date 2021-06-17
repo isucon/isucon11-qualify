@@ -53,12 +53,6 @@ type IsuConditionPoster struct {
 	IsuUUID    string `json:"isu_uuid"`
 }
 
-// type IsuCondition struct {
-// 	IsDirty      bool
-// 	IsOverweight bool
-// 	IsBroken     bool
-// }
-
 type IsuNotification struct {
 	IsSitting bool   `json:"is_sitting"`
 	Condition string `json:"condition"`
