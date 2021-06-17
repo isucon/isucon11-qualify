@@ -279,7 +279,7 @@ func postSignout(c echo.Context) error {
 func getMe(c echo.Context) error {
 	userID, err := getUserIdFromSession(c.Request())
 	if err != nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, "you are not signed in")
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not signed in") // TODO 記法が決まったら修正
 	}
 
 	response := GetMeResponse{JIAUserID: userID}
