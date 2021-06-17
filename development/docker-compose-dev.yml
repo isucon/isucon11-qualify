@@ -37,7 +37,9 @@ services:
       - "../development/mysql-backend/mysql.cnf:/etc/mysql/conf.d/mysql.cnf"
       # 開発環境用のものを使って初期化
       - ${PWD}/../development/mysql-backend/initdb:/docker-entrypoint-initdb.d
-      - ${PWD}/../webapp/mysql/db/0_Schema.sql:/docker-entrypoint-initdb.d/0_Schema.sql
+      - type: bind
+        source: ${PWD}/../webapp/mysql/db/0_Schema.sql
+        target: /docker-entrypoint-initdb.d/0_Schema.sql
     expose:
       - "3306"
     ports:
