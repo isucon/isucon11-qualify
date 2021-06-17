@@ -517,7 +517,11 @@ func putIsu(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
 	}
 
-	tx.Commit()
+	err = tx.Commit()
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+	}
 
 	return c.JSON(http.StatusOK, isu)
 }
