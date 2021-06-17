@@ -728,7 +728,7 @@ func getIsuConditions(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "condition_level is missing")
 	}
 	//optional query param
-	startTimeStr := c.QueryParam("jia_isu_uuid")
+	startTimeStr := c.QueryParam("start_time")
 	var startTime time.Time
 	if startTimeStr != "" {
 		startTime, err = time.Parse(conditionTimestampFormat, startTimeStr)
@@ -780,17 +780,17 @@ func getIsuConditions(c echo.Context) error {
 	conditionsResponse := []GetIsuConditionResponse{}
 	for _, c := range conditions {
 
-		var conditionLevel string
+		var cLevel string
 		add := false
 		warnCount := strings.Count(c.Condition, "=true")
 		if strings.Contains(conditionLevel, "critical") && warnCount == 3 {
-			conditionLevel = "critical"
+			cLevel = "critical"
 			add = true
 		} else if strings.Contains(conditionLevel, "warning") && (warnCount == 1 || warnCount == 2) {
-			conditionLevel = "warning"
+			cLevel = "warning"
 			add = true
 		} else if strings.Contains(conditionLevel, "info") && warnCount == 0 {
-			conditionLevel = "info"
+			cLevel = "info"
 			add = true
 		}
 
@@ -801,7 +801,7 @@ func getIsuConditions(c echo.Context) error {
 			Timestamp:      c.Timestamp,
 			IsSitting:      c.IsSitting,
 			Condition:      c.Condition,
-			ConditionLevel: conditionLevel,
+			ConditionLevel: cLevel,
 			Message:        c.Message,
 		}
 		if add {
