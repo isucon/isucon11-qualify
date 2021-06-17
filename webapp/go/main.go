@@ -812,7 +812,7 @@ func postIsuCondition(c echo.Context) error {
 	}
 	//スコア計算をする関数
 	calculateGraph := func(isuLogCluster []IsuLog) (*GraphData, error) {
-		graph := new(GraphData)
+		graph := &GraphData{}
 
 		//sitting
 		sittingCount := 0
@@ -883,12 +883,12 @@ func postIsuCondition(c echo.Context) error {
 				c.Logger().Errorf("failed to calculate graph: %v", err)
 				return echo.NewHTTPError(http.StatusInternalServerError, "failed to save graph")
 			}
-			dataStr, err := json.Marshal(data)
+			dataJSON, err := json.Marshal(data)
 			if err != nil {
 				c.Logger().Errorf("failed to encode json: %v", err)
 				return echo.NewHTTPError(http.StatusInternalServerError, "failed to save graph")
 			}
-			valuesForInsert = append(valuesForInsert, jiaIsuUUID, startTime, dataStr)
+			valuesForInsert = append(valuesForInsert, jiaIsuUUID, startTime, dataJSON)
 
 			//次の一時間の探索
 			startTime = tmpTime
