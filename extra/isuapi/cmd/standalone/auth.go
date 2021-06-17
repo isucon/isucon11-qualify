@@ -10,8 +10,6 @@ import (
 )
 
 const (
-	jwtSecretKeyPath = "/webapp/ec256-private.pem"
-
 	// iat と exp は登録済みクレーム名。それぞれの意味は https://tools.ietf.org/html/rfc7519#section-4.1 を参照。{
 	iatKey = "iat"
 	expKey = "exp"
@@ -24,6 +22,7 @@ const (
 var jwtSecretKey *ecdsa.PrivateKey
 
 func init() {
+	jwtSecretKeyPath := getEnv("JWT_SECRETKEY_PATH", "/webapp/ec256-private.pem")
 	key, err := ioutil.ReadFile(jwtSecretKeyPath)
 	if err != nil {
 		log.Fatalf("Unable to read file: %v", err)
