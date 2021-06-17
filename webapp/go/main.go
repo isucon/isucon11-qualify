@@ -754,10 +754,6 @@ func postIsuCondition(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid timestamp")
 	}
-	conditionStr, err := json.Marshal(request.Condition)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "condition has bad format")
-	}
 
 	// トランザクション開始
 	tx, err := db.Beginx()
@@ -793,7 +789,7 @@ func postIsuCondition(c echo.Context) error {
 	//insert
 	_, err = tx.Exec("INSERT INTO `isu_log`"+
 		"	(`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`) VALUES (?, ?, ?, ?, ?)",
-		jiaIsuUUID, timestamp, request.IsSitting, conditionStr, request.Message,
+		jiaIsuUUID, timestamp, request.IsSitting, request.Condition, request.Message,
 	)
 	if err != nil {
 		c.Logger().Error(err)
@@ -838,6 +834,9 @@ func postIsuCondition(c echo.Context) error {
 			for _, cond := range strings.Split(log.Condition, ",") {
 				keyValue := strings.Split(cond, "=")
 				if len(keyValue) != 2 {
+					return nil, fmt.Errorf("invalid condition %s", cond)
+				}
+				if _, ok := scorePerCondition[keyValue[0]]; !ok {
 					return nil, fmt.Errorf("invalid condition %s", cond)
 				}
 				conditions[keyValue[0]] = (keyValue[1] != "false")
