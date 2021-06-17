@@ -717,8 +717,8 @@ func getIsuConditions(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "bad format: cursor_end_time")
 	}
-	cursorJiaIsuUUID := c.QueryParam("cursor_jia_isu_uuid")
-	if cursorJiaIsuUUID == "" {
+	cursorJIAIsuUUID := c.QueryParam("cursor_jia_isu_uuid")
+	if cursorJIAIsuUUID == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "cursor_jia_isu_uuid is missing")
 	}
 	conditionLevel := c.QueryParam("condition_level")
@@ -756,7 +756,7 @@ func getIsuConditions(c echo.Context) error {
 			"SELECT * FROM `isu_log` WHERE `jia_isu_uuid` = ?"+
 				"	AND (`timestamp`, `jia_isu_uuid`) < (?, ?)"+
 				"	ORDER BY `created_at` desc, `jia_isu_uuid` desc limit ?",
-			jiaIsuUUID, cursorEndTime, cursorJiaIsuUUID, conditionLimit,
+			jiaIsuUUID, cursorEndTime, cursorJIAIsuUUID, conditionLimit,
 		)
 	} else {
 		err = db.Select(&conditions,
@@ -764,7 +764,7 @@ func getIsuConditions(c echo.Context) error {
 				"	AND (`timestamp`, `jia_isu_uuid`) < (?, ?)"+
 				"	AND ? <= `timestamp`"+
 				"	ORDER BY `created_at` desc, `jia_isu_uuid` desc limit ?",
-			jiaIsuUUID, cursorEndTime, cursorJiaIsuUUID, startTime, conditionLimit,
+			jiaIsuUUID, cursorEndTime, cursorJIAIsuUUID, startTime, conditionLimit,
 		)
 	}
 	if err != nil {
