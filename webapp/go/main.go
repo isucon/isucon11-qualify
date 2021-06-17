@@ -120,7 +120,7 @@ type GraphResponse struct {
 type NotificationResponse struct {
 }
 
-type PostNotificationRequest struct {
+type PostIsuConditionRequest struct {
 	IsSitting bool   `json:"is_sitting"`
 	Condition string `json:"condition"`
 	Message   string `json:"message"`
@@ -742,7 +742,7 @@ func postIsuCondition(c echo.Context) error {
 	if jiaIsuUUID == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "jia_isu_uuid is missing")
 	}
-	var request PostNotificationRequest
+	var request PostIsuConditionRequest
 	err := c.Bind(&request)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "bad request body")
