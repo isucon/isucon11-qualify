@@ -19,10 +19,10 @@ import (
 )
 
 const (
-	sessionName                 = "isucondition"
-	searchLimit                 = 20
-	notificationLimit           = 20
-	notificationTimestampFormat = "2006-01-02 15:04:05 -0700"
+	sessionName              = "isucondition"
+	searchLimit              = 20
+	conditionLimit           = 20
+	conditionTimestampFormat = "2006-01-02 15:04:05 -0700"
 )
 
 var scorePerCondition = map[string]int{
@@ -117,7 +117,9 @@ type GetMeResponse struct {
 type GraphResponse struct {
 }
 
-type NotificationResponse struct {
+type IsuConditionRequest struct {
+}
+type IsuConditionResponse struct {
 }
 
 type PostIsuConditionRequest struct {
@@ -182,8 +184,8 @@ func main() {
 	e.GET("/api/isu/:jia_isu_uuid/icon", getIsuIcon)
 	e.PUT("/api/isu/:jia_isu_uuid/icon", putIsuIcon)
 	e.GET("/api/isu/:jia_isu_uuid/graph", getIsuGraph)
-	e.GET("/api/notification", getNotifications)
-	e.GET("/api/notification/:jia_isu_uuid", getIsuNotifications)
+	e.GET("/api/condition", getAllIsuConditions)
+	e.GET("/api/condition/:jia_isu_uuid", getIsuConditions)
 
 	e.POST("/api/isu/:jia_isu_uuid/condition", postIsuCondition)
 
@@ -647,23 +649,23 @@ func getIsuGraph(c echo.Context) error {
 	return fmt.Errorf("not implemented")
 }
 
-//  GET /api/notification?
+//  GET /api/condition?
 // 自分の所持椅子の通知を取得する
 // MEMO: 1970/1/1みたいな時を超えた古代からのリクエストは表示するか → する
 // 順序は最新順固定
-func getNotifications(c echo.Context) error {
+func getAllIsuConditions(c echo.Context) error {
 	// * session
 	// session が存在しなければ 401
 
-	// input {jia_isu_uuid}が無い以外は、/api/notification/{jia_isu_uuid}と同じ
+	// input {jia_isu_uuid}が無い以外は、/api/condition/{jia_isu_uuid}と同じ
 	//
 
 	// cookieからユーザID取得
 	// ユーザの所持椅子取得
 	// SELECT * FROM isu where jia_user_id = ?;
 
-	// ユーザの所持椅子毎に /api/notificaiton/{jia_isu_uuid} を叩く（こことマージ含めてボトルネック）
-	// query_param は GET /api/notification (ここ) のリクエストと同じものを使い回す
+	// ユーザの所持椅子毎に /api/condition/{jia_isu_uuid} を叩く（こことマージ含めてボトルネック）
+	// query_param は GET /api/condition (ここ) のリクエストと同じものを使い回す
 
 	// ユーザの所持椅子ごとのデータをマージ（ここと個別取得部分含めてボトルネック）
 	// 通知時間帯でソートして、limit件数（固定）該当するデータを返す
@@ -677,15 +679,21 @@ func getNotifications(c echo.Context) error {
 	//   or isu_log.created_at<cursor.end_time order by created_at desc,jia_isu_uuid desc limit ?)
 
 	// response: 200
-	// /api/notification/{jia_isu_uuid}と同じ
+	// /api/condition/{jia_isu_uuid}と同じ
 	return fmt.Errorf("not implemented")
 }
 
-//  GET /api/notification/{jia_isu_uuid}?start_time=
-// 自分の所持椅子のうち、指定したisu_idの通知を取得する
-func getIsuNotifications(c echo.Context) error {
-	// * session
-	// session が存在しなければ 401
+//  GET /api/condition/{jia_isu_uuid}?start_time=
+// 自分の所持椅子のうち、指定した椅子の通知を取得する
+func getIsuConditions(c echo.Context) error {
+	jiaUserID, err := getUserIdFromSession(c.Request())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not sign in")
+	}
+	jiaIsuUUID := c.Param("jia_isu_uuid")
+	if jiaIsuUUID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "jia_isu_uuid is missing")
+	}
 
 	// input
 	//     * jia_isu_uuid: 椅子の固有番号(path_param)
@@ -749,7 +757,7 @@ func postIsuCondition(c echo.Context) error {
 	}
 
 	//Parse
-	timestamp, err := time.Parse(notificationTimestampFormat, request.Timestamp)
+	timestamp, err := time.Parse(conditionTimestampFormat, request.Timestamp)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid timestamp")
 	}
