@@ -488,27 +488,24 @@ func putIsu(c echo.Context) error {
 	tx, err := db.Beginx()
 	if err != nil {
 		c.Logger().Error(err)
-		tx.Rollback()
 		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
 	}
+	defer tx.Rollback()
 
 	var count int
 	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = ?",
 		jiaUserID, jiaIsuUUID, false)
 	if err != nil {
 		c.Logger().Error(err)
-		tx.Rollback()
 		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
 	}
 	if count == 0 {
-		tx.Rollback()
 		return echo.NewHTTPError(http.StatusNotFound, "isu not found")
 	}
 
 	_, err = tx.Exec("UPDATE `isu` SET `name` = ? WHERE `jia_isu_uuid` = ?", req.Name, jiaIsuUUID)
 	if err != nil {
 		c.Logger().Error(err)
-		tx.Rollback()
 		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
 	}
 
@@ -517,7 +514,6 @@ func putIsu(c echo.Context) error {
 		jiaUserID, jiaIsuUUID, false)
 	if err != nil {
 		c.Logger().Error(err)
-		tx.Rollback()
 		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
 	}
 
