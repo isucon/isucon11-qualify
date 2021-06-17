@@ -16,7 +16,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - "../webapp/go:/webapp/go"
+      - "../webapp:/webapp"
       # postInitialize用 開発環境専用のものは入れない
       - "../webapp/mysql/db:/webapp/mysql/db"
     depends_on:
@@ -39,7 +39,18 @@ services:
       - "../webapp/mysql/db/0_Schema.sql:/docker-entrypoint-initdb.d/0_Schema.sql"
       - "../development/mysql-backend/1_Constraint.sql:/docker-entrypoint-initdb.d/1_Constraint.sql"
       - "../development/mysql-backend/2_Init.sql:/docker-entrypoint-initdb.d/2_Init.sql"
-    expose:
+     expose:
       - "3306"
     ports:
       - "3306:3306"
+
+  isuapi-sa:
+    image: golang:1.16.5-buster
+    restart: always
+    working_dir: /isuapi
+    command: ["go", "run", "./cmd/standalone/"]
+    ports:
+      - "5000:5000"
+    volumes:
+      - "../extra/isuapi:/isuapi"
+      - "../webapp:/webapp"

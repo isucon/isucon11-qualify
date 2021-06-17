@@ -74,10 +74,12 @@ func getEnv(key string, defaultValue string) string {
 	return defaultValue
 }
 func isPrivateIP(ipstr string) bool {
-	ip := net.ParseIP(ipstr)
-	if ip == nil {
+
+	ipAddr, err := net.ResolveIPAddr("ip", ipstr)
+	if err != nil || ipAddr == nil {
 		return false
 	}
+	ip := ipAddr.IP
 
 	if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
 		return true
@@ -157,6 +159,7 @@ func main() {
 	e.Use(middleware.Recover())
 
 	// Initialize
+	e.POST("/api/auth", postAuth)
 	e.GET("/api/catalog/:catalog_id", getCatalog)
 	e.POST("/api/activate", postActivate)
 	e.POST("/api/deactivate", postDeactivate)
@@ -165,6 +168,35 @@ func main() {
 	// Start server
 	serverPort := fmt.Sprintf(":%v", getEnv("ISUAPI_SERVER_PORT", "5000"))
 	e.Logger.Fatal(e.Start(serverPort))
+}
+
+func postAuth(c echo.Context) error {
+	input := &struct {
+		User     string `json:"user"`
+		Password string `json:"password"`
+	}{}
+	err := c.Bind(input)
+	if err != nil {
+		c.Logger().Errorf("failed to bind: %v", err)
+		return echo.NewHTTPError(http.StatusBadRequest)
+	}
+
+	passwordMap := map[string]string{
+		"isucon1": "isucon1",
+		"isucon2": "isucon2",
+		"isucon3": "isucon3",
+	}
+	for user, pass := range passwordMap {
+		if user == input.User && pass == input.Password {
+			jwt, err := generateJWT(user, time.Now())
+			if err != nil {
+				return echo.NewHTTPError(http.StatusInternalServerError, err)
+			}
+			return c.String(http.StatusOK, jwt)
+		}
+	}
+
+	return echo.NewHTTPError(http.StatusNotFound, "Not Found")
 }
 
 func getCatalog(c echo.Context) error {
@@ -235,7 +267,7 @@ func postDeactivate(c echo.Context) error {
 
 func postDie(c echo.Context) error {
 	input := &struct {
-		password string `json:"password"`
+		Password string `json:"password"`
 	}{}
 	err := c.Bind(input)
 	if err != nil {
@@ -243,7 +275,7 @@ func postDie(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest)
 	}
 
-	if input.password == "U,YaCLe9tAnW8EdYphW)Wc/dN)5pPQ/3ue_af4rz" {
+	if input.Password == "U,YaCLe9tAnW8EdYphW)Wc/dN)5pPQ/3ue_af4rz" {
 		os.Exit(0)
 	}
 	return echo.NewHTTPError(http.StatusNotFound, "Not Found")
