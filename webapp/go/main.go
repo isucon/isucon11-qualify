@@ -117,13 +117,14 @@ type GetMeResponse struct {
 type GraphResponse struct {
 }
 
-type NotificationRequest struct {
+type NotificationResponse struct {
+}
+
+type PostNotificationRequest struct {
 	IsSitting bool   `json:"is_sitting"`
 	Condition string `json:"condition"`
 	Message   string `json:"message"`
 	Timestamp string `json:"timestamp"` //Format("2006-01-02 15:04:05 -0700")
-}
-type NotificationResponse struct {
 }
 
 func getEnv(key string, defaultValue string) string {
@@ -741,7 +742,7 @@ func postIsuCondition(c echo.Context) error {
 	if jiaIsuUUID == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "jia_isu_uuid is missing")
 	}
-	var request NotificationRequest
+	var request PostNotificationRequest
 	err := c.Bind(&request)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "bad request body")
