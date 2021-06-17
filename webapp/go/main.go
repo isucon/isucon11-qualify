@@ -328,7 +328,7 @@ func getCatalog(c echo.Context) error {
 func getIsuList(c echo.Context) error {
 	jiaUserID, err := getUserIdFromSession(c.Request())
 	if err != nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, "you are not sign in")
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not signed in")
 	}
 
 	limitStr := c.QueryParam("limit")
@@ -344,19 +344,19 @@ func getIsuList(c echo.Context) error {
 	if limitStr != "" {
 		err := db.Select(
 			&isuList,
-			"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = FALSE ORDER BY `created_at` LIMIT ?",
+			"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = false ORDER BY `created_at` LIMIT ?",
 			jiaUserID, limit)
 		if err != nil {
-			c.Logger().Errorf(err.Error())
+			c.Logger().Error(err)
 			return echo.NewHTTPError(http.StatusInternalServerError, "db error")
 		}
 	} else {
 		err := db.Select(
 			&isuList,
-			"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = FALSE ORDER BY `created_at`",
+			"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = false ORDER BY `created_at`",
 			jiaUserID)
 		if err != nil {
-			c.Logger().Errorf(err.Error())
+			c.Logger().Error(err)
 			return echo.NewHTTPError(http.StatusInternalServerError, "db error")
 		}
 	}
