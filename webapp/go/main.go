@@ -893,6 +893,7 @@ func calculateGraph(isuLogCluster []IsuLog) (*GraphData, error) {
 
 	//score&detail
 	graph.Score = 100
+	//condition要因の減点
 	graph.Detail = map[string]int{}
 	for key := range scorePerCondition {
 		graph.Detail[key] = 0
@@ -921,6 +922,15 @@ func calculateGraph(isuLogCluster []IsuLog) (*GraphData, error) {
 		if graph.Detail[key] == 0 {
 			delete(graph.Detail, key)
 		}
+	}
+	//個数減点
+	if len(isuLogCluster) < 50 {
+		minus := -(50 - len(isuLogCluster)) * 2
+		graph.Score += minus
+		graph.Detail["missing_data"] = minus
+	}
+	if graph.Score < 0 {
+		graph.Score = 0
 	}
 
 	return graph, nil
