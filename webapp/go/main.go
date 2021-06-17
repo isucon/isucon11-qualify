@@ -144,8 +144,6 @@ func (mc *MySQLConnectionEnv) ConnectDB() (*sqlx.DB, error) {
 }
 
 func init() {
-	var err error
-
 	sessionStore = sessions.NewCookieStore([]byte(getEnv("SESSION_KEY", "isucondition")))
 
 	key, err := ioutil.ReadFile(jwtVerificationKeyPath)
@@ -264,13 +262,13 @@ func postAuthentication(c echo.Context) error {
 	}
 
 	// get jia_user_id from JWT Payload
-	claims := token.Claims.(jwt.MapClaims)
+	claims, _ := token.Claims.(jwt.MapClaims)
 	jiaUserId, ok := claims["jia_user_id"].(string)
 	if !ok {
 		return c.String(http.StatusBadRequest, "invalid JWT payload")
 	}
 
-	if err := func() error {
+	err = func() error {
 		tx, err := db.Beginx()
 		if err != nil {
 			return fmt.Errorf("failed to begin tx: %v", err)
@@ -278,27 +276,35 @@ func postAuthentication(c echo.Context) error {
 		defer tx.Rollback()
 
 		var userNum int
-		if err := tx.QueryRow("SELECT COUNT(*) FROM user WHERE `jia_user_id` = ? FOR UPDATE", jiaUserId).Scan(&userNum); err != nil {
+		err = tx.Get(&userNum, "SELECT COUNT(*) FROM user WHERE `jia_user_id` = ? FOR UPDATE", jiaUserId)
+		if err != nil {
 			return fmt.Errorf("select user: %w", err)
 		} else if userNum == 1 {
 			// user already signup. only return cookie
 			return nil
 		}
-		if _, err := tx.Exec("INSERT INTO user (`jia_user_id`) VALUES (?)", jiaUserId); err != nil {
+		_, err = tx.Exec("INSERT INTO user (`jia_user_id`) VALUES (?)", jiaUserId)
+		if err != nil {
 			return fmt.Errorf("insert user: %w", err)
 		}
-		if err := tx.Commit(); err != nil {
+		err = tx.Commit()
+		if err != nil {
 			return fmt.Errorf("commit tx: %w", err)
 		}
 		return nil
-	}(); err != nil {
+	}()
+	if err != nil {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	session := getSession(c.Request())
 	session.Values["jia_user_id"] = jiaUserId
-	session.Save(c.Request(), c.Response())
+	err = session.Save(c.Request(), c.Response())
+	if err != nil {
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
 
 	return c.NoContent(http.StatusOK)
 }
