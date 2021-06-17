@@ -806,61 +806,6 @@ func postIsuCondition(c echo.Context) error {
 		c.Logger().Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to select")
 	}
-	//分以下を切り捨て、一時間単位にする関数
-	truncateAfterHours := func(t time.Time) time.Time {
-		return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), 0, 0, 0, t.Location())
-	}
-	//スコア計算をする関数
-	calculateGraph := func(isuLogCluster []IsuLog) (*GraphData, error) {
-		graph := &GraphData{}
-
-		//sitting
-		sittingCount := 0
-		for _, log := range isuLogCluster {
-			if log.IsSitting {
-				sittingCount += 1
-			}
-		}
-		graph.Sitting = sittingCount * 100 / len(isuLogCluster)
-
-		//score&detail
-		graph.Score = 100
-		graph.Detail = map[string]int{}
-		graph.Detail["is_dirty"] = 0
-		graph.Detail["is_overweight"] = 0
-		graph.Detail["is_broken"] = 0
-		for _, log := range isuLogCluster {
-			conditions := map[string]bool{}
-			for _, cond := range strings.Split(log.Condition, ",") {
-				keyValue := strings.Split(cond, "=")
-				if len(keyValue) != 2 {
-					return nil, fmt.Errorf("invalid condition %s", cond)
-				}
-				if _, ok := scorePerCondition[keyValue[0]]; !ok {
-					return nil, fmt.Errorf("invalid condition %s", cond)
-				}
-				conditions[keyValue[0]] = (keyValue[1] != "false")
-			}
-
-			for key, enabled := range conditions {
-				if enabled {
-					graph.Score += scorePerCondition[key]
-					graph.Detail[key] += scorePerCondition[key]
-				}
-			}
-		}
-		if graph.Detail["is_dirty"] == 0 {
-			delete(graph.Detail, "is_dirty")
-		}
-		if graph.Detail["is_overweight"] == 0 {
-			delete(graph.Detail, "is_overweight")
-		}
-		if graph.Detail["is_broken"] == 0 {
-			delete(graph.Detail, "is_broken")
-		}
-
-		return graph, nil
-	}
 	//一時間ごとに区切る
 	err = rows.StructScan(&tmpIsuLog)
 	if err != nil {
@@ -927,4 +872,61 @@ func postIsuCondition(c echo.Context) error {
 	}
 
 	return c.NoContent(http.StatusCreated)
+}
+
+//分以下を切り捨て、一時間単位にする関数
+func truncateAfterHours(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), 0, 0, 0, t.Location())
+}
+
+//スコア計算をする関数
+func calculateGraph(isuLogCluster []IsuLog) (*GraphData, error) {
+	graph := &GraphData{}
+
+	//sitting
+	sittingCount := 0
+	for _, log := range isuLogCluster {
+		if log.IsSitting {
+			sittingCount += 1
+		}
+	}
+	graph.Sitting = sittingCount * 100 / len(isuLogCluster)
+
+	//score&detail
+	graph.Score = 100
+	graph.Detail = map[string]int{}
+	graph.Detail["is_dirty"] = 0
+	graph.Detail["is_overweight"] = 0
+	graph.Detail["is_broken"] = 0
+	for _, log := range isuLogCluster {
+		conditions := map[string]bool{}
+		for _, cond := range strings.Split(log.Condition, ",") {
+			keyValue := strings.Split(cond, "=")
+			if len(keyValue) != 2 {
+				return nil, fmt.Errorf("invalid condition %s", cond)
+			}
+			if _, ok := scorePerCondition[keyValue[0]]; !ok {
+				return nil, fmt.Errorf("invalid condition %s", cond)
+			}
+			conditions[keyValue[0]] = (keyValue[1] != "false")
+		}
+
+		for key, enabled := range conditions {
+			if enabled {
+				graph.Score += scorePerCondition[key]
+				graph.Detail[key] += scorePerCondition[key]
+			}
+		}
+	}
+	if graph.Detail["is_dirty"] == 0 {
+		delete(graph.Detail, "is_dirty")
+	}
+	if graph.Detail["is_overweight"] == 0 {
+		delete(graph.Detail, "is_overweight")
+	}
+	if graph.Detail["is_broken"] == 0 {
+		delete(graph.Detail, "is_broken")
+	}
+
+	return graph, nil
 }
