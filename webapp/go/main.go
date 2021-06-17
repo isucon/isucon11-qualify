@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -116,16 +117,11 @@ type GetMeResponse struct {
 type GraphResponse struct {
 }
 
-type IsuCondition struct {
-	IsDirty      bool `json:"is_dirty"`
-	IsOverweight bool `json:"is_overweight"`
-	IsBroken     bool `json:"is_broken"`
-}
 type NotificationRequest struct {
-	IsSitting bool         `json:"is_sitting"`
-	Condition IsuCondition `json:"condition"`
-	Message   string       `json:"message"`
-	Timestamp string       `json:"timestamp"` //Format("2006-01-02 15:04:05 -0700")
+	IsSitting bool   `json:"is_sitting"`
+	Condition string `json:"condition"`
+	Message   string `json:"message"`
+	Timestamp string `json:"timestamp"` //Format("2006-01-02 15:04:05 -0700")
 }
 type NotificationResponse struct {
 }
@@ -808,6 +804,7 @@ func postIsuCondition(c echo.Context) error {
 	// IsuLogを一時間ごとの区切りに分け、区切りごとにスコアを計算する
 	var isuLogCluster []IsuLog // 一時間ごとの纏まり
 	var tmpIsuLog IsuLog
+	var valuesForInsert []interface{} = []interface{}{}
 	rows, err := tx.Queryx("SELECT * FROM `isu_log` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` ASC", jiaIsuUUID)
 	if err != nil || !rows.Next() {
 		c.Logger().Error(err)
@@ -837,22 +834,20 @@ func postIsuCondition(c echo.Context) error {
 		graph.Detail["is_overweight"] = 0
 		graph.Detail["is_broken"] = 0
 		for _, log := range isuLogCluster {
-			var conditoin IsuCondition
-			err := json.Unmarshal([]byte(log.Condition), &conditoin)
-			if err != nil {
-				return nil, err
+			conditions := map[string]bool{}
+			for _, cond := range strings.Split(log.Condition, ",") {
+				keyValue := strings.Split(cond, "=")
+				if len(keyValue) != 2 {
+					return nil, fmt.Errorf("invalid condition %s", cond)
+				}
+				conditions[keyValue[0]] = (keyValue[1] != "false")
 			}
-			if conditoin.IsDirty {
-				graph.Score += scorePerCondition["is_dirty"]
-				graph.Detail["is_dirty"] += scorePerCondition["is_dirty"]
-			}
-			if conditoin.IsOverweight {
-				graph.Score += scorePerCondition["is_overweight"]
-				graph.Detail["is_overweight"] += scorePerCondition["is_overweight"]
-			}
-			if conditoin.IsBroken {
-				graph.Score += scorePerCondition["is_broken"]
-				graph.Detail["is_broken"] += scorePerCondition["is_broken"]
+
+			for key, enabled := range conditions {
+				if enabled {
+					graph.Score += scorePerCondition[key]
+					graph.Detail[key] += scorePerCondition[key]
+				}
 			}
 		}
 		if graph.Detail["is_dirty"] == 0 {
@@ -866,27 +861,6 @@ func postIsuCondition(c echo.Context) error {
 		}
 
 		return graph, nil
-	}
-	//スコアをDBに保存する関数
-	saveGraph := func(tx *sqlx.Tx, isuLogCluster []IsuLog, startTime time.Time) error {
-		data, err := calculateGraph(isuLogCluster)
-		if err != nil {
-			return fmt.Errorf("failed to calculate graph: %v", err)
-		}
-		dataStr, err := json.Marshal(data)
-		if err != nil {
-			return fmt.Errorf("failed to encode json: %v", err)
-		}
-
-		//insert
-		_, err = tx.Exec("INSERT INTO `graph` (`jia_isu_uuid`, `start_at`, `data`) VALUES (?, ?, ?)"+
-			"	ON DUPLICATE KEY UPDATE `data` = VALUES(`data`)",
-			jiaIsuUUID, startTime, dataStr,
-		)
-		if err != nil {
-			return fmt.Errorf("failed to insert: %v", err)
-		}
-		return nil
 	}
 	//一時間ごとに区切る
 	err = rows.StructScan(&tmpIsuLog)
@@ -905,11 +879,17 @@ func postIsuCondition(c echo.Context) error {
 		tmpTime := truncateAfterHours(tmpIsuLog.Timestamp)
 		if startTime != tmpTime {
 			//tmpTimeは次の一時間なので、それ以外を使ってスコア計算
-			err = saveGraph(tx, isuLogCluster, startTime)
+			data, err := calculateGraph(isuLogCluster)
 			if err != nil {
-				c.Logger().Error(err)
+				c.Logger().Errorf("failed to calculate graph: %v", err)
 				return echo.NewHTTPError(http.StatusInternalServerError, "failed to save graph")
 			}
+			dataStr, err := json.Marshal(data)
+			if err != nil {
+				c.Logger().Errorf("failed to encode json: %v", err)
+				return echo.NewHTTPError(http.StatusInternalServerError, "failed to save graph")
+			}
+			valuesForInsert = append(valuesForInsert, jiaIsuUUID, startTime, dataStr)
 
 			//次の一時間の探索
 			startTime = tmpTime
@@ -918,9 +898,25 @@ func postIsuCondition(c echo.Context) error {
 		isuLogCluster = append(isuLogCluster, tmpIsuLog)
 	}
 	//最後の一時間分
-	err = saveGraph(tx, isuLogCluster, startTime)
+	data, err := calculateGraph(isuLogCluster)
 	if err != nil {
-		c.Logger().Error(err)
+		c.Logger().Errorf("failed to calculate graph: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to save graph")
+	}
+	dataStr, err := json.Marshal(data)
+	if err != nil {
+		c.Logger().Errorf("failed to encode json: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to save graph")
+	}
+	valuesForInsert = append(valuesForInsert, jiaIsuUUID, startTime, dataStr)
+	//insert
+	_, err = tx.Exec("INSERT INTO `graph` (`jia_isu_uuid`, `start_at`, `data`) VALUES "+
+		"	(?,?,?)"+strings.Repeat(",(?,?,?)", len(valuesForInsert)/3-1)+
+		"	ON DUPLICATE KEY UPDATE `data` = VALUES(`data`)",
+		valuesForInsert...,
+	)
+	if err != nil {
+		c.Logger().Errorf("failed to insert: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to save graph")
 	}
 
