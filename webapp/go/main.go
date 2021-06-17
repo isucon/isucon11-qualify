@@ -758,8 +758,8 @@ func postIsuCondition(c echo.Context) error {
 	// トランザクション開始
 	tx, err := db.Beginx()
 	if err != nil {
-		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to begin tx")
+		c.Logger().Errorf("failed to begin tx: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 	defer tx.Rollback()
 
@@ -767,8 +767,8 @@ func postIsuCondition(c echo.Context) error {
 	var count int
 	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_isu_uuid` = ?  and `is_deleted`=false", jiaIsuUUID)
 	if err != nil {
-		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to select")
+		c.Logger().Errorf("failed to select: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 	if count == 0 {
 		return echo.NewHTTPError(http.StatusNotFound, "isu not found")
@@ -780,8 +780,8 @@ func postIsuCondition(c echo.Context) error {
 		timestamp, jiaIsuUUID,
 	)
 	if err != nil {
-		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to select")
+		c.Logger().Errorf("failed to begin tx: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 	if count != 0 {
 		return echo.NewHTTPError(http.StatusConflict, "isu_log already exist")
@@ -792,7 +792,7 @@ func postIsuCondition(c echo.Context) error {
 		jiaIsuUUID, timestamp, request.IsSitting, request.Condition, request.Message,
 	)
 	if err != nil {
-		c.Logger().Error(err)
+		c.Logger().Errorf("failed to insert: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert")
 	}
 
@@ -803,22 +803,22 @@ func postIsuCondition(c echo.Context) error {
 	var valuesForInsert []interface{} = []interface{}{}
 	rows, err := tx.Queryx("SELECT * FROM `isu_log` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` ASC", jiaIsuUUID)
 	if err != nil || !rows.Next() {
-		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to select")
+		c.Logger().Errorf("failed to select: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 	//一時間ごとに区切る
 	err = rows.StructScan(&tmpIsuLog)
 	if err != nil {
-		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to select")
+		c.Logger().Errorf("failed to select: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 	startTime := truncateAfterHours(tmpIsuLog.Timestamp)
 	isuLogCluster = []IsuLog{tmpIsuLog}
 	for rows.Next() {
 		err = rows.StructScan(&tmpIsuLog)
 		if err != nil {
-			c.Logger().Error(err)
-			return echo.NewHTTPError(http.StatusInternalServerError, "failed to select")
+			c.Logger().Errorf("failed to select: %v", err)
+			return echo.NewHTTPError(http.StatusInternalServerError)
 		}
 		tmpTime := truncateAfterHours(tmpIsuLog.Timestamp)
 		if startTime != tmpTime {
@@ -826,12 +826,12 @@ func postIsuCondition(c echo.Context) error {
 			data, err := calculateGraph(isuLogCluster)
 			if err != nil {
 				c.Logger().Errorf("failed to calculate graph: %v", err)
-				return echo.NewHTTPError(http.StatusInternalServerError, "failed to save graph")
+				return echo.NewHTTPError(http.StatusInternalServerError)
 			}
 			dataJSON, err := json.Marshal(data)
 			if err != nil {
 				c.Logger().Errorf("failed to encode json: %v", err)
-				return echo.NewHTTPError(http.StatusInternalServerError, "failed to save graph")
+				return echo.NewHTTPError(http.StatusInternalServerError)
 			}
 			valuesForInsert = append(valuesForInsert, jiaIsuUUID, startTime, dataJSON)
 
@@ -845,12 +845,12 @@ func postIsuCondition(c echo.Context) error {
 	data, err := calculateGraph(isuLogCluster)
 	if err != nil {
 		c.Logger().Errorf("failed to calculate graph: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to save graph")
+		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 	dataStr, err := json.Marshal(data)
 	if err != nil {
 		c.Logger().Errorf("failed to encode json: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to save graph")
+		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 	valuesForInsert = append(valuesForInsert, jiaIsuUUID, startTime, dataStr)
 	//insert
@@ -861,14 +861,14 @@ func postIsuCondition(c echo.Context) error {
 	)
 	if err != nil {
 		c.Logger().Errorf("failed to insert: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to save graph")
+		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 
 	// トランザクション終了
 	err = tx.Commit()
 	if err != nil {
-		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit tx")
+		c.Logger().Errorf("failed to commit tx: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 
 	return c.NoContent(http.StatusCreated)
@@ -895,9 +895,9 @@ func calculateGraph(isuLogCluster []IsuLog) (*GraphData, error) {
 	//score&detail
 	graph.Score = 100
 	graph.Detail = map[string]int{}
-	graph.Detail["is_dirty"] = 0
-	graph.Detail["is_overweight"] = 0
-	graph.Detail["is_broken"] = 0
+	for key := range scorePerCondition {
+		graph.Detail[key] = 0
+	}
 	for _, log := range isuLogCluster {
 		conditions := map[string]bool{}
 		for _, cond := range strings.Split(log.Condition, ",") {
