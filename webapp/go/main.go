@@ -661,7 +661,7 @@ func getAllIsuConditions(c echo.Context) error {
 	//     * cursor_end_time: 終了時間 (required)
 	//     * cursor_jia_isu_uuid (required)
 	//     * condition_level: critical,warning,info (csv)
-	//               critical: conditions (is_dirty,is_overweight,is_broken) のうちtrueが3個
+	//               critical: conditionsのうちtrueが3個
 	//               warning: conditionsのうちtrueのものが1 or 2個
 	//               info: warning無し
 	//     * TODO: day2実装: message (文字列検索)
