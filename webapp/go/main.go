@@ -750,16 +750,16 @@ func getIsuConditions(c echo.Context) error {
 		err = db.Select(&conditions,
 			"SELECT * FROM `isu_log` WHERE `jia_isu_uuid` = ?"+
 				"	AND (`timestamp`, `jia_isu_uuid`) < (?, ?)"+
-				"	ORDER BY `created_at` desc, `jia_isu_uuid` desc limit ?",
-			jiaIsuUUID, cursorEndTime, cursorJIAIsuUUID, conditionLimit,
+				"	ORDER BY `created_at` desc, `jia_isu_uuid` desc",
+			jiaIsuUUID, cursorEndTime, cursorJIAIsuUUID,
 		)
 	} else {
 		err = db.Select(&conditions,
 			"SELECT * FROM `isu_log` WHERE `jia_isu_uuid` = ?"+
 				"	AND (`timestamp`, `jia_isu_uuid`) < (?, ?)"+
 				"	AND ? <= `timestamp`"+
-				"	ORDER BY `created_at` desc, `jia_isu_uuid` desc limit ?",
-			jiaIsuUUID, cursorEndTime, cursorJIAIsuUUID, startTime, conditionLimit,
+				"	ORDER BY `created_at` desc, `jia_isu_uuid` desc",
+			jiaIsuUUID, cursorEndTime, cursorJIAIsuUUID, startTime,
 		)
 	}
 	if err != nil {
@@ -802,6 +802,8 @@ func getIsuConditions(c echo.Context) error {
 		}
 	}
 
+	//limit
+	conditionsResponse = conditionsResponse[:conditionLimit]
 	return c.JSON(http.StatusOK, conditionsResponse)
 }
 
