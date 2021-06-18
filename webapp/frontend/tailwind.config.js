@@ -5,6 +5,10 @@ module.exports = {
     backgroundColor: theme => ({
       ...theme('colors'),
       primary: colors.indigo
+    }),
+    textColor: theme => ({
+      ...theme('colors'),
+      primary: colors.gray
     })
   }
 }

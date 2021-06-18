@@ -5,7 +5,7 @@ import GuardedRoute from './router/GuardedRoute'
 
 const App = () => {
   return (
-    <div>
+    <div className="text-primary-700">
       <BrowserRouter>
         <PageHeader></PageHeader>
         <Switch>
