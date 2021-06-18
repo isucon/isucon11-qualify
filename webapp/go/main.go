@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -653,21 +654,78 @@ func getIsuGraph(c echo.Context) error {
 
 //  GET /api/condition?
 // 自分の所持椅子の通知を取得する
-// MEMO: 1970/1/1みたいな時を超えた古代からのリクエストは表示するか → する
-// 順序は最新順固定
 func getAllIsuConditions(c echo.Context) error {
-	// * session
-	// session が存在しなければ 401
+	// input
+	//     * start_time: 開始時間
+	//     * cursor_end_time: 終了時間 (required)
+	//     * cursor_jia_isu_uuid (required)
+	//     * condition_level: critical,warning,info (csv)
+	//               critical: conditions (is_dirty,is_overweight,is_broken) のうちtrueが3個
+	//               warning: conditionsのうちtrueのものが1 or 2個
+	//               info: warning無し
+	//     * TODO: day2実装: message (文字列検索)
 
-	// input {jia_isu_uuid}が無い以外は、/api/condition/{jia_isu_uuid}と同じ
-	//
+	jiaUserID, err := getUserIdFromSession(c.Request())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not sign in")
+	}
+	//required query param
+	cursorEndTimeStr := c.QueryParam("cursor_end_time")
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "cursor_end_time is missing")
+	}
+	cursorJIAIsuUUID := c.QueryParam("cursor_jia_isu_uuid")
+	if cursorJIAIsuUUID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "cursor_jia_isu_uuid is missing")
+	}
+	conditionLevel := c.QueryParam("condition_level")
+	if conditionLevel == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "condition_level is missing")
+	}
+	//optional query param
+	startTimeStr := c.QueryParam("start_time")
 
-	// cookieからユーザID取得
 	// ユーザの所持椅子取得
-	// SELECT * FROM isu where jia_user_id = ?;
+	isuList := []Isu{}
+	err = db.Select(&isuList,
+		"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = false",
+		jiaUserID,
+	)
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			c.Logger().Errorf("failed to select: %v", err)
+			return echo.NewHTTPError(http.StatusInternalServerError)
+		}
+	}
 
-	// ユーザの所持椅子毎に /api/condition/{jia_isu_uuid} を叩く（こことマージ含めてボトルネック）
-	// query_param は GET /api/condition (ここ) のリクエストと同じものを使い回す
+	// ユーザの所持椅子毎に /api/condition/{jia_isu_uuid} を叩く
+	conditionsResponse := []*GetIsuConditionResponse{}
+	for _, isu := range isuList {
+		targetURL, err := url.Parse(fmt.Sprintf(
+			"http://localhost:%s/api/condition/%s",
+			getEnv("SERVER_PORT", "3000"), isu.JIAIsuUUID,
+		))
+		if err != nil {
+			c.Logger().Errorf("failed to parse url: %v ;(%s,%s)", err, getEnv("SERVER_PORT", "3000"), isu.JIAIsuUUID)
+			return echo.NewHTTPError(http.StatusInternalServerError)
+		}
+
+		q := targetURL.Query()
+		q.Set("cursor_end_time", cursorEndTimeStr)
+		q.Set("cursor_jia_isu_uuid", cursorJIAIsuUUID)
+		q.Set("condition_level", conditionLevel)
+		if startTimeStr != "" {
+			q.Set("start_time", startTimeStr)
+		}
+		targetURL.RawQuery = q.Encode()
+		conditionsTmp, err := getIsuConditionsFromURL(targetURL.String())
+		if err != nil {
+			c.Logger().Errorf("failed to http request: %v", err)
+			return echo.NewHTTPError(http.StatusInternalServerError)
+		}
+
+		conditionsResponse = append(conditionsResponse, conditionsTmp...)
+	}
 
 	// ユーザの所持椅子ごとのデータをマージ（ここと個別取得部分含めてボトルネック）
 	// 通知時間帯でソートして、limit件数（固定）該当するデータを返す
@@ -683,6 +741,26 @@ func getAllIsuConditions(c echo.Context) error {
 	// response: 200
 	// /api/condition/{jia_isu_uuid}と同じ
 	return fmt.Errorf("not implemented")
+}
+
+//http requestを飛ばし、そのレスポンスを[]GetIsuConditionResponseに変換する
+func getIsuConditionsFromURL(url string) ([]*GetIsuConditionResponse, error) {
+	res, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != 200 {
+		return nil, fmt.Errorf("failed to `GET %s` with status=`%s`", url, res.Status)
+	}
+
+	condition := []*GetIsuConditionResponse{}
+	err = json.NewDecoder(res.Body).Decode(&condition)
+	if err != nil {
+		return nil, err
+	}
+	return condition, nil
 }
 
 //  GET /api/condition/{jia_isu_uuid}?
