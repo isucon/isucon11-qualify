@@ -148,10 +148,10 @@ paths:
                 type: 'boolean'
 
 
-  /api/isu/{isu_id}:
+  /api/isu/{jia_isu_uuid}:
     get:
       tags: [backend]
-      summary: '/api/isu/{isu_id}'
+      summary: '/api/isu/{jia_isu_uuid}'
       description: '椅子の情報を取得する'
       responses:
         '200':
@@ -163,7 +163,7 @@ paths:
 
     put:
       tags: [backend]
-      summary: '/api/isu/{isu_id}'
+      summary: '/api/isu/{jia_isu_uuid}'
       description: '自分の所有しているISUの情報を変更する'
       responses:
         '200':
@@ -175,7 +175,7 @@ paths:
 
     delete:
       tags: [backend]
-      summary: '/api/isu/{isu_id}'
+      summary: '/api/isu/{jia_isu_uuid}'
       description: '自分の所有しているISUを削除する'
       responses:
         '200':
@@ -186,10 +186,10 @@ paths:
                 type: 'boolean'
 
 
-  /api/isu/{isu_id}/icon:
+  /api/isu/{jia_isu_uuid}/icon:
     get:
       tags: [backend]
-      summary: '/api/isu/{isu_id}/icon'
+      summary: '/api/isu/{jia_isu_uuid}/icon'
       description: 'ISUのアイコンを取得する'
       responses:
         '200':
@@ -201,7 +201,7 @@ paths:
 
     put:
       tags: [backend]
-      summary: '/api/isu/{isu_id}/icon'
+      summary: '/api/isu/{jia_isu_uuid}/icon'
       description: 'ISUのアイコンを登録する'
       responses:
         '200':
@@ -212,10 +212,10 @@ paths:
                 type: 'boolean'
 
 
-  /api/isu/{isu_id}/graph:
+  /api/isu/{jia_isu_uuid}/graph:
     get:
       tags: [backend]
-      summary: '/api/isu/{isu_id}/graph'
+      summary: '/api/isu/{jia_isu_uuid}/graph'
       description: 'グラフ描画のための情報を計算して返却する'
       responses:
         '200':
@@ -226,10 +226,10 @@ paths:
                 type: 'boolean'
 
 
-  /api/notification:
+  /api/condition:
     get:
       tags: [backend]
-      summary: '/api/notification'
+      summary: '/api/condition'
       description: '自分の所持椅子の通知を取得する'
       responses:
         '200':
@@ -240,11 +240,11 @@ paths:
                 type: 'boolean'
 
 
-  /api/notification/{isu_id}:
+  /api/condition/{jia_isu_uuid}:
     get:
       tags: [backend]
-      summary: '/api/notification/{isu_id}'
-      description: '自分の所持椅子のうち、指定したisu_idの通知を取得する'
+      summary: '/api/condition/{jia_isu_uuid}'
+      description: '自分の所持椅子のうち、指定したjia_isu_uuidの通知を取得する'
       responses:
         '200':
           description: ''
@@ -254,10 +254,10 @@ paths:
                 type: 'boolean'
 
 
-  /api/isu/{isu_id}/condition:
-    get:
+  /api/isu/{jia_isu_uuid}/condition:
+    post:
       tags: [backend]
-      summary: '/api/isu/{isu_id}/condition'
+      summary: '/api/isu/{jia_isu_uuid}/condition'
       description: 'ISUからのセンサデータを受け取る'
       responses:
         '200':
