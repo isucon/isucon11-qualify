@@ -18,7 +18,7 @@ const Controls = () => {
   }
 
   return (
-    <div className="flex ml-auto items-center">
+    <div className="flex items-center ml-auto">
       <ControlLinkItem
         to="/isu/condition"
         label="ISUの状態"

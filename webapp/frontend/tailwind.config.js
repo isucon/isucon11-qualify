@@ -1,4 +1,5 @@
-import colors from 'windicss/colors'
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const colors = require('windicss/colors')
 
 module.exports = {
   theme: {
