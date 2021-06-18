@@ -22,7 +22,7 @@ const (
 var jwtSecretKey *ecdsa.PrivateKey
 
 func init() {
-	jwtSecretKeyPath := getEnv("JWT_SECRETKEY_PATH", "/webapp/ec256-private.pem")
+	jwtSecretKeyPath := getEnv("JWT_SECRETKEY_PATH", "./ec256-private.pem")
 	key, err := ioutil.ReadFile(jwtSecretKeyPath)
 	if err != nil {
 		log.Fatalf("Unable to read file: %v", err)
