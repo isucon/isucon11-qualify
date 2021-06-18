@@ -865,7 +865,9 @@ func getIsuConditions(c echo.Context) error {
 	}
 
 	//limit
-	conditionsResponse = conditionsResponse[:conditionLimit]
+	if len(conditionsResponse) > conditionLimit {
+		conditionsResponse = conditionsResponse[:conditionLimit]
+	}
 	return c.JSON(http.StatusOK, conditionsResponse)
 }
 
