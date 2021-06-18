@@ -893,7 +893,7 @@ func postIsuCondition(c echo.Context) error {
 
 			//次の一時間の探索
 			startTime = tmpTime
-			isuLogCluster = isuLogCluster[:0]
+			isuLogCluster = []IsuLog{}
 		}
 		isuLogCluster = append(isuLogCluster, tmpIsuLog)
 	}
