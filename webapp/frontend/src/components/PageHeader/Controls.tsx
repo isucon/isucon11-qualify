@@ -1,10 +1,11 @@
-import { Link } from 'react-router-dom'
 import { useStateContext } from '../../context/state'
 import { MdAccountCircle } from 'react-icons/md'
 import { useState } from 'react'
 
 import ControlItem from './ControlItem'
 import UserControlModal from './UserControlModal'
+import ControlLinkItem from './ControlLinkItem'
+import { IoIosNotifications, IoMdSearch } from 'react-icons/io'
 
 const Controls = () => {
   const [isOpenModal, setIsOpenModal] = useState(false)
@@ -18,20 +19,20 @@ const Controls = () => {
 
   return (
     <div className="flex ml-auto items-center">
-      <ControlItem>
-        <Link to="/isu/condition">
-          <div>ISUの状態</div>
-        </Link>
-      </ControlItem>
-      <ControlItem>
-        <Link to="/isu/search">
-          <div>ISUの検索</div>
-        </Link>
-      </ControlItem>
+      <ControlLinkItem
+        to="/isu/condition"
+        label="ISUの状態"
+        icon={<IoIosNotifications />}
+      />
+      <ControlLinkItem
+        to="/isu/search"
+        label="ISUの検索"
+        icon={<IoMdSearch />}
+      />
       <ControlItem>
         <div className="flex items-center cursor-pointer" onClick={toggleModal}>
           <MdAccountCircle />
-          <div>{me.jiaUserID}</div>
+          <div className="ml-1">{me.jiaUserID}</div>
         </div>
       </ControlItem>
       <UserControlModal isOpen={isOpenModal} toggle={toggleModal} />
