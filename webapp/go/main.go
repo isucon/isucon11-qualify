@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -709,35 +710,40 @@ func getAllIsuConditions(c echo.Context) error {
 			return echo.NewHTTPError(http.StatusInternalServerError)
 		}
 
+		// ユーザの所持椅子ごとのデータをマージ
 		conditionsResponse = append(conditionsResponse, conditionsTmp...)
 	}
 
-	// ユーザの所持椅子ごとのデータをマージ（ここと個別取得部分含めてボトルネック）
-	// 通知時間帯でソートして、limit件数（固定）該当するデータを返す
-	// MEMO: 改善後はこんな感じのSQLで一発でとる
-	// select * from isu_log where (isu_log.created_at, jia_isu_uuid) < (cursor.end_time, cursor.jia_isu_uuid)
-	//  order by created_at desc,jia_isu_uuid desc limit ?
-	// 10.1.36-MariaDB で確認
+	// (`timestamp`, `jia_isu_uuid`)のペアで降順ソート
+	sort.Slice(conditionsResponse, func(i, j int) bool {
+		// return [i] > [j]
 
-	//memo（没）
-	// (select * from isu_log where (isu_log.created_at=cursor.end_time and jia_isu_uuid < cursor.jia_isu_uuid)
-	//   or isu_log.created_at<cursor.end_time order by created_at desc,jia_isu_uuid desc limit ?)
+		if conditionsResponse[i].Timestamp.After(conditionsResponse[j].Timestamp) {
+			return true
+		}
+		if conditionsResponse[i].Timestamp.Equal(conditionsResponse[j].Timestamp) {
+			return conditionsResponse[i].JIAIsuUUID > conditionsResponse[j].JIAIsuUUID
+		}
+		return false
+	})
 
-	// response: 200
-	// /api/condition/{jia_isu_uuid}と同じ
-	return fmt.Errorf("not implemented")
+	//limitを取る
+	conditionsResponse = conditionsResponse[:conditionLimit]
+
+	return c.JSON(http.StatusOK, conditionsResponse)
 }
 
 //http requestを飛ばし、そのレスポンスを[]GetIsuConditionResponseに変換する
 func getIsuConditionsFromLocalhost(
 	jiaIsuUUID string, cursorEndTimeStr string, cursorJIAIsuUUID string, conditionLevel string, startTimeStr string,
 ) ([]*GetIsuConditionResponse, error) {
+
 	targetURL, err := url.Parse(fmt.Sprintf(
 		"http://localhost:%s/api/condition/%s",
 		getEnv("SERVER_PORT", "3000"), jiaIsuUUID,
 	))
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse url: %v ;(%s,%s)", err, getEnv("SERVER_PORT", "3000"), isjiaIsuUUIDu.JIAIsuUUID)
+		return nil, fmt.Errorf("failed to parse url: %v ;(%s,%s)", err, getEnv("SERVER_PORT", "3000"), jiaIsuUUID)
 	}
 
 	q := targetURL.Query()
@@ -756,7 +762,7 @@ func getIsuConditionsFromLocalhost(
 	defer res.Body.Close()
 
 	if res.StatusCode != 200 {
-		return nil, fmt.Errorf("failed to `GET %s` with status=`%s`", url, res.Status)
+		return nil, fmt.Errorf("failed to `GET %s` with status=`%s`", targetURL.String(), res.Status)
 	}
 
 	condition := []*GetIsuConditionResponse{}
