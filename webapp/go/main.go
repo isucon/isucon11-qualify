@@ -1,10 +1,12 @@
 package main
 
 import (
+	"crypto/ecdsa"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -12,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dgrijalva/jwt-go"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/sessions"
 	"github.com/jmoiron/sqlx"
@@ -25,6 +28,7 @@ const (
 	searchLimit                 = 20
 	notificationLimit           = 20
 	notificationTimestampFormat = "2006-01-02 15:04:05 -0700"
+	jwtVerificationKeyPath      = "../ec256-public.pem"
 )
 
 var scorePerCondition = map[string]int{
@@ -37,6 +41,8 @@ var (
 	db                  *sqlx.DB
 	sessionStore        sessions.Store
 	mySQLConnectionData *MySQLConnectionEnv
+
+	jwtVerificationKey *ecdsa.PublicKey
 )
 
 type Isu struct {
@@ -156,6 +162,15 @@ func (mc *MySQLConnectionEnv) ConnectDB() (*sqlx.DB, error) {
 
 func init() {
 	sessionStore = sessions.NewCookieStore([]byte(getEnv("SESSION_KEY", "isucondition")))
+
+	key, err := ioutil.ReadFile(jwtVerificationKeyPath)
+	if err != nil {
+		log.Fatalf("Unable to read file: %v", err)
+	}
+	jwtVerificationKey, err = jwt.ParseECPublicKeyFromPEM(key)
+	if err != nil {
+		log.Fatalf("Unable to parse ECDSA public key: %v", err)
+	}
 }
 
 func main() {
@@ -250,30 +265,77 @@ func postInitialize(c echo.Context) error {
 
 //  POST /api/auth
 func postAuthentication(c echo.Context) error {
-	// ユーザからの入力
-	// * jwt
+	reqJwt := strings.TrimPrefix(c.Request().Header.Get("Authorization"), "Bearer ")
 
-	// jwt の verify
-	// NG だったら resp 400(Bad Request) or 403(期限切れとか)
+	// verify JWT
+	token, err := jwt.Parse(reqJwt, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodECDSA); !ok {
+			return nil, jwt.NewValidationError(fmt.Sprintf("Unexpected signing method: %v", token.Header["alg"]), jwt.ValidationErrorSignatureInvalid)
+		}
+		return jwtVerificationKey, nil
+	})
+	if err != nil {
+		switch err.(type) {
+		case *jwt.ValidationError:
+			return c.String(http.StatusForbidden, "forbidden")
+		default:
+			c.Logger().Errorf("unknown error: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+	}
 
-	// jwt から username を取得
-	//なかったら 400
+	// get jia_user_id from JWT Payload
+	claims, _ := token.Claims.(jwt.MapClaims) // TODO: 型アサーションのチェックの有無の議論
+	jiaUserIdVar, ok := claims["jia_user_id"]
+	if !ok {
+		return c.String(http.StatusBadRequest, "invalid JWT payload")
+	}
+	jiaUserId, ok := jiaUserIdVar.(string)
+	if !ok {
+		return c.String(http.StatusBadRequest, "invalid JWT payload")
+	}
 
-	// トランザクション開始
+	err = func() error { //TODO: 無名関数によるラップの議論
+		tx, err := db.Beginx()
+		if err != nil {
+			return fmt.Errorf("failed to begin tx: %w", err)
+		}
+		defer tx.Rollback()
 
-	// DB にて存在確認
-	// SELECT COUNT(*) FROM users WHERE username = `username`;
+		var userNum int
+		err = tx.Get(&userNum, "SELECT COUNT(*) FROM user WHERE `jia_user_id` = ? FOR UPDATE", jiaUserId)
+		if err != nil {
+			return fmt.Errorf("select user: %w", err)
+		} else if userNum == 1 {
+			// user already signup. only return cookie
+			return nil
+		}
 
-	// もし見つからなかったら
-	// INSERT INTO users(username) VALUES(`username`); //uniqueなのでtx無しでこれだけでもOK(ダミーの改善点)
-	// すでに存在するユーザー名なら409 ← 上で存在確認してるけど、このレベルのハンドリングつける？
-	// 失敗したら500
+		_, err = tx.Exec("INSERT INTO user (`jia_user_id`) VALUES (?)", jiaUserId)
+		if err != nil {
+			return fmt.Errorf("insert user: %w", err)
+		}
 
-	// トランザクション終了
+		err = tx.Commit()
+		if err != nil {
+			return fmt.Errorf("commit tx: %w", err)
+		}
+		return nil
+	}()
+	if err != nil {
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
 
-	// Cookieを付与
-	// 見つかったら 200
-	return fmt.Errorf("not implemented")
+	session := getSession(c.Request())
+	session.Values["jia_user_id"] = jiaUserId
+	err = session.Save(c.Request(), c.Response())
+	if err != nil {
+		c.Logger().Errorf("failed to set cookie: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	return c.NoContent(http.StatusOK)
 }
 
 //  POST /api/signout
