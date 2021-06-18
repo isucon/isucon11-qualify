@@ -1,7 +1,9 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -112,6 +114,7 @@ type InitializeResponse struct {
 }
 
 type GetMeResponse struct {
+	JIAUserID string `json:"jia_user_id"`
 }
 
 type GraphResponse struct {
@@ -292,18 +295,14 @@ func postSignout(c echo.Context) error {
 // func getUser(c echo.Context) error {
 // }
 
-//  GET /api/user/me
-// 自分のユーザー情報を取得
 func getMe(c echo.Context) error {
-	// * session
-	// session が存在しなければ 401
+	userID, err := getUserIdFromSession(c.Request())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not signed in") // TODO 記法が決まったら修正
+	}
 
-	// SELECT jia_user_id, user_name FROM users WHERE jia_user_id = {jia_user_id};
-
-	//response 200
-	// * jia_user_id
-	// * user_name
-	return fmt.Errorf("not implemented")
+	response := GetMeResponse{JIAUserID: userID}
+	return c.JSON(http.StatusOK, response)
 }
 
 //  GET /api/catalog/{jia_catalog_id}
@@ -457,28 +456,26 @@ func getIsuSearch(c echo.Context) error {
 //  GET /api/isu/{jia_isu_uuid}
 // 椅子の情報を取得する
 func getIsu(c echo.Context) error {
-	// * session
-	// session が存在しなければ 401
+	jiaUserID, err := getUserIdFromSession(c.Request())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not sign in")
+	}
 
-	// input
-	//		* jia_isu_uuid: 椅子固有のID
+	jiaIsuUUID := c.Param("jia_isu_uuid")
 
-	// SELECT (*) FROM isu WHERE jia_user_id = `jia_user_id` and jia_isu_uuid = `jia_isu_uuid` and is_deleted=false;
-	// 見つからなければ404
-	// user_idがリクエストユーザーのものでなければ404
-	// 画像までSQLで取ってくるボトルネック
-	// imageも最初はとってるけどレスポンスに含まれてないからselect時に持ってくる必要ない
-	// MEMO: jia_user_id 判別はクエリに入れずその後のロジックとする？ (一通り完成した後に要考慮)
+	// TODO: jia_user_id 判別はクエリに入れずその後のロジックとする？ (一通り完成した後に要考慮)
+	var isu Isu
+	err = db.Get(&isu, "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = ?",
+		jiaUserID, jiaIsuUUID, false)
+	if errors.Is(err, sql.ErrNoRows) {
+		return echo.NewHTTPError(http.StatusNotFound, "isu not found")
+	}
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+	}
 
-	// response  200
-	//{
-	// * id
-	// * name
-	// * jia_catalog_id
-	// * charactor
-	//}
-
-	return fmt.Errorf("not implemented")
+	return c.JSON(http.StatusOK, isu)
 }
 
 //  PUT /api/isu/{jia_isu_uuid}
