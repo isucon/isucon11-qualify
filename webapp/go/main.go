@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -36,6 +37,9 @@ var scorePerCondition = map[string]int{
 	"is_overweight": -1,
 	"is_broken":     -5,
 }
+
+//"is_dirty=true/false,is_overweight=true/false,..."
+var conditionFormat = regexp.MustCompile(`^[-a-zA-Z_]+=(true|false)(,[-a-zA-Z_]+=(true|false))*$`)
 
 var (
 	db                  *sqlx.DB
@@ -814,6 +818,9 @@ func postIsuCondition(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid timestamp")
 	}
+	if !conditionFormat.Match([]byte(request.Condition)) {
+		return echo.NewHTTPError(http.StatusBadRequest, "bad request body")
+	}
 
 	// トランザクション開始
 	tx, err := db.Beginx()
@@ -956,6 +963,8 @@ func calculateGraphData(isuLogCluster []IsuLog) ([]byte, error) {
 	}
 	for _, log := range isuLogCluster {
 		conditions := map[string]bool{}
+		//DB上にある is_dirty=true/false,is_overweight=true/false,... 形式のデータを
+		//map[string]bool形式に変換
 		for _, cond := range strings.Split(log.Condition, ",") {
 			keyValue := strings.Split(cond, "=")
 			if len(keyValue) != 2 {
@@ -967,6 +976,7 @@ func calculateGraphData(isuLogCluster []IsuLog) ([]byte, error) {
 			conditions[keyValue[0]] = (keyValue[1] != "false")
 		}
 
+		//trueになっているものは減点
 		for key, enabled := range conditions {
 			if enabled {
 				graph.Score += scorePerCondition[key]
@@ -974,6 +984,7 @@ func calculateGraphData(isuLogCluster []IsuLog) ([]byte, error) {
 			}
 		}
 	}
+	//スコアに影響がないDetailを削除
 	for key := range scorePerCondition {
 		if graph.Detail[key] == 0 {
 			delete(graph.Detail, key)
