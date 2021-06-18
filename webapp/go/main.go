@@ -6,11 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
@@ -655,122 +653,36 @@ func getIsuGraph(c echo.Context) error {
 
 //  GET /api/condition?
 // 自分の所持椅子の通知を取得する
+// MEMO: 1970/1/1みたいな時を超えた古代からのリクエストは表示するか → する
+// 順序は最新順固定
 func getAllIsuConditions(c echo.Context) error {
-	// input
-	//     * start_time: 開始時間
-	//     * cursor_end_time: 終了時間 (required)
-	//     * cursor_jia_isu_uuid (required)
-	//     * condition_level: critical,warning,info (csv)
-	//               critical: conditions (is_dirty,is_overweight,is_broken) のうちtrueが3個
-	//               warning: conditionsのうちtrueのものが1 or 2個
-	//               info: warning無し
-	//     * TODO: day2実装: message (文字列検索)
+	// * session
+	// session が存在しなければ 401
 
-	jiaUserID, err := getUserIdFromSession(c.Request())
-	if err != nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, "you are not sign in")
-	}
-	//required query param
-	cursorEndTimeStr := c.QueryParam("cursor_end_time")
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "cursor_end_time is missing")
-	}
-	cursorJIAIsuUUID := c.QueryParam("cursor_jia_isu_uuid")
-	if cursorJIAIsuUUID == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "cursor_jia_isu_uuid is missing")
-	}
-	conditionLevel := c.QueryParam("condition_level")
-	if conditionLevel == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "condition_level is missing")
-	}
-	//optional query param
-	startTimeStr := c.QueryParam("start_time")
+	// input {jia_isu_uuid}が無い以外は、/api/condition/{jia_isu_uuid}と同じ
+	//
 
+	// cookieからユーザID取得
 	// ユーザの所持椅子取得
-	isuList := []Isu{}
-	err = db.Select(&isuList,
-		"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = false",
-		jiaUserID,
-	)
-	if err != nil {
-		if !errors.Is(err, sql.ErrNoRows) {
-			c.Logger().Errorf("failed to select: %v", err)
-			return echo.NewHTTPError(http.StatusInternalServerError)
-		}
-	}
+	// SELECT * FROM isu where jia_user_id = ?;
 
-	// ユーザの所持椅子毎に http://localhost:3000/api/condition/{jia_isu_uuid} を叩く
-	conditionsResponse := []*GetIsuConditionResponse{}
-	for _, isu := range isuList {
-		conditionsTmp, err := getIsuConditionsFromLocalhost(
-			isu.JIAIsuUUID, cursorEndTimeStr, cursorJIAIsuUUID, conditionLevel, startTimeStr,
-		)
-		if err != nil {
-			c.Logger().Errorf("failed to http request: %v", err)
-			return echo.NewHTTPError(http.StatusInternalServerError)
-		}
+	// ユーザの所持椅子毎に /api/condition/{jia_isu_uuid} を叩く（こことマージ含めてボトルネック）
+	// query_param は GET /api/condition (ここ) のリクエストと同じものを使い回す
 
-		// ユーザの所持椅子ごとのデータをマージ
-		conditionsResponse = append(conditionsResponse, conditionsTmp...)
-	}
+	// ユーザの所持椅子ごとのデータをマージ（ここと個別取得部分含めてボトルネック）
+	// 通知時間帯でソートして、limit件数（固定）該当するデータを返す
+	// MEMO: 改善後はこんな感じのSQLで一発でとる
+	// select * from isu_log where (isu_log.created_at, jia_isu_uuid) < (cursor.end_time, cursor.jia_isu_uuid)
+	//  order by created_at desc,jia_isu_uuid desc limit ?
+	// 10.1.36-MariaDB で確認
 
-	// (`timestamp`, `jia_isu_uuid`)のペアで降順ソート
-	sort.Slice(conditionsResponse, func(i, j int) bool {
-		// return [i] > [j]
+	//memo（没）
+	// (select * from isu_log where (isu_log.created_at=cursor.end_time and jia_isu_uuid < cursor.jia_isu_uuid)
+	//   or isu_log.created_at<cursor.end_time order by created_at desc,jia_isu_uuid desc limit ?)
 
-		if conditionsResponse[i].Timestamp.After(conditionsResponse[j].Timestamp) {
-			return true
-		}
-		if conditionsResponse[i].Timestamp.Equal(conditionsResponse[j].Timestamp) {
-			return conditionsResponse[i].JIAIsuUUID > conditionsResponse[j].JIAIsuUUID
-		}
-		return false
-	})
-
-	//limitを取る
-	conditionsResponse = conditionsResponse[:conditionLimit]
-
-	return c.JSON(http.StatusOK, conditionsResponse)
-}
-
-//http requestを飛ばし、そのレスポンスを[]GetIsuConditionResponseに変換する
-func getIsuConditionsFromLocalhost(
-	jiaIsuUUID string, cursorEndTimeStr string, cursorJIAIsuUUID string, conditionLevel string, startTimeStr string,
-) ([]*GetIsuConditionResponse, error) {
-
-	targetURL, err := url.Parse(fmt.Sprintf(
-		"http://localhost:%s/api/condition/%s",
-		getEnv("SERVER_PORT", "3000"), jiaIsuUUID,
-	))
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse url: %v ;(%s,%s)", err, getEnv("SERVER_PORT", "3000"), jiaIsuUUID)
-	}
-
-	q := targetURL.Query()
-	q.Set("cursor_end_time", cursorEndTimeStr)
-	q.Set("cursor_jia_isu_uuid", cursorJIAIsuUUID)
-	q.Set("condition_level", conditionLevel)
-	if startTimeStr != "" {
-		q.Set("start_time", startTimeStr)
-	}
-	targetURL.RawQuery = q.Encode()
-
-	res, err := http.Get(targetURL.String())
-	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode != 200 {
-		return nil, fmt.Errorf("failed to `GET %s` with status=`%s`", targetURL.String(), res.Status)
-	}
-
-	condition := []*GetIsuConditionResponse{}
-	err = json.NewDecoder(res.Body).Decode(&condition)
-	if err != nil {
-		return nil, err
-	}
-	return condition, nil
+	// response: 200
+	// /api/condition/{jia_isu_uuid}と同じ
+	return fmt.Errorf("not implemented")
 }
 
 //  GET /api/condition/{jia_isu_uuid}?
