@@ -715,7 +715,7 @@ func getAllIsuConditions(c echo.Context) error {
 	}
 
 	// (`timestamp`, `jia_isu_uuid`)のペアで降順ソート
-	sort.Slice(conditionsResponse, func(i, j int) bool {
+	sort.Slice(conditionsResponse, func(i int, j int) bool {
 		// return [i] > [j]
 
 		if conditionsResponse[i].Timestamp.After(conditionsResponse[j].Timestamp) {
