@@ -739,8 +739,9 @@ func getAllIsuConditions(c echo.Context) error {
 	}
 	//required query param
 	cursorEndTimeStr := c.QueryParam("cursor_end_time")
+	_, err = time.Parse(conditionTimestampFormat, cursorEndTimeStr)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "cursor_end_time is missing")
+		return echo.NewHTTPError(http.StatusBadRequest, "bad format: cursor_end_time")
 	}
 	cursorJIAIsuUUID := c.QueryParam("cursor_jia_isu_uuid")
 	if cursorJIAIsuUUID == "" {
@@ -752,6 +753,12 @@ func getAllIsuConditions(c echo.Context) error {
 	}
 	//optional query param
 	startTimeStr := c.QueryParam("start_time")
+	if startTimeStr != "" {
+		_, err = time.Parse(conditionTimestampFormat, startTimeStr)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, "bad format: cursor_end_time")
+		}
+	}
 
 	// ユーザの所持椅子取得
 	isuList := []Isu{}
