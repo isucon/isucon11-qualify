@@ -732,6 +732,11 @@ func getAllIsuConditions(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusUnauthorized, "you are not sign in")
 	}
+	sessionCookie, err := c.Cookie(sessionName)
+	if err != nil {
+		c.Logger().Errorf("failed to http request: %v", err)
+		return echo.NewHTTPError(http.StatusBadRequest, "cookie is missing")
+	}
 	//required query param
 	cursorEndTimeStr := c.QueryParam("cursor_end_time")
 	if err != nil {
@@ -766,6 +771,7 @@ func getAllIsuConditions(c echo.Context) error {
 	for _, isu := range isuList {
 		conditionsTmp, err := getIsuConditionsFromLocalhost(
 			isu.JIAIsuUUID, cursorEndTimeStr, cursorJIAIsuUUID, conditionLevel, startTimeStr,
+			sessionCookie,
 		)
 		if err != nil {
 			c.Logger().Errorf("failed to http request: %v", err)
@@ -790,7 +796,9 @@ func getAllIsuConditions(c echo.Context) error {
 	})
 
 	//limitを取る
-	conditionsResponse = conditionsResponse[:conditionLimit]
+	if len(conditionsResponse) > conditionLimit {
+		conditionsResponse = conditionsResponse[:conditionLimit]
+	}
 
 	return c.JSON(http.StatusOK, conditionsResponse)
 }
@@ -798,6 +806,7 @@ func getAllIsuConditions(c echo.Context) error {
 //http requestを飛ばし、そのレスポンスを[]GetIsuConditionResponseに変換する
 func getIsuConditionsFromLocalhost(
 	jiaIsuUUID string, cursorEndTimeStr string, cursorJIAIsuUUID string, conditionLevel string, startTimeStr string,
+	cookie *http.Cookie,
 ) ([]*GetIsuConditionResponse, error) {
 
 	targetURL, err := url.Parse(fmt.Sprintf(
@@ -817,7 +826,12 @@ func getIsuConditionsFromLocalhost(
 	}
 	targetURL.RawQuery = q.Encode()
 
-	res, err := http.Get(targetURL.String())
+	req, err := http.NewRequest("GET", targetURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	req.AddCookie(cookie)
+	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
