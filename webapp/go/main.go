@@ -698,27 +698,12 @@ func getAllIsuConditions(c echo.Context) error {
 		}
 	}
 
-	// ユーザの所持椅子毎に /api/condition/{jia_isu_uuid} を叩く
+	// ユーザの所持椅子毎に http://localhost:3000/api/condition/{jia_isu_uuid} を叩く
 	conditionsResponse := []*GetIsuConditionResponse{}
 	for _, isu := range isuList {
-		targetURL, err := url.Parse(fmt.Sprintf(
-			"http://localhost:%s/api/condition/%s",
-			getEnv("SERVER_PORT", "3000"), isu.JIAIsuUUID,
-		))
-		if err != nil {
-			c.Logger().Errorf("failed to parse url: %v ;(%s,%s)", err, getEnv("SERVER_PORT", "3000"), isu.JIAIsuUUID)
-			return echo.NewHTTPError(http.StatusInternalServerError)
-		}
-
-		q := targetURL.Query()
-		q.Set("cursor_end_time", cursorEndTimeStr)
-		q.Set("cursor_jia_isu_uuid", cursorJIAIsuUUID)
-		q.Set("condition_level", conditionLevel)
-		if startTimeStr != "" {
-			q.Set("start_time", startTimeStr)
-		}
-		targetURL.RawQuery = q.Encode()
-		conditionsTmp, err := getIsuConditionsFromURL(targetURL.String())
+		conditionsTmp, err := getIsuConditionsFromLocalhost(
+			isu.JIAIsuUUID, cursorEndTimeStr, cursorJIAIsuUUID, conditionLevel, startTimeStr,
+		)
 		if err != nil {
 			c.Logger().Errorf("failed to http request: %v", err)
 			return echo.NewHTTPError(http.StatusInternalServerError)
@@ -744,8 +729,27 @@ func getAllIsuConditions(c echo.Context) error {
 }
 
 //http requestを飛ばし、そのレスポンスを[]GetIsuConditionResponseに変換する
-func getIsuConditionsFromURL(url string) ([]*GetIsuConditionResponse, error) {
-	res, err := http.Get(url)
+func getIsuConditionsFromLocalhost(
+	jiaIsuUUID string, cursorEndTimeStr string, cursorJIAIsuUUID string, conditionLevel string, startTimeStr string,
+) ([]*GetIsuConditionResponse, error) {
+	targetURL, err := url.Parse(fmt.Sprintf(
+		"http://localhost:%s/api/condition/%s",
+		getEnv("SERVER_PORT", "3000"), jiaIsuUUID,
+	))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse url: %v ;(%s,%s)", err, getEnv("SERVER_PORT", "3000"), isjiaIsuUUIDu.JIAIsuUUID)
+	}
+
+	q := targetURL.Query()
+	q.Set("cursor_end_time", cursorEndTimeStr)
+	q.Set("cursor_jia_isu_uuid", cursorJIAIsuUUID)
+	q.Set("condition_level", conditionLevel)
+	if startTimeStr != "" {
+		q.Set("start_time", startTimeStr)
+	}
+	targetURL.RawQuery = q.Encode()
+
+	res, err := http.Get(targetURL.String())
 	if err != nil {
 		return nil, err
 	}
