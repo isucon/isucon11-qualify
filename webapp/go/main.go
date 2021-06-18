@@ -858,22 +858,16 @@ func postIsuCondition(c echo.Context) error {
 
 	// getGraph用のデータを計算
 	// IsuLogを一時間ごとの区切りに分け、区切りごとにスコアを計算する
-	var isuLogCluster []IsuLog // 一時間ごとの纏まり
+	isuLogCluster := []IsuLog{} // 一時間ごとの纏まり
 	var tmpIsuLog IsuLog
 	var valuesForInsert []interface{} = []interface{}{}
 	rows, err := tx.Queryx("SELECT * FROM `isu_log` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` ASC", jiaIsuUUID)
-	if err != nil || !rows.Next() {
-		c.Logger().Errorf("failed to select: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
-	}
-	//一時間ごとに区切る
-	err = rows.StructScan(&tmpIsuLog)
 	if err != nil {
 		c.Logger().Errorf("failed to select: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
-	startTime := truncateAfterHours(tmpIsuLog.Timestamp)
-	isuLogCluster = []IsuLog{tmpIsuLog}
+	//一時間ごとに区切る
+	var startTime time.Time
 	for rows.Next() {
 		err = rows.StructScan(&tmpIsuLog)
 		if err != nil {
@@ -882,18 +876,20 @@ func postIsuCondition(c echo.Context) error {
 		}
 		tmpTime := truncateAfterHours(tmpIsuLog.Timestamp)
 		if startTime != tmpTime {
-			//tmpTimeは次の一時間なので、それ以外を使ってスコア計算
-			data, err := calculateGraph(isuLogCluster)
-			if err != nil {
-				c.Logger().Errorf("failed to calculate graph: %v", err)
-				return echo.NewHTTPError(http.StatusInternalServerError)
+			if len(isuLogCluster) > 0 {
+				//tmpTimeは次の一時間なので、それ以外を使ってスコア計算
+				data, err := calculateGraph(isuLogCluster)
+				if err != nil {
+					c.Logger().Errorf("failed to calculate graph: %v", err)
+					return echo.NewHTTPError(http.StatusInternalServerError)
+				}
+				dataJSON, err := json.Marshal(data)
+				if err != nil {
+					c.Logger().Errorf("failed to encode json: %v", err)
+					return echo.NewHTTPError(http.StatusInternalServerError)
+				}
+				valuesForInsert = append(valuesForInsert, jiaIsuUUID, startTime, dataJSON)
 			}
-			dataJSON, err := json.Marshal(data)
-			if err != nil {
-				c.Logger().Errorf("failed to encode json: %v", err)
-				return echo.NewHTTPError(http.StatusInternalServerError)
-			}
-			valuesForInsert = append(valuesForInsert, jiaIsuUUID, startTime, dataJSON)
 
 			//次の一時間の探索
 			startTime = tmpTime
@@ -901,18 +897,20 @@ func postIsuCondition(c echo.Context) error {
 		}
 		isuLogCluster = append(isuLogCluster, tmpIsuLog)
 	}
-	//最後の一時間分
-	data, err := calculateGraph(isuLogCluster)
-	if err != nil {
-		c.Logger().Errorf("failed to calculate graph: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+	if len(isuLogCluster) > 0 {
+		//最後の一時間分
+		data, err := calculateGraph(isuLogCluster)
+		if err != nil {
+			c.Logger().Errorf("failed to calculate graph: %v", err)
+			return echo.NewHTTPError(http.StatusInternalServerError)
+		}
+		dataStr, err := json.Marshal(data)
+		if err != nil {
+			c.Logger().Errorf("failed to encode json: %v", err)
+			return echo.NewHTTPError(http.StatusInternalServerError)
+		}
+		valuesForInsert = append(valuesForInsert, jiaIsuUUID, startTime, dataStr)
 	}
-	dataStr, err := json.Marshal(data)
-	if err != nil {
-		c.Logger().Errorf("failed to encode json: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
-	}
-	valuesForInsert = append(valuesForInsert, jiaIsuUUID, startTime, dataStr)
 	//insert
 	_, err = tx.Exec("INSERT INTO `graph` (`jia_isu_uuid`, `start_at`, `data`) VALUES "+
 		"	(?,?,?)"+strings.Repeat(",(?,?,?)", len(valuesForInsert)/3-1)+
