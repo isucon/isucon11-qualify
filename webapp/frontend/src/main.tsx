@@ -4,6 +4,7 @@ import './index.css'
 import 'windi.css'
 import App from './App'
 import StateContextProvider from './context/state'
+import Modal from 'react-modal'
 
 ReactDOM.render(
   <StrictMode>
@@ -13,3 +14,5 @@ ReactDOM.render(
   </StrictMode>,
   document.getElementById('root')
 )
+
+Modal.setAppElement('#root')

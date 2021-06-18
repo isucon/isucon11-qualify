@@ -4,7 +4,7 @@ import logo from '/@/assets/logo.png'
 
 const PageHeader = () => {
   return (
-    <header className="flex p-2 items-center bg-primary-400">
+    <header className="flex p-2 items-center bg-primary-400 h-14">
       <Link to="/">
         <img src={logo} alt="isucondition" className="cursor-pointer" />
       </Link>
