@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -450,11 +451,9 @@ func postIsu(c echo.Context) error {
 }
 
 //  GET /api/isu/search
+// 自分の ISU 一覧から検索
 func getIsuSearch(c echo.Context) error {
-	// * session
-	// session が存在しなければ 401
-
-	// input (query_param) (required field はなし, 全て未指定の場合 /api/isu と同じクエリが発行される)
+	// input (query_param)
 	//  * name
 	//  * charactor
 	//	* catalog_name
@@ -462,13 +461,65 @@ func getIsuSearch(c echo.Context) error {
 	//	* max_limit_weight
 	//	* catalog_tags (ジェイウォーク)
 	//  * page: （default = 1)
-	//	* MEMO: 二つのカラムを併せて計算した値での検索（x*yの面積での検索とか）
+	//	* TODO: day2 二つのカラムを併せて計算した値での検索（x*yの面積での検索とか）
 
-	// 想定解
-	// whereを使う、インデックスを頑張って張る
-	// SQLにcatalogを入れてJOINする
-	// ISUテーブルにカラム追加してcatalog情報入れちゃうパターンならJOIN不要かも？
+	jiaUserID, err := getUserIdFromSession(c.Request())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not sign in")
+	}
+	//optional query param
+	name := c.QueryParam("name")
+	charactor := c.QueryParam("charactor")
+	catalogName := c.QueryParam("catalog_name")
+	minLimitWeightStr := c.QueryParam("min_limit_weight")
+	maxLimitWeightStr := c.QueryParam("max_limit_weight")
+	catalogTags := c.QueryParam("catalog_tags")
+	pageStr := c.QueryParam("page")
+	var minLimitWeight int
+	var maxLimitWeight int
+	var page int
+	if minLimitWeightStr != "" {
+		minLimitWeight, err = strconv.Atoi(minLimitWeightStr)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, "bad min_limit_weight: cursor_end_time")
+		}
+	}
+	if maxLimitWeightStr != "" {
+		maxLimitWeight, err = strconv.Atoi(maxLimitWeightStr)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, "bad max_limit_weight: cursor_end_time")
+		}
+	}
+	if pageStr != "" {
+		page, err = strconv.Atoi(pageStr)
+		if err != nil || page <= 0 {
+			return echo.NewHTTPError(http.StatusBadRequest, "bad page: cursor_end_time")
+		}
+	}
 
+	searchLimit
+
+	query := "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = false"
+	queryParam := []interface{}{jiaUserID}
+	if name != "" {
+		query += " `name` LIKE CONCAT('%', ?, '%') "
+		queryParam = append(queryParam, name)
+	}
+	if charactor != "" {
+		query += " `charactor` LIKE CONCAT('%', ?, '%') "
+		queryParam = append(queryParam, charactor)
+	}
+	// query += " LIMIT ? "
+	// queryParam = append(queryParam, searchLimit)
+	// if pageStr != "" {
+	// 	query += " OFFSET ? "
+	// 	queryParam = append(queryParam, page)
+	// }
+	isuList := []Isu{}
+	err = db.Select(&isuList,
+		query,
+		queryParam...,
+	)
 	// 持っている椅子を数件取得 (非効率な検索ロジック)
 	// SELECT (*) FROM isu WHERE jia_user_id = `jia_user_id` AND is_deleted=false
 	//   AND name LIKE CONCAT('%', ?, '%')
