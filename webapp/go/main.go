@@ -856,69 +856,10 @@ func postIsuCondition(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert")
 	}
 
-	// getGraph用のデータを計算
-	// IsuLogを一時間ごとの区切りに分け、区切りごとにスコアを計算する
-	isuLogCluster := []IsuLog{} // 一時間ごとの纏まり
-	var tmpIsuLog IsuLog
-	var valuesForInsert []interface{} = []interface{}{}
-	rows, err := tx.Queryx("SELECT * FROM `isu_log` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` ASC", jiaIsuUUID)
+	// getGraph用のデータを計算し、DBを更新する
+	err = updateGraph(tx, jiaIsuUUID)
 	if err != nil {
-		c.Logger().Errorf("failed to select: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
-	}
-	//一時間ごとに区切る
-	var startTime time.Time
-	for rows.Next() {
-		err = rows.StructScan(&tmpIsuLog)
-		if err != nil {
-			c.Logger().Errorf("failed to select: %v", err)
-			return echo.NewHTTPError(http.StatusInternalServerError)
-		}
-		tmpTime := truncateAfterHours(tmpIsuLog.Timestamp)
-		if startTime != tmpTime {
-			if len(isuLogCluster) > 0 {
-				//tmpTimeは次の一時間なので、それ以外を使ってスコア計算
-				data, err := calculateGraph(isuLogCluster)
-				if err != nil {
-					c.Logger().Errorf("failed to calculate graph: %v", err)
-					return echo.NewHTTPError(http.StatusInternalServerError)
-				}
-				dataJSON, err := json.Marshal(data)
-				if err != nil {
-					c.Logger().Errorf("failed to encode json: %v", err)
-					return echo.NewHTTPError(http.StatusInternalServerError)
-				}
-				valuesForInsert = append(valuesForInsert, jiaIsuUUID, startTime, dataJSON)
-			}
-
-			//次の一時間の探索
-			startTime = tmpTime
-			isuLogCluster = []IsuLog{}
-		}
-		isuLogCluster = append(isuLogCluster, tmpIsuLog)
-	}
-	if len(isuLogCluster) > 0 {
-		//最後の一時間分
-		data, err := calculateGraph(isuLogCluster)
-		if err != nil {
-			c.Logger().Errorf("failed to calculate graph: %v", err)
-			return echo.NewHTTPError(http.StatusInternalServerError)
-		}
-		dataStr, err := json.Marshal(data)
-		if err != nil {
-			c.Logger().Errorf("failed to encode json: %v", err)
-			return echo.NewHTTPError(http.StatusInternalServerError)
-		}
-		valuesForInsert = append(valuesForInsert, jiaIsuUUID, startTime, dataStr)
-	}
-	//insert
-	_, err = tx.Exec("INSERT INTO `graph` (`jia_isu_uuid`, `start_at`, `data`) VALUES "+
-		"	(?,?,?)"+strings.Repeat(",(?,?,?)", len(valuesForInsert)/3-1)+
-		"	ON DUPLICATE KEY UPDATE `data` = VALUES(`data`)",
-		valuesForInsert...,
-	)
-	if err != nil {
-		c.Logger().Errorf("failed to insert: %v", err)
+		c.Logger().Errorf("failed to update graph: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 
@@ -932,13 +873,69 @@ func postIsuCondition(c echo.Context) error {
 	return c.NoContent(http.StatusCreated)
 }
 
+// getGraph用のデータを計算し、DBを更新する
+func updateGraph(tx *sqlx.Tx, jiaIsuUUID string) error {
+	// IsuLogを一時間ごとの区切りに分け、区切りごとにスコアを計算する
+	isuLogCluster := []IsuLog{} // 一時間ごとの纏まり
+	var tmpIsuLog IsuLog
+	var valuesForUpdate []interface{} = []interface{}{} //3個1組、更新するgraphの各行のデータ
+	rows, err := tx.Queryx("SELECT * FROM `isu_log` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` ASC", jiaIsuUUID)
+	if err != nil {
+		return err
+	}
+	//一時間ごとに区切る
+	var startTime time.Time
+	for rows.Next() {
+		err = rows.StructScan(&tmpIsuLog)
+		if err != nil {
+			return err
+		}
+		tmpTime := truncateAfterHours(tmpIsuLog.Timestamp)
+		if startTime != tmpTime {
+			if len(isuLogCluster) > 0 {
+				//tmpTimeは次の一時間なので、それ以外を使ってスコア計算
+				data, err := calculateGraphData(isuLogCluster)
+				if err != nil {
+					return fmt.Errorf("failed to calculate graph: %v", err)
+				}
+				valuesForUpdate = append(valuesForUpdate, jiaIsuUUID, startTime, data)
+			}
+
+			//次の一時間の探索
+			startTime = tmpTime
+			isuLogCluster = []IsuLog{}
+		}
+		isuLogCluster = append(isuLogCluster, tmpIsuLog)
+	}
+	if len(isuLogCluster) > 0 {
+		//最後の一時間分
+		data, err := calculateGraphData(isuLogCluster)
+		if err != nil {
+			return fmt.Errorf("failed to calculate graph: %v", err)
+		}
+		valuesForUpdate = append(valuesForUpdate, jiaIsuUUID, startTime, data)
+	}
+
+	//insert or update
+	_, err = tx.Exec("INSERT INTO `graph` (`jia_isu_uuid`, `start_at`, `data`) VALUES "+
+		"	(?,?,?)"+strings.Repeat(",(?,?,?)", len(valuesForUpdate)/3-1)+
+		"	ON DUPLICATE KEY UPDATE `data` = VALUES(`data`)",
+		valuesForUpdate...,
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 //分以下を切り捨て、一時間単位にする関数
 func truncateAfterHours(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), 0, 0, 0, t.Location())
 }
 
 //スコア計算をする関数
-func calculateGraph(isuLogCluster []IsuLog) (*GraphData, error) {
+func calculateGraphData(isuLogCluster []IsuLog) ([]byte, error) {
 	graph := &GraphData{}
 
 	//sitting
@@ -992,5 +989,10 @@ func calculateGraph(isuLogCluster []IsuLog) (*GraphData, error) {
 		graph.Score = 0
 	}
 
-	return graph, nil
+	//JSONに変換
+	graphJSON, err := json.Marshal(graph)
+	if err != nil {
+		return nil, err
+	}
+	return graphJSON, nil
 }
