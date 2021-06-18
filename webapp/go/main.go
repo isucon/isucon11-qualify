@@ -269,13 +269,17 @@ func postAuthentication(c echo.Context) error {
 	}
 
 	// get jia_user_id from JWT Payload
-	claims, _ := token.Claims.(jwt.MapClaims)
-	jiaUserId, ok := claims["jia_user_id"].(string)
+	claims, _ := token.Claims.(jwt.MapClaims) // TODO: 型アサーションのチェックの有無の議論
+	jiaUserIdVar, ok := claims["jia_user_id"]
+	if !ok {
+		return c.String(http.StatusBadRequest, "invalid JWT payload")
+	}
+	jiaUserId, ok := jiaUserIdVar.(string)
 	if !ok {
 		return c.String(http.StatusBadRequest, "invalid JWT payload")
 	}
 
-	err = func() error {
+	err = func() error { //TODO: 無名関数によるラップの議論
 		tx, err := db.Beginx()
 		if err != nil {
 			return fmt.Errorf("failed to begin tx: %w", err)
@@ -290,10 +294,12 @@ func postAuthentication(c echo.Context) error {
 			// user already signup. only return cookie
 			return nil
 		}
+
 		_, err = tx.Exec("INSERT INTO user (`jia_user_id`) VALUES (?)", jiaUserId)
 		if err != nil {
 			return fmt.Errorf("insert user: %w", err)
 		}
+
 		err = tx.Commit()
 		if err != nil {
 			return fmt.Errorf("commit tx: %w", err)
