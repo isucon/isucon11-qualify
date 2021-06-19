@@ -41,8 +41,8 @@ var (
 )
 
 type Config struct {
-	Name string `json:"name" db:"name"`
-	Val  string `json:"val" db:"val"`
+	Name string `db:"name"`
+	URL  string `db:"url"`
 }
 
 type Isu struct {
@@ -241,7 +241,7 @@ func getJIAServiceURL() string {
 		log.Print(err)
 		return DefaultJIAServiceURL
 	}
-	return config.Val
+	return config.URL
 }
 
 func postInitialize(c echo.Context) error {
