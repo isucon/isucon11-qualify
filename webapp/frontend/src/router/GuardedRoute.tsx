@@ -1,11 +1,11 @@
 import { Route, Redirect } from 'react-router-dom'
+import { useStateContext } from '../context/state'
 
 const GuardedRoute = <T extends { path: string; children?: JSX.Element }>(
   props: T
 ) => {
-  // TODO: ここで GET /user/me をたたく or storeに問い合わせ
-  const me = null
-  if (!me) {
+  const state = useStateContext()
+  if (!state.me) {
     return <Redirect to="/login" />
   }
 
