@@ -1,13 +1,19 @@
 package main
 
 import (
+	"crypto/ecdsa"
+	"database/sql"
+	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
+	"github.com/dgrijalva/jwt-go"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/sessions"
 	"github.com/jmoiron/sqlx"
@@ -17,15 +23,18 @@ import (
 )
 
 const (
-	sessionName       = "isucondition"
-	searchLimit       = 20
-	notificationLimit = 20
+	sessionName            = "isucondition"
+	searchLimit            = 20
+	notificationLimit      = 20
+	jwtVerificationKeyPath = "../ec256-public.pem"
 )
 
 var (
 	db                  *sqlx.DB
 	sessionStore        sessions.Store
 	mySQLConnectionData *MySQLConnectionEnv
+
+	jwtVerificationKey *ecdsa.PublicKey
 )
 
 type Isu struct {
@@ -102,12 +111,17 @@ type InitializeResponse struct {
 }
 
 type GetMeResponse struct {
+	JIAUserID string `json:"jia_user_id"`
 }
 
 type GraphResponse struct {
 }
 
 type NotificationResponse struct {
+}
+
+type PutIsuRequest struct {
+	Name string `json:"name"`
 }
 
 func getEnv(key string, defaultValue string) string {
@@ -136,6 +150,15 @@ func (mc *MySQLConnectionEnv) ConnectDB() (*sqlx.DB, error) {
 
 func init() {
 	sessionStore = sessions.NewCookieStore([]byte(getEnv("SESSION_KEY", "isucondition")))
+
+	key, err := ioutil.ReadFile(jwtVerificationKeyPath)
+	if err != nil {
+		log.Fatalf("Unable to read file: %v", err)
+	}
+	jwtVerificationKey, err = jwt.ParseECPublicKeyFromPEM(key)
+	if err != nil {
+		log.Fatalf("Unable to parse ECDSA public key: %v", err)
+	}
 }
 
 func main() {
@@ -230,30 +253,77 @@ func postInitialize(c echo.Context) error {
 
 //  POST /api/auth
 func postAuthentication(c echo.Context) error {
-	// ユーザからの入力
-	// * jwt
+	reqJwt := strings.TrimPrefix(c.Request().Header.Get("Authorization"), "Bearer ")
 
-	// jwt の verify
-	// NG だったら resp 400(Bad Request) or 403(期限切れとか)
+	// verify JWT
+	token, err := jwt.Parse(reqJwt, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodECDSA); !ok {
+			return nil, jwt.NewValidationError(fmt.Sprintf("Unexpected signing method: %v", token.Header["alg"]), jwt.ValidationErrorSignatureInvalid)
+		}
+		return jwtVerificationKey, nil
+	})
+	if err != nil {
+		switch err.(type) {
+		case *jwt.ValidationError:
+			return c.String(http.StatusForbidden, "forbidden")
+		default:
+			c.Logger().Errorf("unknown error: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+	}
 
-	// jwt から username を取得
-	//なかったら 400
+	// get jia_user_id from JWT Payload
+	claims, _ := token.Claims.(jwt.MapClaims) // TODO: 型アサーションのチェックの有無の議論
+	jiaUserIdVar, ok := claims["jia_user_id"]
+	if !ok {
+		return c.String(http.StatusBadRequest, "invalid JWT payload")
+	}
+	jiaUserId, ok := jiaUserIdVar.(string)
+	if !ok {
+		return c.String(http.StatusBadRequest, "invalid JWT payload")
+	}
 
-	// トランザクション開始
+	err = func() error { //TODO: 無名関数によるラップの議論
+		tx, err := db.Beginx()
+		if err != nil {
+			return fmt.Errorf("failed to begin tx: %w", err)
+		}
+		defer tx.Rollback()
 
-	// DB にて存在確認
-	// SELECT COUNT(*) FROM users WHERE username = `username`;
+		var userNum int
+		err = tx.Get(&userNum, "SELECT COUNT(*) FROM user WHERE `jia_user_id` = ? FOR UPDATE", jiaUserId)
+		if err != nil {
+			return fmt.Errorf("select user: %w", err)
+		} else if userNum == 1 {
+			// user already signup. only return cookie
+			return nil
+		}
 
-	// もし見つからなかったら
-	// INSERT INTO users(username) VALUES(`username`); //uniqueなのでtx無しでこれだけでもOK(ダミーの改善点)
-	// すでに存在するユーザー名なら409 ← 上で存在確認してるけど、このレベルのハンドリングつける？
-	// 失敗したら500
+		_, err = tx.Exec("INSERT INTO user (`jia_user_id`) VALUES (?)", jiaUserId)
+		if err != nil {
+			return fmt.Errorf("insert user: %w", err)
+		}
 
-	// トランザクション終了
+		err = tx.Commit()
+		if err != nil {
+			return fmt.Errorf("commit tx: %w", err)
+		}
+		return nil
+	}()
+	if err != nil {
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
 
-	// Cookieを付与
-	// 見つかったら 200
-	return fmt.Errorf("not implemented")
+	session := getSession(c.Request())
+	session.Values["jia_user_id"] = jiaUserId
+	err = session.Save(c.Request(), c.Response())
+	if err != nil {
+		c.Logger().Errorf("failed to set cookie: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	return c.NoContent(http.StatusOK)
 }
 
 //  POST /api/signout
@@ -281,18 +351,14 @@ func postSignout(c echo.Context) error {
 // func getUser(c echo.Context) error {
 // }
 
-//  GET /api/user/me
-// 自分のユーザー情報を取得
 func getMe(c echo.Context) error {
-	// * session
-	// session が存在しなければ 401
+	userID, err := getUserIdFromSession(c.Request())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not signed in") // TODO 記法が決まったら修正
+	}
 
-	// SELECT jia_user_id, user_name FROM users WHERE jia_user_id = {jia_user_id};
-
-	//response 200
-	// * jia_user_id
-	// * user_name
-	return fmt.Errorf("not implemented")
+	response := GetMeResponse{JIAUserID: userID}
+	return c.JSON(http.StatusOK, response)
 }
 
 //  GET /api/catalog/{jia_catalog_id}
@@ -446,69 +512,84 @@ func getIsuSearch(c echo.Context) error {
 //  GET /api/isu/{jia_isu_uuid}
 // 椅子の情報を取得する
 func getIsu(c echo.Context) error {
-	// * session
-	// session が存在しなければ 401
+	jiaUserID, err := getUserIdFromSession(c.Request())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not sign in")
+	}
 
-	// input
-	//		* jia_isu_uuid: 椅子固有のID
+	jiaIsuUUID := c.Param("jia_isu_uuid")
 
-	// SELECT (*) FROM isu WHERE jia_user_id = `jia_user_id` and jia_isu_uuid = `jia_isu_uuid` and is_deleted=false;
-	// 見つからなければ404
-	// user_idがリクエストユーザーのものでなければ404
-	// 画像までSQLで取ってくるボトルネック
-	// imageも最初はとってるけどレスポンスに含まれてないからselect時に持ってくる必要ない
-	// MEMO: jia_user_id 判別はクエリに入れずその後のロジックとする？ (一通り完成した後に要考慮)
+	// TODO: jia_user_id 判別はクエリに入れずその後のロジックとする？ (一通り完成した後に要考慮)
+	var isu Isu
+	err = db.Get(&isu, "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = ?",
+		jiaUserID, jiaIsuUUID, false)
+	if errors.Is(err, sql.ErrNoRows) {
+		return echo.NewHTTPError(http.StatusNotFound, "isu not found")
+	}
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+	}
 
-	// response  200
-	//{
-	// * id
-	// * name
-	// * jia_catalog_id
-	// * charactor
-	//}
-
-	return fmt.Errorf("not implemented")
+	return c.JSON(http.StatusOK, isu)
 }
 
 //  PUT /api/isu/{jia_isu_uuid}
 // 自分の所有しているISUの情報を変更する
 func putIsu(c echo.Context) error {
-	// * session
-	// session が存在しなければ 401
+	jiaUserID, err := getUserIdFromSession(c.Request())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not sign in")
+	}
 
-	// input (path_param)
-	// 	* jia_isu_uuid: 椅子固有のID
-	// input (body)
-	// 	* isu_name: 椅子の名称
-	// invalid ならば 400
+	jiaIsuUUID := c.Param("jia_isu_uuid")
 
-	// トランザクション開始
+	var req PutIsuRequest
+	err = c.Bind(&req)
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid request")
+	}
 
-	// MEMO: dummy のボトルネック
-	// current_userが認可された操作か確認
-	//     * isu_idがcurrent_userのものか
-	// SELECT COUNT(*) FROM isu WHERE jia_user_id = `jia_user_id` and jia_isu_uuid = `jia_isu_uuid` and is_deleted=false;
-	// NGならエラーを返す
-	//   404 not found
+	tx, err := db.Beginx()
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+	}
+	defer tx.Rollback()
 
-	// DBを更新
-	// UPDATE isu SET isu_name=? WHERE jia_isu_uuid = `jia_isu_uuid`;
+	var count int
+	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = ?",
+		jiaUserID, jiaIsuUUID, false)
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+	}
+	if count == 0 {
+		return echo.NewHTTPError(http.StatusNotFound, "isu not found")
+	}
 
-	//更新後の値取得
-	// SELECT (*) FROM isu WHERE jia_user_id = `jia_user_id` and jia_isu_uuid = `jia_isu_uuid` and is_deleted=false;
-	// 画像までSQLで取ってくるボトルネック
-	// imageも最初はとってるけどレスポンスに含まれてないからselect時に持ってくる必要ない
+	_, err = tx.Exec("UPDATE `isu` SET `name` = ? WHERE `jia_isu_uuid` = ?", req.Name, jiaIsuUUID)
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+	}
 
-	//トランザクション終了
+	var isu Isu
+	err = tx.Get(&isu, "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = ?",
+		jiaUserID, jiaIsuUUID, false)
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+	}
 
-	// response  200
-	//{
-	// * id
-	// * name
-	// * jia_catalog_id
-	// * charactor
-	//}
-	return fmt.Errorf("not implemented")
+	err = tx.Commit()
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+	}
+
+	return c.JSON(http.StatusOK, isu)
 }
 
 //  DELETE /api/isu/{jia_isu_uuid}

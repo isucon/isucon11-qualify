@@ -3,22 +3,16 @@ import ReactDOM from 'react-dom'
 import './index.css'
 import 'windi.css'
 import App from './App'
-import { BrowserRouter, Route, Switch } from 'react-router-dom'
-import GuardedRoute from './router/GuardedRoute'
-import Auth from './pages/Auth'
+import StateContextProvider from './context/state'
+import Modal from 'react-modal'
 
 ReactDOM.render(
   <StrictMode>
-    <BrowserRouter>
-      <Switch>
-        <GuardedRoute path="/" exact>
-          <App />
-        </GuardedRoute>
-        <Route path="/login">
-          <Auth />
-        </Route>
-      </Switch>
-    </BrowserRouter>
+    <StateContextProvider>
+      <App />
+    </StateContextProvider>
   </StrictMode>,
   document.getElementById('root')
 )
+
+Modal.setAppElement('#root')
