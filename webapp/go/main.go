@@ -885,7 +885,7 @@ func updateGraph(tx *sqlx.Tx, jiaIsuUUID string) error {
 	// IsuLogを一時間ごとの区切りに分け、区切りごとにスコアを計算する
 	isuLogCluster := []IsuLog{} // 一時間ごとの纏まり
 	var tmpIsuLog IsuLog
-	var valuesForUpdate []interface{} = []interface{}{} //3個1組、更新するgraphの各行のデータ
+	valuesForUpdate := []interface{}{} //3個1組、更新するgraphの各行のデータ
 	rows, err := tx.Queryx("SELECT * FROM `isu_log` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` ASC", jiaIsuUUID)
 	if err != nil {
 		return err
