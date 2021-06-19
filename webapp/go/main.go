@@ -788,7 +788,7 @@ func getIsuConditions(c echo.Context) error {
 	if startTimeStr != "" {
 		startTime, err = time.Parse(conditionTimestampFormat, startTimeStr)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "bad format: cursor_end_time")
+			return echo.NewHTTPError(http.StatusBadRequest, "bad format: start_time")
 		}
 	}
 
@@ -834,7 +834,6 @@ func getIsuConditions(c echo.Context) error {
 	//condition_levelでの絞り込み
 	conditionsResponse := []GetIsuConditionResponse{}
 	for _, c := range conditions {
-
 		var cLevel string
 		add := false
 		warnCount := strings.Count(c.Condition, "=true")
@@ -849,17 +848,17 @@ func getIsuConditions(c echo.Context) error {
 			add = true
 		}
 
-		//GetIsuConditionResponseに変換
-		data := GetIsuConditionResponse{
-			JIAIsuUUID:     c.JIAIsuUUID,
-			IsuName:        isuName,
-			Timestamp:      c.Timestamp,
-			IsSitting:      c.IsSitting,
-			Condition:      c.Condition,
-			ConditionLevel: cLevel,
-			Message:        c.Message,
-		}
 		if add {
+			//GetIsuConditionResponseに変換
+			data := GetIsuConditionResponse{
+				JIAIsuUUID:     c.JIAIsuUUID,
+				IsuName:        isuName,
+				Timestamp:      c.Timestamp,
+				IsSitting:      c.IsSitting,
+				Condition:      c.Condition,
+				ConditionLevel: cLevel,
+				Message:        c.Message,
+			}
 			conditionsResponse = append(conditionsResponse, data)
 		}
 	}
