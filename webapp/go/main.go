@@ -621,17 +621,26 @@ func deleteIsu(c echo.Context) error {
 //       https://tech.jxpress.net/entry/2018/08/23/104123
 // MEMO: DB 内の image は longblob
 func getIsuIcon(c echo.Context) error {
-	// * session
-	// session が存在しなければ 401
+	jiaUserID, err := getUserIdFromSession(c.Request())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not sign in")
+	}
 
-	// SELECT image FROM isu WHERE jia_user_id = `jia_user_id` and jia_isu_uuid = `jia_isu_uuid` and is_deleted=false;
-	// 見つからなければ404
-	// user_idがリクエストユーザーのものでなければ404
+	jiaIsuUUID := c.Param("jia_isu_uuid")
 
-	// response 200
-	// image
-	// MEMO: とりあえず未指定... Content-Type: image/png image/jpg
-	return fmt.Errorf("not implemented")
+	var image []byte
+	err = db.Get(&image, "SELECT `image` FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = ?",
+		jiaUserID, jiaIsuUUID, false)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return echo.NewHTTPError(http.StatusNotFound)
+		}
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+
+	// TODO: putIsuIconでjpgも受け付けるなら対応が必要
+	return c.Blob(http.StatusOK, "image/png", image)
 }
 
 //  PUT /api/isu/{jia_isu_uuid}/icon
