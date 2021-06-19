@@ -433,7 +433,16 @@ func getCatalogFromJIA(catalogID string) (*CatalogFromJIA, int, error) {
 
 //CatalogFromJIAからCatalogへのキャスト
 func castCatalogFromJIA(catalogFromJIA *CatalogFromJIA) (*Catalog, error) {
+	//TODO: バリデーション
 	catalog := &Catalog{}
+	catalog.JIACatalogID = catalogFromJIA.JIACatalogID
+	catalog.Name = catalogFromJIA.Name
+	catalog.LimitWeight = catalogFromJIA.LimitWeight
+	catalog.Weight = catalogFromJIA.Weight
+	catalog.Size = catalogFromJIA.Size
+	catalog.Maker = catalogFromJIA.Maker
+	catalog.Tags = catalogFromJIA.Features
+	return catalog, nil
 }
 
 func getIsuList(c echo.Context) error {
