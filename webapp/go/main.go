@@ -816,10 +816,11 @@ func getIsuConditionsFromLocalhost(
 	cookie *http.Cookie,
 ) ([]*GetIsuConditionResponse, error) {
 
-	targetURL, err := url.Parse(fmt.Sprintf(
+	targetURLStr := fmt.Sprintf(
 		"http://localhost:%s/api/condition/%s",
 		getEnv("SERVER_PORT", "3000"), jiaIsuUUID,
-	))
+	)
+	targetURL, err := url.Parse(targetURLStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse url: %v ;(%s,%s)", err, getEnv("SERVER_PORT", "3000"), jiaIsuUUID)
 	}
