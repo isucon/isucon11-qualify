@@ -407,7 +407,7 @@ func getIsuList(c echo.Context) error {
 		}
 	}
 
-	var isuList []Isu
+	isuList := []Isu{}
 	err = db.Select(
 		&isuList,
 		"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = false ORDER BY `created_at` DESC LIMIT ?",
