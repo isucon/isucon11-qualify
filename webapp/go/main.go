@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/ecdsa"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -409,6 +410,22 @@ func getCatalog(c echo.Context) error {
 
 	// response 200
 	return fmt.Errorf("not implemented")
+}
+
+func getCatalogFromJIA(catalogID string) (*CatalogFromJIA, error) {
+	targetURLStr := getJIAServiceURL() + "/api/catalog/" + catalogID
+	res, err := http.Get(targetURLStr)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	catalog := &CatalogFromJIA{}
+	err = json.NewDecoder(res.Body).Decode(&catalog)
+	if err != nil {
+		return nil, err
+	}
+	return catalog, nil
 }
 
 func getIsuList(c echo.Context) error {
