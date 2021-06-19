@@ -845,7 +845,7 @@ func getIsuConditions(c echo.Context) error {
 		err = db.Select(&conditions,
 			"SELECT * FROM `isu_log` WHERE `jia_isu_uuid` = ?"+
 				"	AND (`timestamp`, `jia_isu_uuid`) < (?, ?)"+
-				"	ORDER BY `created_at` desc, `jia_isu_uuid` desc",
+				"	ORDER BY `created_at` DESC, `jia_isu_uuid` DESC",
 			jiaIsuUUID, cursorEndTime, cursorJIAIsuUUID,
 		)
 	} else {
@@ -853,7 +853,7 @@ func getIsuConditions(c echo.Context) error {
 			"SELECT * FROM `isu_log` WHERE `jia_isu_uuid` = ?"+
 				"	AND (`timestamp`, `jia_isu_uuid`) < (?, ?)"+
 				"	AND ? <= `timestamp`"+
-				"	ORDER BY `created_at` desc, `jia_isu_uuid` desc",
+				"	ORDER BY `created_at` DESC, `jia_isu_uuid` DESC",
 			jiaIsuUUID, cursorEndTime, cursorJIAIsuUUID, startTime,
 		)
 	}
