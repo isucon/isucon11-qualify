@@ -27,6 +27,7 @@ const (
 	sessionName            = "isucondition"
 	searchLimit            = 20
 	notificationLimit      = 20
+	isuListLimit           = 200 // TODO 修正が必要なら変更
 	jwtVerificationKeyPath = "../ec256-public.pem"
 )
 
@@ -398,7 +399,7 @@ func getIsuList(c echo.Context) error {
 	}
 
 	limitStr := c.QueryParam("limit")
-	var limit int
+	limit := isuListLimit
 	if limitStr != "" {
 		limit, err = strconv.Atoi(limitStr)
 		if err != nil || limit <= 0 {
@@ -407,24 +408,13 @@ func getIsuList(c echo.Context) error {
 	}
 
 	var isuList []Isu
-	if limitStr != "" {
-		err := db.Select(
-			&isuList,
-			"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = false ORDER BY `created_at` DESC LIMIT ?",
-			jiaUserID, limit)
-		if err != nil {
-			c.Logger().Error(err)
-			return echo.NewHTTPError(http.StatusInternalServerError, "db error")
-		}
-	} else {
-		err := db.Select(
-			&isuList,
-			"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = false ORDER BY `created_at` DESC",
-			jiaUserID)
-		if err != nil {
-			c.Logger().Error(err)
-			return echo.NewHTTPError(http.StatusInternalServerError, "db error")
-		}
+	err = db.Select(
+		&isuList,
+		"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = false ORDER BY `created_at` DESC LIMIT ?",
+		jiaUserID, limit)
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
 	}
 
 	return c.JSON(http.StatusOK, isuList)
