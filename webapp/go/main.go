@@ -59,13 +59,13 @@ type Isu struct {
 }
 
 type CatalogFromJIA struct {
-	JIACatalogID string `json:"catalog_id"`
-	Name         string `json:"name"`
-	LimitWeight  int    `json:"limit_weight"`
-	Weight       int    `json:"weight"`
-	Size         string `json:"size"`
-	Maker        string `json:"maker"`
-	Features     string `json:"features"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	LimitWeight int    `json:"limit_weight"`
+	Weight      int    `json:"weight"`
+	Size        string `json:"size"`
+	Maker       string `json:"maker"`
+	Features    string `json:"features"`
 }
 
 type Catalog struct {
@@ -435,7 +435,7 @@ func getCatalogFromJIA(catalogID string) (*CatalogFromJIA, int, error) {
 func castCatalogFromJIA(catalogFromJIA *CatalogFromJIA) (*Catalog, error) {
 	//TODO: バリデーション
 	catalog := &Catalog{}
-	catalog.JIACatalogID = catalogFromJIA.JIACatalogID
+	catalog.JIACatalogID = catalogFromJIA.ID
 	catalog.Name = catalogFromJIA.Name
 	catalog.LimitWeight = catalogFromJIA.LimitWeight
 	catalog.Weight = catalogFromJIA.Weight
