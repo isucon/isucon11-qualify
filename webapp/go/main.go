@@ -377,55 +377,63 @@ func getMe(c echo.Context) error {
 	return c.JSON(http.StatusOK, response)
 }
 
-//  GET /api/catalog/{jia_catalog_id}
-// MEMO: 外部APIのドキュメントに「競技期間中は不変」「read onlyである」「叩く頻度は変えて良い」を明記
-// MEMO: ISU協会のrespと当Appのrespのフォーマットは合わせる?  → 合わせない
-// MEMO: day2: ISU 協会の問い合わせ内容をまるっとキャッシュするだけだと減点する仕組みを実装する
-//         (ISU 協会の response に updated_at を加え、ベンチでここをチェックするようにする)
-//		 ref: https://scrapbox.io/ISUCON11/2021.06.02_%E4%BA%88%E9%81%B8%E5%AE%9A%E4%BE%8B#60b764b725829c0000426896
+// GET /api/catalog/{jia_catalog_id}
+// カタログ情報を取得
 func getCatalog(c echo.Context) error {
-	// * session
-	// session が存在しなければ 401
+	// ログインチェック
+	_, err := getUserIdFromSession(c.Request())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not signed in")
+	}
 
-	// ISU 協会に問い合わせる  (想定解はキャッシュ)
-	// request
-	// * jia_catalog_id
-	// response
-	// * isu_catalog_name
-	// * isu_catalog_limit_weight
-	// * isu_catalog_size
-	// * isu_catalog_weight
-	// * isu_catalog_maker
-	// * isu_catalog_tag: (headrest, personality, ...などジェイウォークになってるもの。種類は固定でドキュメントに記載しておく)
-	// GET /api/isu/search で使用
+	JIACatalogID := c.Param("jia_catalog_id")
+	if JIACatalogID != "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "jia_catalog_id is missing")
+	}
 
-	// ISU 協会からのレスポンス
-	// 404 なら404を返す
+	// 日本ISU協会に問い合わせる
+	catalogFromJIA, statusCode, err := getCatalogFromJIA(JIACatalogID)
+	if err != nil {
+		c.Logger().Errorf("failed to get catalog from JIA: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	if statusCode == http.StatusNotFound {
+		return echo.NewHTTPError(http.StatusNotFound, "invalid jia_catalog_id")
+	}
 
-	// 一つずつ変数を代入
-	// validation（Nginxで横流しをOKにするかで決める）
-	// ゼロ値が入ってないかの軽いチェック
-	// 違反したら 500(初期実装では書くけどチェックはしない？)
-	// 要検討
-
-	// response 200
-	return fmt.Errorf("not implemented")
+	catalog, err := castCatalogFromJIA(catalogFromJIA)
+	if err != nil {
+		c.Logger().Errorf("failed to cast catalog: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	return c.JSON(http.StatusOK, catalog)
 }
 
-func getCatalogFromJIA(catalogID string) (*CatalogFromJIA, error) {
+// 日本ISU協会にカタログ情報を問い合わせる
+// 日本ISU協会のAPIについては資料を参照
+func getCatalogFromJIA(catalogID string) (*CatalogFromJIA, int, error) {
 	targetURLStr := getJIAServiceURL() + "/api/catalog/" + catalogID
 	res, err := http.Get(targetURLStr)
 	if err != nil {
-		return nil, err
+		return nil, http.StatusInternalServerError, err
 	}
 	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return nil, res.StatusCode, nil
+	}
 
 	catalog := &CatalogFromJIA{}
 	err = json.NewDecoder(res.Body).Decode(&catalog)
 	if err != nil {
-		return nil, err
+		return nil, http.StatusOK, err
 	}
-	return catalog, nil
+	return catalog, http.StatusOK, nil
+}
+
+//CatalogFromJIAからCatalogへのキャスト
+func castCatalogFromJIA(catalogFromJIA *CatalogFromJIA) (*Catalog, error) {
+	catalog := &Catalog{}
 }
 
 func getIsuList(c echo.Context) error {
