@@ -29,6 +29,7 @@ const (
 	notificationLimit      = 20
 	isuListLimit           = 200 // TODO 修正が必要なら変更
 	jwtVerificationKeyPath = "../ec256-public.pem"
+	DefaultJIAServiceURL   = "http://localhost:5000"
 )
 
 var (
@@ -38,6 +39,11 @@ var (
 
 	jwtVerificationKey *ecdsa.PublicKey
 )
+
+type Config struct {
+	Name string `json:"name" db:"name"`
+	Val  string `json:"val" db:"val"`
+}
 
 type Isu struct {
 	JIAIsuUUID   string    `db:"jia_isu_uuid" json:"jia_isu_uuid"`
@@ -223,6 +229,19 @@ func getUserIdFromSession(r *http.Request) (string, error) {
 		return "", fmt.Errorf("no session")
 	}
 	return userID.(string), nil
+}
+
+func getJIAServiceURL() string {
+	config := Config{}
+	err := db.Get(&config, "SELECT * FROM `configs` WHERE `name` = ?", "jia_service_url")
+	if errors.Is(err, sql.ErrNoRows) {
+		return DefaultJIAServiceURL
+	}
+	if err != nil {
+		log.Print(err)
+		return DefaultJIAServiceURL
+	}
+	return config.Val
 }
 
 func postInitialize(c echo.Context) error {
