@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -28,6 +29,7 @@ const (
 	sessionName                 = "isucondition"
 	searchLimit                 = 20
 	notificationLimit           = 20
+	isuListLimit                = 200 // TODO 修正が必要なら変更
 	notificationTimestampFormat = "2006-01-02 15:04:05 -0700"
 	jwtVerificationKeyPath      = "../ec256-public.pem"
 )
@@ -410,26 +412,32 @@ func getCatalog(c echo.Context) error {
 	return fmt.Errorf("not implemented")
 }
 
-//  GET /api/isu?limit=5
-// 自分の ISU 一覧を取得
 func getIsuList(c echo.Context) error {
-	// * session
-	// session が存在しなければ 401
+	jiaUserID, err := getUserIdFromSession(c.Request())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not signed in")
+	}
 
-	// input
-	//     * limit: 取得件数（利用用途的には固定だが一般的な話で指定可能にする。ベンチもやる）
+	limitStr := c.QueryParam("limit")
+	limit := isuListLimit
+	if limitStr != "" {
+		limit, err = strconv.Atoi(limitStr)
+		if err != nil || limit <= 0 {
+			return echo.NewHTTPError(http.StatusBadRequest, "invalid value: limit")
+		}
+	}
 
-	// SELECT * FROM isu WHERE jia_user_id = {jia_user_id} and is_deleted=false LIMIT {limit} order by created_at;
-	// (catalogは取らない)
-	// 画像までSQLで取ってくるボトルネック
-	// imageも最初はとってるけどレスポンスに含まれてないからselect時に持ってくる必要ない
+	isuList := []Isu{}
+	err = db.Select(
+		&isuList,
+		"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = false ORDER BY `created_at` DESC LIMIT ?",
+		jiaUserID, limit)
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+	}
 
-	// response 200
-	// * id
-	// * name
-	// * jia_catalog_id
-	// * charactor  // MEMO: この値を使うのは day2 実装だが、ひとまずフィールドは用意する
-	return fmt.Errorf("not implemented")
+	return c.JSON(http.StatusOK, isuList)
 }
 
 //  POST /api/isu
