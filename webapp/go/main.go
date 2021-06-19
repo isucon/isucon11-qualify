@@ -450,7 +450,7 @@ func postIsu(c echo.Context) error {
 	return fmt.Errorf("not implemented")
 }
 
-//  GET /api/isu/search
+// GET /api/isu/search
 // 自分の ISU 一覧から検索
 func getIsuSearch(c echo.Context) error {
 	// input (query_param)
