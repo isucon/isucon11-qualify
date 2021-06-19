@@ -481,19 +481,19 @@ func getIsuSearch(c echo.Context) error {
 	if minLimitWeightStr != "" {
 		minLimitWeight, err = strconv.Atoi(minLimitWeightStr)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "bad min_limit_weight: cursor_end_time")
+			return echo.NewHTTPError(http.StatusBadRequest, "bad format: min_limit_weight")
 		}
 	}
 	if maxLimitWeightStr != "" {
 		maxLimitWeight, err = strconv.Atoi(maxLimitWeightStr)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "bad max_limit_weight: cursor_end_time")
+			return echo.NewHTTPError(http.StatusBadRequest, "bad format: max_limit_weight")
 		}
 	}
 	if pageStr != "" {
 		page, err = strconv.Atoi(pageStr)
 		if err != nil || page <= 0 {
-			return echo.NewHTTPError(http.StatusBadRequest, "bad page: cursor_end_time")
+			return echo.NewHTTPError(http.StatusBadRequest, "bad format: page")
 		}
 	}
 
