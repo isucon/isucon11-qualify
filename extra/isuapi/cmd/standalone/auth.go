@@ -10,11 +10,6 @@ import (
 )
 
 const (
-	// iat と exp は登録済みクレーム名。それぞれの意味は https://tools.ietf.org/html/rfc7519#section-4.1 を参照。{
-	iatKey = "iat"
-	expKey = "exp"
-	// }
-
 	// lifetime は jwt の発行から失効までの期間を表す。
 	lifetime = 30 * time.Minute
 )
