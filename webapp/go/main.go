@@ -502,11 +502,11 @@ func getIsuSearch(c echo.Context) error {
 	query := "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = false"
 	queryParam := []interface{}{jiaUserID}
 	if name != "" {
-		query += " `name` LIKE CONCAT('%', ?, '%') "
+		query += " `name` LIKE ? "
 		queryParam = append(queryParam, name)
 	}
 	if charactor != "" {
-		query += " `charactor` LIKE CONCAT('%', ?, '%') "
+		query += " `charactor` LIKE ? "
 		queryParam = append(queryParam, charactor)
 	}
 	// query += " LIMIT ? "
