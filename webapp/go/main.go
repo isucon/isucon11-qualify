@@ -127,6 +127,10 @@ type GetMeResponse struct {
 	JIAUserID string `json:"jia_user_id"`
 }
 
+type PutIsuRequest struct {
+	Name string `json:"name"`
+}
+
 type GraphResponse struct {
 }
 
@@ -547,42 +551,59 @@ func getIsu(c echo.Context) error {
 //  PUT /api/isu/{jia_isu_uuid}
 // 自分の所有しているISUの情報を変更する
 func putIsu(c echo.Context) error {
-	// * session
-	// session が存在しなければ 401
+	jiaUserID, err := getUserIdFromSession(c.Request())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not sign in")
+	}
 
-	// input (path_param)
-	// 	* jia_isu_uuid: 椅子固有のID
-	// input (body)
-	// 	* isu_name: 椅子の名称
-	// invalid ならば 400
+	jiaIsuUUID := c.Param("jia_isu_uuid")
 
-	// トランザクション開始
+	var req PutIsuRequest
+	err = c.Bind(&req)
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid request")
+	}
 
-	// MEMO: dummy のボトルネック
-	// current_userが認可された操作か確認
-	//     * isu_idがcurrent_userのものか
-	// SELECT COUNT(*) FROM isu WHERE jia_user_id = `jia_user_id` and jia_isu_uuid = `jia_isu_uuid` and is_deleted=false;
-	// NGならエラーを返す
-	//   404 not found
+	tx, err := db.Beginx()
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+	}
+	defer tx.Rollback()
 
-	// DBを更新
-	// UPDATE isu SET isu_name=? WHERE jia_isu_uuid = `jia_isu_uuid`;
+	var count int
+	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = ?",
+		jiaUserID, jiaIsuUUID, false)
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+	}
+	if count == 0 {
+		return echo.NewHTTPError(http.StatusNotFound, "isu not found")
+	}
 
-	//更新後の値取得
-	// SELECT (*) FROM isu WHERE jia_user_id = `jia_user_id` and jia_isu_uuid = `jia_isu_uuid` and is_deleted=false;
-	// 画像までSQLで取ってくるボトルネック
-	// imageも最初はとってるけどレスポンスに含まれてないからselect時に持ってくる必要ない
+	_, err = tx.Exec("UPDATE `isu` SET `name` = ? WHERE `jia_isu_uuid` = ?", req.Name, jiaIsuUUID)
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+	}
 
-	//トランザクション終了
+	var isu Isu
+	err = tx.Get(&isu, "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = ?",
+		jiaUserID, jiaIsuUUID, false)
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+	}
 
-	// response  200
-	//{
-	// * id
-	// * name
-	// * jia_catalog_id
-	// * charactor
-	//}
-	return fmt.Errorf("not implemented")
+	err = tx.Commit()
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+	}
+
+	return c.JSON(http.StatusOK, isu)
 }
 
 //  DELETE /api/isu/{jia_isu_uuid}
