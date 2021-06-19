@@ -499,6 +499,7 @@ func getIsuSearch(c echo.Context) error {
 
 	searchLimit
 
+	// DBからISU一覧を取得
 	query := "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = false"
 	queryParam := []interface{}{jiaUserID}
 	if name != "" {
@@ -506,7 +507,7 @@ func getIsuSearch(c echo.Context) error {
 		queryParam = append(queryParam, name)
 	}
 	if charactor != "" {
-		query += " `charactor` LIKE ? "
+		query += " `charactor` = ? "
 		queryParam = append(queryParam, charactor)
 	}
 	// query += " LIMIT ? "
@@ -515,19 +516,19 @@ func getIsuSearch(c echo.Context) error {
 	// 	query += " OFFSET ? "
 	// 	queryParam = append(queryParam, page)
 	// }
-	isuList := []Isu{}
+	query += " ORDER BY `created_at` DESC "
+	isuList := []*Isu{}
 	err = db.Select(&isuList,
 		query,
 		queryParam...,
 	)
-	// 持っている椅子を数件取得 (非効率な検索ロジック)
-	// SELECT (*) FROM isu WHERE jia_user_id = `jia_user_id` AND is_deleted=false
-	//   AND name LIKE CONCAT('%', ?, '%')
-	//   AND charactor = `charactor`
-	//   ORDER BY created_at;
 
-	//for _, isu range isuList {
-	// catalog := isu.catalogを使ってISU協会に問い合わせ(http request)
+	isuListResponse := []*Isu{}
+	for _, isu range isuList {
+		// ISU協会に問い合わせ(http request)
+		targetURLStr := fmt.Sprintf(
+			"http://localhost:%s/api/condition/%s",
+		)
 
 	// isu_calatog情報を使ってフィルター
 	//if !(min_limit_weight < catalog.limit_weight && catalog.limit_weight < max_limit_weight) {
@@ -537,7 +538,7 @@ func getIsuSearch(c echo.Context) error {
 	// ... catalog_name,catalog_tags
 
 	// res の 配列 append
-	//}
+	}
 	// 指定pageからlimit件数（固定）だけ取り出す(ボトルネックにしたいのでbreakは行わない）
 
 	//response 200
