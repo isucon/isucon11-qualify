@@ -387,7 +387,7 @@ func getCatalog(c echo.Context) error {
 	}
 
 	JIACatalogID := c.Param("jia_catalog_id")
-	if JIACatalogID != "" {
+	if JIACatalogID == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "jia_catalog_id is missing")
 	}
 
