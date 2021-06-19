@@ -924,8 +924,10 @@ func updateGraph(tx *sqlx.Tx, jiaIsuUUID string) error {
 	}
 
 	//insert or update
+	params := strings.Repeat("(?,?,?),", len(valuesForUpdate)/3)
+	params = params[:len(params)-1]
 	_, err = tx.Exec("INSERT INTO `graph` (`jia_isu_uuid`, `start_at`, `data`) VALUES "+
-		"	(?,?,?)"+strings.Repeat(",(?,?,?)", len(valuesForUpdate)/3-1)+
+		params+
 		"	ON DUPLICATE KEY UPDATE `data` = VALUES(`data`)",
 		valuesForUpdate...,
 	)
