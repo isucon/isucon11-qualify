@@ -543,7 +543,11 @@ func deleteIsu(c echo.Context) error {
 
 	// TODO(okimoto) ISU協会にdectivateを送る
 
-	tx.Commit()
+	err = tx.Commit()
+	if err != nil {
+		c.Logger().Errorf("failed to commit tx: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
 
 	return c.NoContent(http.StatusNoContent)
 }
