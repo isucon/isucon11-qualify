@@ -73,13 +73,13 @@ type Isu struct {
 }
 
 type CatalogFromJIA struct {
-	JIACatalogID string `json:"catalog_id"`
-	Name         string `json:"name"`
-	LimitWeight  int    `json:"limit_weight"`
-	Weight       int    `json:"weight"`
-	Size         string `json:"size"`
-	Maker        string `json:"maker"`
-	Features     string `json:"features"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	LimitWeight int    `json:"limit_weight"`
+	Weight      int    `json:"weight"`
+	Size        string `json:"size"`
+	Maker       string `json:"maker"`
+	Features    string `json:"features"`
 }
 
 type Catalog struct {
@@ -377,14 +377,20 @@ func postAuthentication(c echo.Context) error {
 
 //  POST /api/signout
 func postSignout(c echo.Context) error {
-	// ユーザからの入力
-	// * session
-	// session が存在しなければ 401
+	_, err := getUserIdFromSession(c.Request())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not signed in")
+	}
 
-	// cookie の max-age を -1 にして Set-Cookie
+	session := getSession(c.Request())
+	session.Options = &sessions.Options{MaxAge: -1, Path: "/"}
+	err = session.Save(c.Request(), c.Response())
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "cannot delete session")
+	}
 
-	// response 200
-	return fmt.Errorf("not implemented")
+	return c.NoContent(http.StatusOK)
 }
 
 // TODO
@@ -404,39 +410,72 @@ func getMe(c echo.Context) error {
 	return c.JSON(http.StatusOK, response)
 }
 
-//  GET /api/catalog/{jia_catalog_id}
-// MEMO: 外部APIのドキュメントに「競技期間中は不変」「read onlyである」「叩く頻度は変えて良い」を明記
-// MEMO: ISU協会のrespと当Appのrespのフォーマットは合わせる?  → 合わせない
-// MEMO: day2: ISU 協会の問い合わせ内容をまるっとキャッシュするだけだと減点する仕組みを実装する
-//         (ISU 協会の response に updated_at を加え、ベンチでここをチェックするようにする)
-//		 ref: https://scrapbox.io/ISUCON11/2021.06.02_%E4%BA%88%E9%81%B8%E5%AE%9A%E4%BE%8B#60b764b725829c0000426896
+// GET /api/catalog/{jia_catalog_id}
+// カタログ情報を取得
 func getCatalog(c echo.Context) error {
-	// * session
-	// session が存在しなければ 401
+	// ログインチェック
+	_, err := getUserIdFromSession(c.Request())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not signed in")
+	}
 
-	// ISU 協会に問い合わせる  (想定解はキャッシュ)
-	// request
-	// * jia_catalog_id
-	// response
-	// * isu_catalog_name
-	// * isu_catalog_limit_weight
-	// * isu_catalog_size
-	// * isu_catalog_weight
-	// * isu_catalog_maker
-	// * isu_catalog_tag: (headrest, personality, ...などジェイウォークになってるもの。種類は固定でドキュメントに記載しておく)
-	// GET /api/isu/search で使用
+	jiaCatalogID := c.Param("jia_catalog_id")
+	if jiaCatalogID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "jia_catalog_id is missing")
+	}
 
-	// ISU 協会からのレスポンス
-	// 404 なら404を返す
+	// 日本ISU協会に問い合わせる(http request)
+	catalogFromJIA, statusCode, err := fetchCatalogFromJIA(jiaCatalogID)
+	if err != nil {
+		c.Logger().Errorf("failed to get catalog from JIA: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	if statusCode == http.StatusNotFound {
+		return echo.NewHTTPError(http.StatusNotFound, "invalid jia_catalog_id")
+	}
 
-	// 一つずつ変数を代入
-	// validation（Nginxで横流しをOKにするかで決める）
-	// ゼロ値が入ってないかの軽いチェック
-	// 違反したら 500(初期実装では書くけどチェックはしない？)
-	// 要検討
+	catalog, err := castCatalogFromJIA(catalogFromJIA)
+	if err != nil {
+		c.Logger().Errorf("failed to cast catalog: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	return c.JSON(http.StatusOK, catalog)
+}
 
-	// response 200
-	return fmt.Errorf("not implemented")
+// 日本ISU協会にカタログ情報を問い合わせる
+// 日本ISU協会のAPIについては資料を参照
+func fetchCatalogFromJIA(catalogID string) (*CatalogFromJIA, int, error) {
+	targetURLStr := getJIAServiceURL() + "/api/catalog/" + catalogID
+	res, err := http.Get(targetURLStr)
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return nil, res.StatusCode, nil
+	}
+
+	catalog := &CatalogFromJIA{}
+	err = json.NewDecoder(res.Body).Decode(&catalog)
+	if err != nil {
+		return nil, http.StatusOK, err
+	}
+	return catalog, http.StatusOK, nil
+}
+
+//CatalogFromJIAからCatalogへのキャスト
+func castCatalogFromJIA(catalogFromJIA *CatalogFromJIA) (*Catalog, error) {
+	//TODO: バリデーション
+	catalog := &Catalog{}
+	catalog.JIACatalogID = catalogFromJIA.ID
+	catalog.Name = catalogFromJIA.Name
+	catalog.LimitWeight = catalogFromJIA.LimitWeight
+	catalog.Weight = catalogFromJIA.Weight
+	catalog.Size = catalogFromJIA.Size
+	catalog.Maker = catalogFromJIA.Maker
+	catalog.Tags = catalogFromJIA.Features
+	return catalog, nil
 }
 
 func getIsuList(c echo.Context) error {
@@ -721,17 +760,26 @@ func deleteIsu(c echo.Context) error {
 //       https://tech.jxpress.net/entry/2018/08/23/104123
 // MEMO: DB 内の image は longblob
 func getIsuIcon(c echo.Context) error {
-	// * session
-	// session が存在しなければ 401
+	jiaUserID, err := getUserIdFromSession(c.Request())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not sign in")
+	}
 
-	// SELECT image FROM isu WHERE jia_user_id = `jia_user_id` and jia_isu_uuid = `jia_isu_uuid` and is_deleted=false;
-	// 見つからなければ404
-	// user_idがリクエストユーザーのものでなければ404
+	jiaIsuUUID := c.Param("jia_isu_uuid")
 
-	// response 200
-	// image
-	// MEMO: とりあえず未指定... Content-Type: image/png image/jpg
-	return fmt.Errorf("not implemented")
+	var image []byte
+	err = db.Get(&image, "SELECT `image` FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = ?",
+		jiaUserID, jiaIsuUUID, false)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return echo.NewHTTPError(http.StatusNotFound)
+		}
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+
+	// TODO: putIsuIconでjpgも受け付けるなら対応が必要
+	return c.Blob(http.StatusOK, "image/png", image)
 }
 
 //  PUT /api/isu/{jia_isu_uuid}/icon
@@ -739,22 +787,70 @@ func getIsuIcon(c echo.Context) error {
 // multipart/form-data
 // MEMO: DB 内の image は longblob
 func putIsuIcon(c echo.Context) error {
-	// * session
-	// session が存在しなければ 401
+	jiaUserID, err := getUserIdFromSession(c.Request())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not sign in")
+	}
 
-	//トランザクション開始
+	jiaIsuUUID := c.Param("jia_isu_uuid")
+	fh, err := c.FormFile("image")
+	if err != nil {
+		// TODO: parse errorということでInternalServerErrorの方がよい？
+		return echo.NewHTTPError(http.StatusBadRequest)
+	}
 
-	// SELECT image FROM isu WHERE jia_user_id = `jia_user_id` and jia_isu_uuid = `jia_isu_uuid` and is_deleted=false;
-	// 見つからなければ404
-	// user_idがリクエストユーザーのものでなければ404
+	contentType := fh.Header.Get("Content-Type")
+	// TODO: jpeg画像も受け付けるなら対応必要
+	if contentType != "image/png" {
+		return echo.NewHTTPError(http.StatusBadRequest)
+	}
 
-	// UPDATE isu SET image=? WHERE jia_user_id = `jia_user_id` and jia_isu_uuid = `jia_isu_uuid` and is_deleted=false;
+	file, err := fh.Open()
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	defer file.Close()
 
-	//トランザクション終了
+	image, err := ioutil.ReadAll(file)
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
 
-	// response 200
-	// {}
-	return fmt.Errorf("not implemented")
+	tx, err := db.Beginx()
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	defer tx.Rollback()
+
+	var count int
+	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = ? FOR UPDATE",
+		jiaUserID, jiaIsuUUID, false)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return echo.NewHTTPError(http.StatusNotFound)
+		}
+
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+
+	_, err = tx.Exec("UPDATE `isu` SET `image` = ? WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = ?",
+		image, jiaUserID, jiaIsuUUID, false)
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+
+	return c.NoContent(http.StatusOK)
 }
 
 //  GET /api/isu/{jia_isu_uuid}/graph
