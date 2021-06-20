@@ -686,7 +686,7 @@ func deleteIsu(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 
-	req, err := http.NewRequest("POST", targetURL, bytes.NewBuffer(bodyJSON))
+	req, err := http.NewRequest(http.MethodPost, targetURL, bytes.NewBuffer(bodyJSON))
 	if err != nil {
 		c.Logger().Errorf("failed to build request: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError)
@@ -700,8 +700,8 @@ func deleteIsu(c echo.Context) error {
 	}
 	defer res.Body.Close()
 
-	if res.StatusCode != 204 {
-		c.Logger().Errorf("JIAService returned error: %v", err)
+	if res.StatusCode != http.StatusNoContent {
+		c.Logger().Errorf("JIAService returned error: status code %v", res.StatusCode)
 		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 
