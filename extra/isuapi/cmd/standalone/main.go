@@ -181,17 +181,16 @@ func postAuth(c echo.Context) error {
 		"isucon2": "isucon2",
 		"isucon3": "isucon3",
 	}
-	for user, pass := range passwordMap {
-		if user == input.User && pass == input.Password {
-			jwt, err := generateJWT(user, time.Now())
-			if err != nil {
-				return echo.NewHTTPError(http.StatusInternalServerError, err)
-			}
-			return c.String(http.StatusOK, jwt)
-		}
+	pass, ok := passwordMap[input.User]
+	if !ok || pass != input.Password {
+		return echo.NewHTTPError(http.StatusNotFound, "Not Found")
+	}
+	jwt, err := generateJWT(input.User, time.Now())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err)
 	}
 
-	return echo.NewHTTPError(http.StatusNotFound, "Not Found")
+	return c.String(http.StatusOK, jwt)
 }
 
 func getCatalog(c echo.Context) error {
@@ -337,7 +336,7 @@ func (state *IsuConditionPoster) keepPosting(ctx context.Context) {
 				(randEngine.Intn(2) == 0),
 			),
 			Message:   "今日もいい天気",
-			Timestamp: nowTime.Format("2006-01-02 15:04:05 -0700"),
+			Timestamp: nowTime.Format("2006-01-02T15:04:05Z07:00"),
 		})
 		if err != nil {
 			log.Error(err)
