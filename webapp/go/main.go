@@ -811,9 +811,13 @@ func getIsuConditions(c echo.Context) error {
 	if cursorJIAIsuUUID == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "cursor_jia_isu_uuid is missing")
 	}
-	conditionLevel := c.QueryParam("condition_level")
-	if conditionLevel == "" {
+	conditionLevelCSV := c.QueryParam("condition_level")
+	if conditionLevelCSV == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "condition_level is missing")
+	}
+	conditionLevel := map[string]interface{}{}
+	for _, level := range strings.Split(conditionLevelCSV, ",") {
+		conditionLevel[level] = struct{}{}
 	}
 	//optional query param
 	startTimeStr := c.QueryParam("start_time")
@@ -870,13 +874,13 @@ func getIsuConditions(c echo.Context) error {
 		var cLevel string
 		add := false
 		warnCount := strings.Count(c.Condition, "=true")
-		if strings.Contains(conditionLevel, "critical") && warnCount == 3 {
+		if _, ok := conditionLevel["critical"]; ok && warnCount == 3 {
 			cLevel = "critical"
 			add = true
-		} else if strings.Contains(conditionLevel, "warning") && (warnCount == 1 || warnCount == 2) {
+		} else if _, ok := conditionLevel["critical"]; ok && (warnCount == 1 || warnCount == 2) {
 			cLevel = "warning"
 			add = true
-		} else if strings.Contains(conditionLevel, "info") && warnCount == 0 {
+		} else if _, ok := conditionLevel["info"]; ok && warnCount == 0 {
 			cLevel = "info"
 			add = true
 		}
