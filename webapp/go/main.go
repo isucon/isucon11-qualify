@@ -34,7 +34,7 @@ const (
 	notificationTimestampFormat = "2006-01-02 15:04:05 -0700"
 	jwtVerificationKeyPath      = "../ec256-public.pem"
 	DefaultJIAServiceURL        = "http://localhost:5000"
-	DefaultIsuConditionURL      = "http://localhost"
+	DefaultIsuConditionHost     = "localhost"
 	DefaultIsuConditionPort     = 3000
 )
 
@@ -679,7 +679,7 @@ func deleteIsu(c echo.Context) error {
 
 	// JIAにisuのdeactivateをリクエスト
 	targetURL := fmt.Sprintf("%s/api/deactivate", getJIAServiceURL())
-	body := JIAServiceRequest{DefaultIsuConditionURL, DefaultIsuConditionPort, jiaIsuUUID}
+	body := JIAServiceRequest{DefaultIsuConditionHost, DefaultIsuConditionPort, jiaIsuUUID}
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
 		c.Logger().Errorf("failed to marshal data: %v", err)
