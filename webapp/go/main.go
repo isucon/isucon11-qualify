@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/ecdsa"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -10,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -24,12 +26,22 @@ import (
 )
 
 const (
-	sessionName            = "isucondition"
-	searchLimit            = 20
-	notificationLimit      = 20
-	isuListLimit           = 200 // TODO 修正が必要なら変更
-	jwtVerificationKeyPath = "../ec256-public.pem"
+	sessionName                 = "isucondition"
+	searchLimit                 = 20
+	notificationLimit           = 20
+	isuListLimit                = 200 // TODO 修正が必要なら変更
+	notificationTimestampFormat = "2006-01-02 15:04:05 -0700"
+	jwtVerificationKeyPath      = "../ec256-public.pem"
 )
+
+var scorePerCondition = map[string]int{
+	"is_dirty":      -1,
+	"is_overweight": -1,
+	"is_broken":     -5,
+}
+
+//"is_dirty=true/false,is_overweight=true/false,..."
+var conditionFormat = regexp.MustCompile(`^[-a-zA-Z_]+=(true|false)(,[-a-zA-Z_]+=(true|false))*$`)
 
 var (
 	db                  *sqlx.DB
@@ -74,6 +86,7 @@ type Catalog struct {
 type IsuLog struct {
 	JIAIsuUUID string    `db:"jia_isu_uuid" json:"jia_isu_uuid"`
 	Timestamp  time.Time `db:"timestamp" json:"timestamp"`
+	IsSitting  bool      `db:"is_sitting" json:"is_sitting"`
 	Condition  string    `db:"condition" json:"condition"`
 	Message    string    `db:"message" json:"message"`
 	CreatedAt  time.Time `db:"created_at" json:"created_at"`
@@ -116,14 +129,21 @@ type GetMeResponse struct {
 	JIAUserID string `json:"jia_user_id"`
 }
 
+type PutIsuRequest struct {
+	Name string `json:"name"`
+}
+
 type GraphResponse struct {
 }
 
 type NotificationResponse struct {
 }
 
-type PutIsuRequest struct {
-	Name string `json:"name"`
+type PostIsuConditionRequest struct {
+	IsSitting bool   `json:"is_sitting"`
+	Condition string `json:"condition"`
+	Message   string `json:"message"`
+	Timestamp string `json:"timestamp"` //Format("2006-01-02 15:04:05 -0700")
 }
 
 func getEnv(key string, defaultValue string) string {
@@ -801,78 +821,220 @@ func getIsuNotifications(c echo.Context) error {
 
 // POST /api/isu/{jia_isu_uuid}/condition
 // ISUからのセンサデータを受け取る
-// MEMO: 初期実装では認証をしない（isu_id 知ってるなら大丈夫だろ〜）
-// MEMO: Day2 ISU協会からJWT発行や秘密鍵公開鍵ペアでDBに公開鍵を入れる？
-// MEMO: ログが一件増えるくらいはどっちでもいいのでミスリーディングにならないようトランザクションはとらない方針
-// MEMO: 1970/1/1みたいな時を超えた古代からのリクエストがきた場合に、ここの時点で弾いてしまうのか、受け入れるか → 受け入れる (ただし jia_isu_uuid と timpestamp の primary 制約に違反するリクエストが来たら 409 を返す)
-// MEMO: DB Schema における conditions の型は取り敢えず string で、困ったら考える
-//     (conditionカラム: is_dirty=true,is_overweight=false)
 func postIsuCondition(c echo.Context) error {
 	// input (path_param)
 	//	* jia_isu_uuid
 	// input (body)
 	//  * is_sitting:  true/false,
-	// 	* condition: {
-	//      is_dirty:    true/false,
-	//      is_overweight: true/false,
-	//      is_broken:   true/false,
-	//    }
+	// 	* condition: "is_dirty=true/false,is_overweight=true/false,..."
 	//  * message
 	//	* timestamp（秒まで）
-	// invalid ならば 400
 
-	//  memo (実装しないやつ)
-	// 	* condition: {
-	//      sitting: {message: "hoge"},
-	//      dirty:   {message: "ほこりがたまってる"},
-	//      over_weight:  {message: "右足が辛い"}
-	//    }
+	//TODO: 記法の統一
+	jiaIsuUUID := c.Param("jia_isu_uuid")
+	if jiaIsuUUID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "jia_isu_uuid is missing")
+	}
+	var request PostIsuConditionRequest
+	err := c.Bind(&request)
+	if err != nil {
+		//TODO: 記法の統一
+		return echo.NewHTTPError(http.StatusBadRequest, "bad request body")
+	}
+
+	//Parse
+	timestamp, err := time.Parse(notificationTimestampFormat, request.Timestamp)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid timestamp")
+	}
+	if !conditionFormat.Match([]byte(request.Condition)) {
+		return echo.NewHTTPError(http.StatusBadRequest, "bad request body")
+	}
 
 	// トランザクション開始
+	tx, err := db.Beginx()
+	if err != nil {
+		c.Logger().Errorf("failed to begin tx: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	defer tx.Rollback()
 
-	// DBから jia_isu_uuid が存在するかを確認
-	// 		SELECT id from isu where id = `jia_isu_uuid` and is_deleted=false
-	// 存在しない場合 404 を返す
+	// jia_isu_uuid が存在するかを確認
+	var count int
+	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_isu_uuid` = ?  and `is_deleted`=false", jiaIsuUUID) //TODO: 記法の統一
+	if err != nil {
+		c.Logger().Errorf("failed to select: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	if count == 0 {
+		return echo.NewHTTPError(http.StatusNotFound, "isu not found")
+	}
 
-	//  memo → getNotifications にて実装
-	// conditionをもとにlevelを計算する（info, warning, critical)
-	// info 悪いコンディション数が0
-	// warning 悪いコンディション数がN個以上
-	// critical 悪いコンディション数がM個以上
+	//isu_logに記録
+	//confilct確認
+	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu_log` WHERE (`timestamp`, `jia_isu_uuid`) = (?, ?)  FOR UPDATE", //TODO: 記法の統一
+		timestamp, jiaIsuUUID,
+	)
+	if err != nil {
+		c.Logger().Errorf("failed to begin tx: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	if count != 0 {
+		return echo.NewHTTPError(http.StatusConflict, "isu_log already exist")
+	}
+	//insert
+	_, err = tx.Exec("INSERT INTO `isu_log`"+
+		"	(`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`) VALUES (?, ?, ?, ?, ?)",
+		jiaIsuUUID, timestamp, request.IsSitting, request.Condition, request.Message,
+	)
+	if err != nil {
+		c.Logger().Errorf("failed to insert: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert")
+	}
 
-	// 受け取った値をDBにINSERT  // conditionはtextカラム（初期実装）
-	// 		INSERT INTO isu_log VALUES(jia_isu_uuid, message, timestamp, conditions );
-	// もし primary 制約により insert が失敗したら 409
-
-	// getGraph用のデータを計算
-	// 初期実装では該当するisu_idのものを全レンジ再計算
-	// SELECT * from isu_log where jia_isu_uuid = `jia_isu_uuid`;
-	// ↑ and timestamp-1h<timestamp and timestamp < timestamp+1hをつけることも検討
-	// isu_logを一時間ごとに区切るfor {
-	//  if (区切り) {
-	//    sumを取って減点を生成(ただし0以上にする)
-	//    割合からsittingを生成
-	//    ここもう少し重くしたい
-	// https://dev.mysql.com/doc/refman/5.6/ja/insert-on-duplicate.html
-	// dataはJSON型
-	//    INSERT INTO graph VALUES(jia_isu_uuid, time_start, time_end, data) ON DUPLICATE KEY UPDATE;
-	// data: {
-	//   score: 70,//>=0
-	//   sitting: 50 (%),
-	//   detail: {
-	//     dirty: -10,
-	//     over_weight: -20
-	//   }
-	// }
-	//vvvvvvvvvv memoここから vvvvvvvvvv
-	// 一時間ごとに集積した着席時間
-	//   condition における総件数からの、座っている/いないによる割合
-	// conditionを何件か集めて、ISUにとっての快適度数みたいな値を算出する
-	//   減点方式 conditionの種類ごとの点数*件数
-	//^^^^^^^^^^^^^^^ memoここまで ^^^^^^^^^^^
+	// getGraph用のデータを計算し、DBを更新する
+	err = updateGraph(tx, jiaIsuUUID)
+	if err != nil {
+		c.Logger().Errorf("failed to update graph: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
 
 	// トランザクション終了
+	err = tx.Commit()
+	if err != nil {
+		c.Logger().Errorf("failed to commit tx: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
 
-	// response 201
-	return fmt.Errorf("not implemented")
+	return c.NoContent(http.StatusCreated)
+}
+
+// getGraph用のデータを計算し、DBを更新する
+func updateGraph(tx *sqlx.Tx, jiaIsuUUID string) error {
+	// IsuLogを一時間ごとの区切りに分け、区切りごとにスコアを計算する
+	isuLogCluster := []IsuLog{} // 一時間ごとの纏まり
+	var tmpIsuLog IsuLog
+	valuesForUpdate := []interface{}{} //3個1組、更新するgraphの各行のデータ
+	rows, err := tx.Queryx("SELECT * FROM `isu_log` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` ASC", jiaIsuUUID)
+	if err != nil {
+		return err
+	}
+	//一時間ごとに区切る
+	var startTime time.Time
+	for rows.Next() {
+		err = rows.StructScan(&tmpIsuLog)
+		if err != nil {
+			return err
+		}
+		tmpTime := truncateAfterHours(tmpIsuLog.Timestamp)
+		if startTime != tmpTime {
+			if len(isuLogCluster) > 0 {
+				//tmpTimeは次の一時間なので、それ以外を使ってスコア計算
+				data, err := calculateGraphData(isuLogCluster)
+				if err != nil {
+					return fmt.Errorf("failed to calculate graph: %v", err)
+				}
+				valuesForUpdate = append(valuesForUpdate, jiaIsuUUID, startTime, data)
+			}
+
+			//次の一時間の探索
+			startTime = tmpTime
+			isuLogCluster = []IsuLog{}
+		}
+		isuLogCluster = append(isuLogCluster, tmpIsuLog)
+	}
+	if len(isuLogCluster) > 0 {
+		//最後の一時間分
+		data, err := calculateGraphData(isuLogCluster)
+		if err != nil {
+			return fmt.Errorf("failed to calculate graph: %v", err)
+		}
+		valuesForUpdate = append(valuesForUpdate, jiaIsuUUID, startTime, data)
+	}
+
+	//insert or update
+	params := strings.Repeat("(?,?,?),", len(valuesForUpdate)/3)
+	params = params[:len(params)-1]
+	_, err = tx.Exec("INSERT INTO `graph` (`jia_isu_uuid`, `start_at`, `data`) VALUES "+
+		params+
+		"	ON DUPLICATE KEY UPDATE `data` = VALUES(`data`)",
+		valuesForUpdate...,
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+//分以下を切り捨て、一時間単位にする関数
+func truncateAfterHours(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), 0, 0, 0, t.Location())
+}
+
+//スコア計算をする関数
+func calculateGraphData(isuLogCluster []IsuLog) ([]byte, error) {
+	graph := &GraphData{}
+
+	//sitting
+	sittingCount := 0
+	for _, log := range isuLogCluster {
+		if log.IsSitting {
+			sittingCount += 1
+		}
+	}
+	graph.Sitting = sittingCount * 100 / len(isuLogCluster)
+
+	//score&detail
+	graph.Score = 100
+	//condition要因の減点
+	graph.Detail = map[string]int{}
+	for key := range scorePerCondition {
+		graph.Detail[key] = 0
+	}
+	for _, log := range isuLogCluster {
+		conditions := map[string]bool{}
+		//DB上にある is_dirty=true/false,is_overweight=true/false,... 形式のデータを
+		//map[string]bool形式に変換
+		for _, cond := range strings.Split(log.Condition, ",") {
+			keyValue := strings.Split(cond, "=")
+			if len(keyValue) != 2 {
+				continue //形式に従っていないものは無視
+			}
+			conditions[keyValue[0]] = (keyValue[1] != "false")
+		}
+
+		//trueになっているものは減点
+		for key, enabled := range conditions {
+			if enabled {
+				score, ok := scorePerCondition[key]
+				if ok {
+					graph.Score += score
+					graph.Detail[key] += score
+				}
+			}
+		}
+	}
+	//スコアに影響がないDetailを削除
+	for key := range scorePerCondition {
+		if graph.Detail[key] == 0 {
+			delete(graph.Detail, key)
+		}
+	}
+	//個数減点
+	if len(isuLogCluster) < 50 {
+		minus := -(50 - len(isuLogCluster)) * 2
+		graph.Score += minus
+		graph.Detail["missing_data"] = minus
+	}
+	if graph.Score < 0 {
+		graph.Score = 0
+	}
+
+	//JSONに変換
+	graphJSON, err := json.Marshal(graph)
+	if err != nil {
+		return nil, err
+	}
+	return graphJSON, nil
 }
