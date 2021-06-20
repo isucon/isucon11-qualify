@@ -30,7 +30,7 @@ const (
 	searchLimit              = 20
 	conditionLimit           = 20
 	isuListLimit             = 200 // TODO 修正が必要なら変更
-	conditionTimestampFormat = "2006-01-02 15:04:05 -0700"
+	conditionTimestampFormat = "2006-01-02T15:04:05Z07:00"
 	jwtVerificationKeyPath   = "../ec256-public.pem"
 )
 
