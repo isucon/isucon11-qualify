@@ -543,7 +543,7 @@ func postIsu(c echo.Context) error {
 func getIsuSearch(c echo.Context) error {
 	// input (query_param)
 	//  * name
-	//  * charactor
+	//  * character
 	//	* catalog_name
 	//	* min_limit_weight
 	//	* max_limit_weight
@@ -594,12 +594,12 @@ func getIsuSearch(c echo.Context) error {
 	query := "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = false"
 	queryParam := []interface{}{jiaUserID}
 	if name != "" {
-		query += " `name` LIKE ? "
+		query += " AND `name` LIKE ? "
 		queryParam = append(queryParam, name)
 	}
-	if charactor != "" {
-		query += " `charactor` = ? "
-		queryParam = append(queryParam, charactor)
+	if character != "" {
+		query += " AND `character` = ? "
+		queryParam = append(queryParam, character)
 	}
 	query += " ORDER BY `created_at` DESC "
 	isuList := []*Isu{}
