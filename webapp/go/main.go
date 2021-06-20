@@ -557,7 +557,7 @@ func getIsuSearch(c echo.Context) error {
 	}
 	//optional query param
 	name := c.QueryParam("name")
-	charactor := c.QueryParam("charactor")
+	character := c.QueryParam("character")
 	catalogName := c.QueryParam("catalog_name")
 	minLimitWeightStr := c.QueryParam("min_limit_weight")
 	maxLimitWeightStr := c.QueryParam("max_limit_weight")
