@@ -877,7 +877,7 @@ func getIsuConditions(c echo.Context) error {
 		if _, ok := conditionLevel["critical"]; ok && warnCount == 3 {
 			cLevel = "critical"
 			add = true
-		} else if _, ok := conditionLevel["critical"]; ok && (warnCount == 1 || warnCount == 2) {
+		} else if _, ok := conditionLevel["warning"]; ok && (warnCount == 1 || warnCount == 2) {
 			cLevel = "warning"
 			add = true
 		} else if _, ok := conditionLevel["info"]; ok && warnCount == 0 {
