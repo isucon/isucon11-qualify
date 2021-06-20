@@ -342,7 +342,7 @@ func (state *IsuConditionPoster) keepPosting(ctx context.Context) {
 				IsBroken:     (randEngine.Intn(2) == 0),
 			},
 			Message:   "今日もいい天気",
-			Timestamp: nowTime.Format("2006-01-02 15:04:05 -0700"),
+			Timestamp: nowTime.Format("2006-01-02T15:04:05Z07:00"),
 		})
 		if err != nil {
 			log.Error(err)
