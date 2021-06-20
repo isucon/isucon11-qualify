@@ -636,7 +636,7 @@ func getIsuSearch(c echo.Context) error {
 			catalogTags[tag] = struct{}{}
 		}
 
-		// isu_calatog情報を使ってフィルター
+		// isu_catalog情報を使ってフィルター
 		if !(minLimitWeight <= catalog.LimitWeight && catalog.LimitWeight <= maxLimitWeight) {
 			continue
 		}
