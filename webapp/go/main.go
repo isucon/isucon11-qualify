@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -24,12 +26,14 @@ import (
 )
 
 const (
-	sessionName            = "isucondition"
-	searchLimit            = 20
-	notificationLimit      = 20
-	isuListLimit           = 200 // TODO 修正が必要なら変更
-	jwtVerificationKeyPath = "../ec256-public.pem"
-	DefaultJIAServiceURL   = "http://localhost:5000"
+	sessionName             = "isucondition"
+	searchLimit             = 20
+	notificationLimit       = 20
+	isuListLimit            = 200 // TODO 修正が必要なら変更
+	jwtVerificationKeyPath  = "../ec256-public.pem"
+	DefaultJIAServiceURL    = "http://localhost:5000"
+	DefaultIsuConditionURL  = "http://localhost"
+	DefaultIsuConditionPort = 3000
 )
 
 var (
@@ -130,6 +134,12 @@ type NotificationResponse struct {
 
 type PutIsuRequest struct {
 	Name string `json:"name"`
+}
+
+type JIAServiceRequest struct {
+	TargetIP   string `json:"target_ip"`
+	TargetPort int    `json:"target_port"`
+	IsuUUID    string `json:"isu_uuid"`
 }
 
 func getEnv(key string, defaultValue string) string {
@@ -649,7 +659,33 @@ func deleteIsu(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
 	}
 
-	// TODO(okimoto) ISU協会にdectivateを送る
+	// JIAにisuのdectivateをリクエスト
+	targetURL := fmt.Sprintf("%s/api/deactivate", getJIAServiceURL())
+	body := JIAServiceRequest{DefaultIsuConditionURL, DefaultIsuConditionPort, jiaIsuUUID}
+	bodyJSON, err := json.Marshal(body)
+	if err != nil {
+		c.Logger().Errorf("failed to marshal data: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+
+	req, err := http.NewRequest("POST", targetURL, bytes.NewBuffer(bodyJSON))
+	if err != nil {
+		c.Logger().Errorf("failed to build request: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		c.Logger().Errorf("failed to request to JIAService: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != 204 {
+		c.Logger().Errorf("JIAService returned error: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
 
 	err = tx.Commit()
 	if err != nil {
