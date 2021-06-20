@@ -677,7 +677,7 @@ func deleteIsu(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
 	}
 
-	// JIAにisuのdectivateをリクエスト
+	// JIAにisuのdeactivateをリクエスト
 	targetURL := fmt.Sprintf("%s/api/deactivate", getJIAServiceURL())
 	body := JIAServiceRequest{DefaultIsuConditionURL, DefaultIsuConditionPort, jiaIsuUUID}
 	bodyJSON, err := json.Marshal(body)
