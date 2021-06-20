@@ -26,12 +26,13 @@ import (
 )
 
 const (
-	sessionName              = "isucondition"
-	searchLimit              = 20
-	conditionLimit           = 20
-	isuListLimit             = 200 // TODO 修正が必要なら変更
-	conditionTimestampFormat = "2006-01-02T15:04:05Z07:00"
-	jwtVerificationKeyPath   = "../ec256-public.pem"
+	sessionName                 = "isucondition"
+	searchLimit                 = 20
+	conditionLimit              = 20
+	isuListLimit                = 200 // TODO 修正が必要なら変更
+	conditionTimestampFormat    = "2006-01-02T15:04:05Z07:00"
+	jwtVerificationKeyPath      = "../ec256-public.pem"
+	DefaultJIAServiceURL        = "http://localhost:5000"
 )
 
 var scorePerCondition = map[string]int{
@@ -50,6 +51,11 @@ var (
 
 	jwtVerificationKey *ecdsa.PublicKey
 )
+
+type Config struct {
+	Name string `db:"name"`
+	URL  string `db:"url"`
+}
 
 type Isu struct {
 	JIAIsuUUID   string    `db:"jia_isu_uuid" json:"jia_isu_uuid"`
@@ -250,6 +256,18 @@ func getUserIdFromSession(r *http.Request) (string, error) {
 		return "", fmt.Errorf("no session")
 	}
 	return userID.(string), nil
+}
+
+func getJIAServiceURL() string {
+	config := Config{}
+	err := db.Get(&config, "SELECT * FROM `isu_association_config` WHERE `name` = ?", "jia_service_url")
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			log.Print(err)
+		}
+		return DefaultJIAServiceURL
+	}
+	return config.URL
 }
 
 func postInitialize(c echo.Context) error {
@@ -1087,10 +1105,7 @@ func calculateGraphData(isuLogCluster []IsuLog) ([]byte, error) {
 		for _, cond := range strings.Split(log.Condition, ",") {
 			keyValue := strings.Split(cond, "=")
 			if len(keyValue) != 2 {
-				return nil, fmt.Errorf("invalid condition %s", cond)
-			}
-			if _, ok := scorePerCondition[keyValue[0]]; !ok {
-				return nil, fmt.Errorf("invalid condition %s", cond)
+				continue //形式に従っていないものは無視
 			}
 			conditions[keyValue[0]] = (keyValue[1] != "false")
 		}
@@ -1098,8 +1113,11 @@ func calculateGraphData(isuLogCluster []IsuLog) ([]byte, error) {
 		//trueになっているものは減点
 		for key, enabled := range conditions {
 			if enabled {
-				graph.Score += scorePerCondition[key]
-				graph.Detail[key] += scorePerCondition[key]
+				score, ok := scorePerCondition[key]
+				if ok {
+					graph.Score += score
+					graph.Detail[key] += score
+				}
 			}
 		}
 	}
