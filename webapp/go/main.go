@@ -234,11 +234,10 @@ func getUserIdFromSession(r *http.Request) (string, error) {
 func getJIAServiceURL() string {
 	config := Config{}
 	err := db.Get(&config, "SELECT * FROM `isu_association_config` WHERE `name` = ?", "jia_service_url")
-	if errors.Is(err, sql.ErrNoRows) {
-		return DefaultJIAServiceURL
-	}
 	if err != nil {
-		log.Print(err)
+		if !errors.Is(err, sql.ErrNoRows) {
+			log.Print(err)
+		}
 		return DefaultJIAServiceURL
 	}
 	return config.URL
