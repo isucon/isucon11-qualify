@@ -661,6 +661,7 @@ func putIsuIcon(c echo.Context) error {
 	}
 
 	contentType := fh.Header.Get("Content-Type")
+	// TODO: jpeg画像も受け付けるなら対応必要
 	if contentType != "image/png" {
 		return echo.NewHTTPError(http.StatusBadRequest)
 	}
