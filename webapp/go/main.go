@@ -368,14 +368,20 @@ func postAuthentication(c echo.Context) error {
 
 //  POST /api/signout
 func postSignout(c echo.Context) error {
-	// ユーザからの入力
-	// * session
-	// session が存在しなければ 401
+	_, err := getUserIdFromSession(c.Request())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not signed in")
+	}
 
-	// cookie の max-age を -1 にして Set-Cookie
+	session := getSession(c.Request())
+	session.Options = &sessions.Options{MaxAge: -1, Path: "/"}
+	err = session.Save(c.Request(), c.Response())
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "cannot delete session")
+	}
 
-	// response 200
-	return fmt.Errorf("not implemented")
+	return c.NoContent(http.StatusOK)
 }
 
 // TODO
