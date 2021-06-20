@@ -537,11 +537,12 @@ func getIsuSearch(c echo.Context) error {
 	catalogName := c.QueryParam("catalog_name")
 	minLimitWeightStr := c.QueryParam("min_limit_weight")
 	maxLimitWeightStr := c.QueryParam("max_limit_weight")
-	catalogTags := c.QueryParam("catalog_tags")
+	catalogTagsStr := c.QueryParam("catalog_tags")
 	pageStr := c.QueryParam("page")
 	var minLimitWeight int
 	var maxLimitWeight int
 	var page int
+	var requiredCatalogTags []string
 	if minLimitWeightStr != "" {
 		minLimitWeight, err = strconv.Atoi(minLimitWeightStr)
 		if err != nil {
@@ -559,6 +560,9 @@ func getIsuSearch(c echo.Context) error {
 		if err != nil || page <= 0 {
 			return echo.NewHTTPError(http.StatusBadRequest, "bad format: page")
 		}
+	}
+	if catalogTagsStr != "" {
+		requiredCatalogTags = strings.Split(catalogTagsStr, ",")
 	}
 
 	// DBからISU一覧を取得
@@ -586,34 +590,54 @@ func getIsuSearch(c echo.Context) error {
 	)
 
 	isuListResponse := []*Isu{}
+	//残りのフィルター処理
 	for _, isu := range isuList {
 		// ISU協会に問い合わせ(http request)
-		catalogFromJIA, statusCode, err := getCatalogFromJIA(isu.JIACatalogID)
+		catalogFromJIA, statusCode, err := fetchCatalogFromJIA(isu.JIACatalogID)
 		if err != nil {
-			c.Logger().Errorf("failed to get catalog from JIA: %v", err)
+			c.Logger().Errorf("failed to fetch catalog from JIA: %v", err)
 			return echo.NewHTTPError(http.StatusInternalServerError)
 		}
 		if statusCode == http.StatusNotFound {
-			return echo.NewHTTPError(http.StatusNotFound, "invalid jia_catalog_id")
+			c.Logger().Errorf("catalog not found: %s", isu.JIACatalogID)
+			return echo.NewHTTPError(http.StatusInternalServerError)
 		}
-
 		catalog, err := castCatalogFromJIA(catalogFromJIA)
 		if err != nil {
 			c.Logger().Errorf("failed to cast catalog: %v", err)
 			return echo.NewHTTPError(http.StatusInternalServerError)
 		}
+		//catalog.Tagsをmapに変換
+		catalogTags := map[string]interface{}{}
+		for _, tag := strings.Split(catalog.Tags) {
+			catalogTags[tag] = struct{}{}
+		}
 
 		// isu_calatog情報を使ってフィルター
-		//if !(min_limit_weight < catalog.limit_weight && catalog.limit_weight < max_limit_weight) {
-		//	continue
-		//}
+		if !(minLimitWeight <= catalog.LimitWeight && catalog.LimitWeight <= maxLimitWeight) {
+			continue
+		}
+		if catalogName != catalog.Name {
+			continue
+		}
+		if requiredCatalogTags != nil {
+			containsAll := true
+			for _, tag := range requiredCatalogTags {
+				if _, ok := catalogTags[tag]; !ok {
+					containsAll = false
+					break
+				}
+			}
+			if !containsAll {
+				continue
+			}
+		}
 
-		// ... catalog_name,catalog_tags
-
-		// res の 配列 append
+		//条件一致
+		isuListResponse = append(isuListResponse, isu)
 	}
-	// 指定pageからlimit件数（固定）だけ取り出す(ボトルネックにしたいのでbreakは行わない）
-
+	
+	//limit
 	if searchLimit < len(isuListResponse) {
 		isuListResponse = isuListResponse[:searchLimit]
 	}
