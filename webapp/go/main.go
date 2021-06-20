@@ -539,6 +539,7 @@ func getIsuSearch(c echo.Context) error {
 	maxLimitWeightStr := c.QueryParam("max_limit_weight")
 	catalogTagsStr := c.QueryParam("catalog_tags")
 	pageStr := c.QueryParam("page")
+	//parse
 	var minLimitWeight int
 	var maxLimitWeight int
 	var page int
@@ -576,18 +577,16 @@ func getIsuSearch(c echo.Context) error {
 		query += " `charactor` = ? "
 		queryParam = append(queryParam, charactor)
 	}
-	// query += " LIMIT ? "
-	// queryParam = append(queryParam, searchLimit)
-	// if pageStr != "" {
-	// 	query += " OFFSET ? "
-	// 	queryParam = append(queryParam, page)
-	// }
 	query += " ORDER BY `created_at` DESC "
 	isuList := []*Isu{}
 	err = db.Select(&isuList,
 		query,
 		queryParam...,
 	)
+	if err != nil {
+		c.Logger().Errorf("failed to select: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
 
 	isuListResponse := []*Isu{}
 	//残りのフィルター処理
@@ -609,7 +608,7 @@ func getIsuSearch(c echo.Context) error {
 		}
 		//catalog.Tagsをmapに変換
 		catalogTags := map[string]interface{}{}
-		for _, tag := strings.Split(catalog.Tags) {
+		for _, tag := range strings.Split(catalog.Tags, ",") {
 			catalogTags[tag] = struct{}{}
 		}
 
@@ -633,14 +632,16 @@ func getIsuSearch(c echo.Context) error {
 			}
 		}
 
-		//条件一致
+		//条件一致したのでレスポンスに追加
 		isuListResponse = append(isuListResponse, isu)
 	}
-	
+
 	//offset
 	if pageStr != "" {
-		offset := searchLimit*(page-1)
-		offset = min(offset, len(isuListResponse))
+		offset := searchLimit * (page - 1)
+		if len(isuListResponse) < offset {
+			offset = len(isuListResponse)
+		}
 		isuListResponse = isuListResponse[offset:]
 	}
 	//limit
