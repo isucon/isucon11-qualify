@@ -32,6 +32,7 @@ const (
 	isuListLimit                = 200 // TODO 修正が必要なら変更
 	notificationTimestampFormat = "2006-01-02 15:04:05 -0700"
 	jwtVerificationKeyPath      = "../ec256-public.pem"
+	DefaultJIAServiceURL        = "http://localhost:5000"
 )
 
 var scorePerCondition = map[string]int{
@@ -50,6 +51,11 @@ var (
 
 	jwtVerificationKey *ecdsa.PublicKey
 )
+
+type Config struct {
+	Name string `db:"name"`
+	URL  string `db:"url"`
+}
 
 type Isu struct {
 	JIAIsuUUID   string    `db:"jia_isu_uuid" json:"jia_isu_uuid"`
@@ -243,6 +249,18 @@ func getUserIdFromSession(r *http.Request) (string, error) {
 		return "", fmt.Errorf("no session")
 	}
 	return userID.(string), nil
+}
+
+func getJIAServiceURL() string {
+	config := Config{}
+	err := db.Get(&config, "SELECT * FROM `isu_association_config` WHERE `name` = ?", "jia_service_url")
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			log.Print(err)
+		}
+		return DefaultJIAServiceURL
+	}
+	return config.URL
 }
 
 func postInitialize(c echo.Context) error {
