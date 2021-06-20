@@ -637,6 +637,12 @@ func getIsuSearch(c echo.Context) error {
 		isuListResponse = append(isuListResponse, isu)
 	}
 	
+	//offset
+	if pageStr != "" {
+		offset := searchLimit*(page-1)
+		offset = min(offset, len(isuListResponse))
+		isuListResponse = isuListResponse[offset:]
+	}
 	//limit
 	if searchLimit < len(isuListResponse) {
 		isuListResponse = isuListResponse[:searchLimit]
