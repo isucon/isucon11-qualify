@@ -386,13 +386,13 @@ func getCatalog(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusUnauthorized, "you are not signed in")
 	}
 
-	JIACatalogID := c.Param("jia_catalog_id")
-	if JIACatalogID == "" {
+	jiaCatalogID := c.Param("jia_catalog_id")
+	if jiaCatalogID == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "jia_catalog_id is missing")
 	}
 
-	// 日本ISU協会に問い合わせる
-	catalogFromJIA, statusCode, err := getCatalogFromJIA(JIACatalogID)
+	// 日本ISU協会に問い合わせる(http request)
+	catalogFromJIA, statusCode, err := getCatalogFromJIA(jiaCatalogID)
 	if err != nil {
 		c.Logger().Errorf("failed to get catalog from JIA: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError)
