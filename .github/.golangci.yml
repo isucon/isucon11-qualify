@@ -1,3 +1,13 @@
+run:
+  timeout: 3m
+
 linters-settings:
   errcheck:
     ignore: database/sql:Rollback
+
+# 各エンドポイント実装完了 (step3) までは一部linterを無効化
+linters:
+  disable:
+    - deadcode
+    - unused
+    - varcheck

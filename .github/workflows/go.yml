@@ -26,9 +26,7 @@ jobs:
         with:
           version: latest
           working-directory: ./webapp/go
-          # 各エンドポイント実装完了 (step3) までは一部linterを無効化
-          #args: "--timeout 3m0s -c ../../.github/.golangci.yml"
-          args: "--timeout 3m0s -c ../../.github/.golangci.yml -D deadcode -D unused -D varcheck"
+          args: "-c ../../.github/.golangci.yml"
   test:
     name: Integration Test
     runs-on: ubuntu-latest
