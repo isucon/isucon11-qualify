@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VividCortex/mysqlerr"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/go-sql-driver/mysql"
 	"github.com/gorilla/sessions"
@@ -593,7 +594,7 @@ func postIsu(c echo.Context) error {
 		jiaIsuUUID, isuName, image, isuFromJIA.Character, isuFromJIA.JIACatalogID, jiaUserID)
 	if err != nil {
 		driverErr, ok := err.(*mysql.MySQLError)
-		if ok && driverErr.Number == 1062 { // TODO 変数に直す
+		if ok && driverErr.Number == mysqlerr.ER_DUP_ENTRY {
 			// TODO 再activate時もここでエラー; day2で再検討
 			c.Logger().Errorf("duplited key: %v", err)
 			return echo.NewHTTPError(http.StatusConflict, "duplicated isu")
