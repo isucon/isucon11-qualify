@@ -561,8 +561,6 @@ func getIsuSearch(c echo.Context) error {
 		}
 	}
 
-	searchLimit
-
 	// DBからISU一覧を取得
 	query := "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = false"
 	queryParam := []interface{}{jiaUserID}
@@ -588,31 +586,38 @@ func getIsuSearch(c echo.Context) error {
 	)
 
 	isuListResponse := []*Isu{}
-	for _, isu range isuList {
+	for _, isu := range isuList {
 		// ISU協会に問い合わせ(http request)
-		targetURLStr := fmt.Sprintf(
-			"http://localhost:%s/api/condition/%s",
-		)
+		catalogFromJIA, statusCode, err := getCatalogFromJIA(isu.JIACatalogID)
+		if err != nil {
+			c.Logger().Errorf("failed to get catalog from JIA: %v", err)
+			return echo.NewHTTPError(http.StatusInternalServerError)
+		}
+		if statusCode == http.StatusNotFound {
+			return echo.NewHTTPError(http.StatusNotFound, "invalid jia_catalog_id")
+		}
 
-	// isu_calatog情報を使ってフィルター
-	//if !(min_limit_weight < catalog.limit_weight && catalog.limit_weight < max_limit_weight) {
-	//	continue
-	//}
+		catalog, err := castCatalogFromJIA(catalogFromJIA)
+		if err != nil {
+			c.Logger().Errorf("failed to cast catalog: %v", err)
+			return echo.NewHTTPError(http.StatusInternalServerError)
+		}
 
-	// ... catalog_name,catalog_tags
+		// isu_calatog情報を使ってフィルター
+		//if !(min_limit_weight < catalog.limit_weight && catalog.limit_weight < max_limit_weight) {
+		//	continue
+		//}
 
-	// res の 配列 append
+		// ... catalog_name,catalog_tags
+
+		// res の 配列 append
 	}
 	// 指定pageからlimit件数（固定）だけ取り出す(ボトルネックにしたいのでbreakは行わない）
 
-	//response 200
-	//[{
-	// * id
-	// * name
-	// * jia_catalog_id
-	// * charactor
-	//}]
-	return fmt.Errorf("not implemented")
+	if searchLimit < len(isuListResponse) {
+		isuListResponse = isuListResponse[:searchLimit]
+	}
+	return c.JSON(http.StatusOK, isuListResponse)
 }
 
 //  GET /api/isu/{jia_isu_uuid}
