@@ -694,22 +694,70 @@ func getIsuIcon(c echo.Context) error {
 // multipart/form-data
 // MEMO: DB 内の image は longblob
 func putIsuIcon(c echo.Context) error {
-	// * session
-	// session が存在しなければ 401
+	jiaUserID, err := getUserIdFromSession(c.Request())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not sign in")
+	}
 
-	//トランザクション開始
+	jiaIsuUUID := c.Param("jia_isu_uuid")
+	fh, err := c.FormFile("image")
+	if err != nil {
+		// TODO: parse errorということでInternalServerErrorの方がよい？
+		return echo.NewHTTPError(http.StatusBadRequest)
+	}
 
-	// SELECT image FROM isu WHERE jia_user_id = `jia_user_id` and jia_isu_uuid = `jia_isu_uuid` and is_deleted=false;
-	// 見つからなければ404
-	// user_idがリクエストユーザーのものでなければ404
+	contentType := fh.Header.Get("Content-Type")
+	// TODO: jpeg画像も受け付けるなら対応必要
+	if contentType != "image/png" {
+		return echo.NewHTTPError(http.StatusBadRequest)
+	}
 
-	// UPDATE isu SET image=? WHERE jia_user_id = `jia_user_id` and jia_isu_uuid = `jia_isu_uuid` and is_deleted=false;
+	file, err := fh.Open()
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	defer file.Close()
 
-	//トランザクション終了
+	image, err := ioutil.ReadAll(file)
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
 
-	// response 200
-	// {}
-	return fmt.Errorf("not implemented")
+	tx, err := db.Beginx()
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	defer tx.Rollback()
+
+	var count int
+	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = ? FOR UPDATE",
+		jiaUserID, jiaIsuUUID, false)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return echo.NewHTTPError(http.StatusNotFound)
+		}
+
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+
+	_, err = tx.Exec("UPDATE `isu` SET `image` = ? WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = ?",
+		image, jiaUserID, jiaIsuUUID, false)
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+
+	return c.NoContent(http.StatusOK)
 }
 
 //  GET /api/isu/{jia_isu_uuid}/graph
