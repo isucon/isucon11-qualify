@@ -999,10 +999,7 @@ func calculateGraphData(isuLogCluster []IsuLog) ([]byte, error) {
 		for _, cond := range strings.Split(log.Condition, ",") {
 			keyValue := strings.Split(cond, "=")
 			if len(keyValue) != 2 {
-				return nil, fmt.Errorf("invalid condition %s", cond)
-			}
-			if _, ok := scorePerCondition[keyValue[0]]; !ok {
-				return nil, fmt.Errorf("invalid condition %s", cond)
+				continue //形式に従っていないものは無視
 			}
 			conditions[keyValue[0]] = (keyValue[1] != "false")
 		}
@@ -1010,8 +1007,11 @@ func calculateGraphData(isuLogCluster []IsuLog) ([]byte, error) {
 		//trueになっているものは減点
 		for key, enabled := range conditions {
 			if enabled {
-				graph.Score += scorePerCondition[key]
-				graph.Detail[key] += scorePerCondition[key]
+				score, ok := scorePerCondition[key]
+				if ok {
+					graph.Score += score
+					graph.Detail[key] += score
+				}
 			}
 		}
 	}
