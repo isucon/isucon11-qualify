@@ -392,7 +392,7 @@ func getCatalog(c echo.Context) error {
 	}
 
 	// 日本ISU協会に問い合わせる(http request)
-	catalogFromJIA, statusCode, err := getCatalogFromJIA(jiaCatalogID)
+	catalogFromJIA, statusCode, err := fetchCatalogFromJIA(jiaCatalogID)
 	if err != nil {
 		c.Logger().Errorf("failed to get catalog from JIA: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError)
@@ -411,7 +411,7 @@ func getCatalog(c echo.Context) error {
 
 // 日本ISU協会にカタログ情報を問い合わせる
 // 日本ISU協会のAPIについては資料を参照
-func getCatalogFromJIA(catalogID string) (*CatalogFromJIA, int, error) {
+func fetchCatalogFromJIA(catalogID string) (*CatalogFromJIA, int, error) {
 	targetURLStr := getJIAServiceURL() + "/api/catalog/" + catalogID
 	res, err := http.Get(targetURLStr)
 	if err != nil {
