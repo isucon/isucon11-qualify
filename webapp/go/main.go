@@ -527,7 +527,7 @@ func postIsu(c echo.Context) error {
 
 	// JIAにisuのactivateをリクエスト
 	targetURL := fmt.Sprintf("%s/api/activate", getJIAServiceURL())
-	body := JIAServiceRequest{DefaultIsuConditionURL, DefaultIsuConditionPort, jiaIsuUUID}
+	body := JIAServiceRequest{DefaultIsuConditionHost, DefaultIsuConditionPort, jiaIsuUUID}
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
 		c.Logger().Errorf("failed to marshal data: %v", err)
