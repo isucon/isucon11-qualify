@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/ecdsa"
 	"database/sql"
@@ -18,6 +19,7 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
+	"github.com/go-sql-driver/mysql"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/sessions"
 	"github.com/jmoiron/sqlx"
@@ -33,6 +35,7 @@ const (
 	isuListLimit                = 200 // TODO 修正が必要なら変更
 	notificationTimestampFormat = "2006-01-02 15:04:05 -0700"
 	jwtVerificationKeyPath      = "../ec256-public.pem"
+	defaultIconFilePath         = "../NoImage.png"
 	DefaultJIAServiceURL        = "http://localhost:5000"
 	DefaultIsuConditionURL      = "http://localhost"
 	DefaultIsuConditionPort     = 3000
@@ -70,6 +73,11 @@ type Isu struct {
 	IsDeleted    bool      `db:"is_deleted" json:"-"`
 	CreatedAt    time.Time `db:"created_at" json:"-"`
 	UpdatedAt    time.Time `db:"updated_at" json:"-"`
+}
+
+type IsuFromJIA struct {
+	JIACatalogID string `json:"catalog_id"`
+	Character    string `json:"character"`
 }
 
 type CatalogFromJIA struct {
@@ -509,42 +517,104 @@ func getIsuList(c echo.Context) error {
 //  POST /api/isu
 // 自分のISUの登録
 func postIsu(c echo.Context) error {
-	// * session
-	// session が存在しなければ 401
+	jiaUserID, err := getUserIdFromSession(c.Request())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not signed in")
+	}
 
-	// input
-	// 		jia_isu_uuid: 椅子固有のID（衝突しないようにUUID的なもの設定）
-	// 		isu_name: 椅子の名前
+	jiaIsuUUID := c.QueryParam("jia_isu_uuid")
+	isuName := c.QueryParam("isu_name")
 
-	// req := contextからいい感じにinputとuser_idを取得
-	// 形式が違うかったら400
-	// (catalog,charactor), err := 外部API
-	// ISU 協会にactivate
-	// request
-	// 	* jia_isu_uuid
-	// response
-	// 	* jia_catalog_id
-	// 	* charactor
-	// レスポンスが200以外なら横流し
-	// 404, 403(認証拒否), 400, 5xx
-	// 403はday2
+	// JIAにisuのactivateをリクエスト
+	targetURL := fmt.Sprintf("%s/api/activate", getJIAServiceURL())
+	body := JIAServiceRequest{DefaultIsuConditionURL, DefaultIsuConditionPort, jiaIsuUUID}
+	bodyJSON, err := json.Marshal(body)
+	if err != nil {
+		c.Logger().Errorf("failed to marshal data: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
 
-	// imageはデフォルトを挿入
-	// INSERT INTO isu VALUES (jia_isu_uuid, isu_name, image, catalog_, charactor, jia_user_id);
-	// jia_isu_uuid 重複時 409
+	req, err := http.NewRequest(http.MethodPost, targetURL, bytes.NewBuffer(bodyJSON))
+	if err != nil {
+		c.Logger().Errorf("failed to build request: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
 
-	// SELECT (*) FROM isu WHERE jia_user_id = `jia_user_id` and jia_isu_uuid = `jia_isu_uuid` and is_deleted=false;
-	// 画像までSQLで取ってくるボトルネック
-	// imageも最初はとってるけどレスポンスに含まれてないからselect時に持ってくる必要ない
+	req.Header.Set("Content-Type", "application/json")
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		c.Logger().Errorf("failed to request to JIAService: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	defer res.Body.Close()
 
-	// response 200
-	//{
-	// * id
-	// * name
-	// * jia_catalog_id
-	// * charactor
-	//]
-	return fmt.Errorf("not implemented")
+	if res.StatusCode != http.StatusAccepted {
+		c.Logger().Errorf("JIAService returned error: status code %v", res.StatusCode)
+		return echo.NewHTTPError(res.StatusCode) // TODO 横流しがこの実装でいいかは確認
+	}
+
+	resBody, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		c.Logger().Errorf("error occured while reading JIA response: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+
+	var isuFromJIA IsuFromJIA
+	err = json.Unmarshal(resBody, &isuFromJIA)
+	if err != nil {
+		c.Logger().Errorf("cannot unmarshal JIA response: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+
+	// デフォルト画像を準備
+	file, err := os.Open(defaultIconFilePath)
+	if err != nil {
+		c.Logger().Errorf("cannot open default icon file: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	defer file.Close()
+
+	stats, err := file.Stat()
+	if err != nil {
+		c.Logger().Errorf("cannot stat default icon file: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+
+	image := make([]byte, stats.Size())
+	bufr := bufio.NewReader(file)
+	_, err = bufr.Read(image)
+	if err != nil {
+		c.Logger().Errorf("cannot read default icon file: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+
+	// 新しいisuのデータをinsert
+	_, err = db.Exec("INSERT INTO `isu`"+
+		"	(`jia_isu_uuid`, `name`, `image`, `character`, `jia_catalog_id`, `jia_user_id`) VALUES (?, ?, ?, ?, ?, ?)",
+		jiaIsuUUID, isuName, image, isuFromJIA.Character, isuFromJIA.JIACatalogID, jiaUserID)
+	if err != nil {
+		driverErr, ok := err.(*mysql.MySQLError)
+		if ok && driverErr.Number == 1062 { // TODO 変数に直す
+			// TODO 再activate時もここでエラー; day2で再検討
+			c.Logger().Errorf("duplited key: %v", err)
+			return echo.NewHTTPError(http.StatusConflict, "duplicated isu")
+		}
+
+		c.Logger().Errorf("cannot insert record: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+	}
+
+	var isu Isu
+	err = db.Get(
+		&isu,
+		"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
+		jiaUserID, jiaIsuUUID)
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+	}
+
+	return c.JSON(http.StatusOK, isu)
 }
 
 //  GET /api/isu/search
