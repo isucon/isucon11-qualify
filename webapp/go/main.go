@@ -340,7 +340,6 @@ func postSignout(c echo.Context) error {
 		c.Logger().Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "cannot delete session")
 	}
-	delete(session.Values, "jia_user_id")
 
 	return c.NoContent(http.StatusOK)
 }
