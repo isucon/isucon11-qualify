@@ -334,12 +334,13 @@ func postSignout(c echo.Context) error {
 	}
 
 	session := getSession(c.Request())
-	session.Options.MaxAge = -1
+	session.Options = &sessions.Options{MaxAge: -1, Path: "/"}
 	err = session.Save(c.Request(), c.Response())
 	if err != nil {
 		c.Logger().Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "cannot delete session")
 	}
+	delete(session.Values, "jia_user_id")
 
 	return c.NoContent(http.StatusOK)
 }
