@@ -17,7 +17,7 @@ on:
 jobs:
   lint:
     name: Lint
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - name: golangci-lint
@@ -28,7 +28,7 @@ jobs:
           args: "-c ../../.github/.golangci.yml"
   test:
     name: Integration Test
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - name: Build Go App
