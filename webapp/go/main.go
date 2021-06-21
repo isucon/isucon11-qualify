@@ -32,8 +32,9 @@ const (
 	searchLimit              = 20
 	conditionLimit           = 20
 	isuListLimit             = 200 // TODO 修正が必要なら変更
-	conditionTimestampFormat = "2006-01-02 15:04:05 -0700"
+	conditionTimestampFormat = "2006-01-02T15:04:05Z07:00"
 	jwtVerificationKeyPath   = "../ec256-public.pem"
+	DefaultJIAServiceURL     = "http://localhost:5000"
 )
 
 var scorePerCondition = map[string]int{
@@ -52,6 +53,11 @@ var (
 
 	jwtVerificationKey *ecdsa.PublicKey
 )
+
+type Config struct {
+	Name string `db:"name"`
+	URL  string `db:"url"`
+}
 
 type Isu struct {
 	JIAIsuUUID   string    `db:"jia_isu_uuid" json:"jia_isu_uuid"`
@@ -252,6 +258,18 @@ func getUserIdFromSession(r *http.Request) (string, error) {
 		return "", fmt.Errorf("no session")
 	}
 	return userID.(string), nil
+}
+
+func getJIAServiceURL() string {
+	config := Config{}
+	err := db.Get(&config, "SELECT * FROM `isu_association_config` WHERE `name` = ?", "jia_service_url")
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			log.Print(err)
+		}
+		return DefaultJIAServiceURL
+	}
+	return config.URL
 }
 
 func postInitialize(c echo.Context) error {
@@ -897,7 +915,6 @@ func getIsuConditions(c echo.Context) error {
 	//     * jia_isu_uuid: 椅子の固有番号(path_param)
 	//     * start_time: 開始時間
 	//     * cursor_end_time: 終了時間 (required)
-	//     * cursor_jia_isu_uuid (required)
 	//     * condition_level: critical,warning,info (csv)
 	//               critical: conditions (is_dirty,is_overweight,is_broken) のうちtrueが3個
 	//               warning: conditionsのうちtrueのものが1 or 2個
@@ -917,13 +934,13 @@ func getIsuConditions(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "bad format: cursor_end_time")
 	}
-	cursorJIAIsuUUID := c.QueryParam("cursor_jia_isu_uuid")
-	if cursorJIAIsuUUID == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "cursor_jia_isu_uuid is missing")
-	}
-	conditionLevel := c.QueryParam("condition_level")
-	if conditionLevel == "" {
+	conditionLevelCSV := c.QueryParam("condition_level")
+	if conditionLevelCSV == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "condition_level is missing")
+	}
+	conditionLevel := map[string]interface{}{}
+	for _, level := range strings.Split(conditionLevelCSV, ",") {
+		conditionLevel[level] = struct{}{}
 	}
 	//optional query param
 	startTimeStr := c.QueryParam("start_time")
@@ -954,17 +971,17 @@ func getIsuConditions(c echo.Context) error {
 	if startTimeStr == "" {
 		err = db.Select(&conditions,
 			"SELECT * FROM `isu_log` WHERE `jia_isu_uuid` = ?"+
-				"	AND (`timestamp`, `jia_isu_uuid`) < (?, ?)"+
-				"	ORDER BY `created_at` DESC, `jia_isu_uuid` DESC",
-			jiaIsuUUID, cursorEndTime, cursorJIAIsuUUID,
+				"	AND `timestamp` < ?"+
+				"	ORDER BY `timestamp` DESC",
+			jiaIsuUUID, cursorEndTime,
 		)
 	} else {
 		err = db.Select(&conditions,
 			"SELECT * FROM `isu_log` WHERE `jia_isu_uuid` = ?"+
-				"	AND (`timestamp`, `jia_isu_uuid`) < (?, ?)"+
+				"	AND `timestamp` < ?"+
 				"	AND ? <= `timestamp`"+
-				"	ORDER BY `created_at` DESC, `jia_isu_uuid` DESC",
-			jiaIsuUUID, cursorEndTime, cursorJIAIsuUUID, startTime,
+				"	ORDER BY `timestamp` DESC",
+			jiaIsuUUID, cursorEndTime, startTime,
 		)
 	}
 	if err != nil {
@@ -978,20 +995,19 @@ func getIsuConditions(c echo.Context) error {
 	conditionsResponse := []GetIsuConditionResponse{}
 	for _, c := range conditions {
 		var cLevel string
-		add := false
 		warnCount := strings.Count(c.Condition, "=true")
-		if strings.Contains(conditionLevel, "critical") && warnCount == 3 {
+		switch warnCount {
+		case 3:
 			cLevel = "critical"
-			add = true
-		} else if strings.Contains(conditionLevel, "warning") && (warnCount == 1 || warnCount == 2) {
+		case 2:
 			cLevel = "warning"
-			add = true
-		} else if strings.Contains(conditionLevel, "info") && warnCount == 0 {
+		case 1:
+			cLevel = "warning"
+		case 0:
 			cLevel = "info"
-			add = true
 		}
 
-		if add {
+		if _, ok := conditionLevel[cLevel]; ok {
 			//GetIsuConditionResponseに変換
 			data := GetIsuConditionResponse{
 				JIAIsuUUID:     c.JIAIsuUUID,
@@ -1193,10 +1209,7 @@ func calculateGraphData(isuLogCluster []IsuLog) ([]byte, error) {
 		for _, cond := range strings.Split(log.Condition, ",") {
 			keyValue := strings.Split(cond, "=")
 			if len(keyValue) != 2 {
-				return nil, fmt.Errorf("invalid condition %s", cond)
-			}
-			if _, ok := scorePerCondition[keyValue[0]]; !ok {
-				return nil, fmt.Errorf("invalid condition %s", cond)
+				continue //形式に従っていないものは無視
 			}
 			conditions[keyValue[0]] = (keyValue[1] != "false")
 		}
@@ -1204,8 +1217,11 @@ func calculateGraphData(isuLogCluster []IsuLog) ([]byte, error) {
 		//trueになっているものは減点
 		for key, enabled := range conditions {
 			if enabled {
-				graph.Score += scorePerCondition[key]
-				graph.Detail[key] += scorePerCondition[key]
+				score, ok := scorePerCondition[key]
+				if ok {
+					graph.Score += score
+					graph.Detail[key] += score
+				}
 			}
 		}
 	}
