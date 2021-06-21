@@ -127,7 +127,7 @@ export interface Graph {
   jia_isu_uuid: string
   start_at: string
   end_at: string
-  data: GraphData
+  data: GraphData | null
   created_at: string
   updated_at: string
 }
