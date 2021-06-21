@@ -805,7 +805,6 @@ func getIsuConditions(c echo.Context) error {
 	//     * jia_isu_uuid: 椅子の固有番号(path_param)
 	//     * start_time: 開始時間
 	//     * cursor_end_time: 終了時間 (required)
-	//     * cursor_jia_isu_uuid (required)
 	//     * condition_level: critical,warning,info (csv)
 	//               critical: conditions (is_dirty,is_overweight,is_broken) のうちtrueが3個
 	//               warning: conditionsのうちtrueのものが1 or 2個
@@ -824,10 +823,6 @@ func getIsuConditions(c echo.Context) error {
 	cursorEndTime, err := time.Parse(conditionTimestampFormat, c.QueryParam("cursor_end_time"))
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "bad format: cursor_end_time")
-	}
-	cursorJIAIsuUUID := c.QueryParam("cursor_jia_isu_uuid")
-	if cursorJIAIsuUUID == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "cursor_jia_isu_uuid is missing")
 	}
 	conditionLevelCSV := c.QueryParam("condition_level")
 	if conditionLevelCSV == "" {
@@ -866,17 +861,17 @@ func getIsuConditions(c echo.Context) error {
 	if startTimeStr == "" {
 		err = db.Select(&conditions,
 			"SELECT * FROM `isu_log` WHERE `jia_isu_uuid` = ?"+
-				"	AND (`timestamp`, `jia_isu_uuid`) < (?, ?)"+
-				"	ORDER BY `timestamp` DESC, `jia_isu_uuid` DESC",
-			jiaIsuUUID, cursorEndTime, cursorJIAIsuUUID,
+				"	AND `timestamp` < ?"+
+				"	ORDER BY `timestamp` DESC",
+			jiaIsuUUID, cursorEndTime,
 		)
 	} else {
 		err = db.Select(&conditions,
 			"SELECT * FROM `isu_log` WHERE `jia_isu_uuid` = ?"+
-				"	AND (`timestamp`, `jia_isu_uuid`) < (?, ?)"+
+				"	AND `timestamp` < ?"+
 				"	AND ? <= `timestamp`"+
-				"	ORDER BY `timestamp` DESC, `jia_isu_uuid` DESC",
-			jiaIsuUUID, cursorEndTime, cursorJIAIsuUUID, startTime,
+				"	ORDER BY `timestamp` DESC",
+			jiaIsuUUID, cursorEndTime, startTime,
 		)
 	}
 	if err != nil {
