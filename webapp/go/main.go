@@ -841,6 +841,14 @@ func getIsuConditions(c echo.Context) error {
 			return echo.NewHTTPError(http.StatusBadRequest, "bad format: start_time")
 		}
 	}
+	limitStr := c.QueryParam("limit")
+	limit := conditionLimit
+	if limitStr != "" {
+		limit, err = strconv.Atoi(limitStr)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, "bad format: limit")
+		}
+	}
 
 	// isu_id存在確認、ユーザの所持椅子か確認
 	var isuName string
@@ -913,8 +921,8 @@ func getIsuConditions(c echo.Context) error {
 	}
 
 	//limit
-	if len(conditionsResponse) > conditionLimit {
-		conditionsResponse = conditionsResponse[:conditionLimit]
+	if len(conditionsResponse) > limit {
+		conditionsResponse = conditionsResponse[:limit]
 	}
 	return c.JSON(http.StatusOK, conditionsResponse)
 }
