@@ -155,3 +155,14 @@ export interface Condition {
   condition_level: string
   message: string
 }
+
+// TODO: 作問の開発用、消す
+export const debugGetJWT = async (
+  req: { user: string; password: string } = {
+    user: 'isucon',
+    password: 'isucon'
+  }
+) => {
+  const { data } = await axios.post<string>('/standalone/auth', req)
+  return data
+}
