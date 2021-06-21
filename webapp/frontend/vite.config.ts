@@ -12,6 +12,14 @@ export default defineConfig({
       '/@': srcPath
     }
   },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true
+      }
+    }
+  },
   plugins: [reactRefresh(), WindiCSS()],
   esbuild: {
     jsxInject: `import React from 'react'`

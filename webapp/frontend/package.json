@@ -1,7 +1,7 @@
 {
   "version": "0.0.0",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --port 3333",
     "build": "tsc && vite build",
     "serve": "vite preview",
     "lint": "eslint . --ext .js,.ts,.jsx,.tsx",
