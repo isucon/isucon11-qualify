@@ -1,7 +1,7 @@
 {
   "version": "0.0.0",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --port 3333",
     "build": "tsc && vite build",
     "serve": "vite preview",
     "lint": "eslint . --ext .js,.ts,.jsx,.tsx",
@@ -9,6 +9,7 @@
     "fmt:check": "prettier --check ."
   },
   "dependencies": {
+    "axios": "^0.21.1",
     "react": "^17.0.0",
     "react-dom": "^17.0.0",
     "react-icons": "^4.2.0",
