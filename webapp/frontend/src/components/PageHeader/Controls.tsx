@@ -32,7 +32,7 @@ const Controls = () => {
       <ControlItem>
         <div className="flex items-center cursor-pointer" onClick={toggleModal}>
           <MdAccountCircle />
-          <div className="ml-1">{me.jiaUserID}</div>
+          <div className="ml-1">{me.jia_user_id}</div>
         </div>
       </ControlItem>
       <UserControlModal isOpen={isOpenModal} toggle={toggleModal} />
