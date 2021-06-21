@@ -26,13 +26,13 @@ import (
 )
 
 const (
-	sessionName                 = "isucondition"
-	searchLimit                 = 20
-	conditionLimit              = 20
-	isuListLimit                = 200 // TODO 修正が必要なら変更
-	conditionTimestampFormat    = "2006-01-02T15:04:05Z07:00"
-	jwtVerificationKeyPath      = "../ec256-public.pem"
-	DefaultJIAServiceURL        = "http://localhost:5000"
+	sessionName              = "isucondition"
+	searchLimit              = 20
+	conditionLimit           = 20
+	isuListLimit             = 200 // TODO 修正が必要なら変更
+	conditionTimestampFormat = "2006-01-02T15:04:05Z07:00"
+	jwtVerificationKeyPath   = "../ec256-public.pem"
+	DefaultJIAServiceURL     = "http://localhost:5000"
 )
 
 var scorePerCondition = map[string]int{
@@ -890,20 +890,19 @@ func getIsuConditions(c echo.Context) error {
 	conditionsResponse := []GetIsuConditionResponse{}
 	for _, c := range conditions {
 		var cLevel string
-		add := false
 		warnCount := strings.Count(c.Condition, "=true")
-		if _, ok := conditionLevel["critical"]; ok && warnCount == 3 {
+		switch warnCount {
+		case 3:
 			cLevel = "critical"
-			add = true
-		} else if _, ok := conditionLevel["warning"]; ok && (warnCount == 1 || warnCount == 2) {
+		case 2:
 			cLevel = "warning"
-			add = true
-		} else if _, ok := conditionLevel["info"]; ok && warnCount == 0 {
+		case 1:
+			cLevel = "warning"
+		case 0:
 			cLevel = "info"
-			add = true
 		}
 
-		if add {
+		if _, ok := conditionLevel[cLevel]; ok {
 			//GetIsuConditionResponseに変換
 			data := GetIsuConditionResponse{
 				JIAIsuUUID:     c.JIAIsuUUID,
