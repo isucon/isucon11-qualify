@@ -902,7 +902,7 @@ func getIsuConditionsFromLocalhost(
 	}
 	targetURL.RawQuery = q.Encode()
 
-	req, err := http.NewRequest("GET", targetURL.String(), nil)
+	req, err := http.NewRequest(http.MethodGet, targetURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
