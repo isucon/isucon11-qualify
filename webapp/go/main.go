@@ -717,7 +717,12 @@ func deleteIsu(c echo.Context) error {
 
 	// JIAにisuのdeactivateをリクエスト
 	targetURL := fmt.Sprintf("%s/api/deactivate", getJIAServiceURL())
-	body := JIAServiceRequest{DefaultIsuConditionHost, getEnv("SERVER_PORT", "3000"), jiaIsuUUID}
+	port, err := strconv.Atoi(getEnv("SERVER_PORT", "3000"))
+	if err != nil {
+		c.Logger().Errorf("bad port number: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	body := JIAServiceRequest{DefaultIsuConditionHost, port, jiaIsuUUID}
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
 		c.Logger().Errorf("failed to marshal data: %v", err)
