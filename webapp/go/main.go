@@ -845,7 +845,7 @@ func getIsuConditions(c echo.Context) error {
 	limit := conditionLimit
 	if limitStr != "" {
 		limit, err = strconv.Atoi(limitStr)
-		if err != nil {
+		if err != nil || limit <= 0 {
 			return echo.NewHTTPError(http.StatusBadRequest, "bad format: limit")
 		}
 	}
