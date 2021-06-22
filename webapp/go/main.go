@@ -35,7 +35,6 @@ const (
 	jwtVerificationKeyPath      = "../ec256-public.pem"
 	DefaultJIAServiceURL        = "http://localhost:5000"
 	DefaultIsuConditionHost     = "localhost"
-	DefaultIsuConditionPort     = 3000
 )
 
 var scorePerCondition = map[string]int{
@@ -718,7 +717,7 @@ func deleteIsu(c echo.Context) error {
 
 	// JIAにisuのdeactivateをリクエスト
 	targetURL := fmt.Sprintf("%s/api/deactivate", getJIAServiceURL())
-	body := JIAServiceRequest{DefaultIsuConditionHost, DefaultIsuConditionPort, jiaIsuUUID}
+	body := JIAServiceRequest{DefaultIsuConditionHost, getEnv("SERVER_PORT", "3000"), jiaIsuUUID}
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
 		c.Logger().Errorf("failed to marshal data: %v", err)
