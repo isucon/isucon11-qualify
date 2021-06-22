@@ -836,11 +836,16 @@ func getAllIsuConditions(c echo.Context) error {
 		}
 	}
 
-	// ユーザの所持椅子毎に http://localhost:3000/api/condition/{jia_isu_uuid} を叩く
+	// ユーザの所持椅子毎に /api/condition/{jia_isu_uuid} を叩く
 	conditionsResponse := []*GetIsuConditionResponse{}
 	for _, isu := range isuList {
+		//coursorのjia_isu_uuidで決まる部分は、とりあえず全部取得しておく
+		//  cursorEndTime >= timestampを取りたいので、
+		//  cursorEndTime + 1sec > timestampとしてリクエストを送る
+		//この一要素はフィルターにかかるかどうか分からないので、limitも+1しておく
 		conditionsTmp, err := getIsuConditionsFromLocalhost(
-			isu.JIAIsuUUID, cursorEndTimeStr, conditionLevel, startTimeStr, strconv.Itoa(limit+1),
+			isu.JIAIsuUUID, cursorEndTime.Add(1*time.Second).Format(conditionTimestampFormat),
+			conditionLevel, startTimeStr, strconv.Itoa(limit+1),
 			sessionCookie,
 		)
 		if err != nil {
