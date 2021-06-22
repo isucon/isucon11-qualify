@@ -31,7 +31,7 @@ const (
 	notificationLimit           = 20
 	isuListLimit                = 200 // TODO 修正が必要なら変更
 	notificationTimestampFormat = "2006-01-02 15:04:05 -0700"
-	graphDateFormat             = "2006-01-02"
+	graphDateFormat             = "2006-01-02Z07:00"
 	jwtVerificationKeyPath      = "../ec256-public.pem"
 	DefaultJIAServiceURL        = "http://localhost:5000"
 )
