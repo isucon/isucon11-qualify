@@ -884,6 +884,7 @@ func getIsuGraph(c echo.Context) error {
 		tmpTime = tmpTime.Add(time.Hour)
 	}
 
+	// TODO: 必要以上に長めにトランザクションを取っているので後で検討
 	err = tx.Commit()
 	if err != nil {
 		c.Logger().Error(err)
