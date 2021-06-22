@@ -863,7 +863,7 @@ func getAllIsuConditions(c echo.Context) error {
 	removeIndex := 0
 	for removeIndex < len(conditionsResponse) &&
 		!conditionGreaterThan(cursor, conditionsResponse[removeIndex]) { //条件を満たしていない限り
-		removeIndex += 1
+		removeIndex++
 	}
 	//[0,index)は「(cursor_end_time, cursor_jia_isu_uuid) > (`timestamp`, `jia_isu_uuid`)」を満たしていないので取り除く
 	conditionsResponse = conditionsResponse[removeIndex:]
