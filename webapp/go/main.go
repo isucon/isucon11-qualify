@@ -31,6 +31,7 @@ import (
 const (
 	sessionName              = "isucondition"
 	searchLimit              = 20
+	conditionLimit           = 20
 	notificationLimit        = 20
 	isuListLimit             = 200          // TODO 修正が必要なら変更
 	conditionTimestampFormat = time.RFC3339 //"2006-01-02T15:04:05Z07:00"
