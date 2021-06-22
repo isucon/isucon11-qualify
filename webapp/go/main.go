@@ -861,8 +861,10 @@ func getAllIsuConditions(c echo.Context) error {
 	sort.Slice(conditionsResponse, func(i int, j int) bool { return conditionGreaterThan(conditionsResponse[i], conditionsResponse[j]) })
 	// (cursor_end_time, cursor_jia_isu_uuid) > (`timestamp`, `jia_isu_uuid`)でフィルター
 	removeIndex := 0
-	for removeIndex < len(conditionsResponse) &&
-		!conditionGreaterThan(cursor, conditionsResponse[removeIndex]) { //条件を満たしていない限り
+	for removeIndex < len(conditionsResponse) {
+		if conditionGreaterThan(cursor, conditionsResponse[removeIndex]) {
+			break
+		}
 		removeIndex++
 	}
 	//[0,index)は「(cursor_end_time, cursor_jia_isu_uuid) > (`timestamp`, `jia_isu_uuid`)」を満たしていないので取り除く
