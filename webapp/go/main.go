@@ -640,7 +640,7 @@ func getIsuSearch(c echo.Context) error {
 		if !(minLimitWeight <= catalog.LimitWeight && catalog.LimitWeight <= maxLimitWeight) {
 			continue
 		}
-		if catalogName != catalog.Name {
+		if catalogName != "" && catalogName != catalog.Name {
 			continue
 		}
 		if requiredCatalogTags != nil {
