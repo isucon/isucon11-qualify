@@ -790,13 +790,17 @@ func getAllIsuConditions(c echo.Context) error {
 	}
 	//required query param
 	cursorEndTimeStr := c.QueryParam("cursor_end_time")
-	_, err = time.Parse(conditionTimestampFormat, cursorEndTimeStr)
+	cursorEndTime, err := time.Parse(conditionTimestampFormat, cursorEndTimeStr)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "bad format: cursor_end_time")
 	}
 	cursorJIAIsuUUID := c.QueryParam("cursor_jia_isu_uuid")
 	if cursorJIAIsuUUID == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "cursor_jia_isu_uuid is missing")
+	}
+	cursor := &GetIsuConditionResponse{
+		JIAIsuUUID: cursorJIAIsuUUID,
+		Timestamp:  cursorEndTime,
 	}
 	conditionLevel := c.QueryParam("condition_level")
 	if conditionLevel == "" {
@@ -808,6 +812,14 @@ func getAllIsuConditions(c echo.Context) error {
 		_, err = time.Parse(conditionTimestampFormat, startTimeStr)
 		if err != nil {
 			return echo.NewHTTPError(http.StatusBadRequest, "bad format: cursor_end_time")
+		}
+	}
+	limitStr := c.QueryParam("limit")
+	limit := conditionLimit
+	if limitStr != "" {
+		limit, err = strconv.Atoi(limitStr)
+		if err != nil || limit <= 0 {
+			return echo.NewHTTPError(http.StatusBadRequest, "bad format: limit")
 		}
 	}
 
@@ -828,7 +840,7 @@ func getAllIsuConditions(c echo.Context) error {
 	conditionsResponse := []*GetIsuConditionResponse{}
 	for _, isu := range isuList {
 		conditionsTmp, err := getIsuConditionsFromLocalhost(
-			isu.JIAIsuUUID, cursorEndTimeStr, cursorJIAIsuUUID, conditionLevel, startTimeStr,
+			isu.JIAIsuUUID, cursorEndTimeStr, conditionLevel, startTimeStr, strconv.Itoa(limit+1),
 			sessionCookie,
 		)
 		if err != nil {
@@ -841,17 +853,15 @@ func getAllIsuConditions(c echo.Context) error {
 	}
 
 	// (`timestamp`, `jia_isu_uuid`)のペアで降順ソート
-	sort.Slice(conditionsResponse, func(i int, j int) bool {
-		// return [i] > [j]
-
-		if conditionsResponse[i].Timestamp.After(conditionsResponse[j].Timestamp) {
-			return true
-		}
-		if conditionsResponse[i].Timestamp.Equal(conditionsResponse[j].Timestamp) {
-			return conditionsResponse[i].JIAIsuUUID > conditionsResponse[j].JIAIsuUUID
-		}
-		return false
-	})
+	sort.Slice(conditionsResponse, func(i int, j int) bool { return conditionGreaterThan(conditionsResponse[i], conditionsResponse[j]) })
+	// (cursor_end_time, cursor_jia_isu_uuid) > (`timestamp`, `jia_isu_uuid`)でフィルター
+	removeIndex := 0
+	for removeIndex < len(conditionsResponse) &&
+		!conditionGreaterThan(cursor, conditionsResponse[removeIndex]) { //条件を満たしていない限り
+		removeIndex += 1
+	}
+	//[0,index)は「(cursor_end_time, cursor_jia_isu_uuid) > (`timestamp`, `jia_isu_uuid`)」を満たしていないので取り除く
+	conditionsResponse = conditionsResponse[removeIndex:]
 
 	//limitを取る
 	if len(conditionsResponse) > conditionLimit {
@@ -863,7 +873,7 @@ func getAllIsuConditions(c echo.Context) error {
 
 //http requestを飛ばし、そのレスポンスを[]GetIsuConditionResponseに変換する
 func getIsuConditionsFromLocalhost(
-	jiaIsuUUID string, cursorEndTimeStr string, cursorJIAIsuUUID string, conditionLevel string, startTimeStr string,
+	jiaIsuUUID string, cursorEndTimeStr string, conditionLevel string, startTimeStr string, limitStr string,
 	cookie *http.Cookie,
 ) ([]*GetIsuConditionResponse, error) {
 
@@ -878,10 +888,12 @@ func getIsuConditionsFromLocalhost(
 
 	q := targetURL.Query()
 	q.Set("cursor_end_time", cursorEndTimeStr)
-	q.Set("cursor_jia_isu_uuid", cursorJIAIsuUUID)
 	q.Set("condition_level", conditionLevel)
 	if startTimeStr != "" {
 		q.Set("start_time", startTimeStr)
+	}
+	if limitStr != "" {
+		q.Set("limit", limitStr)
 	}
 	targetURL.RawQuery = q.Encode()
 
@@ -906,6 +918,19 @@ func getIsuConditionsFromLocalhost(
 		return nil, err
 	}
 	return condition, nil
+}
+
+// left > right を計算する関数
+func conditionGreaterThan(left *GetIsuConditionResponse, right *GetIsuConditionResponse) bool {
+	//(`timestamp`, `jia_isu_uuid`)のペアを辞書順に比較
+
+	if left.Timestamp.After(right.Timestamp) {
+		return true
+	}
+	if left.Timestamp.Equal(right.Timestamp) {
+		return left.JIAIsuUUID > right.JIAIsuUUID
+	}
+	return false
 }
 
 //  GET /api/condition/{jia_isu_uuid}?
