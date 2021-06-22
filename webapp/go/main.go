@@ -883,7 +883,6 @@ func getIsuConditionsFromLocalhost(
 	jiaIsuUUID string, cursorEndTimeStr string, conditionLevel string, startTimeStr string, limitStr string,
 	cookie *http.Cookie,
 ) ([]*GetIsuConditionResponse, error) {
-
 	targetURLStr := fmt.Sprintf(
 		"http://localhost:%s/api/condition/%s",
 		getEnv("SERVER_PORT", "3000"), jiaIsuUUID,
