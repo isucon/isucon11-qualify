@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"os"
 	"os/exec"
@@ -564,9 +565,9 @@ func getIsuSearch(c echo.Context) error {
 	catalogTagsStr := c.QueryParam("catalog_tags")
 	pageStr := c.QueryParam("page")
 	//parse
-	var minLimitWeight int
-	var maxLimitWeight int
-	var page int
+	minLimitWeight := math.MinInt32
+	maxLimitWeight := math.MaxInt32
+	page := 1
 	var requiredCatalogTags []string
 	if minLimitWeightStr != "" {
 		minLimitWeight, err = strconv.Atoi(minLimitWeightStr)
