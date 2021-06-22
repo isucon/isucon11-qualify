@@ -839,7 +839,7 @@ func getAllIsuConditions(c echo.Context) error {
 	// ユーザの所持椅子毎に /api/condition/{jia_isu_uuid} を叩く
 	conditionsResponse := []*GetIsuConditionResponse{}
 	for _, isu := range isuList {
-		//coursorのjia_isu_uuidで決まる部分は、とりあえず全部取得しておく
+		//cursorのjia_isu_uuidで決まる部分は、とりあえず全部取得しておく
 		//  cursorEndTime >= timestampを取りたいので、
 		//  cursorEndTime + 1sec > timestampとしてリクエストを送る
 		//この一要素はフィルターにかかるかどうか分からないので、limitも+1しておく
