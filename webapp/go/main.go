@@ -891,7 +891,7 @@ func getIsuConditionsFromLocalhost(
 		return nil, fmt.Errorf("failed to parse url: %v ;(%s,%s)", err, getEnv("SERVER_PORT", "3000"), jiaIsuUUID)
 	}
 
-	q := targetURL.Query()
+	q := url.Values{}
 	q.Set("cursor_end_time", cursorEndTimeStr)
 	q.Set("condition_level", conditionLevel)
 	if startTimeStr != "" {
