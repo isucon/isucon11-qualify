@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"database/sql"
 	"encoding/json"
@@ -29,10 +30,12 @@ const (
 	sessionName              = "isucondition"
 	searchLimit              = 20
 	conditionLimit           = 20
+	notificationLimit        = 20
 	isuListLimit             = 200          // TODO 修正が必要なら変更
 	conditionTimestampFormat = time.RFC3339 //"2006-01-02T15:04:05Z07:00"
 	jwtVerificationKeyPath   = "../ec256-public.pem"
 	DefaultJIAServiceURL     = "http://localhost:5000"
+	DefaultIsuConditionHost  = "localhost"
 )
 
 var scorePerCondition = map[string]int{
@@ -157,6 +160,12 @@ type PostIsuConditionRequest struct {
 	Condition string `json:"condition"`
 	Message   string `json:"message"`
 	Timestamp string `json:"timestamp"` //Format("2006-01-02 15:04:05 -0700")
+}
+
+type JIAServiceRequest struct {
+	TargetIP   string `json:"target_ip"`
+	TargetPort int    `json:"target_port"`
+	IsuUUID    string `json:"isu_uuid"`
 }
 
 func getEnv(key string, defaultValue string) string {
@@ -681,29 +690,79 @@ func putIsu(c echo.Context) error {
 //  DELETE /api/isu/{jia_isu_uuid}
 // 所有しているISUを削除する
 func deleteIsu(c echo.Context) error {
-	// * session
-	// session が存在しなければ 401
+	jiaUserID, err := getUserIdFromSession(c.Request())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not signed in")
+	}
 
-	// input
-	// 		* jia_isu_uuid: 椅子の固有ID
+	jiaIsuUUID := c.Param("jia_isu_uuid")
 
-	// トランザクション開始
+	tx, err := db.Beginx()
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+	}
+	defer tx.Rollback()
 
-	// DBから当該のISUが存在するか検索
-	// SELECT (*) FROM isu WHERE jia_user_id = `jia_user_id` and jia_isu_uuid = `jia_isu_uuid` and is_deleted=false;
-	// 存在しない場合 404 を返す
+	var count int
+	err = tx.Get(
+		&count,
+		"SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
+		jiaUserID, jiaIsuUUID)
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+	}
+	if count == 0 {
+		return echo.NewHTTPError(http.StatusNotFound, "isu not found")
+	}
 
-	// 存在する場合 ISU　の削除フラグを有効にして 204 を返す
-	// UPDATE isu SET is_deleted = true WHERE jia_isu_uuid = `jia_isu_uuid`;
+	_, err = tx.Exec("UPDATE `isu` SET `is_deleted` = true WHERE `jia_isu_uuid` = ?", jiaIsuUUID)
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+	}
 
-	// ISU協会にdectivateを送る
-	// MEMO: ISU協会へのリクエストが失敗した時に DB をロールバックできるから
+	// JIAにisuのdeactivateをリクエスト
+	targetURL := fmt.Sprintf("%s/api/deactivate", getJIAServiceURL())
+	port, err := strconv.Atoi(getEnv("SERVER_PORT", "3000"))
+	if err != nil {
+		c.Logger().Errorf("bad port number: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	body := JIAServiceRequest{DefaultIsuConditionHost, port, jiaIsuUUID}
+	bodyJSON, err := json.Marshal(body)
+	if err != nil {
+		c.Logger().Errorf("failed to marshal data: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
 
-	// トランザクション終了
-	// MEMO: もしコミット時にエラーが発生しうるならば、「ISU協会側はdeactivate済みだがDBはactive」という不整合が発生しうる
+	req, err := http.NewRequest(http.MethodPost, targetURL, bytes.NewBuffer(bodyJSON))
+	if err != nil {
+		c.Logger().Errorf("failed to build request: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
 
-	//response 204
-	return fmt.Errorf("not implemented")
+	req.Header.Set("Content-Type", "application/json")
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		c.Logger().Errorf("failed to request to JIAService: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusNoContent {
+		c.Logger().Errorf("JIAService returned error: status code %v", res.StatusCode)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		c.Logger().Errorf("failed to commit tx: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+
+	return c.NoContent(http.StatusNoContent)
 }
 
 //  GET /api/isu/{jia_isu_uuid}/icon
