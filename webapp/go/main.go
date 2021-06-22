@@ -895,12 +895,12 @@ func getIsuConditions(c echo.Context) error {
 		var cLevel string
 		warnCount := strings.Count(c.Condition, "=true")
 		switch warnCount {
-		case 3:
-			cLevel = "critical"
-		case 1, 2:
-			cLevel = "warning"
 		case 0:
 			cLevel = "info"
+		case 1, 2:
+			cLevel = "warning"
+		case 3:
+			cLevel = "critical"
 		}
 
 		if _, ok := conditionLevel[cLevel]; ok {
