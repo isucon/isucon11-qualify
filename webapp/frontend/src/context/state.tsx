@@ -1,8 +1,6 @@
 import { createContext, Dispatch, useContext, useReducer } from 'react'
+import { User } from '../lib/apis'
 
-interface User {
-  jiaUserID: string
-}
 interface State {
   me: User | null
 }
