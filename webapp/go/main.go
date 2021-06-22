@@ -860,29 +860,22 @@ func getIsuGraph(c echo.Context) error {
 			tmpGraph = graphList[index]
 		}
 
+		var data *GraphData
 		if inRange && tmpGraph.StartAt.Equal(tmpTime) {
-			var data GraphData
 			err = json.Unmarshal([]byte(tmpGraph.Data), &data)
 			if err != nil {
 				c.Logger().Error(err)
 				return echo.NewHTTPError(http.StatusInternalServerError)
 			}
-			graphResponse := GraphResponse{
-				StartAt: tmpGraph.StartAt,
-				EndAt:   tmpGraph.StartAt.Add(time.Hour),
-				Data:    &data,
-			}
-			res = append(res, graphResponse)
 			index++
-		} else {
-			graphResponse := GraphResponse{
-				StartAt: tmpTime,
-				EndAt:   tmpTime.Add(time.Hour),
-				Data:    nil,
-			}
-			res = append(res, graphResponse)
 		}
 
+		graphResponse := GraphResponse{
+			StartAt: tmpTime,
+			EndAt:   tmpTime.Add(time.Hour),
+			Data:    data,
+		}
+		res = append(res, graphResponse)
 		tmpTime = tmpTime.Add(time.Hour)
 	}
 
