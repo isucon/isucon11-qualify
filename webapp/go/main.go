@@ -897,9 +897,7 @@ func getIsuConditions(c echo.Context) error {
 		switch warnCount {
 		case 3:
 			cLevel = "critical"
-		case 2:
-			cLevel = "warning"
-		case 1:
+		case 1, 2:
 			cLevel = "warning"
 		case 0:
 			cLevel = "info"
