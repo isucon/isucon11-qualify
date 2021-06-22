@@ -852,6 +852,8 @@ func getIsuGraph(c echo.Context) error {
 	index := 0
 	tmpTime := date
 	var tmpGraph Graph
+
+	// dateから24時間分のグラフ用データを1時間単位で作成
 	for tmpTime.Before(date.Add(time.Hour * 24)) {
 		inRange := index < len(graphList)
 		if inRange {
