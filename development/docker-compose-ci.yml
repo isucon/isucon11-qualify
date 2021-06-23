@@ -4,18 +4,24 @@ services:
     build:
       context: ..
       dockerfile: development/backend-${target}/ci.dockerfile
+    working_dir: /webapp/go
+    entrypoint: ["dockerize", "-wait=tcp://mysql-backend-ci:3306", "-timeout=60s", "./app"]
     environment:
-      MYSQL_HOST: mysql-backend
+      MYSQL_HOST: mysql-backend-ci
       MYSQL_PORT: 3306
       MYSQL_DATABASE: isucondition
       MYSQL_USER: isucon
       MYSQL_PASSWORD: isucon
     ports:
       - "3000:3000"
+    volumes:
+      - "../webapp/frontend:/webapp/frontend"
+      - "../webapp/mysql:/webapp/mysql"
+      - "../webapp/ec256-public.pem:/webapp/ec256-public.pem"
     depends_on:
-      - mysql-backend
+      - mysql-backend-ci
 
-  mysql-backend:
+  mysql-backend-ci:
     image: mysql:8.0.25
     restart: always
     environment:
@@ -23,6 +29,9 @@ services:
       MYSQL_USER: isucon
       MYSQL_PASSWORD: isucon
       MYSQL_ROOT_PASSWORD: root
+    volumes:
+      - "../development/mysql-backend/mysql.cnf:/etc/mysql/conf.d/mysql.cnf"  
+      - "../webapp/mysql/db/0_Schema.sql:/docker-entrypoint-initdb.d/0_Schema.sql"
     expose:
       - "3306"
     ports:
@@ -35,5 +44,5 @@ services:
     environment:
       TARGET_ADDRESS: backend
     depends_on:
-      - mysql-backend
+      - mysql-backend-ci
       - backend

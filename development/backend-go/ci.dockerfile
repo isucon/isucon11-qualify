@@ -23,5 +23,3 @@ RUN go mod download
 
 COPY webapp/go/ .
 RUN go build -o app .
-
-ENTRYPOINT ["dockerize", "-wait=tcp://mysql-backend:3306", "-timeout=60s", "./app"]
