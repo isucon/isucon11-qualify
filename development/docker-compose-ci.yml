@@ -42,7 +42,7 @@ services:
       context: ..
       dockerfile: development/apitest/ci.dockerfile
     environment:
-      TARGET_ADDRESS: backend
+      TARGET_ADDRESS: backend:3000
     depends_on:
       - mysql-backend-ci
       - backend
