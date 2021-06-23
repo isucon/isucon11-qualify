@@ -546,7 +546,7 @@ func postIsu(c echo.Context) error {
 	}
 
 	// JIAにisuのactivateをリクエスト
-	targetURL := fmt.Sprintf("%s/api/activate", getJIAServiceURL())
+	targetURL := fmt.Sprintf("%s/api/activate", getJIAServiceURL()) // TODO fetchCatalogFromJIAとリクエストURLを合わせる
 	port, err := strconv.Atoi(getEnv("SERVER_PORT", "3000"))
 	if err != nil {
 		c.Logger().Errorf("bad port number: %v", err)
