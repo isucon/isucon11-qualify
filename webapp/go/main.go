@@ -33,7 +33,7 @@ const (
 	notificationLimit        = 20
 	isuListLimit             = 200          // TODO 修正が必要なら変更
 	conditionTimestampFormat = time.RFC3339 //"2006-01-02T15:04:05Z07:00"
-	graphDateFormat          = "2006-01-02Z07:00"
+	graphDateFormat          = "2006-01-02+07:00"
 	jwtVerificationKeyPath   = "../ec256-public.pem"
 	DefaultJIAServiceURL     = "http://localhost:5000"
 	DefaultIsuConditionHost  = "localhost"
