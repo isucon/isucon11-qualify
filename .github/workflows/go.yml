@@ -33,7 +33,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Build Go App
-        run: target=go docker-compose -f docker-compose-ci.yml up -d --build -- backend mysql-backend
+        run: target=go docker-compose -f docker-compose-ci.yml up -d --build -- backend mysql-backend-ci
         working-directory: development
       - name: Test Go App
         run: docker-compose -f docker-compose-ci.yml up --exit-code-from apitest -- apitest
