@@ -593,24 +593,9 @@ func postIsu(c echo.Context) error {
 	}
 
 	// デフォルト画像を準備
-	file, err := os.Open(defaultIconFilePath)
+	image, err := ioutil.ReadFile(defaultIconFilePath)
 	if err != nil {
-		c.Logger().Errorf("cannot open default icon file: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
-	}
-	defer file.Close()
-
-	stats, err := file.Stat()
-	if err != nil {
-		c.Logger().Errorf("cannot stat default icon file: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
-	}
-
-	image := make([]byte, stats.Size())
-	bufr := bufio.NewReader(file)
-	_, err = bufr.Read(image)
-	if err != nil {
-		c.Logger().Errorf("cannot read default icon file: %v", err)
+		c.Logger().Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 
