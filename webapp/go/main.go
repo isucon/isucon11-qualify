@@ -146,7 +146,7 @@ type PutIsuRequest struct {
 type GraphResponse struct {
 	StartAt time.Time  `json:"start_at"`
 	EndAt   time.Time  `json:"end_at"`
-	Data    *GraphData `json:"data"`
+	Data    *string    `json:"data"`
 }
 
 type GetIsuConditionResponse struct {
@@ -926,13 +926,9 @@ func getIsuGraph(c echo.Context) error {
 			tmpGraph = graphList[index]
 		}
 
-		var data *GraphData
+		var data *string
 		if inRange && tmpGraph.StartAt.Equal(tmpTime) {
-			err = json.Unmarshal([]byte(tmpGraph.Data), &data)
-			if err != nil {
-				c.Logger().Error(err)
-				return echo.NewHTTPError(http.StatusInternalServerError)
-			}
+			data = &tmpGraph.Data
 			index++
 		}
 
