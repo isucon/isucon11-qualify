@@ -18,9 +18,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/VividCortex/mysqlerr"
 	"github.com/dgrijalva/jwt-go"
-	"github.com/go-sql-driver/mysql"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/sessions"
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
@@ -532,6 +531,21 @@ func postIsu(c echo.Context) error {
 	jiaIsuUUID := c.QueryParam("jia_isu_uuid")
 	isuName := c.QueryParam("isu_name")
 
+	// 既に登録されたisuでないか確認
+	var count int
+	// TODO 再activate時もエラー起こすため、 `is_deleted` は見ない
+	err = db.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
+		jiaUserID, jiaIsuUUID)
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	if count != 0 {
+		// TODO 再activate時もここでエラー; day2で再検討
+		c.Logger().Errorf("duplicated isu: %v", err)
+		return echo.NewHTTPError(http.StatusConflict, "duplicated isu")
+	}
+
 	// JIAにisuのactivateをリクエスト
 	targetURL := fmt.Sprintf("%s/api/activate", getJIAServiceURL())
 	port, err := strconv.Atoi(getEnv("SERVER_PORT", "3000"))
@@ -605,13 +619,6 @@ func postIsu(c echo.Context) error {
 		"	(`jia_isu_uuid`, `name`, `image`, `character`, `jia_catalog_id`, `jia_user_id`) VALUES (?, ?, ?, ?, ?, ?)",
 		jiaIsuUUID, isuName, image, isuFromJIA.Character, isuFromJIA.JIACatalogID, jiaUserID)
 	if err != nil {
-		driverErr, ok := err.(*mysql.MySQLError)
-		if ok && driverErr.Number == mysqlerr.ER_DUP_ENTRY {
-			// TODO 再activate時もここでエラー; day2で再検討
-			c.Logger().Errorf("duplited key: %v", err)
-			return echo.NewHTTPError(http.StatusConflict, "duplicated isu")
-		}
-
 		c.Logger().Errorf("cannot insert record: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
 	}
