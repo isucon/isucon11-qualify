@@ -1,5 +1,8 @@
 package scenario
 
+// load.go
+// シナリオの内、loadフェーズの処理
+
 import (
 	"context"
 

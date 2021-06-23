@@ -1,5 +1,8 @@
 package scenario
 
+// prepare.go
+// シナリオの内、prepareフェーズの処理
+
 import (
 	"context"
 
