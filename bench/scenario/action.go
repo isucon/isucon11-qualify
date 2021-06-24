@@ -13,39 +13,12 @@ package scenario
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
-	"strings"
 
 	"github.com/isucon/isucandar/agent"
 	"github.com/isucon/isucandar/failure"
 	"github.com/isucon/isucon11-qualify/bench/service"
 )
-
-//汎用関数
-
-func verifyStatusCode(hres *http.Response, code int) error {
-	if hres.StatusCode != code {
-		return errorInvalidStatusCode(hres)
-	}
-	return nil
-}
-func verifyContentType(hres *http.Response, contentType string) error {
-	actual := hres.Header.Get("Content-Type")
-	if !strings.HasPrefix(actual, contentType) {
-		return errorInvalidContentType(hres, contentType)
-	}
-	return nil
-}
-func verifyJSONBody(hres *http.Response, body interface{}) error {
-	decoder := json.NewDecoder(hres.Body)
-	//defer hres.Body.Close()
-
-	if err := decoder.Decode(body); err != nil {
-		return errorInvalidJSON(hres)
-	}
-	return nil
-}
 
 //Action
 
