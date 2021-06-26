@@ -4,7 +4,7 @@
   args:
     chdir: /home/isucon/webapp/go/
   environment:
-    PATH: "/home/isucon/local/go/bin:/home/isucon/local/node/bin:/home/isucon/local/ruby/bin:/home/isucon/local/python/bin:/home/isucon/local/perl/bin:/home/isucon/local/php/bin:/home/isucon/.cargo/bin:/home/isucon/.deno/bin:/home/isucon/bin:/home/isucon/.local/bin:/usr/bin:/sbin:/bin"
+    PATH: "/home/isucon/local/go/bin:{{ ansible_env.PATH }}"
   shell: |
     go build -o isucondition .
 

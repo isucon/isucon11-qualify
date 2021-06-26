@@ -1,13 +1,4 @@
 ---
-- name: "roles.contestant.tasks.isucondition: Clone isucon11-qualify"
-  become: no
-  git:
-    repo: git@github.com:isucon/isucon11-qualify.git
-    version: main
-    dest: /tmp/isucon11-qualify
-    accept_hostkey: yes
-    force: yes
-
 - name: "roles.contestant.tasks.isucondition: Deploy isucon11-qualify"
   become_user: isucon
   copy:

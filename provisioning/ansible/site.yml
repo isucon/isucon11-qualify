@@ -1,4 +1,13 @@
 ---
+- name: bench
+  become: true
+  hosts: [all]
+  tags:
+    - bench
+    - full
+  roles:
+    - common
+    - bench
 
 - name: contestant
   become: true
