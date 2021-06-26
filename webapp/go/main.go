@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"os"
 	"os/exec"
@@ -26,13 +28,15 @@ import (
 )
 
 const (
-	sessionName                 = "isucondition"
-	searchLimit                 = 20
-	notificationLimit           = 20
-	isuListLimit                = 200 // TODO 修正が必要なら変更
-	notificationTimestampFormat = "2006-01-02 15:04:05 -0700"
-	jwtVerificationKeyPath      = "../ec256-public.pem"
-	DefaultJIAServiceURL        = "http://localhost:5000"
+	sessionName              = "isucondition"
+	searchLimit              = 20
+	conditionLimit           = 20
+	notificationLimit        = 20
+	isuListLimit             = 200          // TODO 修正が必要なら変更
+	conditionTimestampFormat = time.RFC3339 //"2006-01-02T15:04:05Z07:00"
+	jwtVerificationKeyPath   = "../ec256-public.pem"
+	DefaultJIAServiceURL     = "http://localhost:5000"
+	DefaultIsuConditionHost  = "localhost"
 )
 
 var scorePerCondition = map[string]int{
@@ -142,7 +146,14 @@ type PutIsuRequest struct {
 type GraphResponse struct {
 }
 
-type NotificationResponse struct {
+type GetIsuConditionResponse struct {
+	JIAIsuUUID     string    `json:"jia_isu_uuid"`
+	IsuName        string    `json:"isu_name"`
+	Timestamp      time.Time `json:"timestamp"`
+	IsSitting      bool      `json:"is_sitting"`
+	Condition      string    `json:"condition"`
+	ConditionLevel string    `json:"condition_level"`
+	Message        string    `json:"message"`
 }
 
 type PostIsuConditionRequest struct {
@@ -150,6 +161,12 @@ type PostIsuConditionRequest struct {
 	Condition string `json:"condition"`
 	Message   string `json:"message"`
 	Timestamp string `json:"timestamp"` //Format("2006-01-02 15:04:05 -0700")
+}
+
+type JIAServiceRequest struct {
+	TargetIP   string `json:"target_ip"`
+	TargetPort int    `json:"target_port"`
+	IsuUUID    string `json:"isu_uuid"`
 }
 
 func getEnv(key string, defaultValue string) string {
@@ -199,6 +216,9 @@ func main() {
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 
+	// Static
+	e.Static("/", "frontend") // TODO: webapp/frontend 以下のファイルすべてが取得可能となっているのを直す
+
 	// Initialize
 	e.POST("/initialize", postInitialize)
 
@@ -216,8 +236,8 @@ func main() {
 	e.GET("/api/isu/:jia_isu_uuid/icon", getIsuIcon)
 	e.PUT("/api/isu/:jia_isu_uuid/icon", putIsuIcon)
 	e.GET("/api/isu/:jia_isu_uuid/graph", getIsuGraph)
-	e.GET("/api/notification", getNotifications)
-	e.GET("/api/notification/:jia_isu_uuid", getIsuNotifications)
+	e.GET("/api/condition", getAllIsuConditions)
+	e.GET("/api/condition/:jia_isu_uuid", getIsuConditions)
 
 	e.POST("/api/isu/:jia_isu_uuid/condition", postIsuCondition)
 
@@ -538,54 +558,141 @@ func postIsu(c echo.Context) error {
 	return fmt.Errorf("not implemented")
 }
 
-//  GET /api/isu/search
+// GET /api/isu/search
+// 自分の ISU 一覧から検索
 func getIsuSearch(c echo.Context) error {
-	// * session
-	// session が存在しなければ 401
-
-	// input (query_param) (required field はなし, 全て未指定の場合 /api/isu と同じクエリが発行される)
+	// input (query_param)
 	//  * name
-	//  * charactor
+	//  * character
 	//	* catalog_name
 	//	* min_limit_weight
 	//	* max_limit_weight
 	//	* catalog_tags (ジェイウォーク)
 	//  * page: （default = 1)
-	//	* MEMO: 二つのカラムを併せて計算した値での検索（x*yの面積での検索とか）
+	//	* TODO: day2 二つのカラムを併せて計算した値での検索（x*yの面積での検索とか）
 
-	// 想定解
-	// whereを使う、インデックスを頑張って張る
-	// SQLにcatalogを入れてJOINする
-	// ISUテーブルにカラム追加してcatalog情報入れちゃうパターンならJOIN不要かも？
+	jiaUserID, err := getUserIdFromSession(c.Request())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not sign in")
+	}
+	//optional query param
+	name := c.QueryParam("name")
+	character := c.QueryParam("character")
+	catalogName := c.QueryParam("catalog_name")
+	minLimitWeightStr := c.QueryParam("min_limit_weight")
+	maxLimitWeightStr := c.QueryParam("max_limit_weight")
+	catalogTagsStr := c.QueryParam("catalog_tags")
+	pageStr := c.QueryParam("page")
+	//parse
+	minLimitWeight := math.MinInt32
+	maxLimitWeight := math.MaxInt32
+	page := 1
+	var requiredCatalogTags []string
+	if minLimitWeightStr != "" {
+		minLimitWeight, err = strconv.Atoi(minLimitWeightStr)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, "bad format: min_limit_weight")
+		}
+	}
+	if maxLimitWeightStr != "" {
+		maxLimitWeight, err = strconv.Atoi(maxLimitWeightStr)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, "bad format: max_limit_weight")
+		}
+	}
+	if pageStr != "" {
+		page, err = strconv.Atoi(pageStr)
+		if err != nil || page <= 0 {
+			return echo.NewHTTPError(http.StatusBadRequest, "bad format: page")
+		}
+	}
+	if catalogTagsStr != "" {
+		requiredCatalogTags = strings.Split(catalogTagsStr, ",")
+	}
 
-	// 持っている椅子を数件取得 (非効率な検索ロジック)
-	// SELECT (*) FROM isu WHERE jia_user_id = `jia_user_id` AND is_deleted=false
-	//   AND name LIKE CONCAT('%', ?, '%')
-	//   AND charactor = `charactor`
-	//   ORDER BY created_at;
+	// DBからISU一覧を取得
+	query := "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = false"
+	queryParam := []interface{}{jiaUserID}
+	if name != "" {
+		query += " AND `name` LIKE ? "
+		queryParam = append(queryParam, name)
+	}
+	if character != "" {
+		query += " AND `character` = ? "
+		queryParam = append(queryParam, character)
+	}
+	query += " ORDER BY `created_at` DESC "
+	isuList := []*Isu{}
+	err = db.Select(&isuList,
+		query,
+		queryParam...,
+	)
+	if err != nil {
+		c.Logger().Errorf("failed to select: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
 
-	//for _, isu range isuList {
-	// catalog := isu.catalogを使ってISU協会に問い合わせ(http request)
+	isuListResponse := []*Isu{}
+	//残りのフィルター処理
+	for _, isu := range isuList {
+		// ISU協会に問い合わせ(http request)
+		catalogFromJIA, statusCode, err := fetchCatalogFromJIA(isu.JIACatalogID)
+		if err != nil {
+			c.Logger().Errorf("failed to fetch catalog from JIA: %v", err)
+			return echo.NewHTTPError(http.StatusInternalServerError)
+		}
+		if statusCode == http.StatusNotFound {
+			c.Logger().Errorf("catalog not found: %s", isu.JIACatalogID)
+			return echo.NewHTTPError(http.StatusInternalServerError)
+		}
+		catalog, err := castCatalogFromJIA(catalogFromJIA)
+		if err != nil {
+			c.Logger().Errorf("failed to cast catalog: %v", err)
+			return echo.NewHTTPError(http.StatusInternalServerError)
+		}
+		//catalog.Tagsをmapに変換
+		catalogTags := map[string]interface{}{}
+		for _, tag := range strings.Split(catalog.Tags, ",") {
+			catalogTags[tag] = struct{}{}
+		}
 
-	// isu_calatog情報を使ってフィルター
-	//if !(min_limit_weight < catalog.limit_weight && catalog.limit_weight < max_limit_weight) {
-	//	continue
-	//}
+		// isu_catalog情報を使ってフィルター
+		if !(minLimitWeight <= catalog.LimitWeight && catalog.LimitWeight <= maxLimitWeight) {
+			continue
+		}
+		if catalogName != "" && catalogName != catalog.Name {
+			continue
+		}
+		if requiredCatalogTags != nil {
+			containsAll := true
+			for _, tag := range requiredCatalogTags {
+				if _, ok := catalogTags[tag]; !ok {
+					containsAll = false
+					break
+				}
+			}
+			if !containsAll {
+				continue
+			}
+		}
 
-	// ... catalog_name,catalog_tags
+		//条件一致したのでレスポンスに追加
+		isuListResponse = append(isuListResponse, isu)
+	}
 
-	// res の 配列 append
-	//}
-	// 指定pageからlimit件数（固定）だけ取り出す(ボトルネックにしたいのでbreakは行わない）
-
-	//response 200
-	//[{
-	// * id
-	// * name
-	// * jia_catalog_id
-	// * charactor
-	//}]
-	return fmt.Errorf("not implemented")
+	//offset
+	if pageStr != "" {
+		offset := searchLimit * (page - 1)
+		if len(isuListResponse) < offset {
+			offset = len(isuListResponse)
+		}
+		isuListResponse = isuListResponse[offset:]
+	}
+	//limit
+	if searchLimit < len(isuListResponse) {
+		isuListResponse = isuListResponse[:searchLimit]
+	}
+	return c.JSON(http.StatusOK, isuListResponse)
 }
 
 //  GET /api/isu/{jia_isu_uuid}
@@ -674,29 +781,79 @@ func putIsu(c echo.Context) error {
 //  DELETE /api/isu/{jia_isu_uuid}
 // 所有しているISUを削除する
 func deleteIsu(c echo.Context) error {
-	// * session
-	// session が存在しなければ 401
+	jiaUserID, err := getUserIdFromSession(c.Request())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not signed in")
+	}
 
-	// input
-	// 		* jia_isu_uuid: 椅子の固有ID
+	jiaIsuUUID := c.Param("jia_isu_uuid")
 
-	// トランザクション開始
+	tx, err := db.Beginx()
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+	}
+	defer tx.Rollback()
 
-	// DBから当該のISUが存在するか検索
-	// SELECT (*) FROM isu WHERE jia_user_id = `jia_user_id` and jia_isu_uuid = `jia_isu_uuid` and is_deleted=false;
-	// 存在しない場合 404 を返す
+	var count int
+	err = tx.Get(
+		&count,
+		"SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
+		jiaUserID, jiaIsuUUID)
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+	}
+	if count == 0 {
+		return echo.NewHTTPError(http.StatusNotFound, "isu not found")
+	}
 
-	// 存在する場合 ISU　の削除フラグを有効にして 204 を返す
-	// UPDATE isu SET is_deleted = true WHERE jia_isu_uuid = `jia_isu_uuid`;
+	_, err = tx.Exec("UPDATE `isu` SET `is_deleted` = true WHERE `jia_isu_uuid` = ?", jiaIsuUUID)
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+	}
 
-	// ISU協会にdectivateを送る
-	// MEMO: ISU協会へのリクエストが失敗した時に DB をロールバックできるから
+	// JIAにisuのdeactivateをリクエスト
+	targetURL := fmt.Sprintf("%s/api/deactivate", getJIAServiceURL())
+	port, err := strconv.Atoi(getEnv("SERVER_PORT", "3000"))
+	if err != nil {
+		c.Logger().Errorf("bad port number: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	body := JIAServiceRequest{DefaultIsuConditionHost, port, jiaIsuUUID}
+	bodyJSON, err := json.Marshal(body)
+	if err != nil {
+		c.Logger().Errorf("failed to marshal data: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
 
-	// トランザクション終了
-	// MEMO: もしコミット時にエラーが発生しうるならば、「ISU協会側はdeactivate済みだがDBはactive」という不整合が発生しうる
+	req, err := http.NewRequest(http.MethodPost, targetURL, bytes.NewBuffer(bodyJSON))
+	if err != nil {
+		c.Logger().Errorf("failed to build request: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
 
-	//response 204
-	return fmt.Errorf("not implemented")
+	req.Header.Set("Content-Type", "application/json")
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		c.Logger().Errorf("failed to request to JIAService: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusNoContent {
+		c.Logger().Errorf("JIAService returned error: status code %v", res.StatusCode)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		c.Logger().Errorf("failed to commit tx: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+
+	return c.NoContent(http.StatusNoContent)
 }
 
 //  GET /api/isu/{jia_isu_uuid}/icon
@@ -853,23 +1010,23 @@ func getIsuGraph(c echo.Context) error {
 	return fmt.Errorf("not implemented")
 }
 
-//  GET /api/notification?
+//  GET /api/condition?
 // 自分の所持椅子の通知を取得する
 // MEMO: 1970/1/1みたいな時を超えた古代からのリクエストは表示するか → する
 // 順序は最新順固定
-func getNotifications(c echo.Context) error {
+func getAllIsuConditions(c echo.Context) error {
 	// * session
 	// session が存在しなければ 401
 
-	// input {jia_isu_uuid}が無い以外は、/api/notification/{jia_isu_uuid}と同じ
+	// input {jia_isu_uuid}が無い以外は、/api/condition/{jia_isu_uuid}と同じ
 	//
 
 	// cookieからユーザID取得
 	// ユーザの所持椅子取得
 	// SELECT * FROM isu where jia_user_id = ?;
 
-	// ユーザの所持椅子毎に /api/notificaiton/{jia_isu_uuid} を叩く（こことマージ含めてボトルネック）
-	// query_param は GET /api/notification (ここ) のリクエストと同じものを使い回す
+	// ユーザの所持椅子毎に /api/condition/{jia_isu_uuid} を叩く（こことマージ含めてボトルネック）
+	// query_param は GET /api/condition (ここ) のリクエストと同じものを使い回す
 
 	// ユーザの所持椅子ごとのデータをマージ（ここと個別取得部分含めてボトルネック）
 	// 通知時間帯でソートして、limit件数（固定）該当するデータを返す
@@ -883,54 +1040,135 @@ func getNotifications(c echo.Context) error {
 	//   or isu_log.created_at<cursor.end_time order by created_at desc,jia_isu_uuid desc limit ?)
 
 	// response: 200
-	// /api/notification/{jia_isu_uuid}と同じ
+	// /api/condition/{jia_isu_uuid}と同じ
 	return fmt.Errorf("not implemented")
 }
 
-//  GET /api/notification/{jia_isu_uuid}?start_time=
-// 自分の所持椅子のうち、指定したisu_idの通知を取得する
-func getIsuNotifications(c echo.Context) error {
-	// * session
-	// session が存在しなければ 401
-
+//  GET /api/condition/{jia_isu_uuid}?
+// 自分の所持椅子のうち、指定した椅子の通知を取得する
+func getIsuConditions(c echo.Context) error {
 	// input
 	//     * jia_isu_uuid: 椅子の固有番号(path_param)
 	//     * start_time: 開始時間
 	//     * cursor_end_time: 終了時間 (required)
-	//     * cursor_isu_id (required)
 	//     * condition_level: critical,warning,info (csv)
 	//               critical: conditions (is_dirty,is_overweight,is_broken) のうちtrueが3個
 	//               warning: conditionsのうちtrueのものが1 or 2個
 	//               info: warning無し
-	//     * MEMO day2実装: message (文字列検索)
+	//     * TODO: day2実装: message (文字列検索)
 
-	// memo
-	// 例: Google Cloud Logging の URL https://console.cloud.google.com/logs/query;query=resource.type%3D%22gce_instance%22%20resource.labels.instance_id%3D%22<DB_NAME>%22?authuser=1&project=<PROJECT_ID>&query=%0A
-
-	// cookieからユーザID取得
+	jiaUserID, err := getUserIdFromSession(c.Request())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not sign in")
+	}
+	jiaIsuUUID := c.Param("jia_isu_uuid")
+	if jiaIsuUUID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "jia_isu_uuid is missing")
+	}
+	//required query param
+	cursorEndTime, err := time.Parse(conditionTimestampFormat, c.QueryParam("cursor_end_time"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "bad format: cursor_end_time")
+	}
+	conditionLevelCSV := c.QueryParam("condition_level")
+	if conditionLevelCSV == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "condition_level is missing")
+	}
+	conditionLevel := map[string]interface{}{}
+	for _, level := range strings.Split(conditionLevelCSV, ",") {
+		conditionLevel[level] = struct{}{}
+	}
+	//optional query param
+	startTimeStr := c.QueryParam("start_time")
+	var startTime time.Time
+	if startTimeStr != "" {
+		startTime, err = time.Parse(conditionTimestampFormat, startTimeStr)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, "bad format: start_time")
+		}
+	}
+	limitStr := c.QueryParam("limit")
+	limit := conditionLimit
+	if limitStr != "" {
+		limit, err = strconv.Atoi(limitStr)
+		if err != nil || limit <= 0 {
+			return echo.NewHTTPError(http.StatusBadRequest, "bad format: limit")
+		}
+	}
 
 	// isu_id存在確認、ユーザの所持椅子か確認
-	// 対象isu_idのisu_name取得
-	// 存在しなければ404
+	var isuName string
+	err = db.Get(&isuName,
+		"SELECT name FROM `isu` WHERE `jia_isu_uuid` = ? AND `jia_user_id` = ? AND `is_deleted` = false",
+		jiaIsuUUID, jiaUserID,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return echo.NewHTTPError(http.StatusNotFound, "isu not found")
+	}
+	if err != nil {
+		c.Logger().Errorf("failed to select: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
 
 	// 対象isu_idの通知を取得(limit, cursorで絞り込み）
-	// select * from isu_log where jia_isu_uuid = {jia_isu_uuid} AND (isu_log.created_a, jia_isu_uuid) < (cursor.end_time, cursor.jia_isu_uuid) order by created_at desc, jia_isu_uuid desc limit ?
-	// MEMO: ↑で実装する
+	conditions := []IsuLog{}
+	if startTimeStr == "" {
+		err = db.Select(&conditions,
+			"SELECT * FROM `isu_log` WHERE `jia_isu_uuid` = ?"+
+				"	AND `timestamp` < ?"+
+				"	ORDER BY `timestamp` DESC",
+			jiaIsuUUID, cursorEndTime,
+		)
+	} else {
+		err = db.Select(&conditions,
+			"SELECT * FROM `isu_log` WHERE `jia_isu_uuid` = ?"+
+				"	AND `timestamp` < ?"+
+				"	AND ? <= `timestamp`"+
+				"	ORDER BY `timestamp` DESC",
+			jiaIsuUUID, cursorEndTime, startTime,
+		)
+	}
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			c.Logger().Errorf("failed to select: %v", err)
+			return echo.NewHTTPError(http.StatusInternalServerError)
+		}
+	}
 
-	//for {
-	// conditions を元に condition_level (critical,warning,info) を算出
-	//}
+	//condition_levelでの絞り込み
+	conditionsResponse := []GetIsuConditionResponse{}
+	for _, c := range conditions {
+		var cLevel string
+		warnCount := strings.Count(c.Condition, "=true")
+		switch warnCount {
+		case 0:
+			cLevel = "info"
+		case 1, 2:
+			cLevel = "warning"
+		case 3:
+			cLevel = "critical"
+		}
 
-	// response: 200
-	// [{
-	//     * jia_isu_uuid
-	//     * isu_name
-	//     * timestamp
-	//     * conditions: {"is_dirty": boolean, "is_overweight": boolean,"is_broken": boolean}
-	//     * condition_level
-	//     * message
-	// },...]
-	return fmt.Errorf("not implemented")
+		if _, ok := conditionLevel[cLevel]; ok {
+			//GetIsuConditionResponseに変換
+			data := GetIsuConditionResponse{
+				JIAIsuUUID:     c.JIAIsuUUID,
+				IsuName:        isuName,
+				Timestamp:      c.Timestamp,
+				IsSitting:      c.IsSitting,
+				Condition:      c.Condition,
+				ConditionLevel: cLevel,
+				Message:        c.Message,
+			}
+			conditionsResponse = append(conditionsResponse, data)
+		}
+	}
+
+	//limit
+	if len(conditionsResponse) > limit {
+		conditionsResponse = conditionsResponse[:limit]
+	}
+	return c.JSON(http.StatusOK, conditionsResponse)
 }
 
 // POST /api/isu/{jia_isu_uuid}/condition
@@ -957,7 +1195,7 @@ func postIsuCondition(c echo.Context) error {
 	}
 
 	//Parse
-	timestamp, err := time.Parse(notificationTimestampFormat, request.Timestamp)
+	timestamp, err := time.Parse(conditionTimestampFormat, request.Timestamp)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid timestamp")
 	}
