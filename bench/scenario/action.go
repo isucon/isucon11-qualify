@@ -32,37 +32,37 @@ func initializeAction(ctx context.Context, a *agent.Agent) (*service.InitializeR
 		errors = append(errors, err)
 		return nil, errors
 	}
-	hres, err := a.Do(ctx, req)
+	res, err := a.Do(ctx, req)
 	if err != nil {
 		err = failure.NewError(ErrHTTP, err)
 		errors = append(errors, err)
 		return nil, errors
 	}
-	defer hres.Body.Close()
+	defer res.Body.Close()
 
 	//httpリクエストの検証
-	res := &service.InitializeResponse{}
-	err = verifyStatusCode(hres, http.StatusOK)
+	initializeResponse := &service.InitializeResponse{}
+	err = verifyStatusCode(res, http.StatusOK)
 	if err != nil {
 		errors = append(errors, err)
 		return nil, errors
 	}
 
 	//データの検証
-	err = verifyContentType(hres, "application/json")
+	err = verifyContentType(res, "application/json")
 	if err != nil {
 		errors = append(errors, err)
 		//続行
 	}
-	err = verifyJSONBody(hres, &res)
+	err = verifyJSONBody(res, &initializeResponse)
 	if err != nil {
 		errors = append(errors, err)
 		return nil, errors
 	}
-	if res.Language == "" {
+	if initializeResponse.Language == "" {
 		err = errorBadResponse("利用言語(language)が設定されていません")
 		errors = append(errors, err)
 	}
 
-	return res, errors
+	return initializeResponse, errors
 }
