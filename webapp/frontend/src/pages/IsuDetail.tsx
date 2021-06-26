@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import CatalogInfo from '../components/IsuDetail/Catalog'
 import IsuIcon from '../components/IsuDetail/IsuIcon'
 import NowLoading from '../components/UI/NowLoading'
@@ -26,6 +26,8 @@ const IsuDetail = () => {
       <div>{isu.name}</div>
       <CatalogInfo isu={isu} />
       <IsuIcon isu={isu} />
+      <Link to={`/isu/${isu.jia_isu_uuid}/graph`}>グラフの確認</Link>
+      <Link to={`/isu/${isu.jia_isu_uuid}/condition`}>状態の確認</Link>
     </div>
   )
 }
