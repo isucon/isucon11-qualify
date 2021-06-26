@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
+import NowLoading from '../components/UI/NowLoading'
 import apis, { Isu } from '../lib/apis'
 
 const IsuDetail = () => {
@@ -15,7 +16,7 @@ const IsuDetail = () => {
   }, [id])
 
   if (!isu) {
-    return <div>loading</div>
+    return <NowLoading />
   }
   return (
     <div>
