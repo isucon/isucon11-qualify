@@ -1,0 +1,11 @@
+---
+
+- name: contestant
+  become: true
+  hosts: [all]
+  tags:
+    - contestant
+    - full
+  roles:
+    - common
+    - contestant

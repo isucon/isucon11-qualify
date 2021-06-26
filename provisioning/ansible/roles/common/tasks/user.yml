@@ -1,0 +1,33 @@
+---
+- name: "roles.common.tasks.user: Create isucon group"
+  become: yes
+  become_user: root
+  group:
+    name: isucon
+    gid: 1100
+    state: present
+    system: no
+
+- name: "roles.common.tasks.user: Create isucon user"
+  become: yes
+  become_user: root
+  user:
+    name: isucon
+    uid: 1100
+    group: isucon
+    password: $1$SALTsalt$e7jg2tj3sKVpmYXXmivBb0
+    home: /home/isucon
+    shell: /bin/bash
+    state: present
+    system: no
+
+- name: "roles.common.tasks.user: Add sudoers"
+  become: yes
+  become_user: root
+  copy:
+    content: "isucon  ALL=(ALL) NOPASSWD:ALL\n"
+    dest: /etc/sudoers.d/99-isucon-user
+    owner: root
+    group: root
+    mode: 0440
+

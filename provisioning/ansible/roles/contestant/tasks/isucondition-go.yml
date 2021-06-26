@@ -1,0 +1,20 @@
+---
+- name: "roles.contestant.tasks.go: Build Web Application Go"
+  become_user: isucon
+  args:
+    chdir: /home/isucon/webapp/go/
+  environment:
+    PATH: "/home/isucon/local/go/bin:/home/isucon/local/node/bin:/home/isucon/local/ruby/bin:/home/isucon/local/python/bin:/home/isucon/local/perl/bin:/home/isucon/local/php/bin:/home/isucon/.cargo/bin:/home/isucon/.deno/bin:/home/isucon/bin:/home/isucon/.local/bin:/usr/bin:/sbin:/bin"
+  shell: |
+    go build -o isucondition .
+
+- name: "roles.contestant.tasks.go: Copy Service file"
+  become_user: root
+  copy:
+    src: "{{ item }}"
+    dest: "/{{ item }}"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+  with_items:
+    - etc/systemd/system/isucondition.go.service

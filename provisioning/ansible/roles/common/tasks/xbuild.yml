@@ -1,0 +1,8 @@
+---
+- name: "roles.common.tasks.xbuild: Install xbuild"
+  become_user: isucon
+  git:
+    repo: https://github.com/tagomoris/xbuild.git
+    dest: /tmp/xbuild
+    version: master
+
