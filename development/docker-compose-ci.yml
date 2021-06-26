@@ -12,6 +12,8 @@ services:
       MYSQL_PASSWORD: isucon
     ports:
       - "3000:3000"
+    volumes:
+      - "../webapp/ec256-public.pem:/webapp/ec256-public.pem"
     depends_on:
       - mysql-backend
 
@@ -33,7 +35,8 @@ services:
       context: ..
       dockerfile: development/apitest/ci.dockerfile
     environment:
-      TARGET_ADDRESS: backend
+      TARGET_ADDRESS: backend:3000
+    entrypoint: dockerize -wait http://backend:3000 -timeout 60s
     depends_on:
       - mysql-backend
       - backend
