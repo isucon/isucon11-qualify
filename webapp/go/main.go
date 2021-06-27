@@ -1510,7 +1510,7 @@ func calculateGraphData(isuLogCluster []IsuLog) ([]byte, error) {
 	sittingCount := 0
 	for _, log := range isuLogCluster {
 		if log.IsSitting {
-			sittingCount += 1
+			sittingCount++
 		}
 	}
 	graph.Sitting = sittingCount * 100 / len(isuLogCluster)
