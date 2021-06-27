@@ -3,6 +3,7 @@ import apis, { Isu } from '../../lib/apis'
 
 interface Props {
   isu: Isu
+  reloadIcon?: () => void
 }
 
 const useImageSelect = (onSelect: (file: File) => void) => {
@@ -29,9 +30,12 @@ const useImageSelect = (onSelect: (file: File) => void) => {
   return { startSelect, destroy }
 }
 
-const IconInput = ({ isu }: Props) => {
+const IconInput = ({ isu, reloadIcon }: Props) => {
   const putIsuIcon = async (file: File) => {
     await apis.putIsuIcon(isu.jia_isu_uuid, file)
+    if (reloadIcon) {
+      reloadIcon()
+    }
   }
   const { startSelect, destroy } = useImageSelect(putIsuIcon)
   useEffect(() => destroy)
