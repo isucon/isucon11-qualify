@@ -559,14 +559,14 @@ func postIsu(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, targetURL, bytes.NewBuffer(bodyJSON))
+	reqJIA, err := http.NewRequest(http.MethodPost, targetURL, bytes.NewBuffer(bodyJSON))
 	if err != nil {
 		c.Logger().Errorf("failed to build request: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 
-	req.Header.Set("Content-Type", "application/json")
-	res, err := http.DefaultClient.Do(req)
+	reqJIA.Header.Set("Content-Type", "application/json")
+	res, err := http.DefaultClient.Do(reqJIA)
 	if err != nil {
 		c.Logger().Errorf("failed to request to JIAService: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError)
