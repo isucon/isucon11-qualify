@@ -36,6 +36,7 @@ const (
 	notificationLimit        = 20
 	isuListLimit             = 200          // TODO 修正が必要なら変更
 	conditionTimestampFormat = time.RFC3339 //"2006-01-02T15:04:05Z07:00"
+	graphDateFormat          = "2006-01-02+07:00"
 	jwtVerificationKeyPath   = "../ec256-public.pem"
 	DefaultJIAServiceURL     = "http://localhost:5000"
 	DefaultIsuConditionHost  = "localhost"
@@ -146,6 +147,9 @@ type PutIsuRequest struct {
 }
 
 type GraphResponse struct {
+	StartAt time.Time  `json:"start_at"`
+	EndAt   time.Time  `json:"end_at"`
+	Data    *GraphData `json:"data"`
 }
 
 type GetIsuConditionResponse struct {
@@ -964,52 +968,85 @@ func putIsuIcon(c echo.Context) error {
 // この時間帯とか、この日とかの機嫌を知りたい
 // 日毎時間単位グラフ
 // conditionを何件か集めて、ISUにとっての快適度数みたいな値を算出する
+// TODO: 文面の変更
 func getIsuGraph(c echo.Context) error {
-	// * session
-	// session が存在しなければ 401
+	jiaUserID, err := getUserIdFromSession(c.Request())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not sign in")
+	}
 
-	// input (path_param)
-	//	* jia_isu_uuid: 椅子の固有ID
-	// input (query_param)
-	//	* date (required)
-	//		YYYY-MM-DD
-	//
+	jiaIsuUUID := c.Param("jia_isu_uuid")
+	dateStr := c.QueryParam("date")
+	if dateStr == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "date is required")
+	}
+	date, err := time.Parse(graphDateFormat, dateStr)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "date is invalid format")
+	}
 
-	// 自分のISUかチェック
-	// SELECT count(*) from isu where jia_user_id=`jia_user_id` and id = `jia_isu_uuid` and is_deleted=false;
-	// エラー: response 404
+	tx, err := db.Beginx()
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	defer tx.Rollback()
 
-	// MEMO: シナリオ的にPostIsuConditionでgraphを生成する方がボトルネックになる想定なので初期実装はgraphテーブル作る
-	// DBを検索。グラフ描画に必要な情報を取得
-	// ボトルネック用に事前計算したものを取得
-	// graphは POST /api/isu/{jia_isu_uuid}/condition で生成
-	// SELECT * from graph
-	//   WHERE jia_isu_uuid = `jia_isu_uuid` AND date<=start_at AND start_at < (date+1day)
+	var count int
+	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = ?",
+		jiaUserID, jiaIsuUUID, false)
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
 
-	//SQLのレスポンスを成形
-	//nullチェック
+	var graphList []Graph
+	err = tx.Select(&graphList, "SELECT * FROM `graph` WHERE `jia_isu_uuid` = ? AND ? <= `start_at` AND `start_at` <= ? ORDER BY `start_at` ASC ",
+		jiaIsuUUID, date, date.Add(time.Hour*24))
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
 
-	// response 200:
-	//    グラフ描画のための情報のjson
-	//        * フロントで表示しやすい形式
-	// [{
-	// start_at: ...
-	// end_at: ...
-	// data: {
-	//   score: 70,//>=0
-	//   sitting: 50 (%),
-	//   detail: {
-	//     dirty: -10,
-	//     over_weight: -20
-	//   }
-	// }},
-	// {
-	// start_at: …,
-	// end_at: …,
-	// data: null,
-	// },
-	// {...}, ...]
-	return fmt.Errorf("not implemented")
+	res := []GraphResponse{}
+	index := 0
+	tmpTime := date
+	var tmpGraph Graph
+
+	// dateから24時間分のグラフ用データを1時間単位で作成
+	for tmpTime.Before(date.Add(time.Hour * 24)) {
+		inRange := index < len(graphList)
+		if inRange {
+			tmpGraph = graphList[index]
+		}
+
+		var data *GraphData
+		if inRange && tmpGraph.StartAt.Equal(tmpTime) {
+			err = json.Unmarshal([]byte(tmpGraph.Data), &data)
+			if err != nil {
+				c.Logger().Error(err)
+				return echo.NewHTTPError(http.StatusInternalServerError)
+			}
+			index++
+		}
+
+		graphResponse := GraphResponse{
+			StartAt: tmpTime,
+			EndAt:   tmpTime.Add(time.Hour),
+			Data:    data,
+		}
+		res = append(res, graphResponse)
+		tmpTime = tmpTime.Add(time.Hour)
+	}
+
+	// TODO: 必要以上に長めにトランザクションを取っているので後で検討
+	err = tx.Commit()
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+
+	return c.JSON(http.StatusOK, res)
 }
 
 //  GET /api/condition?
