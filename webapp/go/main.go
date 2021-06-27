@@ -875,6 +875,7 @@ func putIsuIcon(c echo.Context) error {
 // この時間帯とか、この日とかの機嫌を知りたい
 // 日毎時間単位グラフ
 // conditionを何件か集めて、ISUにとっての快適度数みたいな値を算出する
+// TODO: 文面の変更
 func getIsuGraph(c echo.Context) error {
 	jiaUserID, err := getUserIdFromSession(c.Request())
 	if err != nil {
