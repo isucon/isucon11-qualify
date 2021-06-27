@@ -144,6 +144,11 @@ type GetMeResponse struct {
 	JIAUserID string `json:"jia_user_id"`
 }
 
+type PostIsuRequest struct {
+	JIAIsuUUID string `json:"jia_isu_uuid"`
+	IsuName    string `json:"isu_name"`
+}
+
 type PutIsuRequest struct {
 	Name string `json:"name"`
 }
@@ -527,8 +532,14 @@ func postIsu(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusUnauthorized, "you are not signed in")
 	}
 
-	jiaIsuUUID := c.QueryParam("jia_isu_uuid")
-	isuName := c.QueryParam("isu_name")
+	var req PostIsuRequest
+	err = c.Bind(&req)
+	if err != nil {
+		return c.String(http.StatusBadRequest, "bad request body")
+	}
+
+	jiaIsuUUID := req.JIAIsuUUID
+	isuName := req.IsuName
 
 	// 既に登録されたisuでないか確認
 	var count int
