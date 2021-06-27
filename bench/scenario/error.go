@@ -81,6 +81,7 @@ func errorInvalidJSON(res *http.Response) error {
 	return failure.NewError(ErrInvalidJSON, fmt.Errorf("不正なJSONが返却されました: %d (%s: %s)", res.StatusCode, res.Request.Method, res.Request.URL.Path))
 }
 
-func errorBadResponse(message string, args ...interface{}) error {
-	return failure.NewError(ErrBadResponse, fmt.Errorf(message, args...))
+func errorBadResponse(res *http.Response, message string, args ...interface{}) error {
+	args = append(args, res.StatusCode, res.Request.Method, res.Request.URL.Path)
+	return failure.NewError(ErrBadResponse, fmt.Errorf(message+": %d (%s: %s)", args...))
 }

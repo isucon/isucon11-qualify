@@ -14,6 +14,7 @@ package scenario
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/isucon/isucandar/agent"
 	"github.com/isucon/isucandar/failure"
@@ -60,9 +61,63 @@ func initializeAction(ctx context.Context, a *agent.Agent) (*service.InitializeR
 		return nil, errors
 	}
 	if initializeResponse.Language == "" {
-		err = errorBadResponse("利用言語(language)が設定されていません")
+		err = errorBadResponse(res, "利用言語(language)が設定されていません")
 		errors = append(errors, err)
 	}
 
 	return initializeResponse, errors
+}
+
+func authAction(ctx context.Context, a *agent.Agent, userID string) (*service.AuthResponse, []error) {
+	errors := []error{}
+
+	//JWT生成
+	jwtOK, err := service.GenerateJWT(userID, time.Now())
+	if err != nil {
+		err = failure.NewError(ErrCritical, err)
+		errors = append(errors, err)
+		return nil, errors
+	}
+
+	//リクエスト
+	req, err := a.POST("/api/auth", nil)
+	if err != nil {
+		err = failure.NewError(ErrHTTP, err)
+		errors = append(errors, err)
+		return nil, errors
+	}
+	req.Header.Set("Authorization", jwtOK)
+	res, err := a.Do(ctx, req)
+	if err != nil {
+		err = failure.NewError(ErrHTTP, err)
+		errors = append(errors, err)
+		return nil, errors
+	}
+	defer res.Body.Close()
+
+	//httpリクエストの検証
+	authResponse := &service.AuthResponse{}
+	err = verifyStatusCode(res, http.StatusOK)
+	if err != nil {
+		errors = append(errors, err)
+		return nil, errors
+	}
+
+	//データの検証
+	//NoContentなので無し
+
+	//Cookie検証
+	found := false
+	for _, c := range res.Cookies() {
+		if c.Name == "isucondition" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		err = errorBadResponse(res, "cookieがありません")
+		errors = append(errors, err)
+	}
+
+	return authResponse, errors
 }
