@@ -90,8 +90,8 @@ func isValidation(err error) bool {
 	return failure.IsCode(err, isucandar.ErrValidation)
 }
 
-func errorInvalidStatusCode(res *http.Response) error {
-	return failure.NewError(ErrInvalidStatusCode, fmt.Errorf("期待する HTTP ステータスコード以外が返却されました: %d (%s: %s)", res.StatusCode, res.Request.Method, res.Request.URL.Path))
+func errorInvalidStatusCode(res *http.Response, expected int) error {
+	return failure.NewError(ErrInvalidStatusCode, fmt.Errorf("期待する HTTP ステータスコード以外が返却されました (expected: %d): %d (%s: %s)", expected, res.StatusCode, res.Request.Method, res.Request.URL.Path))
 }
 
 func errorInvalidContentType(res *http.Response, expected string) error {
