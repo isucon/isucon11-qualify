@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Switch, useParams } from 'react-router-dom'
-import Tab from '../components/Isu/Tab'
+import SubHeader from '../components/Isu/SubHeader'
 import NowLoading from '../components/UI/NowLoading'
 import apis, { Isu } from '../lib/apis'
 import GuardedRoute from '../router/GuardedRoute'
@@ -22,8 +22,7 @@ const IsuRoot = () => {
   }
   return (
     <div>
-      {isu.name}
-      <Tab />
+      <SubHeader isu={isu} />
       <Switch>
         <DefineRoutes isu={isu} />
       </Switch>
