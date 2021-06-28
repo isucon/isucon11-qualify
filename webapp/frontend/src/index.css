@@ -16,11 +16,10 @@ code {
     monospace;
 }
 
-a {
-  text-decoration: none;
-}
+a,
 a:active,
 a:visited {
+  text-decoration: none;
   color: inherit;
 }
 
