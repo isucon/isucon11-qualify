@@ -39,6 +39,12 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 
 	s.Language = initResponse.Language
 
+	//各エンドポイントのチェック
+	err = s.prepareCheckAuth(ctx, step)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
