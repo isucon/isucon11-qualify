@@ -17,10 +17,16 @@ const IsuRoot = () => {
     load()
   }, [id])
 
+  if (!isu) {
+    return <NowLoading />
+  }
   return (
     <div>
+      {isu.name}
       <Tab />
-      <Switch>{isu ? <DefineRoutes isu={isu} /> : <NowLoading />}</Switch>
+      <Switch>
+        <DefineRoutes isu={isu} />
+      </Switch>
     </div>
   )
 }
