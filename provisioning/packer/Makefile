@@ -34,7 +34,10 @@ files-generated/archive.tar: files-generated/REVISION
 #	touch files-generated/isuxportal-supervisor
 #	#aws s3 cp s3://isucon10-machine-images/supervisor/isuxportal-supervisor-ubuntu2004-amd64 files-generated/isuxportal-supervisor
 
-generate: target/contestant.json target/bench.json target/full.json
+generate: output target/contestant.json target/bench.json target/full.json
+
+output:
+	mkdir -p output/
 
 target/contestant.json: files-generated *.libsonnet contestant.jsonnet
 	mkdir -p target/
