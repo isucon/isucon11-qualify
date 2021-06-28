@@ -26,7 +26,7 @@ const MainInfo = ({ isu, setIsu }: Props) => {
     setIconKey(performance.now())
   }
   return (
-    <div className="flex flex-wrap gap-16 justify-center px-16 py-12">
+    <div className="flex flex-wrap gap-16 justify-center">
       <IsuIcon isu={isu} reloadKey={iconKey} />
       <div className="flex flex-col min-h-full">
         <NameEdit isu={isu} setIsu={setIsu} />
