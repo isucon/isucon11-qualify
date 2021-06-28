@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Switch, useParams } from 'react-router-dom'
+import Tab from '../components/Isu/Tab'
 import NowLoading from '../components/UI/NowLoading'
 import apis, { Isu } from '../lib/apis'
 import GuardedRoute from '../router/GuardedRoute'
@@ -18,7 +19,7 @@ const IsuRoot = () => {
 
   return (
     <div>
-      <div>tab</div>
+      <Tab />
       <Switch>{isu ? <DefineRoutes isu={isu} /> : <NowLoading />}</Switch>
     </div>
   )
