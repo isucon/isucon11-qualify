@@ -12,6 +12,7 @@ import (
 	"github.com/isucon/isucandar/failure"
 	"github.com/isucon/isucandar/worker"
 	"github.com/isucon/isucon11-qualify/bench/logger"
+	"github.com/isucon/isucon11-qualify/bench/model"
 )
 
 func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) error {
@@ -57,6 +58,11 @@ func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.Benchma
 		switch index {
 		default:
 			//ログイン成功
+			userID, err := model.MakeRandomUserID()
+			if err != nil {
+				step.AddError(failure.NewError(ErrCritical, err))
+				return
+			}
 			_, errs := authAction(ctx, a, userID)
 			for _, err := range errs {
 				step.AddError(err)
