@@ -38,7 +38,7 @@ services:
       TARGET_ADDRESS: backend:3000
     entrypoint: dockerize -wait http://backend:3000 -timeout 60s
     working_dir:  /bench_dir
-    command: ["/bench", "--no-load"]
+    command: ["/bench", "--no-load", "--exit-status"]
     volumes:
       - "../bench:/bench_dir"
     depends_on:
