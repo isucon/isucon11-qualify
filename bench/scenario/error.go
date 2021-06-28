@@ -15,6 +15,29 @@ import (
 	"github.com/isucon/isucandar/failure"
 )
 
+func CheckError(err error) (critical bool, timeout bool, deduction bool) {
+	critical = false  // TODO: クリティカルなエラー(起きたら即ベンチを止める)
+	timeout = false   // TODO: リクエストタイムアウト(ある程度の数許容するかも)
+	deduction = false // TODO: 減点対象になるエラー
+
+	if isCritical(err) {
+		critical = true
+		return
+	}
+
+	if failure.IsCode(err, isucandar.ErrLoad) {
+		if isTimeout(err) {
+			timeout = true
+			return
+		}
+		if isDeduction(err) {
+			timeout = true
+		}
+	}
+
+	return
+}
+
 // Critical Errors
 var (
 	ErrCritical         failure.StringCode = "critical"
@@ -45,7 +68,9 @@ func isDeduction(err error) bool {
 		failure.IsCode(err, ErrInvalidJSON) ||
 		failure.IsCode(err, ErrInvalidAsset) ||
 		failure.IsCode(err, ErrMissmatch) ||
-		failure.IsCode(err, ErrInvalid)
+		failure.IsCode(err, ErrInvalid) ||
+		failure.IsCode(err, ErrBadResponse) ||
+		(!isTimeout(err) && failure.IsCode(err, ErrHTTP))
 }
 
 func isTimeout(err error) bool {
