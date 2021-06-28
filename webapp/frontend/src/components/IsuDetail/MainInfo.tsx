@@ -30,7 +30,7 @@ const MainInfo = ({ isu, setIsu }: Props) => {
       <IsuIcon isu={isu} reloadKey={iconKey} />
       <div className="flex flex-col min-h-full">
         <NameEdit isu={isu} setIsu={setIsu} />
-        <div className="flex flex-1 flex-col pl-6">
+        <div className="flex flex-1 flex-col mt-4 pl-8">
           <div className="flex-1">{isu.character}</div>
           <div className="flex flex-no-wrap gap-4 justify-self-end mt-12">
             <IconInput putIsuIcon={putIsuIcon} />
