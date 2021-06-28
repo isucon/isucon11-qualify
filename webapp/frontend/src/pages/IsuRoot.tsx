@@ -23,9 +23,11 @@ const IsuRoot = () => {
   return (
     <div>
       <SubHeader isu={isu} />
-      <Switch>
-        <DefineRoutes isu={isu} />
-      </Switch>
+      <div className="p-10">
+        <Switch>
+          <DefineRoutes isu={isu} />
+        </Switch>
+      </div>
     </div>
   )
 }
