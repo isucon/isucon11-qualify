@@ -1,0 +1,42 @@
+name: packer
+
+on:
+  push:
+    tags:
+      - v*
+
+jobs:
+  build:
+    name: packer-build
+    runs-on: [self-hosted]
+    env:
+      PACKER_LOG: '1'
+    defaults:
+      run:
+        working-directory: provisioning/packer
+    steps:
+      - uses: actions/checkout@v2
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-duration-seconds: 14400
+          role-session-name: isucon11-qualify-${{ github.run_id }}-${{ github.run_number }}
+          aws-region: ap-northeast-1
+
+      - run: make clean
+      - run: make clean-output
+
+      - run: make build-contestant
+      - run: make build-benchmarker
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: manifest-amd64-contestant.json
+          path: provisioning/packer/output/manifest-amd64-contestant.json
+      - uses: actions/upload-artifact@v2
+        with:
+          name: manifest-amd64-bench.json
+          path: provisioning/packer/output/manifest-amd64-bench.json
