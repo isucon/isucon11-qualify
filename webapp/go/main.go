@@ -10,10 +10,12 @@ import (
 	"io/ioutil"
 	"math"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -34,7 +36,9 @@ const (
 	notificationLimit        = 20
 	isuListLimit             = 200          // TODO 修正が必要なら変更
 	conditionTimestampFormat = time.RFC3339 //"2006-01-02T15:04:05Z07:00"
+	graphDateFormat          = "2006-01-02+07:00"
 	jwtVerificationKeyPath   = "../ec256-public.pem"
+	defaultIconFilePath      = "../NoImage.png"
 	DefaultJIAServiceURL     = "http://localhost:5000"
 	DefaultIsuConditionHost  = "localhost"
 )
@@ -71,6 +75,11 @@ type Isu struct {
 	IsDeleted    bool      `db:"is_deleted" json:"-"`
 	CreatedAt    time.Time `db:"created_at" json:"-"`
 	UpdatedAt    time.Time `db:"updated_at" json:"-"`
+}
+
+type IsuFromJIA struct {
+	JIACatalogID string `json:"catalog_id"`
+	Character    string `json:"character"`
 }
 
 type CatalogFromJIA struct {
@@ -139,11 +148,19 @@ type GetMeResponse struct {
 	JIAUserID string `json:"jia_user_id"`
 }
 
+type PostIsuRequest struct {
+	JIAIsuUUID string `json:"jia_isu_uuid"`
+	IsuName    string `json:"isu_name"`
+}
+
 type PutIsuRequest struct {
 	Name string `json:"name"`
 }
 
 type GraphResponse struct {
+	StartAt time.Time  `json:"start_at"`
+	EndAt   time.Time  `json:"end_at"`
+	Data    *GraphData `json:"data"`
 }
 
 type GetIsuConditionResponse struct {
@@ -520,42 +537,108 @@ func getIsuList(c echo.Context) error {
 //  POST /api/isu
 // 自分のISUの登録
 func postIsu(c echo.Context) error {
-	// * session
-	// session が存在しなければ 401
+	jiaUserID, err := getUserIdFromSession(c.Request())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not signed in")
+	}
 
-	// input
-	// 		jia_isu_uuid: 椅子固有のID（衝突しないようにUUID的なもの設定）
-	// 		isu_name: 椅子の名前
+	var req PostIsuRequest
+	err = c.Bind(&req)
+	if err != nil {
+		return c.String(http.StatusBadRequest, "bad request body")
+	}
 
-	// req := contextからいい感じにinputとuser_idを取得
-	// 形式が違うかったら400
-	// (catalog,charactor), err := 外部API
-	// ISU 協会にactivate
-	// request
-	// 	* jia_isu_uuid
-	// response
-	// 	* jia_catalog_id
-	// 	* charactor
-	// レスポンスが200以外なら横流し
-	// 404, 403(認証拒否), 400, 5xx
-	// 403はday2
+	jiaIsuUUID := req.JIAIsuUUID
+	isuName := req.IsuName
 
-	// imageはデフォルトを挿入
-	// INSERT INTO isu VALUES (jia_isu_uuid, isu_name, image, catalog_, charactor, jia_user_id);
-	// jia_isu_uuid 重複時 409
+	// 既に登録されたisuでないか確認
+	var count int
+	// TODO 再activate時もエラー起こすため、 `is_deleted` は見ない
+	err = db.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
+		jiaUserID, jiaIsuUUID)
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	if count != 0 {
+		// TODO 再activate時もここでエラー; day2で再検討
+		c.Logger().Errorf("duplicated isu: %v", err)
+		return echo.NewHTTPError(http.StatusConflict, "duplicated isu")
+	}
 
-	// SELECT (*) FROM isu WHERE jia_user_id = `jia_user_id` and jia_isu_uuid = `jia_isu_uuid` and is_deleted=false;
-	// 画像までSQLで取ってくるボトルネック
-	// imageも最初はとってるけどレスポンスに含まれてないからselect時に持ってくる必要ない
+	// JIAにisuのactivateをリクエスト
+	targetURL := fmt.Sprintf("%s/api/activate", getJIAServiceURL()) // TODO fetchCatalogFromJIAとリクエストURLを合わせる
+	port, err := strconv.Atoi(getEnv("SERVER_PORT", "3000"))
+	if err != nil {
+		c.Logger().Errorf("bad port number: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	body := JIAServiceRequest{DefaultIsuConditionHost, port, jiaIsuUUID}
+	bodyJSON, err := json.Marshal(body)
+	if err != nil {
+		c.Logger().Errorf("failed to marshal data: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
 
-	// response 200
-	//{
-	// * id
-	// * name
-	// * jia_catalog_id
-	// * charactor
-	//]
-	return fmt.Errorf("not implemented")
+	reqJIA, err := http.NewRequest(http.MethodPost, targetURL, bytes.NewBuffer(bodyJSON))
+	if err != nil {
+		c.Logger().Errorf("failed to build request: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+
+	reqJIA.Header.Set("Content-Type", "application/json")
+	res, err := http.DefaultClient.Do(reqJIA)
+	if err != nil {
+		c.Logger().Errorf("failed to request to JIAService: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusAccepted {
+		c.Logger().Errorf("JIAService returned error: status code %v", res.StatusCode)
+		return echo.NewHTTPError(res.StatusCode) // TODO 横流しがこの実装でいいかは確認
+	}
+
+	resBody, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		c.Logger().Errorf("error occured while reading JIA response: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+
+	var isuFromJIA IsuFromJIA
+	err = json.Unmarshal(resBody, &isuFromJIA)
+	if err != nil {
+		c.Logger().Errorf("cannot unmarshal JIA response: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+
+	// デフォルト画像を準備
+	image, err := ioutil.ReadFile(defaultIconFilePath)
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+
+	// 新しいisuのデータをinsert
+	_, err = db.Exec("INSERT INTO `isu`"+
+		"	(`jia_isu_uuid`, `name`, `image`, `character`, `jia_catalog_id`, `jia_user_id`) VALUES (?, ?, ?, ?, ?, ?)",
+		jiaIsuUUID, isuName, image, isuFromJIA.Character, isuFromJIA.JIACatalogID, jiaUserID)
+	if err != nil {
+		c.Logger().Errorf("cannot insert record: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+	}
+
+	var isu Isu
+	err = db.Get(
+		&isu,
+		"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
+		jiaUserID, jiaIsuUUID)
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+	}
+
+	return c.JSON(http.StatusOK, isu)
 }
 
 // GET /api/isu/search
@@ -962,86 +1045,258 @@ func putIsuIcon(c echo.Context) error {
 // この時間帯とか、この日とかの機嫌を知りたい
 // 日毎時間単位グラフ
 // conditionを何件か集めて、ISUにとっての快適度数みたいな値を算出する
+// TODO: 文面の変更
 func getIsuGraph(c echo.Context) error {
-	// * session
-	// session が存在しなければ 401
+	jiaUserID, err := getUserIdFromSession(c.Request())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not sign in")
+	}
 
-	// input (path_param)
-	//	* jia_isu_uuid: 椅子の固有ID
-	// input (query_param)
-	//	* date (required)
-	//		YYYY-MM-DD
-	//
+	jiaIsuUUID := c.Param("jia_isu_uuid")
+	dateStr := c.QueryParam("date")
+	if dateStr == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "date is required")
+	}
+	date, err := time.Parse(graphDateFormat, dateStr)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "date is invalid format")
+	}
 
-	// 自分のISUかチェック
-	// SELECT count(*) from isu where jia_user_id=`jia_user_id` and id = `jia_isu_uuid` and is_deleted=false;
-	// エラー: response 404
+	tx, err := db.Beginx()
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	defer tx.Rollback()
 
-	// MEMO: シナリオ的にPostIsuConditionでgraphを生成する方がボトルネックになる想定なので初期実装はgraphテーブル作る
-	// DBを検索。グラフ描画に必要な情報を取得
-	// ボトルネック用に事前計算したものを取得
-	// graphは POST /api/isu/{jia_isu_uuid}/condition で生成
-	// SELECT * from graph
-	//   WHERE jia_isu_uuid = `jia_isu_uuid` AND date<=start_at AND start_at < (date+1day)
+	var count int
+	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = ?",
+		jiaUserID, jiaIsuUUID, false)
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
 
-	//SQLのレスポンスを成形
-	//nullチェック
+	var graphList []Graph
+	err = tx.Select(&graphList, "SELECT * FROM `graph` WHERE `jia_isu_uuid` = ? AND ? <= `start_at` AND `start_at` <= ? ORDER BY `start_at` ASC ",
+		jiaIsuUUID, date, date.Add(time.Hour*24))
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
 
-	// response 200:
-	//    グラフ描画のための情報のjson
-	//        * フロントで表示しやすい形式
-	// [{
-	// start_at: ...
-	// end_at: ...
-	// data: {
-	//   score: 70,//>=0
-	//   sitting: 50 (%),
-	//   detail: {
-	//     dirty: -10,
-	//     over_weight: -20
-	//   }
-	// }},
-	// {
-	// start_at: …,
-	// end_at: …,
-	// data: null,
-	// },
-	// {...}, ...]
-	return fmt.Errorf("not implemented")
+	res := []GraphResponse{}
+	index := 0
+	tmpTime := date
+	var tmpGraph Graph
+
+	// dateから24時間分のグラフ用データを1時間単位で作成
+	for tmpTime.Before(date.Add(time.Hour * 24)) {
+		inRange := index < len(graphList)
+		if inRange {
+			tmpGraph = graphList[index]
+		}
+
+		var data *GraphData
+		if inRange && tmpGraph.StartAt.Equal(tmpTime) {
+			err = json.Unmarshal([]byte(tmpGraph.Data), &data)
+			if err != nil {
+				c.Logger().Error(err)
+				return echo.NewHTTPError(http.StatusInternalServerError)
+			}
+			index++
+		}
+
+		graphResponse := GraphResponse{
+			StartAt: tmpTime,
+			EndAt:   tmpTime.Add(time.Hour),
+			Data:    data,
+		}
+		res = append(res, graphResponse)
+		tmpTime = tmpTime.Add(time.Hour)
+	}
+
+	// TODO: 必要以上に長めにトランザクションを取っているので後で検討
+	err = tx.Commit()
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+
+	return c.JSON(http.StatusOK, res)
 }
 
 //  GET /api/condition?
 // 自分の所持椅子の通知を取得する
-// MEMO: 1970/1/1みたいな時を超えた古代からのリクエストは表示するか → する
-// 順序は最新順固定
 func getAllIsuConditions(c echo.Context) error {
-	// * session
-	// session が存在しなければ 401
+	// input
+	//     * start_time: 開始時間
+	//     * cursor_end_time: 終了時間 (required)
+	//     * cursor_jia_isu_uuid (required)
+	//     * condition_level: critical,warning,info (csv)
+	//               critical: conditionsのうちtrueが3個
+	//               warning: conditionsのうちtrueのものが1 or 2個
+	//               info: warning無し
+	//     * TODO: day2実装: message (文字列検索)
 
-	// input {jia_isu_uuid}が無い以外は、/api/condition/{jia_isu_uuid}と同じ
-	//
+	jiaUserID, err := getUserIdFromSession(c.Request())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "you are not sign in")
+	}
+	sessionCookie, err := c.Cookie(sessionName)
+	if err != nil {
+		c.Logger().Errorf("failed to http request: %v", err)
+		return echo.NewHTTPError(http.StatusBadRequest, "cookie is missing")
+	}
+	//required query param
+	cursorEndTimeStr := c.QueryParam("cursor_end_time")
+	cursorEndTime, err := time.Parse(conditionTimestampFormat, cursorEndTimeStr)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "bad format: cursor_end_time")
+	}
+	cursorJIAIsuUUID := c.QueryParam("cursor_jia_isu_uuid")
+	if cursorJIAIsuUUID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "cursor_jia_isu_uuid is missing")
+	}
+	cursor := &GetIsuConditionResponse{
+		JIAIsuUUID: cursorJIAIsuUUID,
+		Timestamp:  cursorEndTime,
+	}
+	conditionLevel := c.QueryParam("condition_level")
+	if conditionLevel == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "condition_level is missing")
+	}
+	//optional query param
+	startTimeStr := c.QueryParam("start_time")
+	if startTimeStr != "" {
+		_, err = time.Parse(conditionTimestampFormat, startTimeStr)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, "bad format: cursor_end_time")
+		}
+	}
+	limitStr := c.QueryParam("limit")
+	limit := conditionLimit
+	if limitStr != "" {
+		limit, err = strconv.Atoi(limitStr)
+		if err != nil || limit <= 0 {
+			return echo.NewHTTPError(http.StatusBadRequest, "bad format: limit")
+		}
+	}
 
-	// cookieからユーザID取得
 	// ユーザの所持椅子取得
-	// SELECT * FROM isu where jia_user_id = ?;
+	isuList := []Isu{}
+	err = db.Select(&isuList,
+		"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = false",
+		jiaUserID,
+	)
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			c.Logger().Errorf("failed to select: %v", err)
+			return echo.NewHTTPError(http.StatusInternalServerError)
+		}
+	}
 
-	// ユーザの所持椅子毎に /api/condition/{jia_isu_uuid} を叩く（こことマージ含めてボトルネック）
-	// query_param は GET /api/condition (ここ) のリクエストと同じものを使い回す
+	// ユーザの所持椅子毎に /api/condition/{jia_isu_uuid} を叩く
+	conditionsResponse := []*GetIsuConditionResponse{}
+	for _, isu := range isuList {
+		//cursorのjia_isu_uuidで決まる部分は、とりあえず全部取得しておく
+		//  cursorEndTime >= timestampを取りたいので、
+		//  cursorEndTime + 1sec > timestampとしてリクエストを送る
+		//この一要素はフィルターにかかるかどうか分からないので、limitも+1しておく
+		conditionsTmp, err := getIsuConditionsFromLocalhost(
+			isu.JIAIsuUUID, cursorEndTime.Add(1*time.Second).Format(conditionTimestampFormat),
+			conditionLevel, startTimeStr, strconv.Itoa(limit+1),
+			sessionCookie,
+		)
+		if err != nil {
+			c.Logger().Errorf("failed to http request: %v", err)
+			return echo.NewHTTPError(http.StatusInternalServerError)
+		}
 
-	// ユーザの所持椅子ごとのデータをマージ（ここと個別取得部分含めてボトルネック）
-	// 通知時間帯でソートして、limit件数（固定）該当するデータを返す
-	// MEMO: 改善後はこんな感じのSQLで一発でとる
-	// select * from isu_log where (isu_log.created_at, jia_isu_uuid) < (cursor.end_time, cursor.jia_isu_uuid)
-	//  order by created_at desc,jia_isu_uuid desc limit ?
-	// 10.1.36-MariaDB で確認
+		// ユーザの所持椅子ごとのデータをマージ
+		conditionsResponse = append(conditionsResponse, conditionsTmp...)
+	}
 
-	//memo（没）
-	// (select * from isu_log where (isu_log.created_at=cursor.end_time and jia_isu_uuid < cursor.jia_isu_uuid)
-	//   or isu_log.created_at<cursor.end_time order by created_at desc,jia_isu_uuid desc limit ?)
+	// (`timestamp`, `jia_isu_uuid`)のペアで降順ソート
+	sort.Slice(conditionsResponse, func(i int, j int) bool { return conditionGreaterThan(conditionsResponse[i], conditionsResponse[j]) })
+	// (cursor_end_time, cursor_jia_isu_uuid) > (`timestamp`, `jia_isu_uuid`)でフィルター
+	removeIndex := 0
+	for removeIndex < len(conditionsResponse) {
+		if conditionGreaterThan(cursor, conditionsResponse[removeIndex]) {
+			break
+		}
+		removeIndex++
+	}
+	//[0,index)は「(cursor_end_time, cursor_jia_isu_uuid) > (`timestamp`, `jia_isu_uuid`)」を満たしていないので取り除く
+	conditionsResponse = conditionsResponse[removeIndex:]
 
-	// response: 200
-	// /api/condition/{jia_isu_uuid}と同じ
-	return fmt.Errorf("not implemented")
+	//limitを取る
+	if len(conditionsResponse) > limit {
+		conditionsResponse = conditionsResponse[:limit]
+	}
+
+	return c.JSON(http.StatusOK, conditionsResponse)
+}
+
+//http requestを飛ばし、そのレスポンスを[]GetIsuConditionResponseに変換する
+func getIsuConditionsFromLocalhost(
+	jiaIsuUUID string, cursorEndTimeStr string, conditionLevel string, startTimeStr string, limitStr string,
+	cookie *http.Cookie,
+) ([]*GetIsuConditionResponse, error) {
+	targetURLStr := fmt.Sprintf(
+		"http://localhost:%s/api/condition/%s",
+		getEnv("SERVER_PORT", "3000"), jiaIsuUUID,
+	)
+	targetURL, err := url.Parse(targetURLStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse url: %v ;(%s,%s)", err, getEnv("SERVER_PORT", "3000"), jiaIsuUUID)
+	}
+
+	q := url.Values{}
+	q.Set("cursor_end_time", cursorEndTimeStr)
+	q.Set("condition_level", conditionLevel)
+	if startTimeStr != "" {
+		q.Set("start_time", startTimeStr)
+	}
+	if limitStr != "" {
+		q.Set("limit", limitStr)
+	}
+	targetURL.RawQuery = q.Encode()
+
+	req, err := http.NewRequest(http.MethodGet, targetURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	req.AddCookie(cookie)
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to `GET %s` with status=`%s`", targetURL.String(), res.Status)
+	}
+
+	condition := []*GetIsuConditionResponse{}
+	err = json.NewDecoder(res.Body).Decode(&condition)
+	if err != nil {
+		return nil, err
+	}
+	return condition, nil
+}
+
+// left > right を計算する関数
+func conditionGreaterThan(left *GetIsuConditionResponse, right *GetIsuConditionResponse) bool {
+	//(`timestamp`, `jia_isu_uuid`)のペアを辞書順に比較
+
+	if left.Timestamp.After(right.Timestamp) {
+		return true
+	}
+	if left.Timestamp.Equal(right.Timestamp) {
+		return left.JIAIsuUUID > right.JIAIsuUUID
+	}
+	return false
 }
 
 //  GET /api/condition/{jia_isu_uuid}?
@@ -1332,7 +1587,7 @@ func calculateGraphData(isuLogCluster []IsuLog) ([]byte, error) {
 	sittingCount := 0
 	for _, log := range isuLogCluster {
 		if log.IsSitting {
-			sittingCount += 1
+			sittingCount++
 		}
 	}
 	graph.Sitting = sittingCount * 100 / len(isuLogCluster)

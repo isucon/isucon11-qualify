@@ -34,23 +34,19 @@ paths:
       description: ''
       responses:
         '200':
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: 'boolean'
+          description: '認証成功'
         '400':
-          description: ''
+          description: 'JWT内のデータエラー'
           content:
-            application/json:
+            text/plain:
               schema:
-                type: 'boolean'
+                $ref:  "#/components/schemas/BadRequestError"
         '403':
-          description: ''
+          description: 'JWTのValidationエラー'
           content:
-            application/json:
+            text/plain:
               schema:
-                type: 'boolean'
+                $ref:  "#/components/schemas/ForbiddenError"
 
 
   /api/signout:
@@ -60,11 +56,13 @@ paths:
       description: ''
       responses:
         '200':
-          description: ''
+          description: 'サインアウト成功'
+        '401':
+          description: '未ログイン時の操作エラー'
           content:
-            application/json:
+            text/plain:
               schema:
-                type: 'boolean'
+                $ref:  "#/components/schemas/ForbiddenError"
 
 
   /api/user/me:
@@ -272,64 +270,24 @@ paths:
 components:
   schemas:
     BadRequestError:
-      type: object
-      properties:
-        code:
-          type: integer
-          format: int32
-        message:
-          type: string
-      example:
-        code: 400
-        message: 'Error Message'
+      type: string
+      example: 'Bad Request'
 
     UnauthorizedError:
-      type: object
-      properties:
-        code:
-          type: integer
-          format: int32
-        message:
-          type: string
-      example:
-        code: 401
-        message: 'You are not signed in.'
+      type: string
+      example: 'You are not signed in.'
 
     ForbiddenError:
-      type: object
-      properties:
-        code:
-          type: integer
-          format: int32
-        message:
-          type: string
-      example:
-        code: 403
-        message: 'Error Message'
+      type: string
+      example: 'forbidden'
     
     NotFoundError:
-      type: object
-      properties:
-        code:
-          type: integer
-          format: int32
-        message:
-          type: string
-      example:
-        code: 404
-        message: 'Error Message'
+      type: string
+      example: 'Error Message'
 
     ConflictError:
-      type: object
-      properties:
-        code:
-          type: integer
-          format: int32
-        message:
-          type: string
-      example:
-        code: 409
-        message: 'Error Message'
+      type: string
+      example: 'Error Message'
 
 # #security:
 tags:

@@ -28,7 +28,7 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 
 	initResponse, errs := initializeAction(ctx, initializer)
 	for _, err := range errs {
-		step.AddError(failure.NewError(ErrCritical, err))
+		step.AddError(err)
 	}
 	if len(errs) > 0 {
 		//return ErrScenarioCancel
