@@ -28,7 +28,7 @@ func initializeAction(ctx context.Context, a *agent.Agent) (*service.InitializeR
 	//リクエスト
 	req, err := a.POST("/initialize", nil)
 	if err != nil {
-		err = failure.NewError(ErrHTTP, err)
+		err = failure.NewError(ErrCritical, err)
 		errors = append(errors, err)
 		return nil, errors
 	}
