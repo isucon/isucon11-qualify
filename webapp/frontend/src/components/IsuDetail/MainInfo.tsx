@@ -20,18 +20,22 @@ const MainInfo = ({ isu }: { isu: Isu }) => {
     setIconKey(performance.now())
   }
   return (
-    <div className="flex flex-wrap gap-16 px-16 py-12">
+    <div className="flex flex-wrap gap-16 justify-center px-16 py-12">
       <IsuIcon isu={isu} reloadKey={iconKey} />
-      <div>
+      <div className="flex flex-col min-h-full">
         <h2 className="mb-3 text-xl font-bold">{isu.name}</h2>
-        <div>{isu.character}</div>
-        <IconInput putIsuIcon={putIsuIcon} />
-        <button
-          className="px-3 py-1 text-white-primary bg-button rounded"
-          onClick={deleteIsu}
-        >
-          削除
-        </button>
+        <div className="flex flex-1 flex-col pl-6">
+          <div className="flex-1">{isu.character}</div>
+          <div className="flex flex-no-wrap gap-4 justify-self-end mt-12">
+            <IconInput putIsuIcon={putIsuIcon} />
+            <button
+              className="px-3 py-1 text-white-primary bg-button rounded"
+              onClick={deleteIsu}
+            >
+              削除
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )
