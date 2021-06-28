@@ -35,5 +35,5 @@ jobs:
         run: target=go docker-compose -f docker-compose-ci.yml up -d --build -- backend mysql-backend
         working-directory: development
       - name: Test Go App
-        run: docker-compose -f docker-compose-ci.yml up --exit-code-from apitest -- apitest
+        run: target=go docker-compose -f docker-compose-ci.yml up --build --exit-code-from apitest -- apitest
         working-directory: development
