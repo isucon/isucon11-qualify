@@ -23,3 +23,11 @@ a:active,
 a:visited {
   color: inherit;
 }
+
+input {
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  outline: none;
+  background: none;
+}
