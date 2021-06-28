@@ -31,7 +31,14 @@ paths:
     post:
       tags: [backend]
       summary: 'api/auth'
-      description: ''
+      description: 'サービスへのログイン'
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          description: 'JWTのトークン'
+          schema:
+            type: string
       responses:
         '200':
           description: '認証成功'
@@ -81,6 +88,13 @@ paths:
       tags: [backend]
       summary: '/api/catalog/{isu_catalog_id}'
       description: 'JIAにカタログ情報を問い合わせる'
+      parameters:
+        - name: isu_catalog_id
+          in: path
+          required: true
+          description: 'JIAに存在するIsu ID'
+          schema:
+            type: string
       responses:
         '200':
           description: 'JIAから得られたカタログ情報'
