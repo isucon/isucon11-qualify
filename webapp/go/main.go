@@ -1645,3 +1645,4 @@ func calculateGraphData(isuLogCluster []IsuLog) ([]byte, error) {
 	}
 	return graphJSON, nil
 }
+

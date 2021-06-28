@@ -17,7 +17,7 @@ on:
 jobs:
   lint:
     name: Lint
-    runs-on: self-hosted
+    runs-on: [ self-hosted, isucon11-github001 ]
     steps:
       - uses: actions/checkout@v2
       - name: golangci-lint
