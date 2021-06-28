@@ -1,5 +1,8 @@
 package scenario
 
+// validation.go
+// シナリオの内、validationフェーズの処理
+
 import (
 	"context"
 

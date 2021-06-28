@@ -1,5 +1,8 @@
 package scenario
 
+// scenario.go
+// シナリオ構造体とそのメンバ関数
+
 type Scenario struct {
 	// TODO: シナリオ実行に必要なフィールドを書く
 
