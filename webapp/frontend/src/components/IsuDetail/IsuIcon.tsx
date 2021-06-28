@@ -6,9 +6,11 @@ interface Props {
 }
 const IsuIcon = ({ isu, reloadKey }: Props) => {
   return (
-    <div>
-      <img src={`/api/isu/${isu.jia_isu_uuid}/icon`} key={reloadKey} />
-    </div>
+    <img
+      src={`/api/isu/${isu.jia_isu_uuid}/icon`}
+      className="h-xs w-xs object-contain"
+      key={reloadKey}
+    />
   )
 }
 
