@@ -10,7 +10,7 @@ interface Props {
 const ControlLinkItem = (props: Props) => {
   return (
     <ControlItem>
-      <Link to={props.to} className="flex items-center mr-1 text-primary-700">
+      <Link to={props.to} className="flex items-center mr-1 text-primary">
         {props.icon}
         <div className="ml-1">{props.label}</div>
       </Link>
