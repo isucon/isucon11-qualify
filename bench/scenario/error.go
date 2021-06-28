@@ -81,6 +81,11 @@ func errorInvalidJSON(res *http.Response) error {
 	return failure.NewError(ErrInvalidJSON, fmt.Errorf("不正なJSONが返却されました: %d (%s: %s)", res.StatusCode, res.Request.Method, res.Request.URL.Path))
 }
 
+func errorMissmatch(res *http.Response, message string, args ...interface{}) error {
+	args = append(args, res.StatusCode, res.Request.Method, res.Request.URL.Path)
+	return failure.NewError(ErrBadResponse, fmt.Errorf(message+": %d (%s: %s)", args...))
+}
+
 func errorBadResponse(res *http.Response, message string, args ...interface{}) error {
 	args = append(args, res.StatusCode, res.Request.Method, res.Request.URL.Path)
 	return failure.NewError(ErrBadResponse, fmt.Errorf(message+": %d (%s: %s)", args...))

@@ -13,6 +13,7 @@ package scenario
 
 import (
 	"context"
+	"io/ioutil"
 	"net/http"
 	"time"
 
@@ -82,7 +83,7 @@ func authAction(ctx context.Context, a *agent.Agent, userID string) (*service.Au
 	//リクエスト
 	req, err := a.POST("/api/auth", nil)
 	if err != nil {
-		err = failure.NewError(ErrHTTP, err)
+		err = failure.NewError(ErrCritical, err)
 		errors = append(errors, err)
 		return nil, errors
 	}
@@ -120,4 +121,41 @@ func authAction(ctx context.Context, a *agent.Agent, userID string) (*service.Au
 	}
 
 	return authResponse, errors
+}
+
+func authActionWithForbiddenJWT(ctx context.Context, a *agent.Agent, invalidJWT string) []error {
+	errors := []error{}
+
+	//リクエスト
+	req, err := a.POST("/api/auth", nil)
+	if err != nil {
+		err = failure.NewError(ErrCritical, err)
+		errors = append(errors, err)
+		return errors
+	}
+	req.Header.Set("Authorization", invalidJWT)
+	res, err := a.Do(ctx, req)
+	if err != nil {
+		err = failure.NewError(ErrHTTP, err)
+		errors = append(errors, err)
+		return errors
+	}
+	defer res.Body.Close()
+
+	//httpリクエストの検証
+	err = verifyStatusCode(res, http.StatusForbidden)
+	if err != nil {
+		errors = append(errors, err)
+		return errors
+	}
+
+	//データの検証
+	const expected = "forbidden"
+	responseBody, _ := ioutil.ReadAll(res.Body)
+	if string(responseBody) != expected {
+		err = errorMissmatch(res, "エラーメッセージが不正確です: `%s` (expected: `%s`)", string(responseBody), expected)
+		errors = append(errors, err)
+	}
+
+	return errors
 }

@@ -2,14 +2,19 @@ package service
 
 import (
 	"crypto/ecdsa"
+	"encoding/base64"
+	"fmt"
 	"io/ioutil"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
 )
 
 var jwtSecretKey *ecdsa.PrivateKey
+
+const lifetime = 30 * time.Second
 
 func init() {
 	jwtSecretKeyPath := "./key/ec256-private.pem"
@@ -33,4 +38,57 @@ func GenerateJWT(userID string, issuedAt time.Time) (string, error) {
 	})
 
 	return token.SignedString(jwtSecretKey)
+}
+
+// 異なる秘密鍵でJWTを生成する
+func GenerateDummyJWT(userID string, issuedAt time.Time) (string, error) {
+	jwtSecretDummyKeyPath := "./key/dummy.pem"
+	key, err := ioutil.ReadFile(jwtSecretDummyKeyPath)
+	if err != nil {
+		return "", fmt.Errorf("unable to read file: %v", err)
+	}
+	jwtSecretDummyKey, err := jwt.ParseECPrivateKeyFromPEM(key)
+	if err != nil {
+		return "", fmt.Errorf("unable to parse ECDSA private key: %v", err)
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodES256, jwt.MapClaims{
+		"jia_user_id": userID,
+		"iat":         issuedAt.Unix(),
+		"exp":         issuedAt.Add(lifetime).Unix(),
+	})
+
+	return token.SignedString(jwtSecretDummyKey)
+}
+
+//異なる暗号方式でJWTを生成する
+func GenerateHS256JWT(userID string, issuedAt time.Time) (string, error) {
+	const secret = "wkZVBAb3DnUzvTPkDyD6WXNBTbqDNVqVrC0BuCPyey0l1ZFT1i6oag=="
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"jia_user_id": userID,
+		"iat":         issuedAt.Unix(),
+		"exp":         issuedAt.Add(lifetime).Unix(),
+	})
+
+	return token.SignedString([]byte(secret))
+}
+
+//偽装したJWTを生成する
+func GenerateTamperedJWT(userID1 string, userID2 string, issuedAt time.Time) (string, error) {
+	const lifetime = 30 * time.Second
+	token := jwt.NewWithClaims(jwt.SigningMethodES256, jwt.MapClaims{
+		"jia_user_id": userID1,
+		"iat":         issuedAt.Unix(),
+		"exp":         issuedAt.Add(lifetime).Unix(),
+	})
+
+	jwt, err := token.SignedString(jwtSecretKey)
+	if err != nil {
+		return "", err
+	}
+	//claimを置換する
+	claims2Str := fmt.Sprintf(`{"jia_user_id":%s,"iat":%d,"exp":%d}`, userID2, issuedAt.Unix(), issuedAt.Add(lifetime).Unix())
+	claims2 := base64.StdEncoding.EncodeToString([]byte(claims2Str))
+	jwtSep := strings.Split(jwt, ".")
+	return jwtSep[0] + "." + claims2 + "." + jwtSep[2], nil
 }
