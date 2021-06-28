@@ -25,16 +25,22 @@ const IsuRoot = () => {
       <SubHeader isu={isu} />
       <div className="p-10">
         <Switch>
-          <DefineRoutes isu={isu} />
+          <DefineRoutes isu={isu} setIsu={setIsu} />
         </Switch>
       </div>
     </div>
   )
 }
 
-const DefineRoutes = ({ isu }: { isu: Isu }) => (
+const DefineRoutes = ({
+  isu,
+  setIsu
+}: {
+  isu: Isu
+  setIsu: React.Dispatch<React.SetStateAction<Isu | null>>
+}) => (
   <GuardedRoute path="/isu/:id" exact>
-    <IsuDetail isu={isu} />
+    <IsuDetail isu={isu} setIsu={setIsu} />
   </GuardedRoute>
 )
 

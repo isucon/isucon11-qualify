@@ -5,14 +5,19 @@ import Card from '../components/UI/Card'
 import NowLoading from '../components/UI/NowLoading'
 import { Isu } from '../lib/apis'
 
-const IsuDetail = ({ isu }: { isu: Isu }) => {
+interface Props {
+  isu: Isu
+  setIsu: React.Dispatch<React.SetStateAction<Isu | null>>
+}
+
+const IsuDetail = ({ isu, setIsu }: Props) => {
   if (!isu) {
     return <NowLoading />
   }
   return (
     <div className="flex flex-col items-center">
       <Card>
-        <MainInfo isu={isu} />
+        <MainInfo isu={isu} setIsu={setIsu} />
       </Card>
       <div>椅子詳細</div>
       <CatalogInfo isu={isu} />

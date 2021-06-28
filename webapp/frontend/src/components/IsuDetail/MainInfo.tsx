@@ -3,8 +3,14 @@ import { useHistory } from 'react-router-dom'
 import apis, { Isu } from '../../lib/apis'
 import IconInput from '../UI/IconInput'
 import IsuIcon from './IsuIcon'
+import NameEdit from './NameEdit'
 
-const MainInfo = ({ isu }: { isu: Isu }) => {
+interface Props {
+  isu: Isu
+  setIsu: React.Dispatch<React.SetStateAction<Isu | null>>
+}
+
+const MainInfo = ({ isu, setIsu }: Props) => {
   const history = useHistory()
 
   const deleteIsu = async () => {
@@ -23,7 +29,7 @@ const MainInfo = ({ isu }: { isu: Isu }) => {
     <div className="flex flex-wrap gap-16 justify-center px-16 py-12">
       <IsuIcon isu={isu} reloadKey={iconKey} />
       <div className="flex flex-col min-h-full">
-        <h2 className="mb-3 text-xl font-bold">{isu.name}</h2>
+        <NameEdit isu={isu} setIsu={setIsu} />
         <div className="flex flex-1 flex-col pl-6">
           <div className="flex-1">{isu.character}</div>
           <div className="flex flex-no-wrap gap-4 justify-self-end mt-12">
