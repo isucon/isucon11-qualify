@@ -30,7 +30,7 @@ class Apis {
     return data
   }
 
-  async postIsu(isu: Isu) {
+  async postIsu(isu: { jia_isu_uuid: string; isu_name: string }) {
     await axios.post<void>(`/api/isu`, isu)
   }
 

@@ -6,6 +6,7 @@ import ControlItem from './ControlItem'
 import UserControlModal from './UserControlModal'
 import ControlLinkItem from './ControlLinkItem'
 import { IoIosNotifications, IoMdSearch } from 'react-icons/io'
+import { TiPlus } from 'react-icons/ti'
 
 const Controls = () => {
   const [isOpenModal, setIsOpenModal] = useState(false)
@@ -19,6 +20,7 @@ const Controls = () => {
 
   return (
     <div className="flex items-center ml-auto">
+      <ControlLinkItem to="/register" label="ISUの登録" icon={<TiPlus />} />
       <ControlLinkItem
         to="/condition"
         label="ISUの状態"
