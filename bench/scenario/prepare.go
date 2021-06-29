@@ -44,6 +44,11 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 		return err
 	}
 
+	// Prepare step でのエラーはすべて Critical の扱い
+	if len(step.Result().Errors.All()) > 0 {
+		//return ErrScenarioCancel
+		return ErrCritical
+	}
 	return nil
 }
 

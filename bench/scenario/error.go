@@ -45,9 +45,7 @@ var (
 )
 
 func isCritical(err error) bool {
-	// Prepare step でのエラーはすべて Critical の扱い
-	return failure.IsCode(err, isucandar.ErrPrepare) ||
-		failure.IsCode(err, ErrCritical) ||
+	return failure.IsCode(err, ErrCritical) ||
 		failure.IsCode(err, ErrSecurityIncident)
 }
 
