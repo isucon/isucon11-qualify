@@ -72,7 +72,9 @@ class Apis {
   }
 
   async getConditions(req: ConditionRequest) {
-    const { data } = await axios.get<Condition[]>(`/api/condition`, { params: req})
+    const { data } = await axios.get<Condition[]>(`/api/condition`, {
+      params: req
+    })
     return data
   }
 
@@ -152,9 +154,11 @@ export interface Condition {
   timestamp: string
   is_sitting: boolean
   condition: string
-  condition_level: string
+  condition_level: ConditionLevel
   message: string
 }
+
+type ConditionLevel = 'info' | 'warning' | 'critical'
 
 export interface ConditionRequest {
   // TODO: unixタイムにする
