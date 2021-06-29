@@ -1149,11 +1149,12 @@ func getAllIsuConditions(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "cookie is missing")
 	}
 	//required query param
-	cursorEndTimeStr := c.QueryParam("cursor_end_time")
-	cursorEndTime, err := time.Parse(conditionTimestampFormat, cursorEndTimeStr)
+	cursorEndTimeInt64, err := strconv.ParseInt(c.QueryParam("cursor_end_time"), 10, 64)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "bad format: cursor_end_time")
 	}
+	cursorEndTime := time.Unix(cursorEndTimeInt64, 0)
+
 	cursorJIAIsuUUID := c.QueryParam("cursor_jia_isu_uuid")
 	if cursorJIAIsuUUID == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "cursor_jia_isu_uuid is missing")
@@ -1169,11 +1170,12 @@ func getAllIsuConditions(c echo.Context) error {
 	//optional query param
 	startTimeStr := c.QueryParam("start_time")
 	if startTimeStr != "" {
-		_, err = time.Parse(conditionTimestampFormat, startTimeStr)
+		_, err = strconv.ParseInt(startTimeStr, 10, 64)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "bad format: cursor_end_time")
+			return echo.NewHTTPError(http.StatusBadRequest, "bad format: start_time")
 		}
 	}
+
 	limitStr := c.QueryParam("limit")
 	limit := conditionLimit
 	if limitStr != "" {
@@ -1204,7 +1206,7 @@ func getAllIsuConditions(c echo.Context) error {
 		//  cursorEndTime + 1sec > timestampとしてリクエストを送る
 		//この一要素はフィルターにかかるかどうか分からないので、limitも+1しておく
 		conditionsTmp, err := getIsuConditionsFromLocalhost(
-			isu.JIAIsuUUID, cursorEndTime.Add(1*time.Second).Format(conditionTimestampFormat),
+			isu.JIAIsuUUID, strconv.FormatInt(cursorEndTime.Add(1*time.Second).Unix(), 10),
 			conditionLevel, startTimeStr, strconv.Itoa(limit+1),
 			sessionCookie,
 		)
