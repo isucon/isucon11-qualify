@@ -7,7 +7,9 @@ module.exports = {
       teritary: '#F1F1F1',
       button: '#21394B',
       'status-info': '#94EFBC',
-      'status-warning': '#FFEF5B'
+      'status-warning': '#FFEF5B',
+      'status-sitting': '#FFBC7E',
+      'status-critical': '#F69898'
     }),
     textColor: theme => ({
       ...theme('colors'),
