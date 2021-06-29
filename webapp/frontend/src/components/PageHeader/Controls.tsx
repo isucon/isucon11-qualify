@@ -22,15 +22,11 @@ const Controls = () => {
     <div className="flex items-center ml-auto">
       <ControlLinkItem to="/register" label="ISUの登録" icon={<TiPlus />} />
       <ControlLinkItem
-        to="/isu/condition"
+        to="/condition"
         label="ISUの状態"
         icon={<IoIosNotifications />}
       />
-      <ControlLinkItem
-        to="/isu/search"
-        label="ISUの検索"
-        icon={<IoMdSearch />}
-      />
+      <ControlLinkItem to="/search" label="ISUの検索" icon={<IoMdSearch />} />
       <ControlItem>
         <div className="flex items-center cursor-pointer" onClick={toggleModal}>
           <MdAccountCircle />
