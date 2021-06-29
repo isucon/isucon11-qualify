@@ -1454,10 +1454,11 @@ func postIsuCondition(c echo.Context) error {
 	}
 
 	//Parse
-	timestamp, err := time.Parse(conditionTimestampFormat, request.Timestamp)
+	timestampInt64, err := strconv.ParseInt(request.Timestamp, 10, 64)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid timestamp")
 	}
+	timestamp := time.Unix(timestampInt64, 0)
 	if !conditionFormat.Match([]byte(request.Condition)) {
 		return echo.NewHTTPError(http.StatusBadRequest, "bad request body")
 	}
