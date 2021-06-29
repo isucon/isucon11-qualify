@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useState } from 'react'
 import Card from '../components/UI/Card'
 import NowLoading from '../components/UI/NowLoading'
+import TransitionGraph from '../components/IsuGraph/TransitionGraph'
 import apis, { Graph, Isu } from '../lib/apis'
 
 interface Props {
@@ -18,13 +19,18 @@ const IsuGraph = ({ isu, setIsu }: Props) => {
       setIsuGraphs(await apis.getIsuGraphs(id, '2021-06-16%2B07:00'))
     }
     load()
-    console.log(isuGraphs)
   }, [id])
 
   if (!isu || !isuGraphs) {
     return <NowLoading />
   }
-  return <div>グラフページ</div>
+  return (
+    <div>
+      <Card>
+        <TransitionGraph isuGraphs={isuGraphs} />
+      </Card>
+    </div>
+  )
 }
 
 export default IsuGraph
