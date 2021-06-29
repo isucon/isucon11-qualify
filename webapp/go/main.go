@@ -362,9 +362,6 @@ func postAuthentication(c echo.Context) error {
 
 	_, err = db.Exec("INSERT IGNORE INTO user (`jia_user_id`) VALUES (?)", jiaUserId)
 	if err != nil {
-		return fmt.Errorf("insert user: %w", err)
-	}
-	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
