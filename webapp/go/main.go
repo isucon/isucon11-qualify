@@ -102,11 +102,11 @@ type Catalog struct {
 
 type IsuLog struct {
 	JIAIsuUUID string    `db:"jia_isu_uuid" json:"jia_isu_uuid"`
-	Timestamp  time.Time `db:"timestamp" json:"timestamp"`
+	Timestamp  time.Time `db:"timestamp" json:"timestamp"` // FIXME
 	IsSitting  bool      `db:"is_sitting" json:"is_sitting"`
 	Condition  string    `db:"condition" json:"condition"`
 	Message    string    `db:"message" json:"message"`
-	CreatedAt  time.Time `db:"created_at" json:"created_at"`
+	CreatedAt  time.Time `db:"created_at" json:"created_at"` // FIXME
 }
 
 //グラフ表示用  一時間のsummry 詳細
@@ -119,15 +119,15 @@ type GraphData struct {
 //グラフ表示用  一時間のsummry
 type Graph struct {
 	JIAIsuUUID string    `db:"jia_isu_uuid"`
-	StartAt    time.Time `db:"start_at"`
+	StartAt    time.Time `db:"start_at"` // FIXME
 	Data       string    `db:"data"`
-	CreatedAt  time.Time `db:"created_at"`
-	UpdatedAt  time.Time `db:"updated_at"`
+	CreatedAt  time.Time `db:"created_at"` // FIXME
+	UpdatedAt  time.Time `db:"updated_at"` // FIXME
 }
 
 type User struct {
 	JIAUserID string    `db:"jia_user_id"`
-	CreatedAt time.Time `db:"created_at"`
+	CreatedAt time.Time `db:"created_at"` // FIXME
 }
 
 type MySQLConnectionEnv struct {
@@ -156,8 +156,8 @@ type PutIsuRequest struct {
 }
 
 type GraphResponse struct {
-	StartAt time.Time  `json:"start_at"`
-	EndAt   time.Time  `json:"end_at"`
+	StartAt time.Time  `json:"start_at"` // FIXME
+	EndAt   time.Time  `json:"end_at"`   // FIXME
 	Data    *GraphData `json:"data"`
 }
 
