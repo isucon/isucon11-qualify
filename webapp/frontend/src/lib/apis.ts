@@ -66,8 +66,11 @@ class Apis {
     })
   }
 
-  async getIsuGraphs(jiaIsuUuid: string) {
-    const { data } = await axios.get<Graph[]>(`/api/isu/${jiaIsuUuid}/graph`)
+  // TODO: dateの型を修正
+  async getIsuGraphs(jiaIsuUuid: string, date: string) {
+    const { data } = await axios.get<Graph[]>(
+      `/api/isu/${jiaIsuUuid}/graph?date=${date}`
+    )
     return data
   }
 
