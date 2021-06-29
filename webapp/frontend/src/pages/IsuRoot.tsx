@@ -6,6 +6,7 @@ import apis, { Isu } from '../lib/apis'
 import GuardedRoute from '../router/GuardedRoute'
 import IsuCondition from './IsuCondition'
 import IsuDetail from './IsuDetail'
+import IsuGraph from './IsuGraph'
 
 const IsuRoot = () => {
   const [isu, setIsu] = useState<Isu | null>(null)
@@ -44,6 +45,9 @@ const DefineRoutes = ({
     </GuardedRoute>
     <GuardedRoute path="/isu/:id/condition" exact>
       <IsuCondition isu={isu} />
+    </GuardedRoute>
+    <GuardedRoute path="/isu/:id/graph" exact>
+      <IsuGraph isu={isu} setIsu={setIsu} />
     </GuardedRoute>
   </Switch>
 )
