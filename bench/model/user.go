@@ -10,6 +10,7 @@ import (
 
 func MakeRandomUserID() (string, error) {
 	//TODO: とりあえず完全乱数だけど、ちゃんとそれっぽいのを生成しても良いかも
+	//TODO: 重複削除
 
 	const digit = 10
 	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
