@@ -358,33 +358,7 @@ func postAuthentication(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "invalid JWT payload")
 	}
 
-	err = func() error { //TODO: 無名関数によるラップの議論
-		tx, err := db.Beginx()
-		if err != nil {
-			return fmt.Errorf("failed to begin tx: %w", err)
-		}
-		defer tx.Rollback()
-
-		var userNum int
-		err = tx.Get(&userNum, "SELECT COUNT(*) FROM user WHERE `jia_user_id` = ? FOR UPDATE", jiaUserId)
-		if err != nil {
-			return fmt.Errorf("select user: %w", err)
-		} else if userNum == 1 {
-			// user already signup. only return cookie
-			return nil
-		}
-
-		_, err = tx.Exec("INSERT INTO user (`jia_user_id`) VALUES (?)", jiaUserId)
-		if err != nil {
-			return fmt.Errorf("insert user: %w", err)
-		}
-
-		err = tx.Commit()
-		if err != nil {
-			return fmt.Errorf("commit tx: %w", err)
-		}
-		return nil
-	}()
+	_, err = db.Exec("INSERT IGNORE INTO user (`jia_user_id`) VALUES (?)", jiaUserId)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
