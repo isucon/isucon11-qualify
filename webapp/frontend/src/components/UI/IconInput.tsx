@@ -1,9 +1,7 @@
 import { useEffect } from 'react'
-import apis, { Isu } from '../../lib/apis'
 
 interface Props {
-  isu: Isu
-  reloadIcon?: () => void
+  putIsuIcon: (file: File) => void
 }
 
 const useImageSelect = (onSelect: (file: File) => void) => {
@@ -30,17 +28,18 @@ const useImageSelect = (onSelect: (file: File) => void) => {
   return { startSelect, destroy }
 }
 
-const IconInput = ({ isu, reloadIcon }: Props) => {
-  const putIsuIcon = async (file: File) => {
-    await apis.putIsuIcon(isu.jia_isu_uuid, file)
-    if (reloadIcon) {
-      reloadIcon()
-    }
-  }
+const IconInput = ({ putIsuIcon }: Props) => {
   const { startSelect, destroy } = useImageSelect(putIsuIcon)
   useEffect(() => destroy)
 
-  return <button onClick={startSelect}>画像をアップロード</button>
+  return (
+    <button
+      className="px-3 py-1 border border-outline rounded"
+      onClick={startSelect}
+    >
+      画像をアップロード
+    </button>
+  )
 }
 
 export default IconInput

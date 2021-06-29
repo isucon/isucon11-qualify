@@ -14,7 +14,7 @@ on:
 jobs:
   packages:
     name: Packages
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     env:
       CI: true
     defaults:
@@ -28,7 +28,7 @@ jobs:
       - run: npm ci
   build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: [packages]
     env:
       CI: true
@@ -44,7 +44,7 @@ jobs:
       - run: npm run build
   lint:
     name: Lint
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: [packages]
     env:
       CI: true

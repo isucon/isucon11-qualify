@@ -6,3 +6,5 @@ benchmarker:
   - bench/**/*
 infrastructure:
   - provisioning/**/*
+documentation:
+  - development/doc/**/*
