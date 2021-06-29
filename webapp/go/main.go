@@ -1343,14 +1343,14 @@ func getIsuConditions(c echo.Context) error {
 	conditions := []IsuCondition{}
 	if startTimeStr == "" {
 		err = db.Select(&conditions,
-			"SELECT * FROM `isu_log` WHERE `jia_isu_uuid` = ?"+
+			"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ?"+
 				"	AND `timestamp` < ?"+
 				"	ORDER BY `timestamp` DESC",
 			jiaIsuUUID, cursorEndTime,
 		)
 	} else {
 		err = db.Select(&conditions,
-			"SELECT * FROM `isu_log` WHERE `jia_isu_uuid` = ?"+
+			"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ?"+
 				"	AND `timestamp` < ?"+
 				"	AND ? <= `timestamp`"+
 				"	ORDER BY `timestamp` DESC",
@@ -1451,9 +1451,9 @@ func postIsuCondition(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusNotFound, "isu not found")
 	}
 
-	//isu_logに記録
+	//isu_conditionに記録
 	//confilct確認
-	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu_log` WHERE (`timestamp`, `jia_isu_uuid`) = (?, ?)  FOR UPDATE", //TODO: 記法の統一
+	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu_condition` WHERE (`timestamp`, `jia_isu_uuid`) = (?, ?)  FOR UPDATE", //TODO: 記法の統一
 		timestamp, jiaIsuUUID,
 	)
 	if err != nil {
@@ -1461,10 +1461,10 @@ func postIsuCondition(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 	if count != 0 {
-		return echo.NewHTTPError(http.StatusConflict, "isu_log already exist")
+		return echo.NewHTTPError(http.StatusConflict, "isu_condition already exist")
 	}
 	//insert
-	_, err = tx.Exec("INSERT INTO `isu_log`"+
+	_, err = tx.Exec("INSERT INTO `isu_condition`"+
 		"	(`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`) VALUES (?, ?, ?, ?, ?)",
 		jiaIsuUUID, timestamp, request.IsSitting, request.Condition, request.Message,
 	)
@@ -1496,7 +1496,7 @@ func updateGraph(tx *sqlx.Tx, jiaIsuUUID string) error {
 	IsuConditionCluster := []IsuCondition{} // 一時間ごとの纏まり
 	var tmpIsuCondition IsuCondition
 	valuesForUpdate := []interface{}{} //3個1組、更新するgraphの各行のデータ
-	rows, err := tx.Queryx("SELECT * FROM `isu_log` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` ASC", jiaIsuUUID)
+	rows, err := tx.Queryx("SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` ASC", jiaIsuUUID)
 	if err != nil {
 		return err
 	}
