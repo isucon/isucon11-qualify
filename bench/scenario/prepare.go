@@ -5,6 +5,7 @@ package scenario
 
 import (
 	"context"
+	"net/http"
 	"time"
 
 	"github.com/isucon/isucandar"
@@ -67,7 +68,7 @@ func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.Benchma
 			step.AddError(failure.NewError(ErrCritical, err))
 			return
 		}
-		switch index {
+		switch index % 10 {
 		default:
 			//ログイン成功
 			_, errs := authAction(ctx, agt, userID)
@@ -111,15 +112,12 @@ func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.Benchma
 				step.AddError(err)
 			}
 		case 5:
-			//jia_user_id is missing, StatusBadRequest
-			//TODO:
-		case 6:
 			//not jwt, StatusForbidden
 			errs := authActionWithForbiddenJWT(ctx, agt, "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.")
 			for _, err := range errs {
 				step.AddError(err)
 			}
-		case 7:
+		case 6:
 			//偽装されたjwt, StatusForbidden
 			userID2, err := model.MakeRandomUserID()
 			if err != nil {
@@ -135,9 +133,31 @@ func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.Benchma
 			for _, err := range errs {
 				step.AddError(err)
 			}
+		case 7:
+			//jia_user_id is missing, StatusBadRequest
+			jwtNoData, err := service.GenerateJWTWithNoData(time.Now())
+			if err != nil {
+				step.AddError(failure.NewError(ErrCritical, err))
+				return
+			}
+			errs := authActionWithInvalidJWT(ctx, agt, jwtNoData, http.StatusBadRequest, "invalid JWT payload")
+			for _, err := range errs {
+				step.AddError(err)
+			}
+		case 8:
+			//jwt with invalid data type, StatusBadRequest
+			jwtInvalidDataType, err := service.GenerateJWTWithInvalidType(userID, time.Now())
+			if err != nil {
+				step.AddError(failure.NewError(ErrCritical, err))
+				return
+			}
+			errs := authActionWithInvalidJWT(ctx, agt, jwtInvalidDataType, http.StatusBadRequest, "invalid JWT payload")
+			for _, err := range errs {
+				step.AddError(err)
+			}
 		}
 
-	}, worker.WithLoopCount(10))
+	}, worker.WithLoopCount(20))
 
 	if err != nil {
 		return failure.NewError(ErrCritical, err)

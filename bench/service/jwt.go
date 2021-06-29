@@ -30,7 +30,6 @@ func init() {
 
 // 認証に利用する JWT トークンを生成して返す。
 func GenerateJWT(userID string, issuedAt time.Time) (string, error) {
-	const lifetime = 30 * time.Second
 	token := jwt.NewWithClaims(jwt.SigningMethodES256, jwt.MapClaims{
 		"jia_user_id": userID,
 		"iat":         issuedAt.Unix(),
@@ -75,7 +74,6 @@ func GenerateHS256JWT(userID string, issuedAt time.Time) (string, error) {
 
 //偽装したJWTを生成する
 func GenerateTamperedJWT(userID1 string, userID2 string, issuedAt time.Time) (string, error) {
-	const lifetime = 30 * time.Second
 	token := jwt.NewWithClaims(jwt.SigningMethodES256, jwt.MapClaims{
 		"jia_user_id": userID1,
 		"iat":         issuedAt.Unix(),
@@ -91,4 +89,25 @@ func GenerateTamperedJWT(userID1 string, userID2 string, issuedAt time.Time) (st
 	claims2 := base64.StdEncoding.EncodeToString([]byte(claims2Str))
 	jwtSep := strings.Split(jwt, ".")
 	return jwtSep[0] + "." + claims2 + "." + jwtSep[2], nil
+}
+
+//jia_user_idの無いJWTを生成する
+func GenerateJWTWithNoData(issuedAt time.Time) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodES256, jwt.MapClaims{
+		"iat": issuedAt.Unix(),
+		"exp": issuedAt.Add(lifetime).Unix(),
+	})
+
+	return token.SignedString(jwtSecretKey)
+}
+
+//jia_user_idの型がstringでないJWTを生成する
+func GenerateJWTWithInvalidType(userID string, issuedAt time.Time) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodES256, jwt.MapClaims{
+		"jia_user_id": []interface{}{userID, issuedAt.Unix()},
+		"iat":         issuedAt.Unix(),
+		"exp":         issuedAt.Add(lifetime).Unix(),
+	})
+
+	return token.SignedString(jwtSecretKey)
 }

@@ -123,7 +123,7 @@ func authAction(ctx context.Context, a *agent.Agent, userID string) (*service.Au
 	return authResponse, errors
 }
 
-func authActionWithForbiddenJWT(ctx context.Context, a *agent.Agent, invalidJWT string) []error {
+func authActionWithInvalidJWT(ctx context.Context, a *agent.Agent, invalidJWT string, expectedCode int, expectedBody string) []error {
 	errors := []error{}
 
 	//リクエスト
@@ -143,19 +143,24 @@ func authActionWithForbiddenJWT(ctx context.Context, a *agent.Agent, invalidJWT 
 	defer res.Body.Close()
 
 	//httpリクエストの検証
-	err = verifyStatusCode(res, http.StatusForbidden)
+	err = verifyStatusCode(res, expectedCode)
 	if err != nil {
 		errors = append(errors, err)
 		return errors
 	}
 
 	//データの検証
-	const expected = "forbidden"
 	responseBody, _ := ioutil.ReadAll(res.Body)
-	if string(responseBody) != expected {
-		err = errorMissmatch(res, "エラーメッセージが不正確です: `%s` (expected: `%s`)", string(responseBody), expected)
+	if string(responseBody) != expectedBody {
+		err = errorMissmatch(res, "エラーメッセージが不正確です: `%s` (expected: `%s`)", string(responseBody), expectedBody)
 		errors = append(errors, err)
 	}
 
 	return errors
+}
+
+//auth utlity
+
+func authActionWithForbiddenJWT(ctx context.Context, a *agent.Agent, invalidJWT string) []error {
+	return authActionWithInvalidJWT(ctx, a, invalidJWT, http.StatusForbidden, "forbidden")
 }
