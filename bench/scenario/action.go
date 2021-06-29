@@ -13,16 +13,20 @@ package scenario
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"time"
 
 	"github.com/isucon/isucandar/agent"
 	"github.com/isucon/isucandar/failure"
+	"github.com/isucon/isucon11-qualify/bench/model"
 	"github.com/isucon/isucon11-qualify/bench/service"
 )
 
 //Action
+
+// ==============================initialize==============================
 
 func initializeAction(ctx context.Context, a *agent.Agent) (*service.InitializeResponse, []error) {
 	errors := []error{}
@@ -68,6 +72,8 @@ func initializeAction(ctx context.Context, a *agent.Agent) (*service.InitializeR
 
 	return initializeResponse, errors
 }
+
+// ==============================authAction==============================
 
 func authAction(ctx context.Context, a *agent.Agent, userID string) (*service.AuthResponse, []error) {
 	errors := []error{}
@@ -196,6 +202,70 @@ func authActionWithoutJWT(ctx context.Context, a *agent.Agent) []error {
 }
 
 //auth utlity
+
+const authActionErrorNum = 8 //authActionErrorが何種類のエラーを持っているか
+
+//正しく失敗するか確認するAction
+func authActionError(ctx context.Context, agt *agent.Agent, userID string, errorType int) []error {
+	switch errorType % authActionErrorNum {
+	case 0:
+		//Unexpected signing method, StatusForbidden
+		jwtHS256, err := service.GenerateHS256JWT(userID, time.Now())
+		if err != nil {
+			return []error{failure.NewError(ErrCritical, err)}
+		}
+		return authActionWithForbiddenJWT(ctx, agt, jwtHS256)
+	case 1:
+		//expired, StatusForbidden
+		jwtExpired, err := service.GenerateJWT(userID, time.Now().Add(-365*24*time.Hour))
+		if err != nil {
+			return []error{failure.NewError(ErrCritical, err)}
+		}
+		return authActionWithForbiddenJWT(ctx, agt, jwtExpired)
+	case 2:
+		//jwt is missing, StatusForbidden
+		return authActionWithoutJWT(ctx, agt)
+	case 3:
+		//invalid private key, StatusForbidden
+		jwtDummyKey, err := service.GenerateDummyJWT(userID, time.Now())
+		if err != nil {
+			return []error{failure.NewError(ErrCritical, err)}
+		}
+		return authActionWithForbiddenJWT(ctx, agt, jwtDummyKey)
+	case 4:
+		//not jwt, StatusForbidden
+		return authActionWithForbiddenJWT(ctx, agt, "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.")
+	case 5:
+		//偽装されたjwt, StatusForbidden
+		userID2, err := model.MakeRandomUserID()
+		if err != nil {
+			return []error{failure.NewError(ErrCritical, err)}
+		}
+		jwtTampered, err := service.GenerateTamperedJWT(userID, userID2, time.Now())
+		if err != nil {
+			return []error{failure.NewError(ErrCritical, err)}
+		}
+		return authActionWithForbiddenJWT(ctx, agt, jwtTampered)
+	case 6:
+		//jia_user_id is missing, StatusBadRequest
+		jwtNoData, err := service.GenerateJWTWithNoData(time.Now())
+		if err != nil {
+			return []error{failure.NewError(ErrCritical, err)}
+		}
+		return authActionWithInvalidJWT(ctx, agt, jwtNoData, http.StatusBadRequest, "invalid JWT payload")
+	case 7:
+		//jwt with invalid data type, StatusBadRequest
+		jwtInvalidDataType, err := service.GenerateJWTWithInvalidType(userID, time.Now())
+		if err != nil {
+			return []error{failure.NewError(ErrCritical, err)}
+		}
+		return authActionWithInvalidJWT(ctx, agt, jwtInvalidDataType, http.StatusBadRequest, "invalid JWT payload")
+	}
+
+	//ロジック的に到達しないはずだけど念のためエラー処理
+	err := fmt.Errorf("internal bench error @authActionError: errorType=%v", errorType)
+	return []error{failure.NewError(ErrCritical, err)}
+}
 
 func authActionWithForbiddenJWT(ctx context.Context, a *agent.Agent, invalidJWT string) []error {
 	return authActionWithInvalidJWT(ctx, a, invalidJWT, http.StatusForbidden, "forbidden")
