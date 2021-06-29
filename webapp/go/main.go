@@ -162,13 +162,13 @@ type GraphResponse struct {
 }
 
 type GetIsuConditionResponse struct {
-	JIAIsuUUID     string    `json:"jia_isu_uuid"`
-	IsuName        string    `json:"isu_name"`
-	Timestamp      time.Time `json:"timestamp"`
-	IsSitting      bool      `json:"is_sitting"`
-	Condition      string    `json:"condition"`
-	ConditionLevel string    `json:"condition_level"`
-	Message        string    `json:"message"`
+	JIAIsuUUID     string `json:"jia_isu_uuid"`
+	IsuName        string `json:"isu_name"`
+	Timestamp      int64  `json:"timestamp"`
+	IsSitting      bool   `json:"is_sitting"`
+	Condition      string `json:"condition"`
+	ConditionLevel string `json:"condition_level"`
+	Message        string `json:"message"`
 }
 
 type PostIsuConditionRequest struct {
@@ -1134,7 +1134,7 @@ func getAllIsuConditions(c echo.Context) error {
 	}
 	cursor := &GetIsuConditionResponse{
 		JIAIsuUUID: cursorJIAIsuUUID,
-		Timestamp:  cursorEndTime,
+		Timestamp:  cursorEndTime.Unix(),
 	}
 	conditionLevel := c.QueryParam("condition_level")
 	if conditionLevel == "" {
@@ -1265,10 +1265,10 @@ func getIsuConditionsFromLocalhost(
 func conditionGreaterThan(left *GetIsuConditionResponse, right *GetIsuConditionResponse) bool {
 	//(`timestamp`, `jia_isu_uuid`)のペアを辞書順に比較
 
-	if left.Timestamp.After(right.Timestamp) {
+	if left.Timestamp > right.Timestamp {
 		return true
 	}
-	if left.Timestamp.Equal(right.Timestamp) {
+	if left.Timestamp == right.Timestamp {
 		return left.JIAIsuUUID > right.JIAIsuUUID
 	}
 	return false
@@ -1386,7 +1386,7 @@ func getIsuConditions(c echo.Context) error {
 			data := GetIsuConditionResponse{
 				JIAIsuUUID:     c.JIAIsuUUID,
 				IsuName:        isuName,
-				Timestamp:      c.Timestamp,
+				Timestamp:      c.Timestamp.Unix(),
 				IsSitting:      c.IsSitting,
 				Condition:      c.Condition,
 				ConditionLevel: cLevel,
