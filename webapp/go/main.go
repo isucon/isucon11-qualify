@@ -1321,10 +1321,11 @@ func getIsuConditions(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "jia_isu_uuid is missing")
 	}
 	//required query param
-	cursorEndTime, err := time.Parse(conditionTimestampFormat, c.QueryParam("cursor_end_time"))
+	cursorEndTimeInt64, err := strconv.ParseInt(c.QueryParam("cursor_end_time"), 10, 64)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "bad format: cursor_end_time")
 	}
+	cursorEndTime := time.Unix(cursorEndTimeInt64, 0)
 	conditionLevelCSV := c.QueryParam("condition_level")
 	if conditionLevelCSV == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "condition_level is missing")
@@ -1337,10 +1338,11 @@ func getIsuConditions(c echo.Context) error {
 	startTimeStr := c.QueryParam("start_time")
 	var startTime time.Time
 	if startTimeStr != "" {
-		startTime, err = time.Parse(conditionTimestampFormat, startTimeStr)
+		startTimeInt64, err := strconv.ParseInt(startTimeStr, 10, 64)
 		if err != nil {
 			return echo.NewHTTPError(http.StatusBadRequest, "bad format: start_time")
 		}
+		startTime = time.Unix(startTimeInt64, 0)
 	}
 	limitStr := c.QueryParam("limit")
 	limit := conditionLimit
