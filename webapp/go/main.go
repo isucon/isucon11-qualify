@@ -175,7 +175,7 @@ type PostIsuConditionRequest struct {
 	IsSitting bool   `json:"is_sitting"`
 	Condition string `json:"condition"`
 	Message   string `json:"message"`
-	Timestamp string `json:"timestamp"` //Format("2006-01-02 15:04:05 -0700")
+	Timestamp int64  `json:"timestamp"`
 }
 
 type JIAServiceRequest struct {
@@ -1453,11 +1453,7 @@ func postIsuCondition(c echo.Context) error {
 	}
 
 	//Parse
-	timestampInt64, err := strconv.ParseInt(request.Timestamp, 10, 64)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid timestamp")
-	}
-	timestamp := time.Unix(timestampInt64, 0)
+	timestamp := time.Unix(request.Timestamp, 0)
 	if !conditionFormat.Match([]byte(request.Condition)) {
 		return echo.NewHTTPError(http.StatusBadRequest, "bad request body")
 	}
