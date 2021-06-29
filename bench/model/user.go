@@ -15,6 +15,8 @@ const (
 )
 
 //基本的には一つのシナリオスレッドが一つのユーザーを占有する
+//=>Isuの追加操作と、参照操作が同時に必要になる場面は無いはずなので、
+//  IsuListのソートは追加が終わってからソートすれば良い
 type User struct {
 	Mutex                   sync.Mutex
 	UserID                  string `json:"jia_user_id"`
