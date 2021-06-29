@@ -1,6 +1,7 @@
 import { BrowserRouter, Switch, Route } from 'react-router-dom'
 import PageHeader from './components/PageHeader/PageHeader'
 import Auth from './pages/Auth'
+import Condition from './pages/Condition'
 import IsuRoot from './pages/IsuRoot'
 import Register from './pages/Register'
 import GuardedRoute from './router/GuardedRoute'
@@ -14,7 +15,7 @@ const App = () => {
           <Switch>
             <GuardedRoute path="/" exact></GuardedRoute>
             <GuardedRoute path="/condition" exact>
-              <div>通知画面</div>
+              <Condition />
             </GuardedRoute>
             <GuardedRoute path="/search" exact>
               <div>検索画面</div>
