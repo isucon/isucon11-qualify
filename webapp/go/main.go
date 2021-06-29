@@ -35,7 +35,6 @@ const (
 	conditionLimit          = 20
 	notificationLimit       = 20
 	isuListLimit            = 200 // TODO 修正が必要なら変更
-	graphDateFormat         = "2006-01-02+07:00"
 	jwtVerificationKeyPath  = "../ec256-public.pem"
 	defaultIconFilePath     = "../NoImage.png"
 	DefaultJIAServiceURL    = "http://localhost:5000"
@@ -1056,10 +1055,11 @@ func getIsuGraph(c echo.Context) error {
 	if dateStr == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "date is required")
 	}
-	date, err := time.Parse(graphDateFormat, dateStr)
+	dateInt64, err := strconv.ParseInt(dateStr, 10, 64)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "date is invalid format")
 	}
+	date := time.Unix(dateInt64, 0)
 
 	tx, err := db.Beginx()
 	if err != nil {
