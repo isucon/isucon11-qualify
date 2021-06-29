@@ -102,11 +102,11 @@ type Catalog struct {
 
 type IsuLog struct {
 	JIAIsuUUID string    `db:"jia_isu_uuid" json:"jia_isu_uuid"`
-	Timestamp  time.Time `db:"timestamp" json:"timestamp"` // FIXME
+	Timestamp  time.Time `db:"timestamp" json:"timestamp"`
 	IsSitting  bool      `db:"is_sitting" json:"is_sitting"`
 	Condition  string    `db:"condition" json:"condition"`
 	Message    string    `db:"message" json:"message"`
-	CreatedAt  time.Time `db:"created_at" json:"created_at"` // FIXME
+	CreatedAt  time.Time `db:"created_at" json:"created_at"`
 }
 
 //グラフ表示用  一時間のsummry 詳細
@@ -119,15 +119,15 @@ type GraphData struct {
 //グラフ表示用  一時間のsummry
 type Graph struct {
 	JIAIsuUUID string    `db:"jia_isu_uuid"`
-	StartAt    time.Time `db:"start_at"` // FIXME
+	StartAt    time.Time `db:"start_at"`
 	Data       string    `db:"data"`
-	CreatedAt  time.Time `db:"created_at"` // FIXME
-	UpdatedAt  time.Time `db:"updated_at"` // FIXME
+	CreatedAt  time.Time `db:"created_at"`
+	UpdatedAt  time.Time `db:"updated_at"`
 }
 
 type User struct {
 	JIAUserID string    `db:"jia_user_id"`
-	CreatedAt time.Time `db:"created_at"` // FIXME
+	CreatedAt time.Time `db:"created_at"`
 }
 
 type MySQLConnectionEnv struct {
