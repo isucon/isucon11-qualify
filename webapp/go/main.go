@@ -156,8 +156,8 @@ type PutIsuRequest struct {
 }
 
 type GraphResponse struct {
-	StartAt time.Time  `json:"start_at"` // FIXME
-	EndAt   time.Time  `json:"end_at"`   // FIXME
+	StartAt int64      `json:"start_at"` // FIXME
+	EndAt   int64      `json:"end_at"`   // FIXME
 	Data    *GraphData `json:"data"`
 }
 
@@ -1081,8 +1081,8 @@ func getIsuGraph(c echo.Context) error {
 		}
 
 		graphResponse := GraphResponse{
-			StartAt: tmpTime,
-			EndAt:   tmpTime.Add(time.Hour),
+			StartAt: tmpTime.Unix(),
+			EndAt:   tmpTime.Add(time.Hour).Unix(),
 			Data:    data,
 		}
 		res = append(res, graphResponse)
