@@ -102,7 +102,7 @@ type Catalog struct {
 	Tags         string `json:"tags"`
 }
 
-type IsuLog struct {
+type IsuCondition struct {
 	JIAIsuUUID string    `db:"jia_isu_uuid" json:"jia_isu_uuid"`
 	Timestamp  time.Time `db:"timestamp" json:"timestamp"`
 	IsSitting  bool      `db:"is_sitting" json:"is_sitting"`
@@ -1340,7 +1340,7 @@ func getIsuConditions(c echo.Context) error {
 	}
 
 	// 対象isu_idの通知を取得(limit, cursorで絞り込み）
-	conditions := []IsuLog{}
+	conditions := []IsuCondition{}
 	if startTimeStr == "" {
 		err = db.Select(&conditions,
 			"SELECT * FROM `isu_log` WHERE `jia_isu_uuid` = ?"+
@@ -1492,9 +1492,9 @@ func postIsuCondition(c echo.Context) error {
 
 // getGraph用のデータを計算し、DBを更新する
 func updateGraph(tx *sqlx.Tx, jiaIsuUUID string) error {
-	// IsuLogを一時間ごとの区切りに分け、区切りごとにスコアを計算する
-	isuLogCluster := []IsuLog{} // 一時間ごとの纏まり
-	var tmpIsuLog IsuLog
+	// IsuConditionを一時間ごとの区切りに分け、区切りごとにスコアを計算する
+	IsuConditionCluster := []IsuCondition{} // 一時間ごとの纏まり
+	var tmpIsuCondition IsuCondition
 	valuesForUpdate := []interface{}{} //3個1組、更新するgraphの各行のデータ
 	rows, err := tx.Queryx("SELECT * FROM `isu_log` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` ASC", jiaIsuUUID)
 	if err != nil {
@@ -1503,15 +1503,15 @@ func updateGraph(tx *sqlx.Tx, jiaIsuUUID string) error {
 	//一時間ごとに区切る
 	var startTime time.Time
 	for rows.Next() {
-		err = rows.StructScan(&tmpIsuLog)
+		err = rows.StructScan(&tmpIsuCondition)
 		if err != nil {
 			return err
 		}
-		tmpTime := truncateAfterHours(tmpIsuLog.Timestamp)
+		tmpTime := truncateAfterHours(tmpIsuCondition.Timestamp)
 		if startTime != tmpTime {
-			if len(isuLogCluster) > 0 {
+			if len(IsuConditionCluster) > 0 {
 				//tmpTimeは次の一時間なので、それ以外を使ってスコア計算
-				data, err := calculateGraphData(isuLogCluster)
+				data, err := calculateGraphData(IsuConditionCluster)
 				if err != nil {
 					return fmt.Errorf("failed to calculate graph: %v", err)
 				}
@@ -1520,13 +1520,13 @@ func updateGraph(tx *sqlx.Tx, jiaIsuUUID string) error {
 
 			//次の一時間の探索
 			startTime = tmpTime
-			isuLogCluster = []IsuLog{}
+			IsuConditionCluster = []IsuCondition{}
 		}
-		isuLogCluster = append(isuLogCluster, tmpIsuLog)
+		IsuConditionCluster = append(IsuConditionCluster, tmpIsuCondition)
 	}
-	if len(isuLogCluster) > 0 {
+	if len(IsuConditionCluster) > 0 {
 		//最後の一時間分
-		data, err := calculateGraphData(isuLogCluster)
+		data, err := calculateGraphData(IsuConditionCluster)
 		if err != nil {
 			return fmt.Errorf("failed to calculate graph: %v", err)
 		}
@@ -1554,17 +1554,17 @@ func truncateAfterHours(t time.Time) time.Time {
 }
 
 //スコア計算をする関数
-func calculateGraphData(isuLogCluster []IsuLog) ([]byte, error) {
+func calculateGraphData(IsuConditionCluster []IsuCondition) ([]byte, error) {
 	graph := &GraphData{}
 
 	//sitting
 	sittingCount := 0
-	for _, log := range isuLogCluster {
+	for _, log := range IsuConditionCluster {
 		if log.IsSitting {
 			sittingCount++
 		}
 	}
-	graph.Sitting = sittingCount * 100 / len(isuLogCluster)
+	graph.Sitting = sittingCount * 100 / len(IsuConditionCluster)
 
 	//score&detail
 	graph.Score = 100
@@ -1573,7 +1573,7 @@ func calculateGraphData(isuLogCluster []IsuLog) ([]byte, error) {
 	for key := range scorePerCondition {
 		graph.Detail[key] = 0
 	}
-	for _, log := range isuLogCluster {
+	for _, log := range IsuConditionCluster {
 		conditions := map[string]bool{}
 		//DB上にある is_dirty=true/false,is_overweight=true/false,... 形式のデータを
 		//map[string]bool形式に変換
@@ -1603,8 +1603,8 @@ func calculateGraphData(isuLogCluster []IsuLog) ([]byte, error) {
 		}
 	}
 	//個数減点
-	if len(isuLogCluster) < 50 {
-		minus := -(50 - len(isuLogCluster)) * 2
+	if len(IsuConditionCluster) < 50 {
+		minus := -(50 - len(IsuConditionCluster)) * 2
 		graph.Score += minus
 		graph.Detail["missing_data"] = minus
 	}
