@@ -21,9 +21,8 @@ type User struct {
 	Mutex                   sync.Mutex
 	UserID                  string `json:"jia_user_id"`
 	Type                    UserType
-	IsuList                 []Isu
-	IsuListOrderByCreatedAt []*Isu //CreatedAtは厳密にはわからないので、postした後にgetをした順番を正とする
-	IsuListByID             []*Isu //IDソート
+	IsuListOrderByCreatedAt []*Isu          //CreatedAtは厳密にはわからないので、postした後にgetをした順番を正とする
+	IsuListByID             map[string]*Isu //IDをkeyにアクセス
 	//ここで[]IsuLogを持つと更新にmutexが必要で嫌なので持たない
 }
 
