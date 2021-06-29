@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useState } from 'react'
-import ConditionDetail from '../components/Condition/ConditionDetail'
+import Conditions from '../components/Condition/Conditions'
 import SearchInputs from '../components/Condition/SearchInputs'
 import Card from '../components/UI/Card'
 import apis, { Condition } from '../lib/apis'
@@ -27,9 +27,7 @@ const ConditionComponent = () => {
         <div className="flex flex-col gap-2">
           <h2 className="text-xl font-bold">Condition</h2>
           <SearchInputs />
-          {conditions.map((cond, i) => (
-            <ConditionDetail condition={cond} key={i} />
-          ))}
+          <Conditions conditions={conditions} />
         </div>
       </Card>
     </div>
