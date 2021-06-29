@@ -99,7 +99,10 @@ func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.Benchma
 			}
 		case 3:
 			//jwt is missing, StatusForbidden
-			//TODO:
+			errs := authActionWithoutJWT(ctx, agt)
+			for _, err := range errs {
+				step.AddError(err)
+			}
 		case 4:
 			//invalid private key, StatusForbidden
 			jwtDummyKey, err := service.GenerateDummyJWT(userID, time.Now())

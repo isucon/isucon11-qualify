@@ -159,6 +159,42 @@ func authActionWithInvalidJWT(ctx context.Context, a *agent.Agent, invalidJWT st
 	return errors
 }
 
+func authActionWithoutJWT(ctx context.Context, a *agent.Agent) []error {
+	errors := []error{}
+
+	//リクエスト
+	req, err := a.POST("/api/auth", nil)
+	if err != nil {
+		err = failure.NewError(ErrCritical, err)
+		errors = append(errors, err)
+		return errors
+	}
+	res, err := a.Do(ctx, req)
+	if err != nil {
+		err = failure.NewError(ErrHTTP, err)
+		errors = append(errors, err)
+		return errors
+	}
+	defer res.Body.Close()
+
+	//httpリクエストの検証
+	err = verifyStatusCode(res, http.StatusForbidden)
+	if err != nil {
+		errors = append(errors, err)
+		return errors
+	}
+
+	//データの検証
+	const expectedBody = "forbidden"
+	responseBody, _ := ioutil.ReadAll(res.Body)
+	if string(responseBody) != expectedBody {
+		err = errorMissmatch(res, "エラーメッセージが不正確です: `%s` (expected: `%s`)", string(responseBody), expectedBody)
+		errors = append(errors, err)
+	}
+
+	return errors
+}
+
 //auth utlity
 
 func authActionWithForbiddenJWT(ctx context.Context, a *agent.Agent, invalidJWT string) []error {
