@@ -71,8 +71,8 @@ class Apis {
     return data
   }
 
-  async getConditions() {
-    const { data } = await axios.get<Condition[]>(`/api/condition`)
+  async getConditions(req: ConditionRequest) {
+    const { data } = await axios.get<Condition[]>(`/api/condition`, { params: req})
     return data
   }
 
@@ -154,6 +154,16 @@ export interface Condition {
   condition: string
   condition_level: string
   message: string
+}
+
+export interface ConditionRequest {
+  // TODO: unixタイムにする
+  start_time?: Date
+  // TODO: unixタイムにする
+  cursor_end_time: Date
+  cursor_jia_isu_uuid: string
+  // critical,warning,info をカンマ区切りで取り扱う
+  condition_level: string
 }
 
 // TODO: 作問の開発用、消す
