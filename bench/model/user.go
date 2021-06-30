@@ -2,7 +2,6 @@ package model
 
 import (
 	"math/rand"
-	"sync"
 )
 
 //enum
@@ -18,13 +17,14 @@ const (
 //=>Isuの追加操作と、参照操作が同時に必要になる場面は無いはずなので、
 //  IsuListのソートは追加が終わってからソートすれば良い
 type User struct {
-	Mutex                   sync.Mutex
 	UserID                  string `json:"jia_user_id"`
 	Type                    UserType
 	IsuListOrderByCreatedAt []*Isu          //CreatedAtは厳密にはわからないので、postした後にgetをした順番を正とする
 	IsuListByID             map[string]*Isu //IDをkeyにアクセス
 	//ここで[]IsuLogを持つと更新にmutexが必要で嫌なので持たない
 }
+
+//
 
 // utility
 
