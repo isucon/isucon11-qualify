@@ -4,6 +4,7 @@ import SubHeader from '../components/Isu/SubHeader'
 import NowLoading from '../components/UI/NowLoading'
 import apis, { Isu } from '../lib/apis'
 import GuardedRoute from '../router/GuardedRoute'
+import IsuCondition from './IsuCondition'
 import IsuDetail from './IsuDetail'
 
 const IsuRoot = () => {
@@ -24,9 +25,7 @@ const IsuRoot = () => {
     <div>
       <SubHeader isu={isu} />
       <div className="p-10">
-        <Switch>
-          <DefineRoutes isu={isu} setIsu={setIsu} />
-        </Switch>
+        <DefineRoutes isu={isu} setIsu={setIsu} />
       </div>
     </div>
   )
@@ -39,9 +38,14 @@ const DefineRoutes = ({
   isu: Isu
   setIsu: React.Dispatch<React.SetStateAction<Isu | null>>
 }) => (
-  <GuardedRoute path="/isu/:id" exact>
-    <IsuDetail isu={isu} setIsu={setIsu} />
-  </GuardedRoute>
+  <Switch>
+    <GuardedRoute path="/isu/:id" exact>
+      <IsuDetail isu={isu} setIsu={setIsu} />
+    </GuardedRoute>
+    <GuardedRoute path="/isu/:id/condition" exact>
+      <IsuCondition isu={isu} setIsu={setIsu} />
+    </GuardedRoute>
+  </Switch>
 )
 
 export default IsuRoot
