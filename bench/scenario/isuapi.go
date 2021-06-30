@@ -19,6 +19,8 @@ var (
 	isuPosterMutex sync.Mutex
 	isuIsActivated = map[string]IsuAPI2PosterData{}
 	isuPosterData  = map[string]*model.IsuPosterChan{}
+
+	isuAPIContext context.Context
 )
 
 type IsuConditionPosterRequest struct {
@@ -41,6 +43,8 @@ func RegisterToIsuAPI(data *model.IsuPosterChan) {
 }
 
 func IsuAPIThread(ctx context.Context, step *isucandar.BenchmarkStep) {
+
+	isuAPIContext = ctx
 
 	// Echo instance
 	e := echo.New()
@@ -82,32 +86,33 @@ func getCatalog(c echo.Context) error {
 }
 
 func postActivate(c echo.Context) error {
-	//state := &IsuConditionPosterRequest{}
-	// err := c.Bind(state)
-	// if err != nil {
-	// 	c.Logger().Errorf("failed to bind: %v", err)
-	// 	return echo.NewHTTPError(http.StatusBadRequest)
-	// }
-	// if !(0 <= state.TargetPort && state.TargetPort < 0x1000) {
-	// 	c.Logger().Errorf("bad port: %v", state.TargetPort)
-	// 	return echo.NewHTTPError(http.StatusBadRequest)
-	// }
+	state := &IsuConditionPosterRequest{}
+	err := c.Bind(state)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest)
+	}
+	if !(0 <= state.TargetPort && state.TargetPort < 0x1000) {
+		return echo.NewHTTPError(http.StatusBadRequest)
+	}
+	targetURL := fmt.Sprintf(
+		"http://%s:%d/api/isu/%s/condition",
+		state.TargetIP, state.TargetPort, state.IsuUUID,
+	)
 
-	// isuState, ok := validIsu[state.IsuUUID]
-	// if !ok {
-	// 	c.Logger().Errorf("bad isu_uuid: %v", state.IsuUUID)
-	// 	return echo.NewHTTPError(http.StatusNotFound)
-	// }
-	// if !isPrivateIP(state.TargetIP) {
-	// 	c.Logger().Errorf("bad ip: %v", state.TargetIP)
-	// 	return echo.NewHTTPError(http.StatusForbidden)
-	// }
+	postingContext, chancelFunc := context.WithCancel(isuAPIContext)
 
-	// err = state.startPosting()
-	// if err != nil {
-	// 	c.Logger().Errorf("failed to startPosting: %v", err)
-	// 	return echo.NewHTTPError(http.StatusInternalServerError)
-	// }
+	func() {
+		isuPosterMutex.Lock()
+		defer isuPosterMutex.Unlock()
+		v, ok := isuIsActivated[state.IsuUUID]
+		if ok && v.activated {
+			return echo.NewHTTPError(http.StatusNotFound)
+		}
+		v.activated = true
+		v.chancelFunc = chancelFunc
+
+		go KeepPosting(postingContext, targetURL, scenarioChan)
+	}()
 
 	//return c.JSON(http.StatusAccepted, isuState)
 	//TODO:
