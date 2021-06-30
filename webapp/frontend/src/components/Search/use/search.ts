@@ -20,6 +20,7 @@ const useSearch = () => {
       params.page = '1'
       setIsus(await apis.getIsuSearch(params))
       setQuery(query)
+      setPage(1)
     } catch (e) {
       alert(e)
     }
