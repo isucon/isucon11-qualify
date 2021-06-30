@@ -165,13 +165,59 @@ paths:
       tags: [backend]
       summary: '/api/isu/search'
       description: '自分の ISU を検索'
+      parameters:
+        - name: name
+          in: query
+          required: false
+          description: ISUの名前
+          schema: 
+            type: string
+        - name: character
+          in: query
+          required: false
+          description: ISUの性格
+          schema: 
+            type: string
+        - name: catalog_name
+          in: query
+          required: false
+          description: JIAのカタログ上の名前
+          schema: 
+            type: string
+        - name: min_limit_weight
+          in: query
+          required: false
+          description: 耐荷重の下限
+          schema: 
+            type: integer
+        - name: max_limit_weight
+          in: query
+          required: false
+          description: 耐荷重の上限
+          schema: 
+            type: integer
+        - name: catalog_tags
+          in: query
+          required: false
+          description: カタログ上の付加情報
+          schema: 
+            type: string
+        - name: page
+          in: query
+          required: false
+          description: ページ番号
+          schema: 
+            type: integer
+
       responses:
         '200':
-          description: ''
+          description: '検索条件に一致したISUのリスト'
           content:
             application/json:
               schema:
-                type: 'boolean'
+                $ref:  "#/components/schemas/IsuList"
+        '400':
+          $ref:  "#/components/schemas/BadRequestError"
 
 
   /api/isu/{jia_isu_uuid}:
