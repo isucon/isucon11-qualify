@@ -32,7 +32,7 @@
   become_user: root
   group:
     name: isucon-admin
-    gid: 1100
+    gid: 1200
     state: present
     system: no
 
@@ -40,7 +40,7 @@
   become_user: root
   user:
     name: isucon-admin
-    uid: 1100
+    uid: 1200
     group: isucon-admin
     password: $1$SALTsalt$e7jg2tj3sKVpmYXXmivBb0
     home: /home/isucon-admin
