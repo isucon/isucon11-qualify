@@ -2,8 +2,10 @@ package models
 
 import (
 	"fmt"
+	"log"
 	"time"
 
+	"github.com/isucon/isucon11-qualify/extra/initial-data/graph"
 	"github.com/isucon/isucon11-qualify/extra/initial-data/random"
 )
 
@@ -45,6 +47,7 @@ func NewConditionFromLastCondition(c Condition, durationMinute int) Condition {
 }
 
 func (c Condition) Create() error {
+	// INSERT INTO isu_condition
 	condition := fmt.Sprintf("is_dirty=%v,is_overweight=%v,is_broken=%v", c.IsDirty, c.IsOverweight, c.IsBroken)
 	//if _, err := db.Exec("INSERT INTO isu_condition VALUES (?,?,?,?,?,?)",
 	if _, err := db.Exec("INSERT INTO isu_log VALUES (?,?,?,?,?,?)",
@@ -52,6 +55,10 @@ func (c Condition) Create() error {
 	); err != nil {
 		return fmt.Errorf("insert user: %w", err)
 	}
-	return nil
 
+	// INSERT INTO graph
+	if err := graph.UpdateGraph(db, c.Isu.JIAIsuUUID, c.CreatedAt); err != nil {
+		log.Fatal(err)
+	}
+	return nil
 }

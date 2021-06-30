@@ -16,7 +16,8 @@ const (
 )
 
 func init() {
-	rand.Seed(time.Now().UnixNano())
+	t, _ := time.Parse(time.RFC3339, "2021-07-01T00:00:00Z07:00")
+	rand.Seed(t.UnixNano())
 }
 
 func main() {
@@ -47,12 +48,14 @@ func main() {
 			conditionNum = 10
 		}
 
+		// User の所持する Isu 分だけ loop
 		for j := 0; j < isuNum; j++ {
 			isu := models.NewIsu(user)
 			if err := isu.Create(); err != nil {
 				log.Fatal(err)
 			}
 
+			// Isu の Condition 分だけ loop
 			var condition models.Condition
 			for k := 0; k < conditionNum; k++ {
 				if k == 0 {
@@ -61,16 +64,9 @@ func main() {
 					condition = models.NewConditionFromLastCondition(condition, durationMinute)
 				}
 
-				if k != conditionNum-1 {
-					// INSERT condition
-					if err := condition.Create(); err != nil {
-						log.Fatal(err)
-					}
-				} else {
-					// 最後の condition 挿入の場合、Graph を生成するために condition.Create の代わりに POST /api/isu/{jia_isu_uuid}/condition する
-					if err := models.NewGraph(isu).CreateWithCondition(condition); err != nil {
-						log.Fatal(err)
-					}
+				// INSERT condition & graph
+				if err := condition.Create(); err != nil {
+					log.Fatal(err)
 				}
 			}
 
