@@ -5,7 +5,7 @@ import usePaging from './use/paging'
 
 const ConditionCardContent = () => {
   const { conditions, setConditions } = useConditions()
-  const { query, setQuery, times, setTimes, next, prev, page } = usePaging(
+  const { query, times, search, next, prev, page } = usePaging(
     conditions,
     setConditions
   )
@@ -13,12 +13,7 @@ const ConditionCardContent = () => {
   return (
     <div className="flex flex-col gap-2">
       <h2 className="text-xl font-bold">Condition</h2>
-      <SearchInputs
-        query={query}
-        setQuery={setQuery}
-        times={times}
-        setTimes={setTimes}
-      />
+      <SearchInputs query={query} times={times} search={search} />
       <Conditions conditions={conditions} page={page} next={next} prev={prev} />
     </div>
   )

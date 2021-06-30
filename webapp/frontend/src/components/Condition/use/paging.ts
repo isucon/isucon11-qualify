@@ -30,8 +30,13 @@ const usePaging = (
     setConditions(cache[page - 1])
     setPage(page - 1)
   }
+  const search = async (payload: { times: string[]; query: string }) => {
+    setQuery(payload.query)
+    setTimes(payload.times)
+    // setConditions()
+  }
 
-  return { query, setQuery, times, setTimes, page, next, prev }
+  return { query, times, search, page, next, prev }
 }
 
 export default usePaging
