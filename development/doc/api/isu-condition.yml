@@ -83,11 +83,11 @@ paths:
                 required:
                   - "JIAUserId"
                 example:
-                  "JIAUserId": xxxxxx
+                  "JIAUserID": xxxxxx
         '401':
           description: '未ログイン時の操作エラー'
           content:
-            application/json:
+            text/plain:
               schema:
                 $ref:  "#/components/schemas/UnauthorizedError"
 
@@ -99,11 +99,29 @@ paths:
       description: 'JIAにカタログ情報を問い合わせる'
       responses:
         '200':
-          description: ''
+          description: 'JIAから得られたカタログ情報'
           content:
             application/json:
               schema:
-                type: 'boolean'
+                $ref:  "#/components/schemas/Catalog"
+        '400':
+          description: 'JIAのカタログIDが指定されていないエラー'
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/BadRequestError"
+        '401':
+          description: '未ログイン時の操作エラー'
+          content:
+            text/plain:
+              schema:
+                $ref:  "#/components/schemas/UnauthorizedError"
+        '404':
+          description: '指定したIDのJIAカタログが存在しないエラー'
+          content:
+            text/plain:
+              schema:
+                $ref:   "#/components/schemas/NotFoundError"
 
 
   /api/isu:
@@ -288,6 +306,31 @@ components:
     ConflictError:
       type: string
       example: 'Error Message'
+
+    Catalog:
+      type: 'object'
+      properties:
+        jia_catalog_id:
+          type: string
+          description: JIA Catalog ID
+        name:
+          type: string
+          description: Isuの製品名
+        limit_weight:
+          type: integer
+          description: 耐荷重
+        weight:
+          type: integer
+          description: Isuの重さ
+        size:
+          type: string
+          description: Isuのサイズ情報
+        maker:
+          type: string
+          description: Isuのメーカー名
+        tags:
+          type: string
+          description: Isuの付加情報
 
 # #security:
 tags:
