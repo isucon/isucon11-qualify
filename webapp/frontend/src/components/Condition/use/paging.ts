@@ -1,10 +1,22 @@
-import { Dispatch, SetStateAction, useState } from 'react'
-import apis, { Condition, DEFAULT_CONDITION_LIMIT } from '../../../lib/apis'
+import { useEffect, useState } from 'react'
+import { Condition, ConditionRequest, DEFAULT_CONDITION_LIMIT } from '../../../lib/apis'
 
-const usePaging = (
-  conditions: Condition[],
-  setConditions: Dispatch<SetStateAction<Condition[]>>
-) => {
+const usePaging = (getConditions: (req: ConditionRequest) => Promise<Condition[]>) => {
+  const [conditions, setConditions] = useState<Condition[]>([])
+  useEffect(() => {
+    const fetchCondtions = async () => {
+      setConditions(
+        await getConditions({
+          cursor_end_time: new Date(),
+          // 初回fetch時は'z'をセットすることで全件表示させてる
+          cursor_jia_isu_uuid: 'z',
+          condition_level: 'critical,warning,info'
+        })
+      )
+    }
+    fetchCondtions()
+  }, [getConditions, setConditions])
+
   const [query, setQuery] = useState('critical,warning,info')
   const [times, setTimes] = useState(['', ''])
   const [cache, setCache] = useState<Condition[][]>([[]])
@@ -20,7 +32,7 @@ const usePaging = (
     if (!params) {
       return
     }
-    setConditions(await apis.getConditions(params))
+    setConditions(await getConditions(params))
     setPage(page + 1)
   }
   const prev = async () => {
@@ -69,7 +81,7 @@ const usePaging = (
       condition_level: query,
       cursor_jia_isu_uuid: 'z'
     }
-    setConditions(await apis.getConditions(params))
+    setConditions(await getConditions(params))
     setPage(1)
     setCache([[]])
   }
@@ -89,7 +101,7 @@ const usePaging = (
     }
   }
 
-  return { query, times, search, page, next, prev }
+  return { conditions, query, times, search, page, next, prev }
 }
 
 const validateQuery = (query: string) => {

@@ -1,13 +1,11 @@
+import apis from '../../lib/apis'
 import Conditions from './Conditions'
 import SearchInputs from './SearchInputs'
-import useConditions from './use/conditions'
 import usePaging from './use/paging'
 
 const ConditionCardContent = () => {
-  const { conditions, setConditions } = useConditions()
-  const { query, times, search, next, prev, page } = usePaging(
-    conditions,
-    setConditions
+  const { conditions, query, times, search, next, prev, page } = usePaging(
+    apis.getConditions
   )
 
   return (

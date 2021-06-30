@@ -78,9 +78,10 @@ class Apis {
     return data
   }
 
-  async getIsuConditions(jiaIsuUuid: string) {
+  async getIsuConditions(jiaIsuUuid: string, params: ConditionRequest) {
     const { data } = await axios.get<Condition[]>(
-      `/api/condition/${jiaIsuUuid}`
+      `/api/condition/${jiaIsuUuid}`,
+      { params }
     )
     return data
   }
