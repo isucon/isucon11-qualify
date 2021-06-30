@@ -30,17 +30,15 @@ import (
 )
 
 const (
-	sessionName              = "isucondition"
-	searchLimit              = 20
-	conditionLimit           = 20
-	notificationLimit        = 20
-	isuListLimit             = 200          // TODO 修正が必要なら変更
-	conditionTimestampFormat = time.RFC3339 //"2006-01-02T15:04:05Z07:00"
-	graphDateFormat          = "2006-01-02+07:00"
-	jwtVerificationKeyPath   = "../ec256-public.pem"
-	defaultIconFilePath      = "../NoImage.png"
-	DefaultJIAServiceURL     = "http://localhost:5000"
-	DefaultIsuConditionHost  = "localhost"
+	sessionName             = "isucondition"
+	searchLimit             = 20
+	conditionLimit          = 20
+	notificationLimit       = 20
+	isuListLimit            = 200 // TODO 修正が必要なら変更
+	jwtVerificationKeyPath  = "../ec256-public.pem"
+	defaultIconFilePath     = "../NoImage.png"
+	DefaultJIAServiceURL    = "http://localhost:5000"
+	DefaultIsuConditionHost = "localhost"
 )
 
 var scorePerCondition = map[string]int{
@@ -158,26 +156,26 @@ type PutIsuRequest struct {
 }
 
 type GraphResponse struct {
-	StartAt time.Time  `json:"start_at"`
-	EndAt   time.Time  `json:"end_at"`
+	StartAt int64      `json:"start_at"`
+	EndAt   int64      `json:"end_at"`
 	Data    *GraphData `json:"data"`
 }
 
 type GetIsuConditionResponse struct {
-	JIAIsuUUID     string    `json:"jia_isu_uuid"`
-	IsuName        string    `json:"isu_name"`
-	Timestamp      time.Time `json:"timestamp"`
-	IsSitting      bool      `json:"is_sitting"`
-	Condition      string    `json:"condition"`
-	ConditionLevel string    `json:"condition_level"`
-	Message        string    `json:"message"`
+	JIAIsuUUID     string `json:"jia_isu_uuid"`
+	IsuName        string `json:"isu_name"`
+	Timestamp      int64  `json:"timestamp"`
+	IsSitting      bool   `json:"is_sitting"`
+	Condition      string `json:"condition"`
+	ConditionLevel string `json:"condition_level"`
+	Message        string `json:"message"`
 }
 
 type PostIsuConditionRequest struct {
 	IsSitting bool   `json:"is_sitting"`
 	Condition string `json:"condition"`
 	Message   string `json:"message"`
-	Timestamp string `json:"timestamp"` //Format("2006-01-02 15:04:05 -0700")
+	Timestamp int64  `json:"timestamp"`
 }
 
 type JIAServiceRequest struct {
@@ -1031,10 +1029,11 @@ func getIsuGraph(c echo.Context) error {
 	if dateStr == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "date is required")
 	}
-	date, err := time.Parse(graphDateFormat, dateStr)
+	dateInt64, err := strconv.ParseInt(dateStr, 10, 64)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "date is invalid format")
 	}
+	date := time.Unix(dateInt64, 0)
 
 	tx, err := db.Beginx()
 	if err != nil {
@@ -1082,8 +1081,8 @@ func getIsuGraph(c echo.Context) error {
 		}
 
 		graphResponse := GraphResponse{
-			StartAt: tmpTime,
-			EndAt:   tmpTime.Add(time.Hour),
+			StartAt: tmpTime.Unix(),
+			EndAt:   tmpTime.Add(time.Hour).Unix(),
 			Data:    data,
 		}
 		res = append(res, graphResponse)
@@ -1123,18 +1122,19 @@ func getAllIsuConditions(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "cookie is missing")
 	}
 	//required query param
-	cursorEndTimeStr := c.QueryParam("cursor_end_time")
-	cursorEndTime, err := time.Parse(conditionTimestampFormat, cursorEndTimeStr)
+	cursorEndTimeInt64, err := strconv.ParseInt(c.QueryParam("cursor_end_time"), 10, 64)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "bad format: cursor_end_time")
 	}
+	cursorEndTime := time.Unix(cursorEndTimeInt64, 0)
+
 	cursorJIAIsuUUID := c.QueryParam("cursor_jia_isu_uuid")
 	if cursorJIAIsuUUID == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "cursor_jia_isu_uuid is missing")
 	}
 	cursor := &GetIsuConditionResponse{
 		JIAIsuUUID: cursorJIAIsuUUID,
-		Timestamp:  cursorEndTime,
+		Timestamp:  cursorEndTime.Unix(),
 	}
 	conditionLevel := c.QueryParam("condition_level")
 	if conditionLevel == "" {
@@ -1143,11 +1143,12 @@ func getAllIsuConditions(c echo.Context) error {
 	//optional query param
 	startTimeStr := c.QueryParam("start_time")
 	if startTimeStr != "" {
-		_, err = time.Parse(conditionTimestampFormat, startTimeStr)
+		_, err = strconv.ParseInt(startTimeStr, 10, 64)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "bad format: cursor_end_time")
+			return echo.NewHTTPError(http.StatusBadRequest, "bad format: start_time")
 		}
 	}
+
 	limitStr := c.QueryParam("limit")
 	limit := conditionLimit
 	if limitStr != "" {
@@ -1178,7 +1179,7 @@ func getAllIsuConditions(c echo.Context) error {
 		//  cursorEndTime + 1sec > timestampとしてリクエストを送る
 		//この一要素はフィルターにかかるかどうか分からないので、limitも+1しておく
 		conditionsTmp, err := getIsuConditionsFromLocalhost(
-			isu.JIAIsuUUID, cursorEndTime.Add(1*time.Second).Format(conditionTimestampFormat),
+			isu.JIAIsuUUID, strconv.FormatInt(cursorEndTime.Add(1*time.Second).Unix(), 10),
 			conditionLevel, startTimeStr, strconv.Itoa(limit+1),
 			sessionCookie,
 		)
@@ -1264,10 +1265,10 @@ func getIsuConditionsFromLocalhost(
 func conditionGreaterThan(left *GetIsuConditionResponse, right *GetIsuConditionResponse) bool {
 	//(`timestamp`, `jia_isu_uuid`)のペアを辞書順に比較
 
-	if left.Timestamp.After(right.Timestamp) {
+	if left.Timestamp > right.Timestamp {
 		return true
 	}
-	if left.Timestamp.Equal(right.Timestamp) {
+	if left.Timestamp == right.Timestamp {
 		return left.JIAIsuUUID > right.JIAIsuUUID
 	}
 	return false
@@ -1295,10 +1296,11 @@ func getIsuConditions(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "jia_isu_uuid is missing")
 	}
 	//required query param
-	cursorEndTime, err := time.Parse(conditionTimestampFormat, c.QueryParam("cursor_end_time"))
+	cursorEndTimeInt64, err := strconv.ParseInt(c.QueryParam("cursor_end_time"), 10, 64)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "bad format: cursor_end_time")
 	}
+	cursorEndTime := time.Unix(cursorEndTimeInt64, 0)
 	conditionLevelCSV := c.QueryParam("condition_level")
 	if conditionLevelCSV == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "condition_level is missing")
@@ -1311,10 +1313,11 @@ func getIsuConditions(c echo.Context) error {
 	startTimeStr := c.QueryParam("start_time")
 	var startTime time.Time
 	if startTimeStr != "" {
-		startTime, err = time.Parse(conditionTimestampFormat, startTimeStr)
+		startTimeInt64, err := strconv.ParseInt(startTimeStr, 10, 64)
 		if err != nil {
 			return echo.NewHTTPError(http.StatusBadRequest, "bad format: start_time")
 		}
+		startTime = time.Unix(startTimeInt64, 0)
 	}
 	limitStr := c.QueryParam("limit")
 	limit := conditionLimit
@@ -1383,7 +1386,7 @@ func getIsuConditions(c echo.Context) error {
 			data := GetIsuConditionResponse{
 				JIAIsuUUID:     c.JIAIsuUUID,
 				IsuName:        isuName,
-				Timestamp:      c.Timestamp,
+				Timestamp:      c.Timestamp.Unix(),
 				IsSitting:      c.IsSitting,
 				Condition:      c.Condition,
 				ConditionLevel: cLevel,
@@ -1424,10 +1427,7 @@ func postIsuCondition(c echo.Context) error {
 	}
 
 	//Parse
-	timestamp, err := time.Parse(conditionTimestampFormat, request.Timestamp)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid timestamp")
-	}
+	timestamp := time.Unix(request.Timestamp, 0)
 	if !conditionFormat.Match([]byte(request.Condition)) {
 		return echo.NewHTTPError(http.StatusBadRequest, "bad request body")
 	}
