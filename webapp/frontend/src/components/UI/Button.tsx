@@ -1,11 +1,14 @@
-import { DetailedHTMLProps, ButtonHTMLAttributes } from "react"
+import { DetailedHTMLProps, ButtonHTMLAttributes } from 'react'
 
 interface Props {
   label: string
   classname?: string
 }
 
-type ButtonProps = DetailedHTMLProps<ButtonHTMLAttributes<HTMLButtonElement>, HTMLButtonElement>
+type ButtonProps = DetailedHTMLProps<
+  ButtonHTMLAttributes<HTMLButtonElement>,
+  HTMLButtonElement
+>
 
 const Button = ({ label, classname, ...buttonProps }: Props & ButtonProps) => {
   return (
