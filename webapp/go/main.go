@@ -570,7 +570,7 @@ func postIsu(c echo.Context) error {
 
 	if res.StatusCode != http.StatusAccepted {
 		c.Logger().Errorf("JIAService returned error: status code %v", res.StatusCode)
-		return echo.NewHTTPError(res.StatusCode) // TODO 横流しがこの実装でいいかは確認
+		return c.String(res.StatusCode, "JIAService returned error")
 	}
 
 	resBody, err := ioutil.ReadAll(res.Body)
@@ -932,9 +932,9 @@ func getIsuIcon(c echo.Context) error {
 		jiaUserID, jiaIsuUUID, false)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return echo.NewHTTPError(http.StatusNotFound)
+			return c.String(http.StatusNotFound, "isu not found")
 		}
-		c.Logger().Error(err)
+		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -955,14 +955,13 @@ func putIsuIcon(c echo.Context) error {
 	jiaIsuUUID := c.Param("jia_isu_uuid")
 	fh, err := c.FormFile("image")
 	if err != nil {
-		// TODO: parse errorということでInternalServerErrorの方がよい？
-		return echo.NewHTTPError(http.StatusBadRequest)
+		return c.String(http.StatusBadRequest, "jia_isu_uuid is invalid")
 	}
 
 	contentType := fh.Header.Get("Content-Type")
 	// TODO: jpeg画像も受け付けるなら対応必要
 	if contentType != "image/png" {
-		return echo.NewHTTPError(http.StatusBadRequest)
+		return c.String(http.StatusBadRequest, "invalid image format")
 	}
 
 	file, err := fh.Open()
@@ -989,12 +988,12 @@ func putIsuIcon(c echo.Context) error {
 	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = ? FOR UPDATE",
 		jiaUserID, jiaIsuUUID, false)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return echo.NewHTTPError(http.StatusNotFound)
-		}
-
-		c.Logger().Error(err)
+		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
+	}
+	if count == 0 {
+		c.Logger().Errorf("isu not found: %v", err)
+		return c.String(http.StatusNotFound, "isu not found")
 	}
 
 	_, err = tx.Exec("UPDATE `isu` SET `image` = ? WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = ?",
