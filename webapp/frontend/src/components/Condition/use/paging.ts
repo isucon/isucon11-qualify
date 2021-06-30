@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react'
-import { Condition, ConditionRequest, DEFAULT_CONDITION_LIMIT } from '../../../lib/apis'
+import {
+  Condition,
+  ConditionRequest,
+  DEFAULT_CONDITION_LIMIT
+} from '../../../lib/apis'
 
-const usePaging = (getConditions: (req: ConditionRequest) => Promise<Condition[]>) => {
+const usePaging = (
+  getConditions: (req: ConditionRequest) => Promise<Condition[]>
+) => {
   const [conditions, setConditions] = useState<Condition[]>([])
   useEffect(() => {
     const fetchCondtions = async () => {
