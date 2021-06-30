@@ -2,8 +2,6 @@ package models
 
 import (
 	"log"
-	"net/http"
-	"net/url"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -14,8 +12,7 @@ const (
 )
 
 var (
-	db     *sqlx.DB
-	apiUrl *url.URL
+	db *sqlx.DB
 )
 
 func init() {
@@ -23,15 +20,6 @@ func init() {
 	var err error
 	db, err = sqlx.Open("mysql", "isucon:isucon@tcp(127.0.0.1:3306)/isucondition?parseTime=true&loc=Local")
 	if err != nil {
-		log.Fatal(err)
-	}
-
-	// connect to API
-	apiUrl, err = url.Parse("http://127.0.0.1:3000/")
-	if err != nil {
-		log.Fatal(err)
-	}
-	if _, err := http.Get(apiUrl.String()); err != nil {
 		log.Fatal(err)
 	}
 }
