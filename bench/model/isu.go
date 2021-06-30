@@ -1,14 +1,16 @@
 package model
 
-import (
-	"sync"
-)
-
+//enum
 type IsuStateChange int
 
-type IsuConditionArray struct {
-	Mutex      sync.Mutex
-	Conditions []IsuCondition //appendでアドレスが変わりうるので、mutexを取っている間にコピーすること
+//postingスレッドとシナリオスレッドとの通信に必要な情報
+//複数回postingスレッドが起動するかもしれないのでcloseしない
+//当然リソースリークするがベンチマーカーは毎回落とすので問題ない
+type IsuPostingChan struct {
+	JIAIsuUUID    string
+	activateChan  chan bool           //postingスレッド -> シナリオスレッド
+	isuChan       chan IsuStateChange //シナリオスレッド->postingスレッド
+	conditionChan chan IsuCondition   //postingスレッド -> シナリオスレッド
 }
 
 //一つのIsuにつき、一つの送信用スレッドがある
@@ -22,10 +24,9 @@ type Isu struct {
 	Character     string `json:"character"`
 	isWantDeleted bool   //シナリオスレッドからのみ参照
 	isDeactivated bool
-	activateChan  chan bool //Isu協会 -> シナリオスレッド
+	postingChan   *IsuPostingChan //ISU協会はこれを使ってpostingスレッドを起動、postingスレッドはこれを使って通信
 	//deactivateFunc context.CancelFunc //Isu協会activate/deactivateスレッドからのみ参照 //TODO: Isu協会側でデータを持つ
-	isuChan    chan IsuStateChange //シナリオスレッド->postingスレッド
-	Conditions *IsuConditionArray  //シナリオスレッドからread、postingスレッドからwrite
+	Conditions []IsuCondition //シナリオスレッドからのみ参照
 }
 
 func NewIsu() *Isu {
@@ -40,7 +41,7 @@ func NewIsu() *Isu {
 
 func (isu *Isu) IsDeactivated() bool {
 	select {
-	case v, ok := <-isu.activateChan:
+	case v, ok := <-isu.postingChan.activateChan:
 		isu.isDeactivated = !ok || !v //Isu協会スレッドの終了 || deactivateされた
 	default:
 	}
