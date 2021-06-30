@@ -9,11 +9,13 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/isucon/isucandar"
+	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
-	"github.com/labstack/gommon/log"
 )
 
-func KeepPosting(ctx context.Context, targetURL string, scenarioChan *model.IsuPosterChan) {
+//POST /api/isu/{jia_isu_id}/conditionをたたくスレッド
+func KeepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetURL string, scenarioChan *model.IsuPosterChan) {
 	randEngine := rand.New(rand.NewSource(0))
 
 	timer := time.NewTicker(2 * time.Second)
@@ -45,23 +47,22 @@ func KeepPosting(ctx context.Context, targetURL string, scenarioChan *model.IsuP
 
 		conditionByte, err := json.Marshal(condition)
 		if err != nil {
-			log.Error(err)
+			logger.AdminLogger.Panic(err)
 			continue
 		}
 
 		func() {
+			//TODO: 得点計算 step
 			resp, err := http.Post(
 				targetURL, "application/json",
 				bytes.NewBuffer(conditionByte),
 			)
 			if err != nil {
-				log.Error(err)
 				return // goto next loop
 			}
 			defer resp.Body.Close()
 
 			if resp.StatusCode != 201 {
-				log.Errorf("failed to `POST %s` with status=`%s`", targetURL, resp.Status)
 				return // goto next loop
 			}
 		}()

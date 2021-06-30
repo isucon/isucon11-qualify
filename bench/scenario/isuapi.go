@@ -21,6 +21,7 @@ var (
 	isuPosterData  = map[string]*model.IsuPosterChan{}
 
 	isuAPIContext context.Context
+	isuAPIStep    *isucandar.BenchmarkStep
 )
 
 type IsuConditionPosterRequest struct {
@@ -45,6 +46,7 @@ func RegisterToIsuAPI(data *model.IsuPosterChan) {
 func IsuAPIThread(ctx context.Context, step *isucandar.BenchmarkStep) {
 
 	isuAPIContext = ctx
+	isuAPIStep = step
 
 	// Echo instance
 	e := echo.New()
@@ -99,22 +101,30 @@ func postActivate(c echo.Context) error {
 		state.TargetIP, state.TargetPort, state.IsuUUID,
 	)
 
-	postingContext, chancelFunc := context.WithCancel(isuAPIContext)
-
-	func() {
+	//posterスレッドの起動
+	posterContext, chancelFunc := context.WithCancel(isuAPIContext)
+	err = func() error {
 		isuPosterMutex.Lock()
 		defer isuPosterMutex.Unlock()
+		scenarioChan, ok := isuPosterData[state.IsuUUID]
+		if !ok {
+			return echo.NewHTTPError(http.StatusNotFound)
+		}
 		v, ok := isuIsActivated[state.IsuUUID]
 		if ok && v.activated {
-			return echo.NewHTTPError(http.StatusNotFound)
+			return echo.NewHTTPError(http.StatusForbidden)
 		}
 		isuIsActivated[state.IsuUUID] = IsuAPI2PosterData{
 			activated:   true,
-			chancelFunc: chancelFunc
+			chancelFunc: chancelFunc,
 		}
 
-		go KeepPosting(postingContext, targetURL, scenarioChan)
+		go KeepPosting(posterContext, isuAPIStep, targetURL, scenarioChan)
+		return nil
 	}()
+	if err != nil {
+		return err
+	}
 
 	//return c.JSON(http.StatusAccepted, isuState)
 	//TODO:
