@@ -430,7 +430,7 @@ func getCatalog(c echo.Context) error {
 	catalogFromJIA, statusCode, err := fetchCatalogFromJIA(jiaCatalogID)
 	if err != nil {
 		c.Logger().Errorf("failed to get catalog from JIA: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	if statusCode == http.StatusNotFound {
 		return echo.NewHTTPError(http.StatusNotFound, "invalid jia_catalog_id")
@@ -439,7 +439,7 @@ func getCatalog(c echo.Context) error {
 	catalog, err := castCatalogFromJIA(catalogFromJIA)
 	if err != nil {
 		c.Logger().Errorf("failed to cast catalog: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	return c.JSON(http.StatusOK, catalog)
 }
@@ -532,7 +532,7 @@ func postIsu(c echo.Context) error {
 		jiaUserID, jiaIsuUUID)
 	if err != nil {
 		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	if count != 0 {
 		// TODO 再activate時もここでエラー; day2で再検討
@@ -545,26 +545,26 @@ func postIsu(c echo.Context) error {
 	port, err := strconv.Atoi(getEnv("SERVER_PORT", "3000"))
 	if err != nil {
 		c.Logger().Errorf("bad port number: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	body := JIAServiceRequest{DefaultIsuConditionHost, port, jiaIsuUUID}
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
 		c.Logger().Errorf("failed to marshal data: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	reqJIA, err := http.NewRequest(http.MethodPost, targetURL, bytes.NewBuffer(bodyJSON))
 	if err != nil {
 		c.Logger().Errorf("failed to build request: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	reqJIA.Header.Set("Content-Type", "application/json")
 	res, err := http.DefaultClient.Do(reqJIA)
 	if err != nil {
 		c.Logger().Errorf("failed to request to JIAService: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	defer res.Body.Close()
 
@@ -576,21 +576,21 @@ func postIsu(c echo.Context) error {
 	resBody, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		c.Logger().Errorf("error occured while reading JIA response: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	var isuFromJIA IsuFromJIA
 	err = json.Unmarshal(resBody, &isuFromJIA)
 	if err != nil {
 		c.Logger().Errorf("cannot unmarshal JIA response: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	// デフォルト画像を準備
 	image, err := ioutil.ReadFile(defaultIconFilePath)
 	if err != nil {
 		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	// 新しいisuのデータをinsert
@@ -686,7 +686,7 @@ func getIsuSearch(c echo.Context) error {
 	)
 	if err != nil {
 		c.Logger().Errorf("failed to select: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	isuListResponse := []*Isu{}
@@ -696,16 +696,16 @@ func getIsuSearch(c echo.Context) error {
 		catalogFromJIA, statusCode, err := fetchCatalogFromJIA(isu.JIACatalogID)
 		if err != nil {
 			c.Logger().Errorf("failed to fetch catalog from JIA: %v", err)
-			return echo.NewHTTPError(http.StatusInternalServerError)
+			return c.NoContent(http.StatusInternalServerError)
 		}
 		if statusCode == http.StatusNotFound {
 			c.Logger().Errorf("catalog not found: %s", isu.JIACatalogID)
-			return echo.NewHTTPError(http.StatusInternalServerError)
+			return c.NoContent(http.StatusInternalServerError)
 		}
 		catalog, err := castCatalogFromJIA(catalogFromJIA)
 		if err != nil {
 			c.Logger().Errorf("failed to cast catalog: %v", err)
-			return echo.NewHTTPError(http.StatusInternalServerError)
+			return c.NoContent(http.StatusInternalServerError)
 		}
 		//catalog.Tagsをmapに変換
 		catalogTags := map[string]interface{}{}
@@ -876,38 +876,38 @@ func deleteIsu(c echo.Context) error {
 	port, err := strconv.Atoi(getEnv("SERVER_PORT", "3000"))
 	if err != nil {
 		c.Logger().Errorf("bad port number: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	body := JIAServiceRequest{DefaultIsuConditionHost, port, jiaIsuUUID}
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
 		c.Logger().Errorf("failed to marshal data: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	req, err := http.NewRequest(http.MethodPost, targetURL, bytes.NewBuffer(bodyJSON))
 	if err != nil {
 		c.Logger().Errorf("failed to build request: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		c.Logger().Errorf("failed to request to JIAService: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusNoContent {
 		c.Logger().Errorf("JIAService returned error: status code %v", res.StatusCode)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	err = tx.Commit()
 	if err != nil {
 		c.Logger().Errorf("failed to commit tx: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	return c.NoContent(http.StatusNoContent)
@@ -935,7 +935,7 @@ func getIsuIcon(c echo.Context) error {
 			return echo.NewHTTPError(http.StatusNotFound)
 		}
 		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	// TODO: putIsuIconでjpgも受け付けるなら対応が必要
@@ -968,20 +968,20 @@ func putIsuIcon(c echo.Context) error {
 	file, err := fh.Open()
 	if err != nil {
 		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	defer file.Close()
 
 	image, err := ioutil.ReadAll(file)
 	if err != nil {
 		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	tx, err := db.Beginx()
 	if err != nil {
 		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	defer tx.Rollback()
 
@@ -994,20 +994,20 @@ func putIsuIcon(c echo.Context) error {
 		}
 
 		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	_, err = tx.Exec("UPDATE `isu` SET `image` = ? WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = ?",
 		image, jiaUserID, jiaIsuUUID, false)
 	if err != nil {
 		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	err = tx.Commit()
 	if err != nil {
 		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	return c.NoContent(http.StatusOK)
@@ -1039,7 +1039,7 @@ func getIsuGraph(c echo.Context) error {
 	tx, err := db.Beginx()
 	if err != nil {
 		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	defer tx.Rollback()
 
@@ -1048,7 +1048,7 @@ func getIsuGraph(c echo.Context) error {
 		jiaUserID, jiaIsuUUID, false)
 	if err != nil {
 		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	var graphList []Graph
@@ -1056,7 +1056,7 @@ func getIsuGraph(c echo.Context) error {
 		jiaIsuUUID, date, date.Add(time.Hour*24))
 	if err != nil {
 		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	res := []GraphResponse{}
@@ -1076,7 +1076,7 @@ func getIsuGraph(c echo.Context) error {
 			err = json.Unmarshal([]byte(tmpGraph.Data), &data)
 			if err != nil {
 				c.Logger().Error(err)
-				return echo.NewHTTPError(http.StatusInternalServerError)
+				return c.NoContent(http.StatusInternalServerError)
 			}
 			index++
 		}
@@ -1094,7 +1094,7 @@ func getIsuGraph(c echo.Context) error {
 	err = tx.Commit()
 	if err != nil {
 		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	return c.JSON(http.StatusOK, res)
@@ -1166,7 +1166,7 @@ func getAllIsuConditions(c echo.Context) error {
 	if err != nil {
 		if !errors.Is(err, sql.ErrNoRows) {
 			c.Logger().Errorf("failed to select: %v", err)
-			return echo.NewHTTPError(http.StatusInternalServerError)
+			return c.NoContent(http.StatusInternalServerError)
 		}
 	}
 
@@ -1184,7 +1184,7 @@ func getAllIsuConditions(c echo.Context) error {
 		)
 		if err != nil {
 			c.Logger().Errorf("failed to http request: %v", err)
-			return echo.NewHTTPError(http.StatusInternalServerError)
+			return c.NoContent(http.StatusInternalServerError)
 		}
 
 		// ユーザの所持椅子ごとのデータをマージ
@@ -1336,7 +1336,7 @@ func getIsuConditions(c echo.Context) error {
 	}
 	if err != nil {
 		c.Logger().Errorf("failed to select: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	// 対象isu_idの通知を取得(limit, cursorで絞り込み）
@@ -1360,7 +1360,7 @@ func getIsuConditions(c echo.Context) error {
 	if err != nil {
 		if !errors.Is(err, sql.ErrNoRows) {
 			c.Logger().Errorf("failed to select: %v", err)
-			return echo.NewHTTPError(http.StatusInternalServerError)
+			return c.NoContent(http.StatusInternalServerError)
 		}
 	}
 
@@ -1436,7 +1436,7 @@ func postIsuCondition(c echo.Context) error {
 	tx, err := db.Beginx()
 	if err != nil {
 		c.Logger().Errorf("failed to begin tx: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	defer tx.Rollback()
 
@@ -1445,7 +1445,7 @@ func postIsuCondition(c echo.Context) error {
 	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_isu_uuid` = ?  and `is_deleted`=false", jiaIsuUUID) //TODO: 記法の統一
 	if err != nil {
 		c.Logger().Errorf("failed to select: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	if count == 0 {
 		return echo.NewHTTPError(http.StatusNotFound, "isu not found")
@@ -1458,7 +1458,7 @@ func postIsuCondition(c echo.Context) error {
 	)
 	if err != nil {
 		c.Logger().Errorf("failed to begin tx: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	if count != 0 {
 		return echo.NewHTTPError(http.StatusConflict, "isu_log already exist")
@@ -1477,14 +1477,14 @@ func postIsuCondition(c echo.Context) error {
 	err = updateGraph(tx, jiaIsuUUID)
 	if err != nil {
 		c.Logger().Errorf("failed to update graph: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	// トランザクション終了
 	err = tx.Commit()
 	if err != nil {
 		c.Logger().Errorf("failed to commit tx: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	return c.NoContent(http.StatusCreated)
