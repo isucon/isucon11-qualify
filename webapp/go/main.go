@@ -388,8 +388,8 @@ func postSignout(c echo.Context) error {
 	session.Options = &sessions.Options{MaxAge: -1, Path: "/"}
 	err = session.Save(c.Request(), c.Response())
 	if err != nil {
-		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "cannot delete session")
+		c.Logger().Errorf("cannot delete session: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	return c.NoContent(http.StatusOK)
@@ -501,8 +501,8 @@ func getIsuList(c echo.Context) error {
 		"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = false ORDER BY `created_at` DESC LIMIT ?",
 		jiaUserID, limit)
 	if err != nil {
-		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	return c.JSON(http.StatusOK, isuList)
@@ -599,7 +599,7 @@ func postIsu(c echo.Context) error {
 		jiaIsuUUID, isuName, image, isuFromJIA.Character, isuFromJIA.JIACatalogID, jiaUserID)
 	if err != nil {
 		c.Logger().Errorf("cannot insert record: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	var isu Isu
@@ -608,8 +608,8 @@ func postIsu(c echo.Context) error {
 		"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
 		jiaUserID, jiaIsuUUID)
 	if err != nil {
-		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	return c.JSON(http.StatusOK, isu)
@@ -770,8 +770,8 @@ func getIsu(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusNotFound, "isu not found")
 	}
 	if err != nil {
-		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	return c.JSON(http.StatusOK, isu)
@@ -796,8 +796,8 @@ func putIsu(c echo.Context) error {
 
 	tx, err := db.Beginx()
 	if err != nil {
-		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	defer tx.Rollback()
 
@@ -805,8 +805,8 @@ func putIsu(c echo.Context) error {
 	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = ?",
 		jiaUserID, jiaIsuUUID, false)
 	if err != nil {
-		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	if count == 0 {
 		return echo.NewHTTPError(http.StatusNotFound, "isu not found")
@@ -814,22 +814,22 @@ func putIsu(c echo.Context) error {
 
 	_, err = tx.Exec("UPDATE `isu` SET `name` = ? WHERE `jia_isu_uuid` = ?", req.Name, jiaIsuUUID)
 	if err != nil {
-		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	var isu Isu
 	err = tx.Get(&isu, "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = ?",
 		jiaUserID, jiaIsuUUID, false)
 	if err != nil {
-		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	return c.JSON(http.StatusOK, isu)
@@ -847,8 +847,8 @@ func deleteIsu(c echo.Context) error {
 
 	tx, err := db.Beginx()
 	if err != nil {
-		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	defer tx.Rollback()
 
@@ -858,8 +858,8 @@ func deleteIsu(c echo.Context) error {
 		"SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
 		jiaUserID, jiaIsuUUID)
 	if err != nil {
-		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	if count == 0 {
 		return echo.NewHTTPError(http.StatusNotFound, "isu not found")
@@ -867,8 +867,8 @@ func deleteIsu(c echo.Context) error {
 
 	_, err = tx.Exec("UPDATE `isu` SET `is_deleted` = true WHERE `jia_isu_uuid` = ?", jiaIsuUUID)
 	if err != nil {
-		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "db error")
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	// JIAにisuのdeactivateをリクエスト
@@ -1470,7 +1470,7 @@ func postIsuCondition(c echo.Context) error {
 	)
 	if err != nil {
 		c.Logger().Errorf("failed to insert: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert")
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	// getGraph用のデータを計算し、DBを更新する
