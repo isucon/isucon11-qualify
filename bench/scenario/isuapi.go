@@ -108,8 +108,10 @@ func postActivate(c echo.Context) error {
 		if ok && v.activated {
 			return echo.NewHTTPError(http.StatusNotFound)
 		}
-		v.activated = true
-		v.chancelFunc = chancelFunc
+		isuIsActivated[state.IsuUUID] = IsuAPI2PosterData{
+			activated:   true,
+			chancelFunc: chancelFunc
+		}
 
 		go KeepPosting(postingContext, targetURL, scenarioChan)
 	}()
