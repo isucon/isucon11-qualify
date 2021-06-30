@@ -11,17 +11,19 @@ const Search = () => {
   return (
     <div className="flex justify-center p-10">
       <Card>
-        <div className="flex flex-col items-center">
+        <div>
           <h2 className="text-xl font-bold">ISU</h2>
-          <SearchInput query={query} search={search} />
-          <IsuList isus={isus} />
-          <PagingNavigator
-            prev={prev}
-            next={next}
-            length={isus.length}
-            maxLength={DEFAULT_SEARCH_LIMIT}
-            page={page}
-          />
+          <div className="flex flex-col gap-8 items-center">
+            <SearchInput query={query} search={search} />
+            <IsuList isus={isus} />
+            <PagingNavigator
+              prev={prev}
+              next={next}
+              length={isus.length}
+              maxLength={DEFAULT_SEARCH_LIMIT}
+              page={page}
+            />
+          </div>
         </div>
       </Card>
     </div>
