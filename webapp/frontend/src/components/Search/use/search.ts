@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import apis, { Isu } from '../../../lib/apis'
-import parseQuery from './parseQuery'
+import { getRequestParams } from './parseQuery'
 
 const useSearch = () => {
   const [query, setQuery] = useState('')
@@ -14,19 +14,19 @@ const useSearch = () => {
   }, [setIsus])
 
   const search = async (newQuery: string) => {
-    const params = parseQuery(newQuery)
+    const params = getRequestParams(newQuery)
     params.page = '1'
     setIsus(await apis.getIsuSearch(params))
     setQuery(query)
   }
   const next = async () => {
-    const params = parseQuery(query)
+    const params = getRequestParams(query)
     params.page = `${page + 1}`
     setIsus(await apis.getIsuSearch(params))
     setPage(page + 1)
   }
   const prev = async () => {
-    const params = parseQuery(query)
+    const params = getRequestParams(query)
     params.page = `${page - 1}`
     setIsus(await apis.getIsuSearch(params))
     setPage(page - 1)
