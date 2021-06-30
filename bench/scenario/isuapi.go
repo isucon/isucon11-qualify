@@ -64,14 +64,17 @@ func IsuAPIThread(ctx context.Context, step *isucandar.BenchmarkStep) {
 	}
 }
 
-func getCatalog(c echo.Context) {
+func getCatalog(c echo.Context) error {
 	//TODO:
+	return fmt.Errorf("NotImplemented")
 }
 
-func postActivate(c echo.Context) {
+func postActivate(c echo.Context) error {
 	//TODO:
+	return fmt.Errorf("NotImplemented")
 }
 
-func postDeactivate(c echo.Context) {
+func postDeactivate(c echo.Context) error {
 	//TODO:
+	return fmt.Errorf("NotImplemented")
 }
