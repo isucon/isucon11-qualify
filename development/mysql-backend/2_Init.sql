@@ -46,13 +46,13 @@ INSERT INTO `isu_association_config` VALUES ('jia_service_url', 'http://isuapi-s
 UNLOCK TABLES;
 
 --
--- Dumping data for table `isu_log`
+-- Dumping data for table `isu_condition`
 --
 
-LOCK TABLES `isu_log` WRITE;
-/*!40000 ALTER TABLE `isu_log` DISABLE KEYS */;
-INSERT INTO `isu_log` VALUES ('0694e4d7-dfce-4aec-b7ca-887ac42cfb8f','2021-06-16 00:33:41',0,'is_dirty=false,is_overweight=false,is_broken=false','さみしい','2021-06-16 02:33:40.585438'),('0694e4d7-dfce-4aec-b7ca-887ac42cfb8f','2021-06-16 01:33:41',1,'is_dirty=true,is_overweight=true,is_broken=false','たのしい','2021-06-16 02:33:40.587887'),('f012233f-c50e-4349-9473-95681becff1e','2021-06-16 00:33:41',1,'is_dirty=true,is_overweight=true,is_broken=false','つかれた','2021-06-16 02:33:40.591421'),('f012233f-c50e-4349-9473-95681becff1e','2021-06-16 01:33:41',1,'is_dirty=true,is_overweight=true,is_broken=true','つらい','2021-06-16 02:33:40.593788');
-/*!40000 ALTER TABLE `isu_log` ENABLE KEYS */;
+LOCK TABLES `isu_condition` WRITE;
+/*!40000 ALTER TABLE `isu_condition` DISABLE KEYS */;
+INSERT INTO `isu_condition` VALUES ('0694e4d7-dfce-4aec-b7ca-887ac42cfb8f','2021-06-16 00:33:41',0,'is_dirty=false,is_overweight=false,is_broken=false','さみしい','2021-06-16 02:33:40.585438'),('0694e4d7-dfce-4aec-b7ca-887ac42cfb8f','2021-06-16 01:33:41',1,'is_dirty=true,is_overweight=true,is_broken=false','たのしい','2021-06-16 02:33:40.587887'),('f012233f-c50e-4349-9473-95681becff1e','2021-06-16 00:33:41',1,'is_dirty=true,is_overweight=true,is_broken=false','つかれた','2021-06-16 02:33:40.591421'),('f012233f-c50e-4349-9473-95681becff1e','2021-06-16 01:33:41',1,'is_dirty=true,is_overweight=true,is_broken=true','つらい','2021-06-16 02:33:40.593788');
+/*!40000 ALTER TABLE `isu_condition` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
