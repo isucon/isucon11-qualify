@@ -1,24 +1,54 @@
 import { FormEvent, useState } from 'react'
+import { useHistory } from 'react-router-dom'
+import Card from '../components/UI/Card'
+import IconInput from '../components/UI/IconInput'
 import Input from '../components/UI/Input'
 import apis from '../lib/apis'
 
 const Register = () => {
   const [id, setId] = useState('')
   const [name, setName] = useState('')
-  const submit = (event: FormEvent<HTMLFormElement>) => {
-    apis.postIsu({ jia_isu_uuid: id, isu_name: name })
-    event.preventDefault()
+  const [file, setFile] = useState<File | null>(null)
+  const history = useHistory()
+
+  const submit = async () => {
+    try {
+      await apis.postIsu({ jia_isu_uuid: id, isu_name: name })
+      if (file) {
+        await apis.putIsuIcon(id, file)
+      }
+      history.push(`/isu/${id}`)
+    } catch (e) {
+      alert(e.response.data.message)
+    }
   }
 
   return (
-    <div>
-      <form onSubmit={submit}>
-        <Input label={'JIAのIsuID'} value={id} setValue={setId}></Input>
-        <Input label={'ISUの名前'} value={name} setValue={setName}></Input>
-        <button type="submit" className="border-dark-200 border">
-          登録
-        </button>
-      </form>
+    <div className="flex justify-center p-10">
+      <div className="flex justify-center w-full max-w-2xl">
+        <Card>
+          <div className="w-full">
+            <h2 className="mb-8 text-xl font-bold">ISUを登録</h2>
+            <div className="flex flex-col gap-4">
+              <Input label={'JIAのIsuID'} value={id} setValue={setId}></Input>
+              <Input
+                label={'ISUの名前'}
+                value={name}
+                setValue={setName}
+              ></Input>
+              <div className="flex flex-col gap-16 items-center mt-6">
+                <IconInput putIsuIcon={setFile} />
+                <button
+                  onClick={submit}
+                  className="px-3 py-1 w-20 h-8 text-white-primary bg-button rounded-2xl focus:outline-none"
+                >
+                  登録
+                </button>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
     </div>
   )
 }
