@@ -1,10 +1,10 @@
+import IsuConditionCardContent from '../components/Condition/IsuConditionCardContent'
 import Card from '../components/UI/Card'
 import NowLoading from '../components/UI/NowLoading'
 import { Isu } from '../lib/apis'
 
 interface Props {
   isu: Isu
-  setIsu: React.Dispatch<React.SetStateAction<Isu | null>>
 }
 
 const IsuCondition = ({ isu }: Props) => {
@@ -14,7 +14,7 @@ const IsuCondition = ({ isu }: Props) => {
   return (
     <div className="flex flex-col gap-10 items-center">
       <Card>
-        <div>nanka</div>
+        <IsuConditionCardContent isu={isu} />
       </Card>
     </div>
   )
