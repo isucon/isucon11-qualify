@@ -16,7 +16,7 @@ const (
 )
 
 func init() {
-	t, _ := time.Parse(time.RFC3339, "2021-07-01T00:00:00Z07:00")
+	t, _ := time.Parse(time.RFC3339, "2021-07-01T00:00:00+07:00")
 	rand.Seed(t.UnixNano())
 }
 
@@ -51,6 +51,17 @@ func main() {
 		// User の所持する Isu 分だけ loop
 		for j := 0; j < isuNum; j++ {
 			isu := models.NewIsu(user)
+			// 確率で Isu を更新
+			if rand.Intn(4) < 1 { // 1/4
+				isu = isu.WithUpdateName()
+			}
+			if rand.Intn(10) < 9 { // 9/10
+				isu = isu.WithUpdateImage()
+			}
+			if rand.Intn(10) < 1 { // 1/10
+				isu = isu.WithDelete()
+			}
+			// INSERT isu
 			if err := isu.Create(); err != nil {
 				log.Fatal(err)
 			}
@@ -69,7 +80,6 @@ func main() {
 					log.Fatal(err)
 				}
 			}
-
 		}
 	}
 }

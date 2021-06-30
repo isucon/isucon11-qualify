@@ -53,14 +53,17 @@ func defaultImage() []byte {
 
 func (i Isu) WithUpdateName() Isu {
 	i.Name = random.IsuName()
+	i.UpdatedAt = random.TimeAfterArg(i.UpdatedAt)
 	return i
 }
 func (i Isu) WithUpdateImage() Isu {
 	i.Image = random.Image()
+	i.UpdatedAt = random.TimeAfterArg(i.UpdatedAt)
 	return i
 }
 func (i Isu) WithDelete() Isu {
 	i.IsDeleted = true
+	i.UpdatedAt = random.TimeAfterArg(i.UpdatedAt)
 	return i
 }
 
@@ -72,5 +75,4 @@ func (i Isu) Create() error {
 		return fmt.Errorf("insert user: %w", err)
 	}
 	return nil
-
 }
