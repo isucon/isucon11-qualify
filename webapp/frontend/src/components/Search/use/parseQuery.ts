@@ -61,8 +61,8 @@ export const getRequestParams = (query: string) => {
   return res
 }
 
-export const validateParams = (params: {[key: string]: string}) => {
-  for (const [k,v] of Object.entries(params)) {
+export const validateParams = (params: { [key: string]: string }) => {
+  for (const [k, v] of Object.entries(params)) {
     let isValidKeyName = false
     for (const allowKey of ALLOW_KEYS) {
       if (allowKey.key === k) {
