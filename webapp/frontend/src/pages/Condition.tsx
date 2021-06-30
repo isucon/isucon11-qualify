@@ -22,12 +22,12 @@ const ConditionComponent = () => {
   }, [setConditions])
 
   return (
-    <div className="p-10">
+    <div className="flex justify-center p-10">
       <Card>
         <div className="flex flex-col gap-2">
           <h2 className="text-xl font-bold">Condition</h2>
           <SearchInputs />
-          <Conditions conditions={conditions} />
+          <Conditions conditions={conditions} setConditions={setConditions} />
         </div>
       </Card>
     </div>
