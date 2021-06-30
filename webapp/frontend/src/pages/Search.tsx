@@ -1,37 +1,25 @@
-import { useState, useEffect } from 'react'
 import Card from '../components/UI/Card'
 import IsuList from '../components/UI/IsuList'
-import apis, { Isu } from '../lib/apis'
+import { DEFAULT_SEARCH_LIMIT } from '../lib/apis'
 import useSearch from '../components/Search/use/search'
 import SearchInput from '../components/Search/SearchInput'
 import PagingNavigator from '../components/UI/PagingNavigator'
 
 const Search = () => {
-  const [isus, setIsus] = useState<Isu[]>([])
-  useEffect(() => {
-    const fetchIsus = async () => {
-      setIsus(await apis.getIsuSearch())
-    }
-    fetchIsus()
-  }, [setIsus])
-
-  const { query, page } = useSearch()
+  const { query, page, isus, prev, next, search } = useSearch()
 
   return (
     <div className="flex justify-center p-10">
       <Card>
         <div className="flex flex-col items-center">
           <h2 className="text-xl font-bold">ISU</h2>
-          <SearchInput
-            query={query}
-            search={() => new Promise(() => undefined)}
-          />
+          <SearchInput query={query} search={search} />
           <IsuList isus={isus} />
           <PagingNavigator
-            prev={() => undefined}
-            next={() => undefined}
+            prev={prev}
+            next={next}
             length={isus.length}
-            maxLength={10}
+            maxLength={DEFAULT_SEARCH_LIMIT}
             page={page}
           />
         </div>

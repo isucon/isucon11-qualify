@@ -7,6 +7,8 @@ interface Props {
   search: (query: string) => Promise<void>
 }
 
+const placeholder = `name:isuname character:Adamant catalog_name:isu1 min_limit_weight:20 max_limit_weight:50 catalog_tags:"tag1 tag2"`
+
 const SearchInput = ({ query, search }: Props) => {
   const [tmpQuery, setTmpQuery] = useState(query)
 
@@ -17,6 +19,7 @@ const SearchInput = ({ query, search }: Props) => {
         value={tmpQuery}
         setValue={setTmpQuery}
         classname="flex-1"
+        inputProps={{ placeholder: placeholder }}
       />
       <Button label="検索" onClick={() => search(tmpQuery)} />
     </div>
