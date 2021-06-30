@@ -2,7 +2,7 @@
 
 DROP TABLE IF EXISTS `isu_association_config`;
 DROP TABLE IF EXISTS `graph`;
-DROP TABLE IF EXISTS `isu_log`;
+DROP TABLE IF EXISTS `isu_condition`;
 DROP TABLE IF EXISTS `isu`;
 DROP TABLE IF EXISTS `user`;
 
@@ -18,7 +18,7 @@ CREATE TABLE `isu` (
   `updated_at` DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
 
-CREATE TABLE `isu_log` (
+CREATE TABLE `isu_condition` (
   `jia_isu_uuid` CHAR(36),
   `timestamp` DATETIME,
   `is_sitting` TINYINT(1) NOT NULL,
