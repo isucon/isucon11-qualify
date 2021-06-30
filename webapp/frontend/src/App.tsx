@@ -2,6 +2,7 @@ import { BrowserRouter, Switch, Route } from 'react-router-dom'
 import PageHeader from './components/PageHeader/PageHeader'
 import Auth from './pages/Auth'
 import Condition from './pages/Condition'
+import Home from './pages/Home'
 import IsuRoot from './pages/IsuRoot'
 import Register from './pages/Register'
 import GuardedRoute from './router/GuardedRoute'
@@ -13,7 +14,9 @@ const App = () => {
         <PageHeader></PageHeader>
         <div className="flex-1 bg-teritary">
           <Switch>
-            <GuardedRoute path="/" exact></GuardedRoute>
+            <GuardedRoute path="/" exact>
+              <Home />
+            </GuardedRoute>
             <GuardedRoute path="/condition" exact>
               <Condition />
             </GuardedRoute>
