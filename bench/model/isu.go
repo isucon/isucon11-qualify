@@ -3,14 +3,14 @@ package model
 //enum
 type IsuStateChange int
 
-//postingスレッドとシナリオスレッドとの通信に必要な情報
-//複数回postingスレッドが起動するかもしれないのでcloseしない
+//posterスレッドとシナリオスレッドとの通信に必要な情報
+//複数回posterスレッドが起動するかもしれないのでcloseしない
 //当然リソースリークするがベンチマーカーは毎回落とすので問題ない
-type IsuPostingChan struct {
+type IsuPosterChan struct {
 	JIAIsuUUID    string
-	activateChan  chan bool           //postingスレッド -> シナリオスレッド
-	isuChan       chan IsuStateChange //シナリオスレッド->postingスレッド
-	conditionChan chan IsuCondition   //postingスレッド -> シナリオスレッド
+	activateChan  chan bool           //posterスレッド -> シナリオスレッド
+	isuChan       chan IsuStateChange //シナリオスレッド->posterスレッド
+	conditionChan chan IsuCondition   //posterスレッド -> シナリオスレッド
 }
 
 //一つのIsuにつき、一つの送信用スレッドがある
@@ -24,7 +24,7 @@ type Isu struct {
 	Character     string `json:"character"`
 	isWantDeleted bool   //シナリオスレッドからのみ参照
 	isDeactivated bool
-	postingChan   *IsuPostingChan //ISU協会はこれを使ってpostingスレッドを起動、postingスレッドはこれを使って通信
+	posterChan    *IsuPosterChan //ISU協会はこれを使ってposterスレッドを起動、posterスレッドはこれを使って通信
 	//deactivateFunc context.CancelFunc //Isu協会activate/deactivateスレッドからのみ参照 //TODO: Isu協会側でデータを持つ
 	Conditions []IsuCondition //シナリオスレッドからのみ参照
 }
@@ -41,7 +41,7 @@ func NewIsu() *Isu {
 
 func (isu *Isu) IsDeactivated() bool {
 	select {
-	case v, ok := <-isu.postingChan.activateChan:
+	case v, ok := <-isu.posterChan.activateChan:
 		isu.isDeactivated = !ok || !v //Isu協会スレッドの終了 || deactivateされた
 	default:
 	}
