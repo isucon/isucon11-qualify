@@ -3,6 +3,7 @@ import { useState } from 'react'
 import Card from '../components/UI/Card'
 import NowLoading from '../components/UI/NowLoading'
 import TransitionGraph from '../components/IsuGraph/TransitionGraph'
+import SittingGraph from '../components/IsuGraph/SittingGraph'
 import apis, { Graph, Isu } from '../lib/apis'
 
 interface Props {
@@ -27,7 +28,10 @@ const IsuGraph = ({ isu, setIsu }: Props) => {
   return (
     <div>
       <Card>
-        <TransitionGraph isuGraphs={isuGraphs} />
+        <div>
+          <TransitionGraph isuGraphs={isuGraphs} />
+          <SittingGraph isuGraphs={isuGraphs} />
+        </div>
       </Card>
     </div>
   )
