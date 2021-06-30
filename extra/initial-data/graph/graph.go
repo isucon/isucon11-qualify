@@ -37,7 +37,7 @@ func UpdateGraph(x sqlx.Ext, jiaIsuUUID string, updatedAt time.Time) error {
 	isuLogCluster := []IsuLog{} // 一時間ごとの纏まり
 	var tmpIsuLog IsuLog
 	valuesForUpdate := []interface{}{} //5個1組、更新するgraphの各行のデータ
-	rows, err := x.Queryx("SELECT * FROM `isu_log` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` ASC", jiaIsuUUID)
+	rows, err := x.Queryx("SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` ASC", jiaIsuUUID)
 	if err != nil {
 		return err
 	}
