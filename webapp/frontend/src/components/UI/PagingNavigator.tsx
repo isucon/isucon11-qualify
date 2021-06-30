@@ -2,7 +2,7 @@ import { IoIosArrowBack, IoIosArrowForward } from 'react-icons/io'
 import IconButton from '../UI/IconButton'
 
 interface Props {
-  length: number,
+  length: number
   maxLength: number
   page: number
   next: () => Promise<void> | void
