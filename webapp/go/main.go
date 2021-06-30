@@ -103,12 +103,12 @@ type Catalog struct {
 }
 
 type IsuLog struct {
-	JIAIsuUUID string    `db:"jia_isu_uuid" json:"jia_isu_uuid"`
-	Timestamp  time.Time `db:"timestamp" json:"timestamp"`
-	IsSitting  bool      `db:"is_sitting" json:"is_sitting"`
-	Condition  string    `db:"condition" json:"condition"`
-	Message    string    `db:"message" json:"message"`
-	CreatedAt  time.Time `db:"created_at" json:"created_at"`
+	JIAIsuUUID string    `db:"jia_isu_uuid"`
+	Timestamp  time.Time `db:"timestamp"`
+	IsSitting  bool      `db:"is_sitting"`
+	Condition  string    `db:"condition"`
+	Message    string    `db:"message"`
+	CreatedAt  time.Time `db:"created_at"`
 }
 
 //グラフ表示用  一時間のsummry 詳細
