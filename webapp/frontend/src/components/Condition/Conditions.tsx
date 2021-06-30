@@ -1,40 +1,16 @@
-import { Dispatch, SetStateAction, useState } from 'react'
 import { IoIosArrowBack, IoIosArrowForward } from 'react-icons/io'
-import apis, { Condition } from '../../lib/apis'
+import { Condition, DEFAULT_CONDITION_LIMIT } from '../../lib/apis'
 import IconButton from '../UI/IconButton'
 import ConditionDetail from './ConditionDetail'
 
 interface Props {
   conditions: Condition[]
-  setConditions: Dispatch<SetStateAction<Condition[]>>
+  page: number
+  next: () => Promise<void>
+  prev: () => void
 }
 
-const DEFAULT_CONDITION_LIMIT = 20
-
-const Conditions = ({ conditions, setConditions }: Props) => {
-  const [cache, setCache] = useState<Condition[][]>([[]])
-  const [page, setPage] = useState(1)
-  const next = async () => {
-    if (!cache[page]) {
-      cache[page] = conditions
-      setCache(cache)
-    }
-    setConditions(
-      await apis.getConditions({
-        cursor_end_time: new Date(
-          conditions[DEFAULT_CONDITION_LIMIT - 1].timestamp
-        ),
-        cursor_jia_isu_uuid:
-          conditions[DEFAULT_CONDITION_LIMIT - 1].jia_isu_uuid,
-        condition_level: 'critical,warning,info'
-      })
-    )
-    setPage(page + 1)
-  }
-  const prev = async () => {
-    setConditions(cache[page - 1])
-    setPage(page - 1)
-  }
+const Conditions = ({ conditions, next, prev, page }: Props) => {
   const isNextExist = conditions.length === DEFAULT_CONDITION_LIMIT
   const isPrevExist = page > 1
 

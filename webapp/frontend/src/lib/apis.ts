@@ -170,6 +170,8 @@ export interface ConditionRequest {
   condition_level: string
 }
 
+export const DEFAULT_CONDITION_LIMIT = 20
+
 // TODO: 作問の開発用、消す
 export const debugGetJWT = async (
   req: { user: string; password: string } = {

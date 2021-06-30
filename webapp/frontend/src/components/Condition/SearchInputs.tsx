@@ -1,11 +1,16 @@
-import { useState } from 'react'
+import { Dispatch, SetStateAction } from 'react'
 import Button from '../UI/Button'
 import Input from '../UI/Input'
+import TimeInputs from './TimeInputs'
 
-const SearchInputs = () => {
-  const [query, setQuery] = useState('')
-  const [time, setTime] = useState('')
+interface Props {
+  query: string
+  setQuery: Dispatch<SetStateAction<string>>
+  times: string[]
+  setTimes: Dispatch<React.SetStateAction<string[]>>
+}
 
+const SearchInputs = ({ query, setQuery, times, setTimes }: Props) => {
   return (
     <div className="flex flex-wrap gap-6 items-center">
       <Input
@@ -14,7 +19,7 @@ const SearchInputs = () => {
         setValue={setQuery}
         classname="flex-1"
       />
-      <Input label="時間指定" value={time} setValue={setTime} />
+      <TimeInputs times={times} setTimes={setTimes} />
       <Button label="検索" />
     </div>
   )
