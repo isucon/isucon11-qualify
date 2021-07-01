@@ -10,9 +10,6 @@ RUN npm run build
 
 FROM golang:1.16.5-buster
 
-WORKDIR /public
-COPY --from=frontend /app/dist .
-
 WORKDIR /development
 COPY development/backend-go/air.toml .
 
@@ -36,3 +33,5 @@ COPY webapp/go/go.mod .
 COPY webapp/go/go.sum .
 
 RUN go mod download
+
+COPY --from=frontend /app/dist /public
