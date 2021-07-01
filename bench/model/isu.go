@@ -24,9 +24,8 @@ type Isu struct {
 	Character     string `json:"character"`
 	isWantDeleted bool   //シナリオスレッドからのみ参照
 	isDeactivated bool
-	posterChan    *IsuPosterChan //ISU協会はこれを使ってposterスレッドを起動、posterスレッドはこれを使って通信
-	//deactivateFunc context.CancelFunc //Isu協会activate/deactivateスレッドからのみ参照 //TODO: Isu協会側でデータを持つ
-	Conditions []IsuCondition //シナリオスレッドからのみ参照
+	PosterChan    *IsuPosterChan //ISU協会はこれを使ってposterスレッドを起動、posterスレッドはこれを使って通信
+	Conditions    []IsuCondition //シナリオスレッドからのみ参照
 }
 
 func NewIsu() *Isu {
@@ -39,9 +38,10 @@ func NewIsu() *Isu {
 	return v
 }
 
+//シナリオスレッドからのみ参照
 func (isu *Isu) IsDeactivated() bool {
 	select {
-	case v, ok := <-isu.posterChan.activateChan:
+	case v, ok := <-isu.PosterChan.activateChan:
 		isu.isDeactivated = !ok || !v //Isu協会スレッドの終了 || deactivateされた
 	default:
 	}
