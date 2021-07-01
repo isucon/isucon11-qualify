@@ -38,7 +38,6 @@ const (
 	jwtVerificationKeyPath = "../ec256-public.pem"
 	defaultIconFilePath    = "../NoImage.png"
 	DefaultJIAServiceURL   = "http://localhost:5000"
-	defaultIsuConditionIP  = "127.0.0.1"
 )
 
 var scorePerCondition = map[string]int{
@@ -56,6 +55,8 @@ var (
 	mySQLConnectionData *MySQLConnectionEnv
 
 	jwtVerificationKey *ecdsa.PublicKey
+
+	isuConditionIP string
 )
 
 type Config struct {
@@ -266,6 +267,12 @@ func main() {
 	}
 	db.SetMaxOpenConns(10)
 	defer db.Close()
+
+	isuConditionIP = os.Getenv("ISU_CONDITION_IP")
+	if isuConditionIP == "" {
+		e.Logger.Fatalf("env ver ISU_CONDITION_IP is missing: %v", err)
+		return
+	}
 
 	// Start server
 	serverPort := fmt.Sprintf(":%v", getEnv("SERVER_PORT", "3000"))
@@ -545,7 +552,6 @@ func postIsu(c echo.Context) error {
 		c.Logger().Errorf("bad port number: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
-	isuConditionIP := getEnv("ISU_CONDITION_IP", defaultIsuConditionIP)
 	body := JIAServiceRequest{isuConditionIP, port, jiaIsuUUID}
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
@@ -877,7 +883,6 @@ func deleteIsu(c echo.Context) error {
 		c.Logger().Errorf("bad port number: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
-	isuConditionIP := getEnv("ISU_CONDITION_IP", defaultIsuConditionIP)
 	body := JIAServiceRequest{isuConditionIP, port, jiaIsuUUID}
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
