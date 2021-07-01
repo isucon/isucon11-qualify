@@ -24,7 +24,9 @@ type User struct {
 	//ここで[]IsuLogを持つと更新にmutexが必要で嫌なので持たない
 }
 
-//
+func (u *User) AddIsu(isu *Isu) {
+	//TODO
+}
 
 // utility
 

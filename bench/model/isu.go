@@ -1,5 +1,7 @@
 package model
 
+import "fmt"
+
 //enum
 type IsuStateChange int
 
@@ -28,14 +30,33 @@ type Isu struct {
 	Conditions    []IsuCondition //シナリオスレッドからのみ参照
 }
 
-func NewIsu() *Isu {
-	v := &Isu{
+//新しいISUの生成
+//senarioのNewIsu以外からは呼び出さないこと！
+//戻り値を使ってbackendにpostする必要あり
+//戻り値をISU協会にIsu*を登録する必要あり
+//戻り値をownerに追加する必要あり
+func NewRandomIsuRaw(owner *User) *Isu {
+	id := fmt.Sprintf("randomid-%s-%d", owner.UserID, len(owner.IsuListOrderByCreatedAt))     //TODO: ちゃんと生成する
+	name := fmt.Sprintf("randomname-%s-%d", owner.UserID, len(owner.IsuListOrderByCreatedAt)) //TODO: ちゃんと生成する
+	isu := &Isu{
+		Owner:         owner,
+		JIAIsuUUID:    id,
+		Name:          name,
+		ImageName:     "dafault-image", //TODO: ちゃんとデータに合わせる
+		JIACatalogID:  "",              //TODO:
+		Character:     "",              //TODO:
+		isWantDeleted: false,
 		isDeactivated: true,
-		//TODO: ポインタやchanの初期化
+		PosterChan: &IsuPosterChan{
+			JIAIsuUUID:    id,
+			activateChan:  make(chan bool),
+			isuChan:       make(chan IsuStateChange, 1),
+			conditionChan: make(chan IsuCondition),
+		},
+		Conditions: []IsuCondition{},
 	}
-	//TODO: ISU協会にIsu*を登録
 
-	return v
+	return isu
 }
 
 //シナリオスレッドからのみ参照
