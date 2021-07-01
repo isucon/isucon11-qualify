@@ -152,6 +152,9 @@ func main() {
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 
+	// 動作確認用のログインページ
+	e.Static("/", "./index.html")
+
 	// Initialize
 	e.POST("/api/auth", postAuth)
 	e.GET("/api/catalog/:catalog_id", getCatalog)
