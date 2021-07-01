@@ -339,13 +339,26 @@ paths:
       tags: [backend]
       summary: '/api/isu/{jia_isu_uuid}/graph'
       description: 'グラフ描画のための情報を計算して返却する'
+      parameters:
+        - name: jia_isu_uuid
+          in: path
+          description: 'グラフを取得したいISUのID'
+        - name: date
+          in:  query
+          description: グラフを取得したい日付
       responses:
         '200':
-          description: ''
+          description: 'グラフの取得成功'
           content:
             application/json:
               schema:
-                type: 'boolean'
+                $ref:  "#/components/schemas/GraphList"
+        '400':
+          $ref:   "#/components/responses/BadRequestError"
+        '401':
+          $ref:  "#/components/responses/UnauthorizedError"
+        '404':
+          $ref:  "#/components/responses/NotFoundError"
 
 
   /api/condition:
@@ -475,6 +488,40 @@ components:
         tags:
           type: string
           description: Isuの付加情報
+      
+    Graph:
+      type: 'object'
+      properties:
+        start_at:
+          type: integer
+          description: グラフの開始時間
+        end_at:
+          type: integer
+          description: グラフの終了時間
+        data:
+          $ref:  "#/components/schemas/GraphData"
+
+    GraphData:
+      type: 'object'
+      properties:
+        score:
+          type: integer
+          description: スコア
+        sitting:
+          type: integer
+          description: 座っていたかどうかの値
+        details:
+          type: object
+          properties:
+            key:
+              type: integer
+
+    GraphList:
+      type: 'array'
+      items: {
+        $ref:  "#/components/schemas/Graph"
+      }
+
 
   responses:
     BadRequestError:
