@@ -30,15 +30,15 @@ import (
 )
 
 const (
-	sessionName             = "isucondition"
-	searchLimit             = 20
-	conditionLimit          = 20
-	notificationLimit       = 20
-	isuListLimit            = 200 // TODO 修正が必要なら変更
-	jwtVerificationKeyPath  = "../ec256-public.pem"
-	defaultIconFilePath     = "../NoImage.png"
-	DefaultJIAServiceURL    = "http://localhost:5000"
-	DefaultIsuConditionHost = "localhost"
+	sessionName            = "isucondition"
+	searchLimit            = 20
+	conditionLimit         = 20
+	notificationLimit      = 20
+	isuListLimit           = 200 // TODO 修正が必要なら変更
+	jwtVerificationKeyPath = "../ec256-public.pem"
+	defaultIconFilePath    = "../NoImage.png"
+	DefaultJIAServiceURL   = "http://localhost:5000"
+	defaultIsuConditionIP  = "127.0.0.1"
 )
 
 var scorePerCondition = map[string]int{
@@ -545,7 +545,8 @@ func postIsu(c echo.Context) error {
 		c.Logger().Errorf("bad port number: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
-	body := JIAServiceRequest{DefaultIsuConditionHost, port, jiaIsuUUID}
+	isuConditionIP := getEnv("ISU_CONDITION_IP", defaultIsuConditionIP)
+	body := JIAServiceRequest{isuConditionIP, port, jiaIsuUUID}
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
 		c.Logger().Errorf("failed to marshal data: %v", err)
@@ -876,7 +877,8 @@ func deleteIsu(c echo.Context) error {
 		c.Logger().Errorf("bad port number: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
-	body := JIAServiceRequest{DefaultIsuConditionHost, port, jiaIsuUUID}
+	isuConditionIP := getEnv("ISU_CONDITION_IP", defaultIsuConditionIP)
+	body := JIAServiceRequest{isuConditionIP, port, jiaIsuUUID}
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
 		c.Logger().Errorf("failed to marshal data: %v", err)
