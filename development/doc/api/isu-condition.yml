@@ -217,45 +217,72 @@ paths:
               schema:
                 $ref:  "#/components/schemas/IsuList"
         '400':
-          $ref:  "#/components/schemas/BadRequestError"
+          $ref:  "#/components/responses/BadRequestError"
 
 
   /api/isu/{jia_isu_uuid}:
     get:
       tags: [backend]
       summary: '/api/isu/{jia_isu_uuid}'
-      description: '椅子の情報を取得する'
+      description: 'ISUの情報を取得する'
+      parameters:
+        - name: jia_isu_uuid
+          in: path
+          description: '取得したいISUのID'
       responses:
         '200':
-          description: ''
+          description: 'ISUの取得成功'
           content:
             application/json:
               schema:
-                type: 'boolean'
+                $ref:  "#/components/schemas/Isu"
+        '401':
+          $ref:  "#/components/responses/UnauthorizedError"
 
     put:
       tags: [backend]
       summary: '/api/isu/{jia_isu_uuid}'
       description: '自分の所有しているISUの情報を変更する'
+      parameters:
+        - name: jia_isu_uuid
+          in: path
+          description: '更新したいISUのID'
+      requestBody:
+        description: 'Isu更新用のパラメーター'
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref:  "#/components/schemas/PutIsuBody"
       responses:
         '200':
-          description: ''
+          description: 'ISUの更新に成功'
           content:
             application/json:
               schema:
-                type: 'boolean'
+                $ref:  "#/components/schemas/Isu"
+        '400':
+          $ref:   "#/components/responses/BadRequestError"
+        '401':
+          $ref:  "#/components/responses/UnauthorizedError"
+        '404':
+          $ref:  "#/components/responses/NotFoundError"
 
     delete:
       tags: [backend]
       summary: '/api/isu/{jia_isu_uuid}'
       description: '自分の所有しているISUを削除する'
+      parameters:
+        - name: jia_isu_uuid
+          in: path
+          description: '削除したいISUのID'
       responses:
-        '200':
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: 'boolean'
+        '204':
+          description: 'ISUの削除に成功'
+        '401':
+          $ref:  "#/components/responses/UnauthorizedError"
+        '404':
+          $ref:  "#/components/responses/NotFoundError"
 
 
   /api/isu/{jia_isu_uuid}/icon:
@@ -369,6 +396,13 @@ components:
           type: string
           description: 登録するIsuのUUID
         isu_name:
+          type: string
+          description: 登録するIsuの名前
+    
+    PutIsuBody:
+      type: object
+      properties:
+        name:
           type: string
           description: 登録するIsuの名前
 
