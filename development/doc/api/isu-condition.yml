@@ -290,25 +290,48 @@ paths:
       tags: [backend]
       summary: '/api/isu/{jia_isu_uuid}/icon'
       description: 'ISUのアイコンを取得する'
+      parameters:
+        - name: jia_isu_uuid
+          in: path
+          description: 'アイコンを更新したいISUのID'
       responses:
         '200':
-          description: ''
+          description: 'ISUのアイコン取得成功'
           content:
-            application/json:
+            image/png:
               schema:
-                type: 'boolean'
+                type: string
+                format: binary
+        '401':
+          $ref:  "#/components/responses/UnauthorizedError"
+        '404':
+          $ref:  "#/components/responses/NotFoundError"
 
     put:
       tags: [backend]
       summary: '/api/isu/{jia_isu_uuid}/icon'
-      description: 'ISUのアイコンを登録する'
+      description: 'ISUのアイコンを登録/更新する'
+      parameters:
+        - name: jia_isu_uuid
+          in: path
+          description: 'アイコンを登録/更新したいISUのID'
+      requestBody:
+        description: '登録/更新用のISUアイコン'
+        required: true
+        content:
+          image/png:
+            schema:
+              type: string
+              format: binary
       responses:
-        '200':
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: 'boolean'
+        '204':
+          description: 'ISUのアイコン登録/更新成功'
+        '400':
+          $ref:   "#/components/responses/BadRequestError"
+        '401':
+          $ref:  "#/components/responses/UnauthorizedError"
+        '404':
+          $ref:  "#/components/responses/NotFoundError"
 
 
   /api/isu/{jia_isu_uuid}/graph:
