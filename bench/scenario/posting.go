@@ -32,7 +32,7 @@ func KeepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetURL s
 
 		//乱数初期化（逆算できるように）
 		nowTime := time.Now()
-		randEngine.Seed(nowTime.UnixNano()/1000000000 + 961054102)
+		randEngine.Seed(nowTime.Unix() + 961054102)
 
 		condition := model.IsuCondition{
 			IsSitting: (randEngine.Intn(100) <= 70),
