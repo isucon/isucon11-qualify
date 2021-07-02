@@ -427,13 +427,45 @@ paths:
         - name: jia_isu_uuid
           in: path
           required: true
+          description: 'コンディションを確認したいISUのID'
+        - name: start_time
+          in: query
+          required: false
+          description: '開始時間'
+          schema:
+            type: integer
+        - name: cursor_end_time
+          in: query
+          required: true
+          description: '終了時間'
+          schema:
+            type: integer
+        - name: condition_level
+          in: query
+          required: true
+          description: 'critical,warning,info'
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          description: '返すリストの上限'
+          schema:
+            type: integer
+            minimum: 1
       responses:
         '200':
-          description: ''
+          description: '指定したISUのコンディションの取得に成功'
           content:
             application/json:
               schema:
-                type: 'boolean'
+                $ref:  "#/components/schemas/ConditionList"
+        '400':
+          $ref:   "#/components/responses/BadRequestError"
+        '401':
+          $ref:  "#/components/responses/UnauthorizedError"
+        '404':
+          $ref:  "#/components/responses/NotFoundError"
 
 
   /api/isu/{jia_isu_uuid}/condition:
