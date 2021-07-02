@@ -54,10 +54,11 @@ var (
 	ErrInvalidContentType failure.StringCode = "content type"
 	ErrInvalidJSON        failure.StringCode = "json"
 	ErrInvalidAsset       failure.StringCode = "asset"
-	ErrMissmatch          failure.StringCode = "missmatch"    //データはあるが、間違っている（名前が違う等）
-	ErrInvalid            failure.StringCode = "invalid"      //ロジック的に誤り（存在しないはずのものが有る等）
-	ErrBadResponse        failure.StringCode = "bad-response" //不正な書式のレスポンス
-	ErrHTTP               failure.StringCode = "http"         //http通信回りのエラー（timeout含む）
+	ErrMissmatch          failure.StringCode = "missmatch"         //データはあるが、間違っている（名前が違う等）
+	ErrInvalid            failure.StringCode = "invalid"           //ロジック的に誤り（存在しないはずのものが有る等）
+	ErrBadResponse        failure.StringCode = "bad-response"      //不正な書式のレスポンス
+	ErrHTTP               failure.StringCode = "http"              //http通信回りのエラー（timeout含む）
+	ErrX5XX               failure.StringCode = "http-server-error" //500系のエラー
 )
 
 func isDeduction(err error) bool {
@@ -90,6 +91,10 @@ func isValidation(err error) bool {
 
 func errorInvalidStatusCode(res *http.Response, expected int) error {
 	return failure.NewError(ErrInvalidStatusCode, fmt.Errorf("期待する HTTP ステータスコード以外が返却されました (expected: %d): %d (%s: %s)", expected, res.StatusCode, res.Request.Method, res.Request.URL.Path))
+}
+
+func errorStatusCode500(res *http.Response) error {
+	return failure.NewError(ErrInvalidStatusCode, fmt.Errorf("不正な HTTP ステータスコード: %d (%s: %s)", res.StatusCode, res.Request.Method, res.Request.URL.Path))
 }
 
 func errorInvalidContentType(res *http.Response, expected string) error {
