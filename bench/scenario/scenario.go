@@ -1,10 +1,12 @@
 package scenario
 
 import (
+	"context"
 	"sync"
 
 	"github.com/isucon/isucandar"
 	"github.com/isucon/isucandar/agent"
+	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
 )
 
@@ -34,8 +36,30 @@ func (s *Scenario) NewAgent(opts ...agent.AgentOption) (*agent.Agent, error) {
 	return agent.NewAgent(opts...)
 }
 
+//新しい登録済みUserの生成
+//失敗したらnilを返す
+func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a *agent.Agent) *model.User {
+	user, err := model.NewRandomUserRaw()
+	if err != nil {
+		logger.AdminLogger.Panic(err)
+		return nil
+	}
+
+	//backendにpostする
+	//TODO: 確率で失敗してリトライする
+	_, errs := authAction(ctx, a, user.UserID)
+	for _, err := range errs {
+		step.AddError(err)
+	}
+	if len(errs) > 0 {
+		return nil
+	}
+
+	return user
+}
+
 //新しい登録済みISUの生成
-func (s *Scenario) NewIsu(step *isucandar.BenchmarkStep, a *agent.Agent, owner *model.User, UserMutex *sync.Mutex) (*model.Isu, error) {
+func (s *Scenario) NewIsu(step *isucandar.BenchmarkStep, owner *model.User, UserMutex *sync.Mutex) (*model.Isu, error) {
 	isu, streamsForPoster := model.NewRandomIsuRaw(owner)
 
 	//ISU協会にIsu*を登録する必要あり
