@@ -48,9 +48,16 @@
     state: present
     system: no
 
-- name: "roles/common/tasks/user: Deploy pubkey to isucon-admin user"
+- name: "roles/common/tasks/user: Create .ssh directory for isucon-admin user"
   become_user: isucon-admin
   file:
+    path: /home/isucon-admin/.ssh
+    state: directory
+    mode: 0700
+
+- name: "roles/common/tasks/user: Deploy pubkey to isucon-admin user"
+  become_user: isucon-admin
+  copy:
     src: id_ecdsa.pub
     dest: /home/isucon-admin/.ssh/authorized_keys
     mode: 0600
