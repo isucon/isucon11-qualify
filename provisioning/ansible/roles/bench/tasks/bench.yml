@@ -1,0 +1,37 @@
+---
+- name: "roles/bench/tasks/bench: Deploy isucon11-qualify bench"
+  become_user: isucon
+  copy:
+    remote_src: yes
+    src: /tmp/isucon11-qualify/bench
+    dest: /home/isucon/
+    owner: isucon
+    group: isucon
+
+- name: "roles/bench/tasks/bench: Build Web Application Go"
+  become_user: isucon
+  args:
+    chdir: /home/isucon/bench
+  environment:
+    PATH: "/home/isucon/local/go/bin:{{ ansible_env.PATH }}"
+  shell: |
+    go build -o bench .
+
+- name: "roles/bench/tasks/bench: Copy Service file"
+  become_user: root
+  copy:
+    src: "{{ item }}"
+    dest: "/{{ item }}"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+  with_items:
+    - etc/systemd/system/bench.service
+
+- name: "roles/bench/tasks/bench: Enable bench.service"
+  become_user: root
+  systemd:
+    daemon_reload: "yes"
+    name: "bench.service"
+    state: "restarted"
+    enabled: "yes"

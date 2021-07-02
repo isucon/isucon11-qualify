@@ -1,0 +1,40 @@
+---
+- name: all
+  become: true
+  hosts: [all]
+  tags:
+    - contestant
+    - bench
+    - standalone
+  roles:
+    - common
+    - langs
+
+- name: contestant
+  become: true
+  hosts: [all]
+  tags:
+    - contestant
+    - standalone
+  roles:
+    - langs.go
+    - contestant
+
+- name: bench
+  become: true
+  hosts: [all]
+  tags:
+    - bench
+  roles:
+    - langs.go
+    - bench
+    - bench.supervisor
+
+- name: bench-standalone
+  become: true
+  hosts: [all]
+  tags:
+    - standalone
+  roles:
+    - bench
+

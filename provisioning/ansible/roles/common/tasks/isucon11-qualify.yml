@@ -1,0 +1,10 @@
+---
+- name: "roles/common/tasks/isucon11-qualify: Create directory"
+  file:
+    path: /tmp/isucon11-qualify
+    state: directory
+
+- name: "roles/common/tasks/isucon11-qualify: Deploy isucon/isucon11-qualify"
+  unarchive:
+    src: archive.tar
+    dest: /tmp/isucon11-qualify/
