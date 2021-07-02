@@ -57,7 +57,7 @@ type IsuNotification struct {
 	IsSitting bool   `json:"is_sitting"`
 	Condition string `json:"condition"`
 	Message   string `json:"message"`
-	Timestamp string `json:"timestamp"`
+	Timestamp int64  `json:"timestamp"`
 }
 
 func getEnv(key string, defaultValue string) string {
