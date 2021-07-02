@@ -15,7 +15,7 @@ import (
 )
 
 //POST /api/isu/{jia_isu_id}/conditionをたたくスレッド
-func KeepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetURL string, scenarioChan *model.IsuPosterChan) {
+func KeepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetURL string, scenarioChan *model.StreamsForPoster) {
 	randEngine := rand.New(rand.NewSource(0))
 
 	timer := time.NewTicker(2 * time.Second)
@@ -32,7 +32,7 @@ func KeepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetURL s
 
 		//乱数初期化（逆算できるように）
 		nowTime := time.Now()
-		randEngine.Seed(nowTime.UnixNano()/1000000000 + 961054102)
+		randEngine.Seed(nowTime.Unix() + 961054102)
 
 		condition := model.IsuCondition{
 			IsSitting: (randEngine.Intn(100) <= 70),

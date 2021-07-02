@@ -2,6 +2,8 @@ package model
 
 import (
 	"math/rand"
+
+	"github.com/isucon/isucandar/agent"
 )
 
 //enum
@@ -22,6 +24,8 @@ type User struct {
 	IsuListOrderByCreatedAt []*Isu          //CreatedAtは厳密にはわからないので、postした後にgetをした順番を正とする
 	IsuListByID             map[string]*Isu //IDをkeyにアクセス
 	//ここで[]IsuLogを持つと更新にmutexが必要で嫌なので持たない
+
+	Agent *agent.Agent
 }
 
 func (u *User) AddIsu(isu *Isu) {

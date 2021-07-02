@@ -6,28 +6,37 @@ import "fmt"
 type IsuStateChange int
 
 //posterスレッドとシナリオスレッドとの通信に必要な情報
+//ISU協会はこれを使ってposterスレッドを起動、posterスレッドはこれを使って通信
 //複数回posterスレッドが起動するかもしれないのでcloseしない
 //当然リソースリークするがベンチマーカーは毎回落とすので問題ない
-type IsuPosterChan struct {
-	JIAIsuUUID    string
-	activateChan  chan bool           //posterスレッド -> シナリオスレッド
-	isuChan       chan IsuStateChange //シナリオスレッド->posterスレッド
-	conditionChan chan IsuCondition   //posterスレッド -> シナリオスレッド
+type StreamsForPoster struct {
+	ActiveChan    chan<- bool
+	StateChan     <-chan IsuStateChange
+	ConditionChan chan<- IsuCondition
+}
+
+//posterスレッドとシナリオスレッドとの通信に必要な情報
+//複数回posterスレッドが起動するかもしれないのでcloseしない
+//当然リソースリークするがベンチマーカーは毎回落とすので問題ない
+type StreamsForScenario struct {
+	activeChan    <-chan bool
+	StateChan     chan<- IsuStateChange
+	ConditionChan <-chan IsuCondition
 }
 
 //一つのIsuにつき、一つの送信用スレッドがある
 //IsuはISU協会スレッドからも読み込まれる
 type Isu struct {
-	Owner         *User
-	JIAIsuUUID    string `json:"jia_isu_uuid"`
-	Name          string `json:"name"`
-	ImageName     string `json:"-"`
-	JIACatalogID  string `json:"jia_catalog_id"`
-	Character     string `json:"character"`
-	isWantDeleted bool   //シナリオスレッドからのみ参照
-	isDeactivated bool
-	PosterChan    *IsuPosterChan //ISU協会はこれを使ってposterスレッドを起動、posterスレッドはこれを使って通信
-	Conditions    []IsuCondition //シナリオスレッドからのみ参照
+	Owner              *User
+	JIAIsuUUID         string
+	Name               string
+	ImageName          string
+	JIACatalogID       string
+	Character          string
+	IsWantDeactivated  bool                //シナリオ上でDeleteリクエストを送ったかどうか
+	isDeactivated      bool                //実際にdeactivateされているか
+	StreamsForScenario *StreamsForScenario //posterスレッドとの通信
+	Conditions         []IsuCondition      //シナリオスレッドからのみ参照
 }
 
 //新しいISUの生成
@@ -62,19 +71,9 @@ func NewRandomIsuRaw(owner *User) *Isu {
 //シナリオスレッドからのみ参照
 func (isu *Isu) IsDeactivated() bool {
 	select {
-	case v, ok := <-isu.PosterChan.activateChan:
+	case v, ok := <-isu.StreamsForScenario.activeChan:
 		isu.isDeactivated = !ok || !v //Isu協会スレッドの終了 || deactivateされた
 	default:
 	}
 	return isu.isDeactivated
-}
-
-//シナリオスレッドからのみ参照
-func (isu *Isu) IsDeleted() bool {
-	return isu.isWantDeleted
-}
-
-//シナリオスレッドからのみ参照
-func (isu *Isu) WantDelete() {
-	isu.isWantDeleted = true
 }
