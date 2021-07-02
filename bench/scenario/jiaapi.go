@@ -16,9 +16,9 @@ import (
 )
 
 var (
-	isuPosterMutex sync.Mutex
-	isuIsActivated = map[string]JiaAPI2PosterData{}
-	isuPosterData  = map[string]*model.IsuPosterChan{}
+	streamsForPosterMutex sync.Mutex
+	isuIsActivated        = map[string]JiaAPI2PosterData{}
+	streamsForPoster      = map[string]*model.StreamsForPoster{}
 
 	jiaAPIContext context.Context
 	jiaAPIStep    *isucandar.BenchmarkStep
@@ -37,10 +37,10 @@ type JiaAPI2PosterData struct {
 }
 
 //シナリオスレッドからの呼び出し
-func RegisterToJiaAPI(data *model.IsuPosterChan) {
-	isuPosterMutex.Lock()
-	defer isuPosterMutex.Unlock()
-	isuPosterData[data.JIAIsuUUID] = data
+func RegisterToJiaAPI(jiaIsuUUID string, data *model.StreamsForPoster) {
+	streamsForPosterMutex.Lock()
+	defer streamsForPosterMutex.Unlock()
+	streamsForPoster[jiaIsuUUID] = data
 }
 
 func JiaAPIThread(ctx context.Context, step *isucandar.BenchmarkStep) {
@@ -104,9 +104,9 @@ func postActivate(c echo.Context) error {
 	//posterスレッドの起動
 	posterContext, chancelFunc := context.WithCancel(jiaAPIContext)
 	err = func() error {
-		isuPosterMutex.Lock()
-		defer isuPosterMutex.Unlock()
-		scenarioChan, ok := isuPosterData[state.IsuUUID]
+		streamsForPosterMutex.Lock()
+		defer streamsForPosterMutex.Unlock()
+		scenarioChan, ok := streamsForPoster[state.IsuUUID]
 		if !ok {
 			return echo.NewHTTPError(http.StatusNotFound)
 		}
@@ -141,8 +141,8 @@ func postDeactivate(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest)
 	}
 
-	isuPosterMutex.Lock()
-	defer isuPosterMutex.Unlock()
+	streamsForPosterMutex.Lock()
+	defer streamsForPosterMutex.Unlock()
 	v, ok := isuIsActivated[state.IsuUUID]
 	if !(ok && v.activated) {
 		return echo.NewHTTPError(http.StatusNotFound)
