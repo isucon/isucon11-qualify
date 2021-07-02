@@ -36,10 +36,10 @@ func (s *Scenario) NewAgent(opts ...agent.AgentOption) (*agent.Agent, error) {
 
 //新しい登録済みISUの生成
 func (s *Scenario) NewIsu(step *isucandar.BenchmarkStep, a *agent.Agent, owner *model.User, UserMutex *sync.Mutex) (*model.Isu, error) {
-	isu := model.NewRandomIsuRaw(owner)
+	isu, streamsForPoster := model.NewRandomIsuRaw(owner)
 
 	//ISU協会にIsu*を登録する必要あり
-	RegisterToIsuAPI(isu.PosterChan)
+	RegisterToJiaAPI(isu.JIAIsuUUID, streamsForPoster)
 
 	//backendにpostする
 	//isuPostAction() //TODO:

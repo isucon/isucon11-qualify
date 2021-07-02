@@ -44,28 +44,36 @@ type Isu struct {
 //戻り値を使ってbackendにpostする必要あり
 //戻り値をISU協会にIsu*を登録する必要あり
 //戻り値をownerに追加する必要あり
-func NewRandomIsuRaw(owner *User) *Isu {
+func NewRandomIsuRaw(owner *User) (*Isu, *StreamsForPoster) {
+	activeChan := make(chan bool)
+	stateChan := make(chan IsuStateChange, 1)
+	conditionChan := make(chan IsuCondition)
+
 	id := fmt.Sprintf("randomid-%s-%d", owner.UserID, len(owner.IsuListOrderByCreatedAt))     //TODO: ちゃんと生成する
 	name := fmt.Sprintf("randomname-%s-%d", owner.UserID, len(owner.IsuListOrderByCreatedAt)) //TODO: ちゃんと生成する
 	isu := &Isu{
-		Owner:         owner,
-		JIAIsuUUID:    id,
-		Name:          name,
-		ImageName:     "dafault-image", //TODO: ちゃんとデータに合わせる
-		JIACatalogID:  "",              //TODO:
-		Character:     "",              //TODO:
-		isWantDeleted: false,
-		isDeactivated: true,
-		PosterChan: &IsuPosterChan{
-			JIAIsuUUID:    id,
-			activateChan:  make(chan bool),
-			isuChan:       make(chan IsuStateChange, 1),
-			conditionChan: make(chan IsuCondition),
+		Owner:             owner,
+		JIAIsuUUID:        id,
+		Name:              name,
+		ImageName:         "dafault-image", //TODO: ちゃんとデータに合わせる
+		JIACatalogID:      "",              //TODO:
+		Character:         "",              //TODO:
+		IsWantDeactivated: false,
+		isDeactivated:     true,
+		StreamsForScenario: &StreamsForScenario{
+			activeChan:    activeChan,
+			StateChan:     stateChan,
+			ConditionChan: conditionChan,
 		},
 		Conditions: []IsuCondition{},
 	}
 
-	return isu
+	streamsForPoster := &StreamsForPoster{
+		ActiveChan:    activeChan,
+		StateChan:     stateChan,
+		ConditionChan: conditionChan,
+	}
+	return isu, streamsForPoster
 }
 
 //シナリオスレッドからのみ参照
