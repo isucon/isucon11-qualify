@@ -49,11 +49,11 @@ func (isu *Isu) IsDeactivated() bool {
 }
 
 //シナリオスレッドからのみ参照
-func (isu *Isu) IsDeleted() bool {
-	return isu.isWantDeleted
+func (isu *Isu) IsWantDeactivated() bool {
+	return isu.isWantDeactivated
 }
 
 //シナリオスレッドからのみ参照
-func (isu *Isu) WantDelete() {
-	isu.isWantDeleted = true
+func (isu *Isu) WantDeactivated() {
+	isu.isWantDeactivated = true
 }
