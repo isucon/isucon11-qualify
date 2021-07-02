@@ -169,6 +169,7 @@
       type: 'shell',
       inline: [
         'sudo apt remove -y ansible',
+        'sudo apt-add-repository -y --remove ppa:ansible/ansible',
         'sudo rm -rf /etc/ansible',
         'sudo rm -f /root/.ssh/*',
       ],
