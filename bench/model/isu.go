@@ -44,7 +44,7 @@ type Isu struct {
 //戻り値を使ってbackendにpostする必要あり
 //戻り値をISU協会にIsu*を登録する必要あり
 //戻り値をownerに追加する必要あり
-func NewRandomIsuRaw(owner *User) (*Isu, *StreamsForPoster) {
+func NewRandomIsuRaw(owner *User) (*Isu, *StreamsForPoster, error) {
 	activeChan := make(chan bool)
 	stateChan := make(chan IsuStateChange, 1)
 	conditionChan := make(chan IsuCondition)
@@ -73,7 +73,7 @@ func NewRandomIsuRaw(owner *User) (*Isu, *StreamsForPoster) {
 		StateChan:     stateChan,
 		ConditionChan: conditionChan,
 	}
-	return isu, streamsForPoster
+	return isu, streamsForPoster, nil
 }
 
 //シナリオスレッドからのみ参照

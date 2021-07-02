@@ -59,8 +59,13 @@ func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a
 }
 
 //新しい登録済みISUの生成
-func (s *Scenario) NewIsu(step *isucandar.BenchmarkStep, owner *model.User, UserMutex *sync.Mutex) (*model.Isu, error) {
-	isu, streamsForPoster := model.NewRandomIsuRaw(owner)
+//失敗したらnilを返す
+func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, owner *model.User, UserMutex *sync.Mutex) *model.Isu {
+	isu, streamsForPoster, err := model.NewRandomIsuRaw(owner)
+	if err != nil {
+		logger.AdminLogger.Panic(err)
+		return nil
+	}
 
 	//ISU協会にIsu*を登録する必要あり
 	RegisterToJiaAPI(isu.JIAIsuUUID, streamsForPoster)
@@ -76,5 +81,5 @@ func (s *Scenario) NewIsu(step *isucandar.BenchmarkStep, owner *model.User, User
 	}
 	owner.AddIsu(isu)
 
-	return isu, nil
+	return isu
 }
