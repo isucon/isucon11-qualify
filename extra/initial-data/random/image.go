@@ -2,19 +2,26 @@ package random
 
 import (
 	"fmt"
+	"io/fs"
 	"io/ioutil"
 	"log"
 	"math/rand"
 	"path/filepath"
 )
 
-func Image() []byte {
-	files, err := ioutil.ReadDir(imageFolderPath)
+var files []fs.FileInfo
+
+func init() {
+	var err error
+	// 画像ファイル群の読み込み
+	files, err = ioutil.ReadDir(imageFolderPath)
 	if err != nil {
 		log.Fatalf("%+v", fmt.Errorf("%w", err))
 	}
-	fileInfo := files[rand.Intn(len(files))]
+}
 
+func Image() []byte {
+	fileInfo := files[rand.Intn(len(files))]
 	bytes, err := ioutil.ReadFile(filepath.Join(imageFolderPath, fileInfo.Name()))
 	if err != nil {
 		log.Fatalf("%+v", fmt.Errorf("%w", err))

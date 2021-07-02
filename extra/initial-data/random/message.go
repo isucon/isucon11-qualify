@@ -1,6 +1,6 @@
 package random
 
-func MessageWithCondition(isSitting bool, isDirty bool, isOverweight bool, isBroken bool) string {
+func MessageWithCondition(isSitting, isDirty, isOverweight, isBroken bool, charactor string) string {
 	var score int
 	if isSitting {
 		score += 1
