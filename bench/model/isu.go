@@ -4,6 +4,7 @@ package model
 type IsuStateChange int
 
 //posterスレッドとシナリオスレッドとの通信に必要な情報
+//ISU協会はこれを使ってposterスレッドを起動、posterスレッドはこれを使って通信
 //複数回posterスレッドが起動するかもしれないのでcloseしない
 //当然リソースリークするがベンチマーカーは毎回落とすので問題ない
 type StreamsForPoster struct {
@@ -32,7 +33,7 @@ type Isu struct {
 	Character          string
 	IsWantDeactivated  bool                //シナリオ上でDeleteリクエストを送ったかどうか
 	isDeactivated      bool                //実際にdeactivateされているか
-	StreamsForScenario *StreamsForScenario //ISU協会はこれを使ってposterスレッドを起動、posterスレッドはこれを使って通信
+	StreamsForScenario *StreamsForScenario //posterスレッドとの通信
 	Conditions         []IsuCondition      //シナリオスレッドからのみ参照
 }
 
