@@ -37,7 +37,7 @@ const (
 	isuListLimit            = 200 // TODO 修正が必要なら変更
 	jwtVerificationKeyPath  = "../ec256-public.pem"
 	defaultIconFilePath     = "../NoImage.png"
-	DefaultJIAServiceURL    = "http://localhost:5000"
+	DefaultJIAServiceURL    = "http://isuapi-sa:5000"
 	DefaultIsuConditionHost = "localhost"
 )
 

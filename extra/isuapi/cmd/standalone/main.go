@@ -57,7 +57,7 @@ type IsuNotification struct {
 	IsSitting bool   `json:"is_sitting"`
 	Condition string `json:"condition"`
 	Message   string `json:"message"`
-	Timestamp string `json:"timestamp"`
+	Timestamp int64  `json:"timestamp"`
 }
 
 func getEnv(key string, defaultValue string) string {
@@ -210,6 +210,9 @@ func postActivate(c echo.Context) error {
 		c.Logger().Errorf("failed to bind: %v", err)
 		return echo.NewHTTPError(http.StatusBadRequest)
 	}
+	if state.IsuUUID != "a" {
+		return c.JSON(http.StatusAccepted, IsuState{CatalogID: "550e8400-e29b-41d4-a716-446655440000", Character: characterList[0]})
+	}
 	if !(0 <= state.TargetPort && state.TargetPort < 0x1000) {
 		c.Logger().Errorf("bad port: %v", state.TargetPort)
 		return echo.NewHTTPError(http.StatusBadRequest)
@@ -244,6 +247,9 @@ func postDeactivate(c echo.Context) error {
 	if !(0 <= state.TargetPort && state.TargetPort < 0x1000) {
 		c.Logger().Errorf("bad port: %v", state.TargetPort)
 		return echo.NewHTTPError(http.StatusBadRequest)
+	}
+	if state.IsuUUID != "a" {
+		return c.JSON(http.StatusNoContent, IsuState{CatalogID: "550e8400-e29b-41d4-a716-446655440000", Character: characterList[0]})
 	}
 	if _, ok := validIsu[state.IsuUUID]; !ok {
 		c.Logger().Errorf("bad isu_uuid: %v", state.IsuUUID)
