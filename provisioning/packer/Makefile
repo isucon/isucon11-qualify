@@ -1,13 +1,6 @@
 default: generate
 
 files-generated:  files-generated/REVISION files-generated/archive.tar
-	mkdir -p files-cached/
-
-files/tls-cert.pem:
-	cp ../secrets/cert.pem files/tls-cert.pem
-
-files/tls-key.pem:
-	cp ../secrets/key.pem files/tls-key.pem
 
 files-generated/REVISION:
 	mkdir -p files-generated/
@@ -18,6 +11,7 @@ files-generated/REVISION:
 files-generated/archive.tar: files-generated/REVISION
 	mkdir -p files-generated/
 	git -C "$(shell git rev-parse --show-toplevel)" archive "$(shell cat files-generated/REVISION)" > files-generated/archive.tar
+
 
 generate: output target/contestant.json target/bench.json target/standalone.json
 
@@ -49,14 +43,11 @@ build-bench: files-generated target/bench.json
 build-standalone: files-generated target/standalone.json
 	packer build -var "revision=$(shell cat files-generated/REVISION)" target/standalone.json
 
+
 clean:
 	rm -rf files-generated/
 	rm -rf target/
 	rm -rf tmp/
 
-clean-cache:
-	rm -rf files-cached/
-
 clean-output:
 	rm -rf output/
-

@@ -97,22 +97,15 @@
       source: './files',
       destination: '/dev/shm/files',
     },
-    copy_files_generated: {
-      type: 'file',
-      source: './files-generated',
-      destination: '/dev/shm/files-generated',
-      generated: true,
-    },
-    copy_files_cached: {
-      type: 'file',
-      source: './files-cached',
-      destination: '/var/tmp/files-cached',
-      generated: true,
-    },
     copy_files_playbook: {
       type: 'file',
       source: '../ansible',
       destination: '/dev/shm/ansible',
+    },
+    copy_files_generated: {
+      type: 'file',
+      source: './files-generated',
+      destination: '/dev/shm/files-generated',
       generated: true,
     },
     wait_cloud_init: {
@@ -192,21 +185,6 @@
       ],
     },
 
-    generate_cache: {
-      type: 'shell',
-      inline: [
-        'sudo mkdir -p /var/tmp/files-cached',
-        'sudo rm -f /var/tmp/files-cached/local.tar.gz',
-        '[ ! -e ~isucon/local/.cache ] && sudo -u isucon touch ~isucon/local/.cache && sudo tar czf /var/tmp/files-cached/local.tar.gz -C ~isucon/local --xattrs .',
-      ],
-    },
-    download_cache: {
-      type: 'file',
-      direction: 'download',
-      source: '/var/tmp/files-cached/',
-      destination: './output/cache-' + $.arg_arch + '-' + $.arg_variant + '-{{build_type}}/',
-    },
-
     sysprep: {
       type: 'shell',
       inline: [
@@ -221,7 +199,6 @@
         'sudo rm -f /var/lib/systemd/timesync/clock || :',
         'sudo rm -rf /var/lib/cloud /var/lib/dbus/machine-id',
         'sudo rm -rf /root/go',
-        'sudo rm -rf /var/tmp/files-cached',
         'sudo rm -rf /dev/shm/files',
         'sudo rm -rf /dev/shm/files-generated',
         'sudo rm -rf /dev/shm/ansible',
@@ -232,9 +209,8 @@
   provisioners_plus:: [],
   provisioners: [
     $.common_provisioners.copy_files,
-    $.common_provisioners.copy_files_generated,
-    $.common_provisioners.copy_files_cached,
     $.common_provisioners.copy_files_playbook,
+    $.common_provisioners.copy_files_generated,
 
     $.common_provisioners.wait_cloud_init,
     #$.common_provisioners.apt_source_generic,
