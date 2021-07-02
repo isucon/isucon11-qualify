@@ -16,16 +16,16 @@ type IsuPosterChan struct {
 //一つのIsuにつき、一つの送信用スレッドがある
 //IsuはISU協会スレッドからも読み込まれる
 type Isu struct {
-	Owner         *User
-	JIAIsuUUID    string `json:"jia_isu_uuid"`
-	Name          string `json:"name"`
-	ImageName     string `json:"-"`
-	JIACatalogID  string `json:"jia_catalog_id"`
-	Character     string `json:"character"`
-	isWantDeleted bool   //シナリオスレッドからのみ参照
-	isDeactivated bool
-	PosterChan    *IsuPosterChan //ISU協会はこれを使ってposterスレッドを起動、posterスレッドはこれを使って通信
-	Conditions    []IsuCondition //シナリオスレッドからのみ参照
+	Owner             *User
+	JIAIsuUUID        string         `json:"jia_isu_uuid"`
+	Name              string         `json:"name"`
+	ImageName         string         `json:"-"`
+	JIACatalogID      string         `json:"jia_catalog_id"`
+	Character         string         `json:"character"`
+	isWantDeactivated bool           //シナリオ上でDeleteリクエストを送ったかどうか
+	isDeactivated     bool           //実際にdeactivateされているか
+	PosterChan        *IsuPosterChan //ISU協会はこれを使ってposterスレッドを起動、posterスレッドはこれを使って通信
+	Conditions        []IsuCondition //シナリオスレッドからのみ参照
 }
 
 func NewIsu() *Isu {
