@@ -473,13 +473,27 @@ paths:
       tags: [backend]
       summary: '/api/isu/{jia_isu_uuid}/condition'
       description: 'ISUからのセンサデータを受け取る'
+      parameters:
+        - name: jia_isu_uuid
+          in: path
+          required: true
+          description: '情報を送信してくるISUのID'
+      requestBody:
+        description: 'ISUから送信されてくる情報'
+        required: true
+        content:
+          application/json:
+            schema: 
+              $ref:  "#/components/schemas/PostIsuCondition"
       responses:
-        '200':
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: 'boolean'
+        '201':
+          description: 'ISUからの送信データの受け取りに成功'
+        '400':
+          $ref: "#/components/responses/BadRequestError"
+        '404':
+          $ref:  "#/components/responses/NotFoundError"
+        '409':
+          $ref: "#/components/responses/ConflictError"
 
 
 components:
@@ -631,6 +645,23 @@ components:
       items: {
         $ref:  "#/components/schemas/Condition"
       }
+
+    PostIsuCondition:
+      type: object
+      properties:
+        is_sitting:
+          type: boolean
+          description: 座っていたかどうか
+        condition:
+          type: string
+          description: 'ISUの状態'
+        message:
+          type: string
+          description: 'ISUからのメッセージ'
+        timestamp:
+          type: integer
+          description: 'Unix Time(秒まで)'
+
 
   responses:
     BadRequestError:
