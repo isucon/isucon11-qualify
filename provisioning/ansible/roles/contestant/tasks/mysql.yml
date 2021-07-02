@@ -11,6 +11,7 @@
 
 
 - name: "roles/contestant/tasks/mysql: Set temporary password"
+  become_user: root
   blockinfile:
     create: yes
     dest: &myCnf /root/.my.cnf
@@ -20,8 +21,9 @@
       password = root
 
 - name: "roles/contestant/tasks/mysql: Create isucon user on MySQL"
+  become_user: root
   shell: >
-      mysql -uroot -proot -e "
+      mysql -e "
         CREATE USER IF NOT EXISTS 'isucon'@'localhost' IDENTIFIED BY 'isucon';
         GRANT ALL PRIVILEGES ON *.* TO 'isucon'@'localhost' WITH GRANT OPTION;
         FLUSH PRIVILEGES;
