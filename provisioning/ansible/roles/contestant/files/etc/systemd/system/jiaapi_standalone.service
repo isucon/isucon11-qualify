@@ -1,0 +1,16 @@
+[Unit]
+Description=jiaapi_standalone
+
+[Service]
+PIDFile=/var/run/jiaapi_standalone
+
+User=isucon
+Group=isucon
+ExecStart=/usr/local/bin/jiaapi_standalone
+ExecStop=/bin/kill -s QUIT $MAINPID
+
+Restart   = always
+Type      = simple
+
+[Install]
+WantedBy=multi-user.target
