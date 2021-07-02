@@ -17,11 +17,11 @@ import (
 
 var (
 	isuPosterMutex sync.Mutex
-	isuIsActivated = map[string]IsuAPI2PosterData{}
+	isuIsActivated = map[string]JiaAPI2PosterData{}
 	isuPosterData  = map[string]*model.IsuPosterChan{}
 
-	isuAPIContext context.Context
-	isuAPIStep    *isucandar.BenchmarkStep
+	jiaAPIContext context.Context
+	jiaAPIStep    *isucandar.BenchmarkStep
 )
 
 type IsuConditionPosterRequest struct {
@@ -31,22 +31,22 @@ type IsuConditionPosterRequest struct {
 }
 
 //ISU協会スレッドとposterの通信
-type IsuAPI2PosterData struct {
+type JiaAPI2PosterData struct {
 	activated   bool
 	chancelFunc context.CancelFunc
 }
 
 //シナリオスレッドからの呼び出し
-func RegisterToIsuAPI(data *model.IsuPosterChan) {
+func RegisterToJiaAPI(data *model.IsuPosterChan) {
 	isuPosterMutex.Lock()
 	defer isuPosterMutex.Unlock()
 	isuPosterData[data.JIAIsuUUID] = data
 }
 
-func IsuAPIThread(ctx context.Context, step *isucandar.BenchmarkStep) {
+func JiaAPIThread(ctx context.Context, step *isucandar.BenchmarkStep) {
 
-	isuAPIContext = ctx
-	isuAPIStep = step
+	jiaAPIContext = ctx
+	jiaAPIStep = step
 
 	// Echo instance
 	e := echo.New()
@@ -102,7 +102,7 @@ func postActivate(c echo.Context) error {
 	)
 
 	//posterスレッドの起動
-	posterContext, chancelFunc := context.WithCancel(isuAPIContext)
+	posterContext, chancelFunc := context.WithCancel(jiaAPIContext)
 	err = func() error {
 		isuPosterMutex.Lock()
 		defer isuPosterMutex.Unlock()
@@ -114,12 +114,12 @@ func postActivate(c echo.Context) error {
 		if ok && v.activated {
 			return echo.NewHTTPError(http.StatusForbidden)
 		}
-		isuIsActivated[state.IsuUUID] = IsuAPI2PosterData{
+		isuIsActivated[state.IsuUUID] = JiaAPI2PosterData{
 			activated:   true,
 			chancelFunc: chancelFunc,
 		}
 
-		go KeepPosting(posterContext, isuAPIStep, targetURL, scenarioChan)
+		go KeepPosting(posterContext, jiaAPIStep, targetURL, scenarioChan)
 		return nil
 	}()
 	if err != nil {
