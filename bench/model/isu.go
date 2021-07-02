@@ -17,11 +17,11 @@ type IsuPosterChan struct {
 //IsuはISU協会スレッドからも読み込まれる
 type Isu struct {
 	Owner             *User
-	JIAIsuUUID        string         `json:"jia_isu_uuid"`
-	Name              string         `json:"name"`
-	ImageName         string         `json:"-"`
-	JIACatalogID      string         `json:"jia_catalog_id"`
-	Character         string         `json:"character"`
+	JIAIsuUUID        string
+	Name              string
+	ImageName         string
+	JIACatalogID      string
+	Character         string
 	isWantDeactivated bool           //シナリオ上でDeleteリクエストを送ったかどうか
 	isDeactivated     bool           //実際にdeactivateされているか
 	PosterChan        *IsuPosterChan //ISU協会はこれを使ってposterスレッドを起動、posterスレッドはこれを使って通信
