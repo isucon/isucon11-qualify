@@ -2,7 +2,6 @@ package scenario
 
 import (
 	"context"
-	"sync"
 
 	"github.com/isucon/isucandar"
 	"github.com/isucon/isucandar/agent"
@@ -60,7 +59,7 @@ func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a
 
 //新しい登録済みISUの生成
 //失敗したらnilを返す
-func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, owner *model.User, UserMutex *sync.Mutex) *model.Isu {
+func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, owner *model.User, addToUser bool) *model.Isu {
 	isu, streamsForPoster, err := model.NewRandomIsuRaw(owner)
 	if err != nil {
 		logger.AdminLogger.Panic(err)
@@ -74,12 +73,12 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 	//isuPostAction() //TODO:
 	//TODO: 確率で失敗してリトライする
 
-	//戻り値をownerに追加する必要あり
-	if UserMutex != nil {
-		UserMutex.Lock()
-		defer UserMutex.Unlock()
+	//並列に生成する場合は後でgetにより正しい順番を得て、その順序でaddする
+	//その場合はaddToUser==falseになる
+	if addToUser {
+		//戻り値をownerに追加する
+		owner.AddIsu(isu)
 	}
-	owner.AddIsu(isu)
 
 	return isu
 }

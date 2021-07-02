@@ -42,8 +42,10 @@ func NewRandomUserRaw() (*User, error) {
 	}, nil
 }
 
+//CreatedAt順で挿入すること
 func (u *User) AddIsu(isu *Isu) {
-	//TODO
+	u.IsuListOrderByCreatedAt = append(u.IsuListOrderByCreatedAt, isu)
+	u.IsuListByID[isu.JIAIsuUUID] = isu
 }
 
 // utility
