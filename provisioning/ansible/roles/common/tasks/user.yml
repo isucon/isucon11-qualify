@@ -1,5 +1,5 @@
 ---
-- name: "roles.common.tasks.user: Create isucon group"
+- name: "roles/common/tasks/user: Create isucon group"
   become_user: root
   group:
     name: isucon
@@ -7,7 +7,7 @@
     state: present
     system: no
 
-- name: "roles.common.tasks.user: Create isucon user"
+- name: "roles/common/tasks/user: Create isucon user"
   become_user: root
   user:
     name: isucon
@@ -19,7 +19,7 @@
     state: present
     system: no
 
-- name: "roles.common.tasks.user: Add sudoers"
+- name: "roles/common/tasks/user: Add sudoers"
   become_user: root
   copy:
     content: "isucon  ALL=(ALL) NOPASSWD:ALL\n"
@@ -28,7 +28,7 @@
     group: root
     mode: 0440
 
-- name: "roles.common.tasks.user: Create isucon-admin group"
+- name: "roles/common/tasks/user: Create isucon-admin group"
   become_user: root
   group:
     name: isucon-admin
@@ -36,7 +36,7 @@
     state: present
     system: no
 
-- name: "roles.common.tasks.user: Create isucon-admin user"
+- name: "roles/common/tasks/user: Create isucon-admin user"
   become_user: root
   user:
     name: isucon-admin
@@ -48,7 +48,7 @@
     state: present
     system: no
 
-- name: "roles.common.tasks.user: Deploy pubkey to isucon-admin user"
+- name: "roles/common/tasks/user: Deploy pubkey to isucon-admin user"
   become_user: isucon-admin
   file:
     src: id_ecdsa.pub

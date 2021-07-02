@@ -1,9 +1,7 @@
 ---
-- name: "roles.common.tasks.main: include user.yml"
+- name: "roles/common/tasks/main: include user.yml"
   include: user.yml
-- name: "roles.common.tasks.main: include package.yml"
+- name: "roles/common/tasks/main: include package.yml"
   include: package.yml
-- name: "roles.common.tasks.main: include xbuild.yml"
-  include: xbuild.yml
-- name: "roles.common.tasks.main: include isucon11-qualify.yml"
+- name: "roles/common/tasks/main: include isucon11-qualify.yml"
   include: isucon11-qualify.yml

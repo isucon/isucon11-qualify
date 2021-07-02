@@ -1,11 +1,11 @@
 ---
-- name: "roles.bench.tasks.kernel: Increase file limits for sysctl"
+- name: "roles/bench/tasks/kernel: Increase file limits for sysctl"
   copy:
     dest: /etc/sysctl.d/50-fs.conf
     content: |
       fs.file-max=655360
 
-- name: "roles.bench.tasks.kernel: Tune up network"
+- name: "roles/bench/tasks/kernel: Tune up network"
   become: yes
   copy:
     dest: /etc/sysctl.d/92-net.conf

@@ -1,5 +1,5 @@
 ---
-- name: "roles.contestant.tasks.go: Build Web Application Go"
+- name: "roles/contestant/tasks/go: Build Web Application Go"
   become_user: isucon
   args:
     chdir: /home/isucon/webapp/go/
@@ -8,7 +8,7 @@
   shell: |
     go build -o isucondition .
 
-- name: "roles.contestant.tasks.go: Copy Service file"
+- name: "roles/contestant/tasks/go: Deploy Service file"
   become_user: root
   copy:
     src: "{{ item }}"

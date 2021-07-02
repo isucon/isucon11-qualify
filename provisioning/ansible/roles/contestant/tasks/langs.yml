@@ -1,7 +1,0 @@
----
-
-- name: "roles.contestant.tasks.langs: Include langs-go.yml"
-  include: langs-go.yml
-
-# TODO: 言語別の include
-

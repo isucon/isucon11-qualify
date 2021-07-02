@@ -1,12 +1,12 @@
 ---
-- name: "roles.common.tasks.package: Replace fast repository"
+- name: "roles/common/tasks/package: Replace fast repository"
   replace:
     path: /etc/apt/sources.list
     regexp: 'http://archive.ubuntu.com/ubuntu'
     replace: 'http://ftp.jaist.ac.jp/pub/Linux/ubuntu/'
     backup: yes
 
-- name: "roles.common.tasks.package: Install Package(Build)"
+- name: "roles/common/tasks/package: Install Package(Build)"
   become: yes
   become_user: root
   apt:

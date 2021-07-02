@@ -1,5 +1,5 @@
 ---
-- name: "roles.common.tasks.xbuild: Install xbuild"
+- name: "roles/langs/tasks/main: Install xbuild"
   become_user: isucon
   git:
     repo: https://github.com/tagomoris/xbuild.git

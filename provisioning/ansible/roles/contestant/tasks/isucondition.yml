@@ -1,5 +1,5 @@
 ---
-- name: "roles.contestant.tasks.isucondition: Deploy isucon11-qualify"
+- name: "roles/contestant/tasks/isucondition: Deploy isucon11-qualify"
   become_user: isucon
   copy:
     remote_src: yes
@@ -8,7 +8,7 @@
     owner: isucon
     group: isucon
 
-- name: "roles.contestant.tasks.isucondition: Deploy env.sh"
+- name: "roles/contestant/tasks/isucondition: Deploy env.sh"
   become_user: isucon
   copy:
     src: "home/isucon/env.sh"
@@ -17,12 +17,12 @@
     group: "isucon"
     mode: "0644"
 
-- name: "roles.contestant.tasks.isucondition: Include isucondition-go.yml"
+- name: "roles/contestant/tasks/isucondition: Include isucondition-go.yml"
   include: isucondition-go.yml
 
 # TODO: 言語別の include
 
-- name: "roles.contestant.tasks.isucondition: Enable isucondition.go.service"
+- name: "roles/contestant/tasks/isucondition: Enable isucondition.go.service"
   become_user: root
   systemd:
     daemon_reload: "yes"
