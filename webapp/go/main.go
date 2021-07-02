@@ -1144,7 +1144,7 @@ func getAllIsuConditions(c echo.Context) error {
 	if startTimeStr != "" {
 		_, err = strconv.ParseInt(startTimeStr, 10, 64)
 		if err != nil {
-			return c.String(http.StatusBadRequest, "bad format: cursor_end_time")
+			return c.String(http.StatusBadRequest, "bad format: start_time")
 		}
 	}
 
