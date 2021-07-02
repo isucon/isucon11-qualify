@@ -1460,7 +1460,7 @@ func postIsuCondition(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	if count != 0 {
-		return c.String(http.StatusConflict, "isu_cndition already exist")
+		return c.String(http.StatusConflict, "isu_condition already exist")
 	}
 	//insert
 	_, err = tx.Exec("INSERT INTO `isu_condition`"+
