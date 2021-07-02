@@ -22,7 +22,7 @@ type Isu struct {
 	ImageName         string
 	JIACatalogID      string
 	Character         string
-	isWantDeactivated bool           //シナリオ上でDeleteリクエストを送ったかどうか
+	IsWantDeactivated bool           //シナリオ上でDeleteリクエストを送ったかどうか
 	isDeactivated     bool           //実際にdeactivateされているか
 	PosterChan        *IsuPosterChan //ISU協会はこれを使ってposterスレッドを起動、posterスレッドはこれを使って通信
 	Conditions        []IsuCondition //シナリオスレッドからのみ参照
@@ -46,14 +46,4 @@ func (isu *Isu) IsDeactivated() bool {
 	default:
 	}
 	return isu.isDeactivated
-}
-
-//シナリオスレッドからのみ参照
-func (isu *Isu) IsWantDeactivated() bool {
-	return isu.isWantDeactivated
-}
-
-//シナリオスレッドからのみ参照
-func (isu *Isu) WantDeactivated() {
-	isu.isWantDeactivated = true
 }
