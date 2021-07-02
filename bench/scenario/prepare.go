@@ -10,16 +10,17 @@ import (
 	"github.com/isucon/isucandar"
 	"github.com/isucon/isucandar/agent"
 	"github.com/isucon/isucandar/failure"
+	"github.com/isucon/isucandar/worker"
 	"github.com/isucon/isucon11-qualify/bench/logger"
+	"github.com/isucon/isucon11-qualify/bench/model"
 )
 
 func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) error {
 	logger.ContestantLogger.Printf("===> PREPARE")
 
 	//initialize
-	initializer, err := agent.NewAgent(
-		agent.WithBaseURL(s.BaseURL), agent.WithNoCache(),
-		agent.WithNoCookie(), agent.WithTimeout(20*time.Second),
+	initializer, err := s.NewAgent(
+		agent.WithNoCache(), agent.WithNoCookie(), agent.WithTimeout(20*time.Second),
 	)
 	if err != nil {
 		return failure.NewError(ErrCritical, err)
@@ -36,6 +37,84 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 	}
 
 	s.Language = initResponse.Language
+
+	//各エンドポイントのチェック
+	err = s.prepareCheckAuth(ctx, step)
+	if err != nil {
+		return err
+	}
+
+	// Prepare step でのエラーはすべて Critical の扱い
+	if len(step.Result().Errors.All()) > 0 {
+		//return ErrScenarioCancel
+		return ErrCritical
+	}
+	return nil
+}
+
+//エンドポイント事の単体テスト
+
+func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.BenchmarkStep) error {
+
+	//TODO: ユーザープール
+	//とりあえずは使い捨てのユーザーを使う
+
+	w, err := worker.NewWorker(func(ctx context.Context, index int) {
+
+		agt, err := s.NewAgent()
+		if err != nil {
+			step.AddError(failure.NewError(ErrCritical, err))
+			return
+		}
+		userID, err := model.MakeRandomUserID()
+		if err != nil {
+			step.AddError(failure.NewError(ErrCritical, err))
+			return
+		}
+		if (index % 10) < authActionErrorNum {
+			//各種ログイン失敗ケース
+			errs := authActionError(ctx, agt, userID, index%10)
+			for _, err := range errs {
+				step.AddError(err)
+			}
+		} else {
+			//ログイン成功
+			_, errs := authAction(ctx, agt, userID)
+			for _, err := range errs {
+				step.AddError(err)
+			}
+		}
+	}, worker.WithLoopCount(20))
+
+	if err != nil {
+		return failure.NewError(ErrCritical, err)
+	}
+
+	w.Process(ctx)
+	//w.Wait() //念のためもう一度止まってるか確認
+
+	//作成済みユーザーへのログイン確認
+	agt, err := s.NewAgent()
+	if err != nil {
+		step.AddError(failure.NewError(ErrCritical, err))
+		return nil
+	}
+	userID, err := model.MakeRandomUserID()
+	if err != nil {
+		step.AddError(failure.NewError(ErrCritical, err))
+		return nil
+	}
+
+	_, errs := authAction(ctx, agt, userID)
+	for _, err := range errs {
+		step.AddError(err)
+	}
+	agt.ClearCookie()
+	//二回目のログイン
+	_, errs = authAction(ctx, agt, userID)
+	for _, err := range errs {
+		step.AddError(err)
+	}
 
 	return nil
 }

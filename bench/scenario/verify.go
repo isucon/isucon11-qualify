@@ -15,7 +15,7 @@ import (
 
 func verifyStatusCode(res *http.Response, code int) error {
 	if res.StatusCode != code {
-		return errorInvalidStatusCode(res)
+		return errorInvalidStatusCode(res, code)
 	}
 	return nil
 }
