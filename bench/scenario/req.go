@@ -210,7 +210,7 @@ func doRequest(ctx context.Context, agent *agent.Agent, httpreq *http.Request, a
 		}
 	}
 	if invalidStatusCode {
-		return nil, errorStatusCode500(httpres)
+		return nil, errorInvalidStatusCodes(httpres, allowedStatusCodes)
 	}
 
 	return httpres, nil

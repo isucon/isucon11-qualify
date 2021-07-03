@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strconv"
 
 	"github.com/isucon/isucandar"
 	"github.com/isucon/isucandar/failure"
@@ -93,8 +94,13 @@ func errorInvalidStatusCode(res *http.Response, expected int) error {
 	return failure.NewError(ErrInvalidStatusCode, fmt.Errorf("期待する HTTP ステータスコード以外が返却されました (expected: %d): %d (%s: %s)", expected, res.StatusCode, res.Request.Method, res.Request.URL.Path))
 }
 
-func errorStatusCode500(res *http.Response) error {
-	return failure.NewError(ErrInvalidStatusCode, fmt.Errorf("不正な HTTP ステータスコード: %d (%s: %s)", res.StatusCode, res.Request.Method, res.Request.URL.Path))
+func errorInvalidStatusCodes(res *http.Response, expected []int) error {
+	expectedStr := ""
+	for _, v := range expected {
+		expectedStr += strconv.Itoa(v) + ","
+	}
+	expectedStr = expectedStr[:len(expectedStr)-1]
+	return failure.NewError(ErrInvalidStatusCode, fmt.Errorf("期待する HTTP ステータスコード以外が返却されました (expected: %s): %d (%s: %s)", expectedStr, res.StatusCode, res.Request.Method, res.Request.URL.Path))
 }
 
 func errorInvalidContentType(res *http.Response, expected string) error {
