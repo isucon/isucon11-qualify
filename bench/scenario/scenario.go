@@ -1,5 +1,7 @@
 package scenario
 
+import "github.com/isucon/isucandar/agent"
+
 // scenario.go
 // シナリオ構造体とそのメンバ関数
 
@@ -18,4 +20,9 @@ func NewScenario() (*Scenario, error) {
 	return &Scenario{
 		// TODO: シナリオを初期化する
 	}, nil
+}
+
+func (s *Scenario) NewAgent(opts ...agent.AgentOption) (*agent.Agent, error) {
+	opts = append(opts, agent.WithBaseURL(s.BaseURL))
+	return agent.NewAgent(opts...)
 }

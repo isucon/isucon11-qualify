@@ -10,6 +10,7 @@ services:
       MYSQL_DATABASE: isucondition
       MYSQL_USER: isucon
       MYSQL_PASSWORD: isucon
+      ISU_CONDITION_IP: backend-go
     ports:
       - "3000:3000"
     volumes:
