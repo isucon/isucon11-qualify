@@ -11,17 +11,23 @@ const Auth = () => {
 
   useEffect(() => {
     const login = async () => {
-      const url = new URL(location.href)
-      const jwt = url.searchParams.get('jwt')
-      if (jwt) {
-        await apis.postAuth(jwt)
+      try {
         const me = await apis.getUserMe()
         dispatch({ type: 'login', user: me })
+        history.push('/')
+      } catch {
+        const url = new URL(location.href)
+        const jwt = url.searchParams.get('jwt')
+        if (jwt) {
+          await apis.postAuth(jwt)
+          const me = await apis.getUserMe()
+          dispatch({ type: 'login', user: me })
+        }
+        history.push('/')
       }
-      history.push('/')
     }
     login()
-  })
+  }, [history, dispatch])
   const click = async () => {
     // TODO: 本番どうするか考える
     location.href = `http://localhost:5000`
