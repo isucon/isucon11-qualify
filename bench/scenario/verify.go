@@ -41,38 +41,35 @@ func verifyText(res *http.Response, text string, expected string) error {
 	}
 	return nil
 }
+func verify4xxError(res *http.Response, text string, expectedText string, expectedCode int) error {
+	if res.StatusCode != expectedCode {
+		return errorInvalidStatusCode(res, expectedCode)
+	}
+	if text != expectedText {
+		return errorMissmatch(res, "エラーメッセージが不正確です: `%s` (expected: `%s`)", text, expectedCode)
+	}
+	return nil
+}
 
 // 文脈無しで検証できるもの
 
 func verifyNotSignedIn(res *http.Response, text string) error {
-	if res.StatusCode != http.StatusUnauthorized || text != "you are not signed in" {
-		// TODO: これ invalid status codeではないかも(textでの比較)
-		return errorInvalidStatusCode(res, http.StatusUnauthorized)
-	}
-	return nil
+	expected := "you are not signed in"
+	return verify4xxError(res, text, expected, http.StatusUnauthorized)
 }
 
 // TODO: 統一され次第消す
 func verifyNotSignedInTODO(res *http.Response, text string) error {
-	if res.StatusCode != http.StatusUnauthorized || text != "you are not sign in" {
-		// TODO: これ invalid status codeではないかも(textでの比較)
-		return errorInvalidStatusCode(res, http.StatusUnauthorized)
-	}
-	return nil
+	expected := "you are not sign in"
+	return verify4xxError(res, text, expected, http.StatusUnauthorized)
 }
 
 func verifyBadReqBody(res *http.Response, text string) error {
-	if res.StatusCode != http.StatusBadRequest || text != "bad request body" {
-		// TODO: これ invalid status codeではないかも(textでの比較)
-		return errorInvalidStatusCode(res, http.StatusBadRequest)
-	}
-	return nil
+	expected := "bad request body"
+	return verify4xxError(res, text, expected, http.StatusBadRequest)
 }
 
 func verifyIsuNotFound(res *http.Response, text string) error {
-	if res.StatusCode != http.StatusNotFound || text != "isu not found" {
-		// TODO: これ invalid status codeではないかも(textでの比較)
-		return errorInvalidStatusCode(res, http.StatusNotFound)
-	}
-	return nil
+	expected := "isu not found"
+	return verify4xxError(res, text, expected, http.StatusNotFound)
 }
