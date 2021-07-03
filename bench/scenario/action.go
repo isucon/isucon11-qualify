@@ -270,7 +270,7 @@ func authActionWithForbiddenJWT(ctx context.Context, a *agent.Agent, invalidJWT 
 func signoutAction(ctx context.Context, a *agent.Agent) (*http.Response, error) {
 	res, err := reqNoContentResNoContent(ctx, a, http.MethodPost, "/api/signout", []int{http.StatusOK})
 	if err != nil {
-		return nil, failure.NewError(ErrCritical, err)
+		return nil, err
 	}
 	return res, err
 }
@@ -278,7 +278,7 @@ func signoutAction(ctx context.Context, a *agent.Agent) (*http.Response, error) 
 func signoutErrorAction(ctx context.Context, a *agent.Agent) (string, *http.Response, error) {
 	res, text, err := reqNoContentResError(ctx, a, http.MethodPost, "/api/signout", []int{http.StatusUnauthorized})
 	if err != nil {
-		return "", nil, failure.NewError(ErrCritical, err)
+		return "", nil, err
 	}
 	return text, res, err
 }
@@ -287,7 +287,7 @@ func getMeAction(ctx context.Context, a *agent.Agent) (*service.GetMeResponse, *
 	me := &service.GetMeResponse{}
 	res, err := reqJSONResJSON(ctx, a, http.MethodGet, "/api/user/me", nil, me, []int{http.StatusOK})
 	if err != nil {
-		return nil, nil, failure.NewError(ErrCritical, err)
+		return nil, nil, err
 	}
 	return me, res, nil
 }
@@ -295,7 +295,7 @@ func getMeAction(ctx context.Context, a *agent.Agent) (*service.GetMeResponse, *
 func getMeErrorAction(ctx context.Context, a *agent.Agent) (string, *http.Response, error) {
 	res, resBody, err := reqJSONResError(ctx, a, http.MethodGet, "/api/user/me", nil, []int{http.StatusUnauthorized})
 	if err != nil {
-		return "", nil, failure.NewError(ErrCritical, err)
+		return "", nil, err
 	}
 	return resBody, res, nil
 }
@@ -304,7 +304,7 @@ func getIsuAction(ctx context.Context, a *agent.Agent) ([]*service.Isu, *http.Re
 	var isuList []*service.Isu
 	res, err := reqJSONResJSON(ctx, a, http.MethodGet, "/api/isu", nil, &isuList, []int{http.StatusOK})
 	if err != nil {
-		return nil, nil, failure.NewError(ErrCritical, err)
+		return nil, nil, err
 	}
 	return isuList, res, nil
 }
@@ -312,7 +312,7 @@ func getIsuAction(ctx context.Context, a *agent.Agent) ([]*service.Isu, *http.Re
 func getIsuErrorAction(ctx context.Context, a *agent.Agent) (string, *http.Response, error) {
 	res, resBody, err := reqJSONResError(ctx, a, http.MethodGet, "/api/isu", nil, []int{http.StatusUnauthorized})
 	if err != nil {
-		return "", nil, failure.NewError(ErrCritical, err)
+		return "", nil, err
 	}
 	return resBody, res, nil
 }
@@ -325,7 +325,7 @@ func postIsuAction(ctx context.Context, a *agent.Agent, req service.PostIsuReque
 	isu := &service.Isu{}
 	res, err := reqJSONResJSON(ctx, a, http.MethodPost, "/api/isu", bytes.NewReader(body), isu, []int{http.StatusOK})
 	if err != nil {
-		return nil, nil, failure.NewError(ErrCritical, err)
+		return nil, nil, err
 	}
 	return isu, res, nil
 }
@@ -337,7 +337,7 @@ func postIsuErrorAction(ctx context.Context, a *agent.Agent, req interface{}) (s
 	}
 	res, text, err := reqJSONResError(ctx, a, http.MethodPost, "/api/isu", bytes.NewReader(body), []int{http.StatusBadRequest, http.StatusConflict, http.StatusUnauthorized, http.StatusNotFound})
 	if err != nil {
-		return "", nil, failure.NewError(ErrCritical, err)
+		return "", nil, err
 	}
 	return text, res, nil
 }
@@ -347,7 +347,7 @@ func getIsuIdAction(ctx context.Context, a *agent.Agent, id string) (*service.Is
 	reqUrl := fmt.Sprintf("/api/isu/%s", id)
 	res, err := reqJSONResJSON(ctx, a, http.MethodGet, reqUrl, nil, &isu, []int{http.StatusOK})
 	if err != nil {
-		return nil, nil, failure.NewError(ErrCritical, err)
+		return nil, nil, err
 	}
 	return isu, res, nil
 }
@@ -356,7 +356,7 @@ func getIsuIdErrorAction(ctx context.Context, a *agent.Agent, id string) (string
 	reqUrl := fmt.Sprintf("/api/isu/%s", id)
 	res, text, err := reqNoContentResError(ctx, a, http.MethodGet, reqUrl, []int{http.StatusUnauthorized, http.StatusNotFound})
 	if err != nil {
-		return "", nil, failure.NewError(ErrCritical, err)
+		return "", nil, err
 	}
 	return text, res, nil
 }
@@ -370,7 +370,7 @@ func putIsuAction(ctx context.Context, a *agent.Agent, id string, req service.Pu
 	reqUrl := fmt.Sprintf("/api/isu/%s", id)
 	res, err := reqJSONResJSON(ctx, a, http.MethodPut, reqUrl, bytes.NewReader(body), &isu, []int{http.StatusOK})
 	if err != nil {
-		return nil, nil, failure.NewError(ErrCritical, err)
+		return nil, nil, err
 	}
 	return isu, res, nil
 }
@@ -383,7 +383,7 @@ func putIsuErrorAction(ctx context.Context, a *agent.Agent, id string, req servi
 	reqUrl := fmt.Sprintf("/api/isu/%s", id)
 	res, text, err := reqJSONResError(ctx, a, http.MethodPut, reqUrl, bytes.NewReader(body), []int{http.StatusUnauthorized, http.StatusNotFound, http.StatusBadRequest})
 	if err != nil {
-		return "", nil, failure.NewError(ErrCritical, err)
+		return "", nil, err
 	}
 	return text, res, nil
 }
@@ -392,7 +392,7 @@ func deleteIsuAction(ctx context.Context, a *agent.Agent, id string) (*http.Resp
 	reqUrl := fmt.Sprintf("/api/isu/%s", id)
 	res, err := reqNoContentResNoContent(ctx, a, http.MethodDelete, reqUrl, []int{http.StatusNoContent})
 	if err != nil {
-		return nil, failure.NewError(ErrCritical, err)
+		return nil, err
 	}
 	return res, nil
 }
@@ -401,7 +401,7 @@ func deleteIsuErrorAction(ctx context.Context, a *agent.Agent, id string) (strin
 	reqUrl := fmt.Sprintf("/api/isu/%s", id)
 	res, text, err := reqNoContentResError(ctx, a, http.MethodDelete, reqUrl, []int{http.StatusUnauthorized, http.StatusNotFound})
 	if err != nil {
-		return "", nil, failure.NewError(ErrCritical, err)
+		return "", nil, err
 	}
 	return text, res, nil
 }
@@ -410,7 +410,7 @@ func getIsuIconAction(ctx context.Context, a *agent.Agent, id string) ([]byte, *
 	reqUrl := fmt.Sprintf("/api/isu/%s/icon", id)
 	res, image, err := reqNoContentResPng(ctx, a, http.MethodGet, reqUrl, []int{http.StatusOK})
 	if err != nil {
-		return nil, nil, failure.NewError(ErrCritical, err)
+		return nil, nil, err
 	}
 	// TODO: imageの取り扱いについて考える
 	return image, res, nil
@@ -420,7 +420,7 @@ func getIsuIconErrorAction(ctx context.Context, a *agent.Agent, id string) (stri
 	reqUrl := fmt.Sprintf("/api/isu/%s/icon", id)
 	res, text, err := reqNoContentResError(ctx, a, http.MethodGet, reqUrl, []int{http.StatusUnauthorized, http.StatusNotFound})
 	if err != nil {
-		return "", nil, failure.NewError(ErrCritical, err)
+		return "", nil, err
 	}
 	return text, res, nil
 }
@@ -430,7 +430,7 @@ func putIsuIconAction(ctx context.Context, a *agent.Agent, id string, image io.R
 	reqUrl := fmt.Sprintf("/api/isu/%s/icon", id)
 	res, err := reqPngResNoContent(ctx, a, http.MethodPut, reqUrl, image, []int{http.StatusOK})
 	if err != nil {
-		return nil, failure.NewError(ErrCritical, err)
+		return nil, err
 	}
 	return res, nil
 }
@@ -439,7 +439,7 @@ func putIsuIconErrorAction(ctx context.Context, a *agent.Agent, id string, image
 	reqUrl := fmt.Sprintf("/api/isu/%s/icon", id)
 	res, text, err := reqPngResError(ctx, a, http.MethodPut, reqUrl, image, []int{http.StatusUnauthorized, http.StatusNotFound, http.StatusBadRequest})
 	if err != nil {
-		return "", nil, failure.NewError(ErrCritical, err)
+		return "", nil, err
 	}
 	return text, res, nil
 }
@@ -449,7 +449,7 @@ func getIsuSearchAction(ctx context.Context, a *agent.Agent, req service.GetIsuS
 	var isuList []*service.Isu
 	res, err := reqJSONResJSON(ctx, a, http.MethodGet, reqUrl, nil, &isuList, []int{http.StatusOK})
 	if err != nil {
-		return nil, nil, failure.NewError(ErrCritical, err)
+		return nil, nil, err
 	}
 	return isuList, res, nil
 }
@@ -458,7 +458,7 @@ func getIsuSearchErrorAction(ctx context.Context, a *agent.Agent, req service.Ge
 	reqUrl := getIsuSearchRequestParams(req)
 	res, text, err := reqNoContentResError(ctx, a, http.MethodGet, reqUrl, []int{http.StatusUnauthorized, http.StatusNotFound})
 	if err != nil {
-		return "", nil, failure.NewError(ErrCritical, err)
+		return "", nil, err
 	}
 	return text, res, nil
 }
@@ -498,7 +498,7 @@ func getCatalogAction(ctx context.Context, a *agent.Agent, id string) (service.C
 	reqUrl := fmt.Sprintf("/api/catalog/%s", id)
 	res, err := reqJSONResJSON(ctx, a, http.MethodGet, reqUrl, nil, &catalog, []int{http.StatusOK})
 	if err != nil {
-		return catalog, nil, failure.NewError(ErrCritical, err)
+		return catalog, nil, err
 	}
 	return catalog, res, nil
 }
@@ -507,7 +507,7 @@ func getCatalogErrorAction(ctx context.Context, a *agent.Agent, id string) (stri
 	reqUrl := fmt.Sprintf("/api/catalog/%s", id)
 	res, text, err := reqNoContentResError(ctx, a, http.MethodGet, reqUrl, []int{http.StatusUnauthorized, http.StatusNotFound})
 	if err != nil {
-		return "", nil, failure.NewError(ErrCritical, err)
+		return "", nil, err
 	}
 	return text, res, nil
 }
@@ -520,7 +520,7 @@ func postIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req 
 	}
 	res, err := reqJSONResNoContent(ctx, a, http.MethodPost, reqUrl, bytes.NewReader(body), []int{http.StatusCreated})
 	if err != nil {
-		return nil, failure.NewError(ErrCritical, err)
+		return nil, err
 	}
 	return res, nil
 }
@@ -533,7 +533,7 @@ func postIsuConditionErrorAction(ctx context.Context, a *agent.Agent, id string,
 	}
 	res, text, err := reqJSONResError(ctx, a, http.MethodPost, reqUrl, bytes.NewReader(body), []int{http.StatusNotFound, http.StatusBadRequest})
 	if err != nil {
-		return "", nil, failure.NewError(ErrCritical, err)
+		return "", nil, err
 	}
 	return text, res, nil
 }
@@ -543,7 +543,7 @@ func getIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req s
 	conditions := []*service.GetIsuConditionResponse{}
 	res, err := reqJSONResJSON(ctx, a, http.MethodGet, reqUrl, nil, &conditions, []int{http.StatusOK})
 	if err != nil {
-		return nil, nil, failure.NewError(ErrCritical, err)
+		return nil, nil, err
 	}
 	return conditions, res, nil
 }
@@ -552,7 +552,7 @@ func getIsuConditionErrorAction(ctx context.Context, a *agent.Agent, id string, 
 	reqUrl := getIsuConditionRequestParams(fmt.Sprintf("/api/condition/%s?", id), req)
 	res, text, err := reqNoContentResError(ctx, a, http.MethodGet, reqUrl, []int{http.StatusNotFound, http.StatusUnauthorized})
 	if err != nil {
-		return "", nil, failure.NewError(ErrCritical, err)
+		return "", nil, err
 	}
 	return text, res, nil
 }
@@ -562,7 +562,7 @@ func getConditionAction(ctx context.Context, a *agent.Agent, req service.GetIsuC
 	conditions := []*service.GetIsuConditionResponse{}
 	res, err := reqJSONResJSON(ctx, a, http.MethodGet, reqUrl, nil, &conditions, []int{http.StatusOK})
 	if err != nil {
-		return nil, nil, failure.NewError(ErrCritical, err)
+		return nil, nil, err
 	}
 	return conditions, res, nil
 }
@@ -571,7 +571,7 @@ func getConditionErrorAction(ctx context.Context, a *agent.Agent, req service.Ge
 	reqUrl := getIsuConditionRequestParams("/api/condition?", req)
 	res, text, err := reqNoContentResError(ctx, a, http.MethodGet, reqUrl, []int{http.StatusNotFound, http.StatusUnauthorized})
 	if err != nil {
-		return "", nil, failure.NewError(ErrCritical, err)
+		return "", nil, err
 	}
 	return text, res, nil
 }
@@ -601,7 +601,7 @@ func getIsuGraphAction(ctx context.Context, a *agent.Agent, id string, date uint
 	reqUrl := fmt.Sprintf("/api/isu/%s/graph?date=%d", id, date)
 	res, err := reqJSONResJSON(ctx, a, http.MethodGet, reqUrl, nil, &graph, []int{http.StatusOK})
 	if err != nil {
-		return nil, nil, failure.NewError(ErrCritical, err)
+		return nil, nil, err
 	}
 	return graph, res, nil
 }
@@ -610,7 +610,7 @@ func getIsuGraphErrorAction(ctx context.Context, a *agent.Agent, id string, date
 	reqUrl := fmt.Sprintf("/api/isu/%s/graph?date=%d", id, date)
 	res, text, err := reqNoContentResError(ctx, a, http.MethodGet, reqUrl, []int{http.StatusUnauthorized, http.StatusNotFound, http.StatusBadRequest})
 	if err != nil {
-		return "", nil, failure.NewError(ErrCritical, err)
+		return "", nil, err
 	}
 	return text, res, nil
 }
