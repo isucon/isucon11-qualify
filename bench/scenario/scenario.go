@@ -2,9 +2,11 @@ package scenario
 
 import (
 	"context"
+	"sync"
 
 	"github.com/isucon/isucandar"
 	"github.com/isucon/isucandar/agent"
+	"github.com/isucon/isucandar/worker"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
 )
@@ -22,6 +24,9 @@ type Scenario struct {
 
 	// 競技者の実装言語
 	Language string
+
+	loadWaitGroup    sync.WaitGroup
+	normalUserWorker *worker.Worker //通常ユーザーのシナリオスレッド
 }
 
 func NewScenario() (*Scenario, error) {
@@ -33,6 +38,13 @@ func NewScenario() (*Scenario, error) {
 func (s *Scenario) NewAgent(opts ...agent.AgentOption) (*agent.Agent, error) {
 	opts = append(opts, agent.WithBaseURL(s.BaseURL))
 	return agent.NewAgent(opts...)
+}
+
+//load用
+//通常ユーザーのシナリオスレッドを追加する
+func (s *Scenario) AddNormalUser(ctx context.Context, step *isucandar.BenchmarkStep, count int32) {
+	s.loadWaitGroup.Add(int(count))
+	s.normalUserWorker.AddParallelism(count)
 }
 
 //新しい登録済みUserの生成
