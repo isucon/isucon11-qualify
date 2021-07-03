@@ -23,6 +23,7 @@ import (
 
 	"github.com/isucon/isucandar/agent"
 	"github.com/isucon/isucandar/failure"
+	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
 	"github.com/isucon/isucon11-qualify/bench/service"
 )
@@ -37,9 +38,7 @@ func initializeAction(ctx context.Context, a *agent.Agent) (*service.InitializeR
 	//リクエスト
 	req, err := a.POST("/initialize", nil)
 	if err != nil {
-		err = failure.NewError(ErrHTTP, err)
-		errors = append(errors, err)
-		return nil, errors
+		logger.AdminLogger.Panic(err)
 	}
 	res, err := a.Do(ctx, req)
 	if err != nil {
@@ -84,17 +83,13 @@ func authAction(ctx context.Context, a *agent.Agent, userID string) (*service.Au
 	//JWT生成
 	jwtOK, err := service.GenerateJWT(userID, time.Now())
 	if err != nil {
-		err = failure.NewError(ErrCritical, err)
-		errors = append(errors, err)
-		return nil, errors
+		logger.AdminLogger.Panic(err)
 	}
 
 	//リクエスト
 	req, err := a.POST("/api/auth", nil)
 	if err != nil {
-		err = failure.NewError(ErrCritical, err)
-		errors = append(errors, err)
-		return nil, errors
+		logger.AdminLogger.Panic(err)
 	}
 	req.Header.Set("Authorization", jwtOK)
 	res, err := a.Do(ctx, req)
@@ -138,9 +133,7 @@ func authActionWithInvalidJWT(ctx context.Context, a *agent.Agent, invalidJWT st
 	//リクエスト
 	req, err := a.POST("/api/auth", nil)
 	if err != nil {
-		err = failure.NewError(ErrCritical, err)
-		errors = append(errors, err)
-		return errors
+		logger.AdminLogger.Panic(err)
 	}
 	req.Header.Set("Authorization", invalidJWT)
 	res, err := a.Do(ctx, req)
@@ -174,9 +167,7 @@ func authActionWithoutJWT(ctx context.Context, a *agent.Agent) []error {
 	//リクエスト
 	req, err := a.POST("/api/auth", nil)
 	if err != nil {
-		err = failure.NewError(ErrCritical, err)
-		errors = append(errors, err)
-		return errors
+		logger.AdminLogger.Panic(err)
 	}
 	res, err := a.Do(ctx, req)
 	if err != nil {
@@ -215,14 +206,14 @@ func authActionError(ctx context.Context, agt *agent.Agent, userID string, error
 		//Unexpected signing method, StatusForbidden
 		jwtHS256, err := service.GenerateHS256JWT(userID, time.Now())
 		if err != nil {
-			return []error{failure.NewError(ErrCritical, err)}
+			logger.AdminLogger.Panic(err)
 		}
 		return authActionWithForbiddenJWT(ctx, agt, jwtHS256)
 	case 1:
 		//expired, StatusForbidden
 		jwtExpired, err := service.GenerateJWT(userID, time.Now().Add(-365*24*time.Hour))
 		if err != nil {
-			return []error{failure.NewError(ErrCritical, err)}
+			logger.AdminLogger.Panic(err)
 		}
 		return authActionWithForbiddenJWT(ctx, agt, jwtExpired)
 	case 2:
@@ -232,7 +223,7 @@ func authActionError(ctx context.Context, agt *agent.Agent, userID string, error
 		//invalid private key, StatusForbidden
 		jwtDummyKey, err := service.GenerateDummyJWT(userID, time.Now())
 		if err != nil {
-			return []error{failure.NewError(ErrCritical, err)}
+			logger.AdminLogger.Panic(err)
 		}
 		return authActionWithForbiddenJWT(ctx, agt, jwtDummyKey)
 	case 4:
@@ -242,31 +233,32 @@ func authActionError(ctx context.Context, agt *agent.Agent, userID string, error
 		//偽装されたjwt, StatusForbidden
 		userID2, err := model.MakeRandomUserID()
 		if err != nil {
-			return []error{failure.NewError(ErrCritical, err)}
+			logger.AdminLogger.Panic(err)
 		}
 		jwtTampered, err := service.GenerateTamperedJWT(userID, userID2, time.Now())
 		if err != nil {
-			return []error{failure.NewError(ErrCritical, err)}
+			logger.AdminLogger.Panic(err)
 		}
 		return authActionWithForbiddenJWT(ctx, agt, jwtTampered)
 	case 6:
 		//jia_user_id is missing, StatusBadRequest
 		jwtNoData, err := service.GenerateJWTWithNoData(time.Now())
 		if err != nil {
-			return []error{failure.NewError(ErrCritical, err)}
+			logger.AdminLogger.Panic(err)
 		}
 		return authActionWithInvalidJWT(ctx, agt, jwtNoData, http.StatusBadRequest, "invalid JWT payload")
 	case 7:
 		//jwt with invalid data type, StatusBadRequest
 		jwtInvalidDataType, err := service.GenerateJWTWithInvalidType(userID, time.Now())
 		if err != nil {
-			return []error{failure.NewError(ErrCritical, err)}
+			logger.AdminLogger.Panic(err)
 		}
 		return authActionWithInvalidJWT(ctx, agt, jwtInvalidDataType, http.StatusBadRequest, "invalid JWT payload")
 	}
 
 	//ロジック的に到達しないはずだけど念のためエラー処理
 	err := fmt.Errorf("internal bench error @authActionError: errorType=%v", errorType)
+	logger.AdminLogger.Panic(err)
 	return []error{failure.NewError(ErrCritical, err)}
 }
 
@@ -327,7 +319,7 @@ func getIsuErrorAction(ctx context.Context, a *agent.Agent) (string, *http.Respo
 func postIsuAction(ctx context.Context, a *agent.Agent, req service.PostIsuRequest) (*service.Isu, *http.Response, error) {
 	body, err := json.Marshal(req)
 	if err != nil {
-		return nil, nil, failure.NewError(ErrCritical, err)
+		logger.AdminLogger.Panic(err)
 	}
 	isu := &service.Isu{}
 	res, err := reqJSONResJSON(ctx, a, http.MethodPost, "/api/isu", bytes.NewReader(body), isu, []int{http.StatusOK})
@@ -340,7 +332,7 @@ func postIsuAction(ctx context.Context, a *agent.Agent, req service.PostIsuReque
 func postIsuErrorAction(ctx context.Context, a *agent.Agent, req interface{}) (string, *http.Response, error) {
 	body, err := json.Marshal(req)
 	if err != nil {
-		return "", nil, failure.NewError(ErrCritical, err)
+		logger.AdminLogger.Panic(err)
 	}
 	res, text, err := reqJSONResError(ctx, a, http.MethodPost, "/api/isu", bytes.NewReader(body), []int{http.StatusBadRequest, http.StatusConflict, http.StatusUnauthorized, http.StatusNotFound})
 	if err != nil {
@@ -372,7 +364,7 @@ func putIsuAction(ctx context.Context, a *agent.Agent, id string, req service.Pu
 	isu := &service.Isu{}
 	body, err := json.Marshal(req)
 	if err != nil {
-		return nil, nil, failure.NewError(ErrCritical, err)
+		logger.AdminLogger.Panic(err)
 	}
 	reqUrl := fmt.Sprintf("/api/isu/%s", id)
 	res, err := reqJSONResJSON(ctx, a, http.MethodPut, reqUrl, bytes.NewReader(body), &isu, []int{http.StatusOK})
@@ -385,7 +377,7 @@ func putIsuAction(ctx context.Context, a *agent.Agent, id string, req service.Pu
 func putIsuErrorAction(ctx context.Context, a *agent.Agent, id string, req service.PutIsuRequest) (string, *http.Response, error) {
 	body, err := json.Marshal(req)
 	if err != nil {
-		return "", nil, failure.NewError(ErrCritical, err)
+		logger.AdminLogger.Panic(err)
 	}
 	reqUrl := fmt.Sprintf("/api/isu/%s", id)
 	res, text, err := reqJSONResError(ctx, a, http.MethodPut, reqUrl, bytes.NewReader(body), []int{http.StatusUnauthorized, http.StatusNotFound, http.StatusBadRequest})
@@ -517,7 +509,7 @@ func postIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req 
 	reqUrl := fmt.Sprintf("/api/isu/%s/condition", id)
 	body, err := json.Marshal(req)
 	if err != nil {
-		return nil, failure.NewError(ErrCritical, err)
+		logger.AdminLogger.Panic(err)
 	}
 	res, err := reqJSONResNoContent(ctx, a, http.MethodPost, reqUrl, bytes.NewReader(body), []int{http.StatusCreated})
 	if err != nil {
@@ -530,7 +522,7 @@ func postIsuConditionErrorAction(ctx context.Context, a *agent.Agent, id string,
 	reqUrl := fmt.Sprintf("/api/isu/%s/condition", id)
 	body, err := json.Marshal(req)
 	if err != nil {
-		return "", nil, failure.NewError(ErrCritical, err)
+		logger.AdminLogger.Panic(err)
 	}
 	res, text, err := reqJSONResError(ctx, a, http.MethodPost, reqUrl, bytes.NewReader(body), []int{http.StatusNotFound, http.StatusBadRequest})
 	if err != nil {
