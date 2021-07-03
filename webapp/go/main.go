@@ -541,7 +541,7 @@ func postIsu(c echo.Context) error {
 	err = db.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
 		jiaUserID, jiaIsuUUID)
 	if err != nil {
-		c.Logger().Error(err)
+		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	if count != 0 {
@@ -599,7 +599,7 @@ func postIsu(c echo.Context) error {
 	// デフォルト画像を準備
 	image, err := ioutil.ReadFile(defaultIconFilePath)
 	if err != nil {
-		c.Logger().Error(err)
+		c.Logger().Errorf("failed to read default icon: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
