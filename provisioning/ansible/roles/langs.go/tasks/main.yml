@@ -1,0 +1,14 @@
+---
+- name: "roles/langs.go/tasks/main: Install Go 1.16.5 from xbuild"
+  become_user: isucon
+  command: /tmp/xbuild/go-install 1.16.5 /home/isucon/local/go
+
+- name: "roles/langs.go/tasks/main: Add PATH for Go"
+  become_user: isucon
+  blockinfile:
+    marker: "# {mark} ANSIBLE MANAGED BLOCK go"
+    path: /home/isucon/.bashrc
+    content: |
+      export PATH=/home/isucon/local/go/bin:/home/isucon/go/bin:$PATH
+      export GOROOT=/home/isucon/local/go
+

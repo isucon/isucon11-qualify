@@ -1,0 +1,18 @@
+[Unit]
+Description=isucondition.go
+
+[Service]
+WorkingDirectory=/home/isucon/webapp/go
+EnvironmentFile=/home/isucon/env.sh
+PIDFile=/home/isucon/webapp/go/server.pid
+
+User=isucon
+Group=isucon
+ExecStart=/home/isucon/webapp/go/isucondition
+ExecStop=/bin/kill -s QUIT $MAINPID
+
+Restart   = always
+Type      = simple
+
+[Install]
+WantedBy=multi-user.target

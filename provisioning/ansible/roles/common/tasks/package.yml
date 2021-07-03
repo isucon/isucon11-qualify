@@ -1,0 +1,42 @@
+---
+- name: "roles/common/tasks/package: Replace fast repository"
+  replace:
+    path: /etc/apt/sources.list
+    regexp: 'http://archive.ubuntu.com/ubuntu'
+    replace: 'http://ftp.jaist.ac.jp/pub/Linux/ubuntu/'
+    backup: yes
+
+- name: "roles/common/tasks/package: Install Package(Build)"
+  become: yes
+  become_user: root
+  apt:
+    name:
+    - libssl-dev
+    - libreadline-dev
+    - gcc
+    - make
+    - libffi-dev
+    - zlib1g-dev
+    - unzip
+    - pkg-config
+    - autoconf
+    - automake
+    - build-essential
+    - nginx
+    - libxml2-dev
+    - libsqlite3-dev
+    - libbz2-dev
+    - libkrb5-dev
+    - libcurl4-openssl-dev
+    - libpng-dev
+    - libjpeg-dev
+    - libfreetype6-dev
+    - libc-client2007e-dev
+    - libxslt-dev
+    - libonig-dev
+    - libtidy-dev
+    - libzip-dev
+    - default-mysql-client
+    - default-libmysqlclient-dev
+    update_cache: yes
+

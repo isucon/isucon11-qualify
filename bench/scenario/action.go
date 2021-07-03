@@ -12,8 +12,11 @@ package scenario
 // エラーが出た場合は返り値に入る
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"time"
@@ -269,4 +272,341 @@ func authActionError(ctx context.Context, agt *agent.Agent, userID string, error
 
 func authActionWithForbiddenJWT(ctx context.Context, a *agent.Agent, invalidJWT string) []error {
 	return authActionWithInvalidJWT(ctx, a, invalidJWT, http.StatusForbidden, "forbidden")
+}
+
+func signoutAction(ctx context.Context, a *agent.Agent) (*http.Response, error) {
+	res, err := reqNoContentResNoContent(ctx, a, http.MethodPost, "/api/signout", []int{http.StatusOK})
+	if err != nil {
+		return nil, failure.NewError(ErrCritical, err)
+	}
+	return res, err
+}
+
+func signoutErrorAction(ctx context.Context, a *agent.Agent) (string, *http.Response, error) {
+	res, text, err := reqNoContentResError(ctx, a, http.MethodPost, "/api/signout", []int{http.StatusUnauthorized})
+	if err != nil {
+		return "", nil, failure.NewError(ErrCritical, err)
+	}
+	return text, res, err
+}
+
+func getMeAction(ctx context.Context, a *agent.Agent) (*service.GetMeResponse, *http.Response, error) {
+	me := &service.GetMeResponse{}
+	res, err := reqJSONResJSON(ctx, a, http.MethodGet, "/api/user/me", nil, me, []int{http.StatusOK})
+	if err != nil {
+		return nil, nil, failure.NewError(ErrCritical, err)
+	}
+	return me, res, nil
+}
+
+func getMeErrorAction(ctx context.Context, a *agent.Agent) (string, *http.Response, error) {
+	res, resBody, err := reqJSONResError(ctx, a, http.MethodGet, "/api/user/me", nil, []int{http.StatusUnauthorized})
+	if err != nil {
+		return "", nil, failure.NewError(ErrCritical, err)
+	}
+	return resBody, res, nil
+}
+
+func getIsuAction(ctx context.Context, a *agent.Agent) ([]*service.Isu, *http.Response, error) {
+	var isuList []*service.Isu
+	res, err := reqJSONResJSON(ctx, a, http.MethodGet, "/api/isu", nil, &isuList, []int{http.StatusOK})
+	if err != nil {
+		return nil, nil, failure.NewError(ErrCritical, err)
+	}
+	return isuList, res, nil
+}
+
+func getIsuErrorAction(ctx context.Context, a *agent.Agent) (string, *http.Response, error) {
+	res, resBody, err := reqJSONResError(ctx, a, http.MethodGet, "/api/isu", nil, []int{http.StatusUnauthorized})
+	if err != nil {
+		return "", nil, failure.NewError(ErrCritical, err)
+	}
+	return resBody, res, nil
+}
+
+func postIsuAction(ctx context.Context, a *agent.Agent, req service.PostIsuRequest) (*service.Isu, *http.Response, error) {
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, nil, failure.NewError(ErrCritical, err)
+	}
+	isu := &service.Isu{}
+	res, err := reqJSONResJSON(ctx, a, http.MethodPost, "/api/isu", bytes.NewReader(body), isu, []int{http.StatusOK})
+	if err != nil {
+		return nil, nil, failure.NewError(ErrCritical, err)
+	}
+	return isu, res, nil
+}
+
+func postIsuErrorAction(ctx context.Context, a *agent.Agent, req interface{}) (string, *http.Response, error) {
+	body, err := json.Marshal(req)
+	if err != nil {
+		return "", nil, failure.NewError(ErrCritical, err)
+	}
+	res, text, err := reqJSONResError(ctx, a, http.MethodPost, "/api/isu", bytes.NewReader(body), []int{http.StatusBadRequest, http.StatusConflict, http.StatusUnauthorized, http.StatusNotFound})
+	if err != nil {
+		return "", nil, failure.NewError(ErrCritical, err)
+	}
+	return text, res, nil
+}
+
+func getIsuIdAction(ctx context.Context, a *agent.Agent, id string) (*service.Isu, *http.Response, error) {
+	isu := &service.Isu{}
+	reqUrl := fmt.Sprintf("/api/isu/%s", id)
+	res, err := reqJSONResJSON(ctx, a, http.MethodGet, reqUrl, nil, &isu, []int{http.StatusOK})
+	if err != nil {
+		return nil, nil, failure.NewError(ErrCritical, err)
+	}
+	return isu, res, nil
+}
+
+func getIsuIdErrorAction(ctx context.Context, a *agent.Agent, id string) (string, *http.Response, error) {
+	reqUrl := fmt.Sprintf("/api/isu/%s", id)
+	res, text, err := reqNoContentResError(ctx, a, http.MethodGet, reqUrl, []int{http.StatusUnauthorized, http.StatusNotFound})
+	if err != nil {
+		return "", nil, failure.NewError(ErrCritical, err)
+	}
+	return text, res, nil
+}
+
+func putIsuAction(ctx context.Context, a *agent.Agent, id string, req service.PutIsuRequest) (*service.Isu, *http.Response, error) {
+	isu := &service.Isu{}
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, nil, failure.NewError(ErrCritical, err)
+	}
+	reqUrl := fmt.Sprintf("/api/isu/%s", id)
+	res, err := reqJSONResJSON(ctx, a, http.MethodPut, reqUrl, bytes.NewReader(body), &isu, []int{http.StatusOK})
+	if err != nil {
+		return nil, nil, failure.NewError(ErrCritical, err)
+	}
+	return isu, res, nil
+}
+
+func putIsuErrorAction(ctx context.Context, a *agent.Agent, id string, req service.PutIsuRequest) (string, *http.Response, error) {
+	body, err := json.Marshal(req)
+	if err != nil {
+		return "", nil, failure.NewError(ErrCritical, err)
+	}
+	reqUrl := fmt.Sprintf("/api/isu/%s", id)
+	res, text, err := reqJSONResError(ctx, a, http.MethodPut, reqUrl, bytes.NewReader(body), []int{http.StatusUnauthorized, http.StatusNotFound, http.StatusBadRequest})
+	if err != nil {
+		return "", nil, failure.NewError(ErrCritical, err)
+	}
+	return text, res, nil
+}
+
+func deleteIsuAction(ctx context.Context, a *agent.Agent, id string) (*http.Response, error) {
+	reqUrl := fmt.Sprintf("/api/isu/%s", id)
+	res, err := reqNoContentResNoContent(ctx, a, http.MethodDelete, reqUrl, []int{http.StatusNoContent})
+	if err != nil {
+		return nil, failure.NewError(ErrCritical, err)
+	}
+	return res, nil
+}
+
+func deleteIsuErrorAction(ctx context.Context, a *agent.Agent, id string) (string, *http.Response, error) {
+	reqUrl := fmt.Sprintf("/api/isu/%s", id)
+	res, text, err := reqNoContentResError(ctx, a, http.MethodDelete, reqUrl, []int{http.StatusUnauthorized, http.StatusNotFound})
+	if err != nil {
+		return "", nil, failure.NewError(ErrCritical, err)
+	}
+	return text, res, nil
+}
+
+func getIsuIconAction(ctx context.Context, a *agent.Agent, id string) ([]byte, *http.Response, error) {
+	reqUrl := fmt.Sprintf("/api/isu/%s/icon", id)
+	res, image, err := reqNoContentResPng(ctx, a, http.MethodGet, reqUrl, []int{http.StatusOK})
+	if err != nil {
+		return nil, nil, failure.NewError(ErrCritical, err)
+	}
+	// TODO: imageの取り扱いについて考える
+	return image, res, nil
+}
+
+func getIsuIconErrorAction(ctx context.Context, a *agent.Agent, id string) (string, *http.Response, error) {
+	reqUrl := fmt.Sprintf("/api/isu/%s/icon", id)
+	res, text, err := reqNoContentResError(ctx, a, http.MethodGet, reqUrl, []int{http.StatusUnauthorized, http.StatusNotFound})
+	if err != nil {
+		return "", nil, failure.NewError(ErrCritical, err)
+	}
+	return text, res, nil
+}
+
+// TODO: 画像は取り扱いをどうしたらいいかわかんないからとりあえず io.Reader で
+func putIsuIconAction(ctx context.Context, a *agent.Agent, id string, image io.Reader) (*http.Response, error) {
+	reqUrl := fmt.Sprintf("/api/isu/%s/icon", id)
+	res, err := reqPngResNoContent(ctx, a, http.MethodPut, reqUrl, image, []int{http.StatusOK})
+	if err != nil {
+		return nil, failure.NewError(ErrCritical, err)
+	}
+	return res, nil
+}
+
+func putIsuIconErrorAction(ctx context.Context, a *agent.Agent, id string, image io.Reader) (string, *http.Response, error) {
+	reqUrl := fmt.Sprintf("/api/isu/%s/icon", id)
+	res, text, err := reqPngResError(ctx, a, http.MethodPut, reqUrl, image, []int{http.StatusUnauthorized, http.StatusNotFound, http.StatusBadRequest})
+	if err != nil {
+		return "", nil, failure.NewError(ErrCritical, err)
+	}
+	return text, res, nil
+}
+
+func getIsuSearchAction(ctx context.Context, a *agent.Agent, req service.GetIsuSearchRequest) ([]*service.Isu, *http.Response, error) {
+	reqUrl := getIsuSearchRequestParams(req)
+	var isuList []*service.Isu
+	res, err := reqJSONResJSON(ctx, a, http.MethodGet, reqUrl, nil, &isuList, []int{http.StatusOK})
+	if err != nil {
+		return nil, nil, failure.NewError(ErrCritical, err)
+	}
+	return isuList, res, nil
+}
+
+func getIsuSearchErrorAction(ctx context.Context, a *agent.Agent, req service.GetIsuSearchRequest) (string, *http.Response, error) {
+	reqUrl := getIsuSearchRequestParams(req)
+	res, text, err := reqNoContentResError(ctx, a, http.MethodGet, reqUrl, []int{http.StatusUnauthorized, http.StatusNotFound})
+	if err != nil {
+		return "", nil, failure.NewError(ErrCritical, err)
+	}
+	return text, res, nil
+}
+
+// TODO: エスケープとか全く考えてない、ライブラリとか使ったほうがいいかな？どうしよう
+func getIsuSearchRequestParams(req service.GetIsuSearchRequest) string {
+	reqUrl := "/api/isu/search?"
+	if req.Name != nil {
+		reqUrl += fmt.Sprintf("&name=%s", *req.Name)
+	}
+	if req.CatalogName != nil {
+		reqUrl += fmt.Sprintf("&catalog_name=%s", *req.CatalogName)
+	}
+	if req.CatalogTags != nil {
+		reqUrl += fmt.Sprintf("&catalog_tags=%s", *req.CatalogTags)
+	}
+	if req.Character != nil {
+		reqUrl += fmt.Sprintf("&character=%s", *req.Character)
+	}
+	if req.MinLimitWeight != nil {
+		reqUrl += fmt.Sprintf("&min_limit_weight=%d", *req.MinLimitWeight)
+	}
+	if req.MaxLimitWeight != nil {
+		reqUrl += fmt.Sprintf("&max_limit_weight=%d", *req.MaxLimitWeight)
+	}
+	return reqUrl
+}
+
+func getCatalogAction(ctx context.Context, a *agent.Agent, id string) (service.Catalog, *http.Response, error) {
+	catalog := service.Catalog{}
+	reqUrl := fmt.Sprintf("/api/catalog/%s", id)
+	res, err := reqJSONResJSON(ctx, a, http.MethodGet, reqUrl, nil, &catalog, []int{http.StatusOK})
+	if err != nil {
+		return catalog, nil, failure.NewError(ErrCritical, err)
+	}
+	return catalog, res, nil
+}
+
+func getCatalogErrorAction(ctx context.Context, a *agent.Agent, id string) (string, *http.Response, error) {
+	reqUrl := fmt.Sprintf("/api/catalog/%s", id)
+	res, text, err := reqNoContentResError(ctx, a, http.MethodGet, reqUrl, []int{http.StatusUnauthorized, http.StatusNotFound})
+	if err != nil {
+		return "", nil, failure.NewError(ErrCritical, err)
+	}
+	return text, res, nil
+}
+
+func postIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req service.PostIsuConditionRequest) (*http.Response, error) {
+	reqUrl := fmt.Sprintf("/api/isu/%s/condition", id)
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, failure.NewError(ErrCritical, err)
+	}
+	res, err := reqJSONResNoContent(ctx, a, http.MethodPost, reqUrl, bytes.NewReader(body), []int{http.StatusCreated})
+	if err != nil {
+		return nil, failure.NewError(ErrCritical, err)
+	}
+	return res, nil
+}
+
+func postIsuConditionErrorAction(ctx context.Context, a *agent.Agent, id string, req service.PostIsuConditionRequest) (string, *http.Response, error) {
+	reqUrl := fmt.Sprintf("/api/isu/%s/condition", id)
+	body, err := json.Marshal(req)
+	if err != nil {
+		return "", nil, failure.NewError(ErrCritical, err)
+	}
+	res, text, err := reqJSONResError(ctx, a, http.MethodPost, reqUrl, bytes.NewReader(body), []int{http.StatusNotFound, http.StatusBadRequest})
+	if err != nil {
+		return "", nil, failure.NewError(ErrCritical, err)
+	}
+	return text, res, nil
+}
+
+func getIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req service.GetIsuConditionRequest) ([]*service.GetIsuConditionResponse, *http.Response, error) {
+	reqUrl := getIsuConditionRequestParams(fmt.Sprintf("/api/condition/%s?", id), req)
+	conditions := []*service.GetIsuConditionResponse{}
+	res, err := reqJSONResJSON(ctx, a, http.MethodGet, reqUrl, nil, &conditions, []int{http.StatusOK})
+	if err != nil {
+		return nil, nil, failure.NewError(ErrCritical, err)
+	}
+	return conditions, res, nil
+}
+
+func getIsuConditionErrorAction(ctx context.Context, a *agent.Agent, id string, req service.GetIsuConditionRequest) (string, *http.Response, error) {
+	reqUrl := getIsuConditionRequestParams(fmt.Sprintf("/api/condition/%s?", id), req)
+	res, text, err := reqNoContentResError(ctx, a, http.MethodGet, reqUrl, []int{http.StatusNotFound, http.StatusUnauthorized})
+	if err != nil {
+		return "", nil, failure.NewError(ErrCritical, err)
+	}
+	return text, res, nil
+}
+
+func getConditionAction(ctx context.Context, a *agent.Agent, req service.GetIsuConditionRequest) ([]*service.GetIsuConditionResponse, *http.Response, error) {
+	reqUrl := getIsuConditionRequestParams("/api/condition?", req)
+	conditions := []*service.GetIsuConditionResponse{}
+	res, err := reqJSONResJSON(ctx, a, http.MethodGet, reqUrl, nil, &conditions, []int{http.StatusOK})
+	if err != nil {
+		return nil, nil, failure.NewError(ErrCritical, err)
+	}
+	return conditions, res, nil
+}
+
+func getConditionErrorAction(ctx context.Context, a *agent.Agent, req service.GetIsuConditionRequest) (string, *http.Response, error) {
+	reqUrl := getIsuConditionRequestParams("/api/condition?", req)
+	res, text, err := reqNoContentResError(ctx, a, http.MethodGet, reqUrl, []int{http.StatusNotFound, http.StatusUnauthorized})
+	if err != nil {
+		return "", nil, failure.NewError(ErrCritical, err)
+	}
+	return text, res, nil
+}
+
+// TODO: エスケープとか全く考えてない、ライブラリとか使ったほうがいいかな？どうしよう
+func getIsuConditionRequestParams(base string, req service.GetIsuConditionRequest) string {
+	reqUrl := base
+	if req.StartTime != nil {
+		reqUrl += fmt.Sprintf("&start_time=%d", *req.StartTime)
+	}
+	reqUrl += fmt.Sprintf("&cursor_end_time=%d", req.CursorEndTime)
+	reqUrl += fmt.Sprintf("&cursor_jia_isu_uuid=%s", req.CursorJIAIsuUUID)
+	reqUrl += fmt.Sprintf("&condition_level=%s", req.ConditionLevel)
+	if req.Limit != nil {
+		reqUrl += fmt.Sprintf("&limit=%d", *req.Limit)
+	}
+	return reqUrl
+}
+
+func getIsuGraphAction(ctx context.Context, a *agent.Agent, id string, date uint64) ([]*service.GraphResponse, *http.Response, error) {
+	graph := []*service.GraphResponse{}
+	reqUrl := fmt.Sprintf("/api/isu/%s/graph?date=%d", id, date)
+	res, err := reqJSONResJSON(ctx, a, http.MethodGet, reqUrl, nil, &graph, []int{http.StatusOK})
+	if err != nil {
+		return nil, nil, failure.NewError(ErrCritical, err)
+	}
+	return graph, res, nil
+}
+
+func getIsuGraphErrorAction(ctx context.Context, a *agent.Agent, id string, date uint64) (string, *http.Response, error) {
+	reqUrl := fmt.Sprintf("/api/isu/%s/graph?date=%d", id, date)
+	res, text, err := reqNoContentResError(ctx, a, http.MethodGet, reqUrl, []int{http.StatusUnauthorized, http.StatusNotFound, http.StatusBadRequest})
+	if err != nil {
+		return "", nil, failure.NewError(ErrCritical, err)
+	}
+	return text, res, nil
 }
