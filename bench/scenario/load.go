@@ -35,7 +35,24 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 		logger.AdminLogger.Panic(err)
 	}
 	s.normalUserWorker = normalUserWorker
-	//normalUserWorker.AddParallelism()
+	//マニアユーザー
+	maniacUserWorker, err := worker.NewWorker(func(ctx context.Context, _ int) {
+		defer s.loadWaitGroup.Done()
+		//s.loadManiacUser(ctx, step) //TODO:
+	}, worker.WithInfinityLoop())
+	if err != nil {
+		logger.AdminLogger.Panic(err)
+	}
+	s.maniacUserWorker = maniacUserWorker
+	//企業ユーザー
+	companyUserWorker, err := worker.NewWorker(func(ctx context.Context, _ int) {
+		defer s.loadWaitGroup.Done()
+		//s.loadCompanyUser(ctx, step) //TODO:
+	}, worker.WithInfinityLoop())
+	if err != nil {
+		logger.AdminLogger.Panic(err)
+	}
+	s.companyUserWorker = companyUserWorker
 
 	<-ctx.Done()
 	s.loadWaitGroup.Wait()

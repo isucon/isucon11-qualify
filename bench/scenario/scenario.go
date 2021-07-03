@@ -25,8 +25,10 @@ type Scenario struct {
 	// 競技者の実装言語
 	Language string
 
-	loadWaitGroup    sync.WaitGroup
-	normalUserWorker *worker.Worker //通常ユーザーのシナリオスレッド
+	loadWaitGroup     sync.WaitGroup
+	normalUserWorker  *worker.Worker //通常ユーザーのシナリオスレッド
+	maniacUserWorker  *worker.Worker //マニアユーザーのシナリオスレッド
+	companyUserWorker *worker.Worker //企業ユーザーのシナリオスレッド
 }
 
 func NewScenario() (*Scenario, error) {
@@ -45,6 +47,20 @@ func (s *Scenario) NewAgent(opts ...agent.AgentOption) (*agent.Agent, error) {
 func (s *Scenario) AddNormalUser(ctx context.Context, step *isucandar.BenchmarkStep, count int32) {
 	s.loadWaitGroup.Add(int(count))
 	s.normalUserWorker.AddParallelism(count)
+}
+
+//load用
+//マニアユーザーのシナリオスレッドを追加する
+func (s *Scenario) AddManiacUser(ctx context.Context, step *isucandar.BenchmarkStep, count int32) {
+	s.loadWaitGroup.Add(int(count))
+	s.maniacUserWorker.AddParallelism(count)
+}
+
+//load用
+//企業ユーザーのシナリオスレッドを追加する
+func (s *Scenario) AddCompanyUser(ctx context.Context, step *isucandar.BenchmarkStep, count int32) {
+	s.loadWaitGroup.Add(int(count))
+	s.companyUserWorker.AddParallelism(count)
 }
 
 //新しい登録済みUserの生成
