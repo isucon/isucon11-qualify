@@ -4,30 +4,32 @@ import apis from '../lib/apis'
 import { useEffect } from 'react'
 import logo from '/@/assets/logo.png'
 import { useDispatchContext } from '../context/state'
+import { useCallback } from 'react'
 
 const Auth = () => {
   const dispatch = useDispatchContext()
   const history = useHistory()
 
-  useEffect(() => {
-    const login = async () => {
-      try {
+  const login = useCallback(async () => {
+    try {
+      const me = await apis.getUserMe()
+      dispatch({ type: 'login', user: me })
+      history.push('/')
+    } catch {
+      const url = new URL(location.href)
+      const jwt = url.searchParams.get('jwt')
+      if (jwt) {
+        await apis.postAuth(jwt)
         const me = await apis.getUserMe()
         dispatch({ type: 'login', user: me })
         history.push('/')
-      } catch {
-        const url = new URL(location.href)
-        const jwt = url.searchParams.get('jwt')
-        if (jwt) {
-          await apis.postAuth(jwt)
-          const me = await apis.getUserMe()
-          dispatch({ type: 'login', user: me })
-        }
-        history.push('/')
       }
     }
-    login()
   }, [history, dispatch])
+
+  useEffect(() => {
+    login()
+  }, [login])
   const click = async () => {
     // TODO: 本番どうするか考える
     location.href = `http://localhost:5000`
