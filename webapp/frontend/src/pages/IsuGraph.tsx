@@ -4,6 +4,7 @@ import Card from '../components/UI/Card'
 import NowLoading from '../components/UI/NowLoading'
 import TransitionGraph from '../components/IsuGraph/TransitionGraph'
 import SittingGraph from '../components/IsuGraph/SittingGraph'
+import Score from '../components/IsuGraph/Score'
 import apis, { Graph, Isu } from '../lib/apis'
 
 interface Props {
@@ -31,6 +32,7 @@ const IsuGraph = ({ isu, setIsu }: Props) => {
         <div>
           <TransitionGraph isuGraphs={isuGraphs} />
           <SittingGraph isuGraphs={isuGraphs} />
+          <Score isuGraphs={isuGraphs} />
         </div>
       </Card>
     </div>
