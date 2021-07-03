@@ -33,6 +33,18 @@
     state: "restarted"
     enabled: "yes"
 
-#- name: "roles.contestant.tasks.isucondition: Initialize isucon11"
-#  become_user: isucon
-#  command: curl -X POST http://localhost/initialize -f
+- name: "roles.contestant.tasks.isucondition: Deploy isucon11 initial-data"
+  copy:
+    src: "initial-data.sql"
+    dest: "/tmp/initial-data.sql"
+
+- name: "roles.contestant.tasks.isucondition: Initialize isucondition Database"
+  become_user: isucon
+  command: |
+    mysql -uisucon -pisucon < /tmp/initial-data.sql
+    curl -X POST http://localhost/initialize -f
+
+- name: "roles.contestant.tasks.isucondition: Remove isucon11 initial-data"
+  file:
+    path: /tmp/initial-data.sql
+    state: absent

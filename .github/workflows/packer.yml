@@ -6,9 +6,39 @@ on:
       - v*
 
 jobs:
-  build:
-    name: packer-build
+  build-initial-data:
+    name: build initial-data.sql
     runs-on: [self-hosted]
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-duration-seconds: 14400
+          role-session-name: isucon11-qualify-${{ github.run_id }}-${{ github.run_number }}
+          aws-region: ap-northeast-1
+
+      - name: Run MySQL
+        working-directory: development
+        run: docker-compose -f docker-compose-ci.yml up -d --build -- mysql-backend
+      - name: Insert initial-data
+        working-directory: extra/initial-data
+        run: |
+          ln -s /opt/isucon11-qualify/images ./images
+          go run .
+      - name: Dump initial-data
+        run: mysqldump -h127.0.0.1 -uroot -proot isucondition > initial-data.sql
+
+      - name: Upload initial-data to S3
+        run: aws s3 cp ./initial-data.sql s3://isucon11-qualify/
+
+  build-packer:
+    name: packer build
+    runs-on: [self-hosted]
+    needs:
+      - build-initial-data
     env:
       PACKER_LOG: '1'
     defaults:
@@ -16,6 +46,7 @@ jobs:
         working-directory: provisioning/packer
     steps:
       - uses: actions/checkout@v2
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
