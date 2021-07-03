@@ -378,6 +378,7 @@ func (s *Scenario) preparePostIsu(ctx context.Context, step *isucandar.Benchmark
 			step.AddError(failure.NewError(ErrCritical, err))
 			return
 		}
+		//TODO: デバッグ目的でランダム文字列を生成しているだけなので、本書きするときにIsuIDに直す
 		userID, err := model.MakeRandomUserID()
 		if err != nil {
 			step.AddError(failure.NewError(ErrCritical, err))
