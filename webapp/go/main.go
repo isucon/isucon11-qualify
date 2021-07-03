@@ -37,7 +37,7 @@ const (
 	isuListLimit           = 200 // TODO 修正が必要なら変更
 	jwtVerificationKeyPath = "../ec256-public.pem"
 	defaultIconFilePath    = "../NoImage.png"
-	DefaultJIAServiceURL   = "http://localhost:5000"
+	defaultJIAServiceURL   = "http://localhost:5000"
 )
 
 var scorePerCondition = map[string]int{
@@ -300,7 +300,7 @@ func getJIAServiceURL() string {
 		if !errors.Is(err, sql.ErrNoRows) {
 			log.Print(err)
 		}
-		return DefaultJIAServiceURL
+		return defaultJIAServiceURL
 	}
 	return config.URL
 }
