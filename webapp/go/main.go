@@ -30,15 +30,14 @@ import (
 )
 
 const (
-	sessionName             = "isucondition"
-	searchLimit             = 20
-	conditionLimit          = 20
-	notificationLimit       = 20
-	isuListLimit            = 200 // TODO 修正が必要なら変更
-	jwtVerificationKeyPath  = "../ec256-public.pem"
-	defaultIconFilePath     = "../NoImage.png"
-	DefaultJIAServiceURL    = "http://localhost:5000"
-	DefaultIsuConditionHost = "localhost"
+	sessionName            = "isucondition"
+	searchLimit            = 20
+	conditionLimit         = 20
+	notificationLimit      = 20
+	isuListLimit           = 200 // TODO 修正が必要なら変更
+	jwtVerificationKeyPath = "../ec256-public.pem"
+	defaultIconFilePath    = "../NoImage.png"
+	DefaultJIAServiceURL   = "http://localhost:5000"
 )
 
 var scorePerCondition = map[string]int{
@@ -56,6 +55,8 @@ var (
 	mySQLConnectionData *MySQLConnectionEnv
 
 	jwtVerificationKey *ecdsa.PublicKey
+
+	isuConditionIP string
 )
 
 type Config struct {
@@ -266,6 +267,12 @@ func main() {
 	}
 	db.SetMaxOpenConns(10)
 	defer db.Close()
+
+	isuConditionIP = os.Getenv("ISU_CONDITION_IP")
+	if isuConditionIP == "" {
+		e.Logger.Fatalf("env ver ISU_CONDITION_IP is missing: %v", err)
+		return
+	}
 
 	// Start server
 	serverPort := fmt.Sprintf(":%v", getEnv("SERVER_PORT", "3000"))
@@ -557,7 +564,7 @@ func postIsu(c echo.Context) error {
 		c.Logger().Errorf("bad port number: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
-	body := JIAServiceRequest{DefaultIsuConditionHost, port, jiaIsuUUID}
+	body := JIAServiceRequest{isuConditionIP, port, jiaIsuUUID}
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
 		c.Logger().Errorf("failed to marshal data: %v", err)
@@ -898,7 +905,7 @@ func deleteIsu(c echo.Context) error {
 		c.Logger().Errorf("bad port number: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
-	body := JIAServiceRequest{DefaultIsuConditionHost, port, jiaIsuUUID}
+	body := JIAServiceRequest{isuConditionIP, port, jiaIsuUUID}
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
 		c.Logger().Errorf("failed to marshal data: %v", err)
