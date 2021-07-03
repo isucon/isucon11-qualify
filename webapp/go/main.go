@@ -340,6 +340,7 @@ func postAuthentication(c echo.Context) error {
 	if err != nil {
 		switch err.(type) {
 		case *jwt.ValidationError:
+			c.Logger().Errorf("jwt validation error: %v", err)
 			return c.String(http.StatusForbidden, "forbidden")
 		default:
 			c.Logger().Errorf("unknown error: %v", err)
@@ -351,10 +352,12 @@ func postAuthentication(c echo.Context) error {
 	claims, _ := token.Claims.(jwt.MapClaims) // TODO: 型アサーションのチェックの有無の議論
 	jiaUserIdVar, ok := claims["jia_user_id"]
 	if !ok {
+		c.Logger().Errorf("invalid JWT payload")
 		return c.String(http.StatusBadRequest, "invalid JWT payload")
 	}
 	jiaUserId, ok := jiaUserIdVar.(string)
 	if !ok {
+		c.Logger().Errorf("invalid JWT payload")
 		return c.String(http.StatusBadRequest, "invalid JWT payload")
 	}
 
@@ -379,6 +382,7 @@ func postAuthentication(c echo.Context) error {
 func postSignout(c echo.Context) error {
 	_, err := getUserIdFromSession(c.Request())
 	if err != nil {
+		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 
@@ -403,6 +407,7 @@ func postSignout(c echo.Context) error {
 func getMe(c echo.Context) error {
 	userID, err := getUserIdFromSession(c.Request())
 	if err != nil {
+		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 
@@ -416,11 +421,13 @@ func getCatalog(c echo.Context) error {
 	// ログインチェック
 	_, err := getUserIdFromSession(c.Request())
 	if err != nil {
+		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 
 	jiaCatalogID := c.Param("jia_catalog_id")
 	if jiaCatalogID == "" {
+		c.Logger().Errorf("jia_catalog_id is missing")
 		return c.String(http.StatusBadRequest, "jia_catalog_id is missing")
 	}
 
@@ -431,6 +438,7 @@ func getCatalog(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	if statusCode == http.StatusNotFound {
+		c.Logger().Errorf("invalid jia_catalog_id")
 		return c.String(http.StatusNotFound, "invalid jia_catalog_id")
 	}
 
@@ -481,6 +489,7 @@ func castCatalogFromJIA(catalogFromJIA *CatalogFromJIA) (*Catalog, error) {
 func getIsuList(c echo.Context) error {
 	jiaUserID, err := getUserIdFromSession(c.Request())
 	if err != nil {
+		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 
@@ -489,6 +498,7 @@ func getIsuList(c echo.Context) error {
 	if limitStr != "" {
 		limit, err = strconv.Atoi(limitStr)
 		if err != nil || limit <= 0 {
+			c.Logger().Errorf("invalid value: limit: (limit = %v) %v", limit, err)
 			return c.String(http.StatusBadRequest, "invalid value: limit")
 		}
 	}
@@ -511,12 +521,14 @@ func getIsuList(c echo.Context) error {
 func postIsu(c echo.Context) error {
 	jiaUserID, err := getUserIdFromSession(c.Request())
 	if err != nil {
+		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 
 	var req PostIsuRequest
 	err = c.Bind(&req)
 	if err != nil {
+		c.Logger().Errorf("bad request body: %v", err)
 		return c.String(http.StatusBadRequest, "bad request body")
 	}
 
@@ -529,7 +541,7 @@ func postIsu(c echo.Context) error {
 	err = db.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
 		jiaUserID, jiaIsuUUID)
 	if err != nil {
-		c.Logger().Error(err)
+		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	if count != 0 {
@@ -587,7 +599,7 @@ func postIsu(c echo.Context) error {
 	// デフォルト画像を準備
 	image, err := ioutil.ReadFile(defaultIconFilePath)
 	if err != nil {
-		c.Logger().Error(err)
+		c.Logger().Errorf("failed to read default icon: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -628,6 +640,7 @@ func getIsuSearch(c echo.Context) error {
 
 	jiaUserID, err := getUserIdFromSession(c.Request())
 	if err != nil {
+		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not sign in")
 	}
 	//optional query param
@@ -646,18 +659,21 @@ func getIsuSearch(c echo.Context) error {
 	if minLimitWeightStr != "" {
 		minLimitWeight, err = strconv.Atoi(minLimitWeightStr)
 		if err != nil {
+			c.Logger().Errorf("bad format: min_limit_weight: %v", err)
 			return c.String(http.StatusBadRequest, "bad format: min_limit_weight")
 		}
 	}
 	if maxLimitWeightStr != "" {
 		maxLimitWeight, err = strconv.Atoi(maxLimitWeightStr)
 		if err != nil {
+			c.Logger().Errorf("bad format: max_limit_weight: %v", err)
 			return c.String(http.StatusBadRequest, "bad format: max_limit_weight")
 		}
 	}
 	if pageStr != "" {
 		page, err = strconv.Atoi(pageStr)
 		if err != nil || page <= 0 {
+			c.Logger().Errorf("bad format: page : page = %v,  %v", page, err)
 			return c.String(http.StatusBadRequest, "bad format: page")
 		}
 	}
@@ -755,6 +771,7 @@ func getIsuSearch(c echo.Context) error {
 func getIsu(c echo.Context) error {
 	jiaUserID, err := getUserIdFromSession(c.Request())
 	if err != nil {
+		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not sign in")
 	}
 
@@ -765,6 +782,7 @@ func getIsu(c echo.Context) error {
 	err = db.Get(&isu, "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = ?",
 		jiaUserID, jiaIsuUUID, false)
 	if errors.Is(err, sql.ErrNoRows) {
+		c.Logger().Errorf("isu not found: %v", err)
 		return c.String(http.StatusNotFound, "isu not found")
 	}
 	if err != nil {
@@ -780,6 +798,7 @@ func getIsu(c echo.Context) error {
 func putIsu(c echo.Context) error {
 	jiaUserID, err := getUserIdFromSession(c.Request())
 	if err != nil {
+		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not sign in")
 	}
 
@@ -788,7 +807,7 @@ func putIsu(c echo.Context) error {
 	var req PutIsuRequest
 	err = c.Bind(&req)
 	if err != nil {
-		c.Logger().Error(err)
+		c.Logger().Errorf("invalid request: %v", err)
 		return c.String(http.StatusBadRequest, "invalid request")
 	}
 
@@ -807,6 +826,7 @@ func putIsu(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	if count == 0 {
+		c.Logger().Errorf("isu not found")
 		return c.String(http.StatusNotFound, "isu not found")
 	}
 
@@ -838,6 +858,7 @@ func putIsu(c echo.Context) error {
 func deleteIsu(c echo.Context) error {
 	jiaUserID, err := getUserIdFromSession(c.Request())
 	if err != nil {
+		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 
@@ -860,6 +881,7 @@ func deleteIsu(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	if count == 0 {
+		c.Logger().Errorf("isu not found")
 		return c.String(http.StatusNotFound, "isu not found")
 	}
 
@@ -920,6 +942,7 @@ func deleteIsu(c echo.Context) error {
 func getIsuIcon(c echo.Context) error {
 	jiaUserID, err := getUserIdFromSession(c.Request())
 	if err != nil {
+		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not sign in")
 	}
 
@@ -930,6 +953,7 @@ func getIsuIcon(c echo.Context) error {
 		jiaUserID, jiaIsuUUID, false)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			c.Logger().Errorf("isu not found: %v", err)
 			return c.String(http.StatusNotFound, "isu not found")
 		}
 		c.Logger().Errorf("db error: %v", err)
@@ -947,37 +971,40 @@ func getIsuIcon(c echo.Context) error {
 func putIsuIcon(c echo.Context) error {
 	jiaUserID, err := getUserIdFromSession(c.Request())
 	if err != nil {
+		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not sign in")
 	}
 
 	jiaIsuUUID := c.Param("jia_isu_uuid")
 	fh, err := c.FormFile("image")
 	if err != nil {
+		c.Logger().Errorf("jia_isu_uuid is invalid: %v", err)
 		return c.String(http.StatusBadRequest, "jia_isu_uuid is invalid")
 	}
 
 	contentType := fh.Header.Get("Content-Type")
 	// TODO: jpeg画像も受け付けるなら対応必要
 	if contentType != "image/png" {
+		c.Logger().Errorf("invalid image format: %v", contentType)
 		return c.String(http.StatusBadRequest, "invalid image format")
 	}
 
 	file, err := fh.Open()
 	if err != nil {
-		c.Logger().Error(err)
+		c.Logger().Errorf("failed to open fh: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	defer file.Close()
 
 	image, err := ioutil.ReadAll(file)
 	if err != nil {
-		c.Logger().Error(err)
+		c.Logger().Errorf("failed to read file: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	tx, err := db.Beginx()
 	if err != nil {
-		c.Logger().Error(err)
+		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	defer tx.Rollback()
@@ -990,20 +1017,20 @@ func putIsuIcon(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	if count == 0 {
-		c.Logger().Errorf("isu not found: %v", err)
+		c.Logger().Errorf("isu not found")
 		return c.String(http.StatusNotFound, "isu not found")
 	}
 
 	_, err = tx.Exec("UPDATE `isu` SET `image` = ? WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = ?",
 		image, jiaUserID, jiaIsuUUID, false)
 	if err != nil {
-		c.Logger().Error(err)
+		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		c.Logger().Error(err)
+		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -1020,23 +1047,26 @@ func putIsuIcon(c echo.Context) error {
 func getIsuGraph(c echo.Context) error {
 	jiaUserID, err := getUserIdFromSession(c.Request())
 	if err != nil {
+		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not sign in")
 	}
 
 	jiaIsuUUID := c.Param("jia_isu_uuid")
 	dateStr := c.QueryParam("date")
 	if dateStr == "" {
+		c.Logger().Errorf("date is required")
 		return c.String(http.StatusBadRequest, "date is required")
 	}
 	dateInt64, err := strconv.ParseInt(dateStr, 10, 64)
 	if err != nil {
+		c.Logger().Errorf("date is invalid format")
 		return c.String(http.StatusBadRequest, "date is invalid format")
 	}
 	date := time.Unix(dateInt64, 0)
 
 	tx, err := db.Beginx()
 	if err != nil {
-		c.Logger().Error(err)
+		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	defer tx.Rollback()
@@ -1045,7 +1075,7 @@ func getIsuGraph(c echo.Context) error {
 	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = ?",
 		jiaUserID, jiaIsuUUID, false)
 	if err != nil {
-		c.Logger().Error(err)
+		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	if count == 0 {
@@ -1057,7 +1087,7 @@ func getIsuGraph(c echo.Context) error {
 	err = tx.Select(&graphList, "SELECT * FROM `graph` WHERE `jia_isu_uuid` = ? AND ? <= `start_at` AND `start_at` <= ? ORDER BY `start_at` ASC ",
 		jiaIsuUUID, date, date.Add(time.Hour*24))
 	if err != nil {
-		c.Logger().Error(err)
+		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -1077,7 +1107,7 @@ func getIsuGraph(c echo.Context) error {
 		if inRange && tmpGraph.StartAt.Equal(tmpTime) {
 			err = json.Unmarshal([]byte(tmpGraph.Data), &data)
 			if err != nil {
-				c.Logger().Error(err)
+				c.Logger().Errorf("failed to unmarshal json: %v", err)
 				return c.NoContent(http.StatusInternalServerError)
 			}
 			index++
@@ -1095,7 +1125,7 @@ func getIsuGraph(c echo.Context) error {
 	// TODO: 必要以上に長めにトランザクションを取っているので後で検討
 	err = tx.Commit()
 	if err != nil {
-		c.Logger().Error(err)
+		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -1117,6 +1147,7 @@ func getAllIsuConditions(c echo.Context) error {
 
 	jiaUserID, err := getUserIdFromSession(c.Request())
 	if err != nil {
+		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not sign in")
 	}
 	sessionCookie, err := c.Cookie(sessionName)
@@ -1127,12 +1158,14 @@ func getAllIsuConditions(c echo.Context) error {
 	//required query param
 	cursorEndTimeInt64, err := strconv.ParseInt(c.QueryParam("cursor_end_time"), 10, 64)
 	if err != nil {
+		c.Logger().Errorf("bad format: cursor_end_time: %v", err)
 		return c.String(http.StatusBadRequest, "bad format: cursor_end_time")
 	}
 	cursorEndTime := time.Unix(cursorEndTimeInt64, 0)
 
 	cursorJIAIsuUUID := c.QueryParam("cursor_jia_isu_uuid")
 	if cursorJIAIsuUUID == "" {
+		c.Logger().Errorf("cursor_jia_isu_uuid is missing")
 		return c.String(http.StatusBadRequest, "cursor_jia_isu_uuid is missing")
 	}
 	cursor := &GetIsuConditionResponse{
@@ -1141,6 +1174,7 @@ func getAllIsuConditions(c echo.Context) error {
 	}
 	conditionLevel := c.QueryParam("condition_level")
 	if conditionLevel == "" {
+		c.Logger().Errorf("condition_level is missing")
 		return c.String(http.StatusBadRequest, "condition_level is missing")
 	}
 	//optional query param
@@ -1148,6 +1182,7 @@ func getAllIsuConditions(c echo.Context) error {
 	if startTimeStr != "" {
 		_, err = strconv.ParseInt(startTimeStr, 10, 64)
 		if err != nil {
+			c.Logger().Errorf("bad format: start_time: %v", err)
 			return c.String(http.StatusBadRequest, "bad format: start_time")
 		}
 	}
@@ -1157,6 +1192,7 @@ func getAllIsuConditions(c echo.Context) error {
 	if limitStr != "" {
 		limit, err = strconv.Atoi(limitStr)
 		if err != nil || limit <= 0 {
+			c.Logger().Errorf("bad format: limit: limit = %v, %v", limit, err)
 			return c.String(http.StatusBadRequest, "bad format: limit")
 		}
 	}
@@ -1292,20 +1328,24 @@ func getIsuConditions(c echo.Context) error {
 
 	jiaUserID, err := getUserIdFromSession(c.Request())
 	if err != nil {
+		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not sign in")
 	}
 	jiaIsuUUID := c.Param("jia_isu_uuid")
 	if jiaIsuUUID == "" {
+		c.Logger().Errorf("jia_isu_uuid is missing")
 		return c.String(http.StatusBadRequest, "jia_isu_uuid is missing")
 	}
 	//required query param
 	cursorEndTimeInt64, err := strconv.ParseInt(c.QueryParam("cursor_end_time"), 10, 64)
 	if err != nil {
+		c.Logger().Errorf("bad format: cursor_end_time: %v", err)
 		return c.String(http.StatusBadRequest, "bad format: cursor_end_time")
 	}
 	cursorEndTime := time.Unix(cursorEndTimeInt64, 0)
 	conditionLevelCSV := c.QueryParam("condition_level")
 	if conditionLevelCSV == "" {
+		c.Logger().Errorf("condition_level is missing")
 		return c.String(http.StatusBadRequest, "condition_level is missing")
 	}
 	conditionLevel := map[string]interface{}{}
@@ -1318,6 +1358,7 @@ func getIsuConditions(c echo.Context) error {
 	if startTimeStr != "" {
 		startTimeInt64, err := strconv.ParseInt(startTimeStr, 10, 64)
 		if err != nil {
+			c.Logger().Errorf("bad format: start_time: %v", err)
 			return c.String(http.StatusBadRequest, "bad format: start_time")
 		}
 		startTime = time.Unix(startTimeInt64, 0)
@@ -1327,6 +1368,7 @@ func getIsuConditions(c echo.Context) error {
 	if limitStr != "" {
 		limit, err = strconv.Atoi(limitStr)
 		if err != nil || limit <= 0 {
+			c.Logger().Errorf("bad format: limit: limit = %v, %v", limit, err)
 			return c.String(http.StatusBadRequest, "bad format: limit")
 		}
 	}
@@ -1338,6 +1380,7 @@ func getIsuConditions(c echo.Context) error {
 		jiaIsuUUID, jiaUserID,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
+		c.Logger().Errorf("isu not found: %v", err)
 		return c.String(http.StatusNotFound, "isu not found")
 	}
 	if err != nil {
@@ -1420,11 +1463,13 @@ func postIsuCondition(c echo.Context) error {
 	//TODO: 記法の統一
 	jiaIsuUUID := c.Param("jia_isu_uuid")
 	if jiaIsuUUID == "" {
+		c.Logger().Errorf("jia_isu_uuid is missing")
 		return c.String(http.StatusBadRequest, "jia_isu_uuid is missing")
 	}
 	var request PostIsuConditionRequest
 	err := c.Bind(&request)
 	if err != nil {
+		c.Logger().Errorf("bad request body: %v", err)
 		return c.String(http.StatusBadRequest, "bad request body")
 	}
 
@@ -1432,6 +1477,7 @@ func postIsuCondition(c echo.Context) error {
 	timestamp := time.Unix(request.Timestamp, 0)
 
 	if !conditionFormat.Match([]byte(request.Condition)) {
+		c.Logger().Errorf("bad request body")
 		return c.String(http.StatusBadRequest, "bad request body")
 	}
 
@@ -1451,6 +1497,7 @@ func postIsuCondition(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	if count == 0 {
+		c.Logger().Errorf("isu not found")
 		return c.String(http.StatusNotFound, "isu not found")
 	}
 
@@ -1464,6 +1511,7 @@ func postIsuCondition(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	if count != 0 {
+		c.Logger().Errorf("isu condition already exist")
 		return c.String(http.StatusConflict, "isu_condition already exist")
 	}
 	//insert
