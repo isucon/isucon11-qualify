@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/isucon/isucandar/agent"
+	"github.com/isucon/isucandar/failure"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 )
 
@@ -43,7 +44,7 @@ func reqNoContentResError(ctx context.Context, agent *agent.Agent, method string
 
 	resBody, err := checkContentTypeAndGetBody(httpres, "text/plain")
 	if err != nil {
-		return httpres, "", errorInvalidContentType(httpres, "text/plain")
+		return httpres, "", err
 	}
 
 	return httpres, string(resBody), nil
@@ -86,7 +87,7 @@ func reqPngResError(ctx context.Context, agent *agent.Agent, method string, rpat
 
 	resBody, err := checkContentTypeAndGetBody(httpres, "text/plain")
 	if err != nil {
-		return httpres, "", errorInvalidContentType(httpres, "text/plain")
+		return httpres, "", err
 	}
 
 	return httpres, string(resBody), nil
@@ -129,7 +130,7 @@ func reqNoContentResPng(ctx context.Context, agent *agent.Agent, method string, 
 	// TODO: resBodyの扱いを考える(現状でここに置いてるのは Close 周りの都合)
 	resBody, err := checkContentTypeAndGetBody(httpres, "image/png")
 	if err != nil {
-		return httpres, nil, errorInvalidContentType(httpres, "image/png")
+		return httpres, nil, err
 	}
 
 	return httpres, resBody, nil
@@ -150,7 +151,7 @@ func reqJSONResJSON(ctx context.Context, agent *agent.Agent, method string, rpat
 
 	resBody, err := checkContentTypeAndGetBody(httpres, "application/json")
 	if err != nil {
-		return httpres, errorInvalidContentType(httpres, "application/json")
+		return httpres, err
 	}
 
 	if err := json.Unmarshal(resBody, res); err != nil {
@@ -189,7 +190,7 @@ func reqJSONResError(ctx context.Context, agent *agent.Agent, method string, rpa
 
 	resBody, err := checkContentTypeAndGetBody(httpres, "text/plain")
 	if err != nil {
-		return httpres, "", errorInvalidContentType(httpres, "text/plain")
+		return httpres, "", err
 	}
 
 	return httpres, string(resBody), nil
@@ -223,7 +224,7 @@ func checkContentTypeAndGetBody(httpres *http.Response, contentType string) ([]b
 
 	resBody, err := ioutil.ReadAll(httpres.Body)
 	if err != nil {
-		return nil, err
+		return nil, failure.NewError(ErrCritical, err)
 	}
 
 	return resBody, nil
