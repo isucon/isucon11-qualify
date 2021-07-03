@@ -357,25 +357,25 @@ func postAuthentication(c echo.Context) error {
 
 	// get jia_user_id from JWT Payload
 	claims, _ := token.Claims.(jwt.MapClaims) // TODO: 型アサーションのチェックの有無の議論
-	jiaUserIdVar, ok := claims["jia_user_id"]
+	jiaUserIDVar, ok := claims["jia_user_id"]
 	if !ok {
 		c.Logger().Errorf("invalid JWT payload")
 		return c.String(http.StatusBadRequest, "invalid JWT payload")
 	}
-	jiaUserId, ok := jiaUserIdVar.(string)
+	jiaUserID, ok := jiaUserIDVar.(string)
 	if !ok {
 		c.Logger().Errorf("invalid JWT payload")
 		return c.String(http.StatusBadRequest, "invalid JWT payload")
 	}
 
-	_, err = db.Exec("INSERT IGNORE INTO user (`jia_user_id`) VALUES (?)", jiaUserId)
+	_, err = db.Exec("INSERT IGNORE INTO user (`jia_user_id`) VALUES (?)", jiaUserID)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	session := getSession(c.Request())
-	session.Values["jia_user_id"] = jiaUserId
+	session.Values["jia_user_id"] = jiaUserID
 	err = session.Save(c.Request(), c.Response())
 	if err != nil {
 		c.Logger().Errorf("failed to set cookie: %v", err)
@@ -418,8 +418,8 @@ func getMe(c echo.Context) error {
 		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 
-	response := GetMeResponse{JIAUserID: userID}
-	return c.JSON(http.StatusOK, response)
+	res := GetMeResponse{JIAUserID: userID}
+	return c.JSON(http.StatusOK, res)
 }
 
 // GET /api/catalog/{jia_catalog_id}
@@ -1473,17 +1473,17 @@ func postIsuCondition(c echo.Context) error {
 		c.Logger().Errorf("jia_isu_uuid is missing")
 		return c.String(http.StatusBadRequest, "jia_isu_uuid is missing")
 	}
-	var request PostIsuConditionRequest
-	err := c.Bind(&request)
+	var req PostIsuConditionRequest
+	err := c.Bind(&req)
 	if err != nil {
 		c.Logger().Errorf("bad request body: %v", err)
 		return c.String(http.StatusBadRequest, "bad request body")
 	}
 
 	//Parse
-	timestamp := time.Unix(request.Timestamp, 0)
+	timestamp := time.Unix(req.Timestamp, 0)
 
-	if !conditionFormat.Match([]byte(request.Condition)) {
+	if !conditionFormat.Match([]byte(req.Condition)) {
 		c.Logger().Errorf("bad request body")
 		return c.String(http.StatusBadRequest, "bad request body")
 	}
@@ -1524,7 +1524,7 @@ func postIsuCondition(c echo.Context) error {
 	//insert
 	_, err = tx.Exec("INSERT INTO `isu_condition`"+
 		"	(`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`) VALUES (?, ?, ?, ?, ?)",
-		jiaIsuUUID, timestamp, request.IsSitting, request.Condition, request.Message,
+		jiaIsuUUID, timestamp, req.IsSitting, req.Condition, req.Message,
 	)
 	if err != nil {
 		c.Logger().Errorf("failed to insert: %v", err)
