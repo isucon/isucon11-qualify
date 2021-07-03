@@ -23,6 +23,11 @@ module.exports = {
       ...theme('colors'),
       outline: '#E1E5E6',
       'accent-primary': '#EF724A'
-    })
+    }),
+    extend: {
+      gridTemplateColumns: {
+        isus: 'repeat(auto-fill,minmax(10rem,1fr))'
+      }
+    }
   }
 }

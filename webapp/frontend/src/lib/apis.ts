@@ -25,8 +25,8 @@ class Apis {
     return data
   }
 
-  async getIsus() {
-    const { data } = await axios.get<Isu[]>(`/api/isu`)
+  async getIsus(options?: { limit: number }) {
+    const { data } = await axios.get<Isu[]>(`/api/isu`, { params: options })
     return data
   }
 
