@@ -60,7 +60,6 @@ func reqPngResNoContent(ctx context.Context, agent *agent.Agent, method string, 
 	}
 	httpreq.Header.Set("Content-Type", contentType)
 
-	// TODO: resBodyの扱いを考える(現状でここに置いてるのは Close 周りの都合)
 	httpres, err := doRequest(ctx, agent, httpreq, allowedStatusCodes)
 	if err != nil {
 		return nil, err
@@ -121,13 +120,13 @@ func reqNoContentResPng(ctx context.Context, agent *agent.Agent, method string, 
 		logger.AdminLogger.Panic(err)
 	}
 
-	// TODO: resBodyの扱いを考える(現状でここに置いてるのは Close 周りの都合)
 	httpres, err := doRequest(ctx, agent, httpreq, allowedStatusCodes)
 	if err != nil {
 		return nil, nil, err
 	}
 	defer httpres.Body.Close()
 
+	// TODO: resBodyの扱いを考える(現状でここに置いてるのは Close 周りの都合)
 	resBody, err := checkContentTypeAndGetBody(httpres, "image/png")
 	if err != nil {
 		return httpres, nil, errorInvalidContentType(httpres, "image/png")
@@ -155,7 +154,6 @@ func reqJSONResJSON(ctx context.Context, agent *agent.Agent, method string, rpat
 	}
 
 	if err := json.Unmarshal(resBody, res); err != nil {
-		logger.AdminLogger.Println(err)
 		return nil, errorInvalidJSON(httpres)
 	}
 
