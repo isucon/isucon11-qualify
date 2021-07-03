@@ -1,3 +1,4 @@
+import { useHistory } from 'react-router-dom'
 import Card from '../components/UI/Card'
 import apis from '../lib/apis'
 import { useEffect } from 'react'
@@ -6,6 +7,7 @@ import { useDispatchContext } from '../context/state'
 
 const Auth = () => {
   const dispatch = useDispatchContext()
+  const history = useHistory()
 
   useEffect(() => {
     const login = async () => {
@@ -16,6 +18,7 @@ const Auth = () => {
         const me = await apis.getUserMe()
         dispatch({ type: 'login', user: me })
       }
+      history.push('/')
     }
     login()
   })
