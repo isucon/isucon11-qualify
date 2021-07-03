@@ -84,7 +84,7 @@ const usePaging = (
     const params = {
       start_time,
       cursor_end_time,
-      condition_level: query,
+      condition_level: payload.query,
       cursor_jia_isu_uuid: 'z'
     }
     setConditions(await getConditions(params))
