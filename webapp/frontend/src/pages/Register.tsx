@@ -1,4 +1,4 @@
-import { FormEvent, useState } from 'react'
+import { useState } from 'react'
 import { useHistory } from 'react-router-dom'
 import Card from '../components/UI/Card'
 import IconInput from '../components/UI/IconInput'
