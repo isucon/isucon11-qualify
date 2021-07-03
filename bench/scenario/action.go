@@ -19,6 +19,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/isucon/isucandar/agent"
@@ -462,28 +463,34 @@ func getIsuSearchErrorAction(ctx context.Context, a *agent.Agent, req service.Ge
 	return text, res, nil
 }
 
-// TODO: エスケープとか全く考えてない、ライブラリとか使ったほうがいいかな？どうしよう
 func getIsuSearchRequestParams(req service.GetIsuSearchRequest) string {
-	reqUrl := "/api/isu/search?"
+	targetURLStr := "/api/isu/search"
+	targetURL, err := url.Parse(targetURLStr)
+	if err != nil {
+		logger.AdminLogger.Panicln(err)
+	}
+
+	q := url.Values{}
 	if req.Name != nil {
-		reqUrl += fmt.Sprintf("&name=%s", *req.Name)
+		q.Set("name", *req.Name)
 	}
 	if req.CatalogName != nil {
-		reqUrl += fmt.Sprintf("&catalog_name=%s", *req.CatalogName)
+		q.Set("catalog_name", *req.CatalogName)
 	}
 	if req.CatalogTags != nil {
-		reqUrl += fmt.Sprintf("&catalog_tags=%s", *req.CatalogTags)
+		q.Set("catalog_tags", *req.CatalogTags)
 	}
 	if req.Character != nil {
-		reqUrl += fmt.Sprintf("&character=%s", *req.Character)
+		q.Set("character", *req.Character)
 	}
 	if req.MinLimitWeight != nil {
-		reqUrl += fmt.Sprintf("&min_limit_weight=%d", *req.MinLimitWeight)
+		q.Set("min_limit_weight", fmt.Sprint(*req.MinLimitWeight))
 	}
 	if req.MaxLimitWeight != nil {
-		reqUrl += fmt.Sprintf("&max_limit_weight=%d", *req.MaxLimitWeight)
+		q.Set("max_limit_weight", fmt.Sprint(*req.MaxLimitWeight))
 	}
-	return reqUrl
+	targetURL.RawQuery = q.Encode()
+	return targetURL.String()
 }
 
 func getCatalogAction(ctx context.Context, a *agent.Agent, id string) (service.Catalog, *http.Response, error) {
@@ -569,19 +576,24 @@ func getConditionErrorAction(ctx context.Context, a *agent.Agent, req service.Ge
 	return text, res, nil
 }
 
-// TODO: エスケープとか全く考えてない、ライブラリとか使ったほうがいいかな？どうしよう
 func getIsuConditionRequestParams(base string, req service.GetIsuConditionRequest) string {
-	reqUrl := base
+	targetURL, err := url.Parse(base)
+	if err != nil {
+		logger.AdminLogger.Panicln(err)
+	}
+
+	q := url.Values{}
 	if req.StartTime != nil {
-		reqUrl += fmt.Sprintf("&start_time=%d", *req.StartTime)
+		q.Set("start_time", fmt.Sprint(*req.StartTime))
 	}
-	reqUrl += fmt.Sprintf("&cursor_end_time=%d", req.CursorEndTime)
-	reqUrl += fmt.Sprintf("&cursor_jia_isu_uuid=%s", req.CursorJIAIsuUUID)
-	reqUrl += fmt.Sprintf("&condition_level=%s", req.ConditionLevel)
+	q.Set("cursor_end_time", fmt.Sprint(req.CursorEndTime))
+	q.Set("cursor_jia_isu_uuid", req.CursorJIAIsuUUID)
+	q.Set("condition_level", req.ConditionLevel)
 	if req.Limit != nil {
-		reqUrl += fmt.Sprintf("&limit=%d", *req.Limit)
+		q.Set("limit", fmt.Sprint(*req.Limit))
 	}
-	return reqUrl
+	targetURL.RawQuery = q.Encode()
+	return targetURL.String()
 }
 
 func getIsuGraphAction(ctx context.Context, a *agent.Agent, id string, date uint64) ([]*service.GraphResponse, *http.Response, error) {
