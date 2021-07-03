@@ -47,7 +47,7 @@ const DefineRoutes = ({
       <IsuCondition isu={isu} />
     </GuardedRoute>
     <GuardedRoute path="/isu/:id/graph" exact>
-      <IsuGraph isu={isu} setIsu={setIsu} />
+      <IsuGraph isu={isu} />
     </GuardedRoute>
   </Switch>
 )

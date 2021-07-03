@@ -67,10 +67,10 @@ class Apis {
   }
 
   // TODO: dateの型を修正
-  async getIsuGraphs(jiaIsuUuid: string, date: string) {
-    const { data } = await axios.get<Graph[]>(
-      `/api/isu/${jiaIsuUuid}/graph?date=${date}`
-    )
+  async getIsuGraphs(jiaIsuUuid: string, params: GraphRequest) {
+    const { data } = await axios.get<Graph[]>(`/api/isu/${jiaIsuUuid}/graph`, {
+      params
+    })
     return data
   }
 
@@ -172,6 +172,10 @@ export interface ConditionRequest {
   cursor_jia_isu_uuid: string
   // critical,warning,info をカンマ区切りで取り扱う
   condition_level: string
+}
+
+export interface GraphRequest {
+  date: Date
 }
 
 export const DEFAULT_CONDITION_LIMIT = 20
