@@ -1048,6 +1048,10 @@ func getIsuGraph(c echo.Context) error {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
+	if count == 0 {
+		c.Logger().Errorf("isu not found")
+		return c.String(http.StatusNotFound, "isu not found")
+	}
 
 	var graphList []Graph
 	err = tx.Select(&graphList, "SELECT * FROM `graph` WHERE `jia_isu_uuid` = ? AND ? <= `start_at` AND `start_at` <= ? ORDER BY `start_at` ASC ",
