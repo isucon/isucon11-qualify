@@ -1,17 +1,25 @@
 import { Graph } from '../../lib/apis'
 import Chart from 'react-apexcharts'
 import { ApexOptions } from 'apexcharts'
+import { useState, useEffect } from 'react'
 
 interface Props {
   isuGraphs: Graph[]
 }
 
 const Score = ({ isuGraphs }: Props) => {
-  let score = 0
-  isuGraphs.forEach(isuGraph => {
-    score += isuGraph.data ? isuGraph.data.score : 0
-  })
-  score /= isuGraphs.length
+  const [score, setScore] = useState<number>(0)
+  useEffect(() => {
+    const calcScore = () => {
+      let tmpScore = 0
+      isuGraphs.forEach(isuGraph => {
+        tmpScore += isuGraph.data ? isuGraph.data.score : 0
+      })
+      tmpScore /= isuGraphs.length
+      return tmpScore
+    }
+    setScore(calcScore())
+  }, [isuGraphs])
 
   const option: ApexOptions = {
     chart: {
