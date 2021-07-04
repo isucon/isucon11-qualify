@@ -284,7 +284,7 @@ func getSession(r *http.Request) *sessions.Session {
 	return session
 }
 
-func getUserIdFromSession(r *http.Request) (string, error) {
+func getUserIDFromSession(r *http.Request) (string, error) {
 	session := getSession(r)
 	userID, ok := session.Values["jia_user_id"]
 	if !ok {
@@ -387,7 +387,7 @@ func postAuthentication(c echo.Context) error {
 
 //  POST /api/signout
 func postSignout(c echo.Context) error {
-	_, err := getUserIdFromSession(c.Request())
+	_, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not signed in")
@@ -412,7 +412,7 @@ func postSignout(c echo.Context) error {
 // }
 
 func getMe(c echo.Context) error {
-	userID, err := getUserIdFromSession(c.Request())
+	userID, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not signed in")
@@ -426,7 +426,7 @@ func getMe(c echo.Context) error {
 // カタログ情報を取得
 func getCatalog(c echo.Context) error {
 	// ログインチェック
-	_, err := getUserIdFromSession(c.Request())
+	_, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not signed in")
@@ -494,7 +494,7 @@ func castCatalogFromJIA(catalogFromJIA *CatalogFromJIA) (*Catalog, error) {
 }
 
 func getIsuList(c echo.Context) error {
-	jiaUserID, err := getUserIdFromSession(c.Request())
+	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not signed in")
@@ -526,7 +526,7 @@ func getIsuList(c echo.Context) error {
 //  POST /api/isu
 // 自分のISUの登録
 func postIsu(c echo.Context) error {
-	jiaUserID, err := getUserIdFromSession(c.Request())
+	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not signed in")
@@ -645,7 +645,7 @@ func getIsuSearch(c echo.Context) error {
 	//  * page: （default = 1)
 	//	* TODO: day2 二つのカラムを併せて計算した値での検索（x*yの面積での検索とか）
 
-	jiaUserID, err := getUserIdFromSession(c.Request())
+	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not sign in")
@@ -776,7 +776,7 @@ func getIsuSearch(c echo.Context) error {
 //  GET /api/isu/{jia_isu_uuid}
 // 椅子の情報を取得する
 func getIsu(c echo.Context) error {
-	jiaUserID, err := getUserIdFromSession(c.Request())
+	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not sign in")
@@ -803,7 +803,7 @@ func getIsu(c echo.Context) error {
 //  PUT /api/isu/{jia_isu_uuid}
 // 自分の所有しているISUの情報を変更する
 func putIsu(c echo.Context) error {
-	jiaUserID, err := getUserIdFromSession(c.Request())
+	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not sign in")
@@ -863,7 +863,7 @@ func putIsu(c echo.Context) error {
 //  DELETE /api/isu/{jia_isu_uuid}
 // 所有しているISUを削除する
 func deleteIsu(c echo.Context) error {
-	jiaUserID, err := getUserIdFromSession(c.Request())
+	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not signed in")
@@ -947,7 +947,7 @@ func deleteIsu(c echo.Context) error {
 //       https://tech.jxpress.net/entry/2018/08/23/104123
 // MEMO: DB 内の image は longblob
 func getIsuIcon(c echo.Context) error {
-	jiaUserID, err := getUserIdFromSession(c.Request())
+	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not sign in")
@@ -976,7 +976,7 @@ func getIsuIcon(c echo.Context) error {
 // multipart/form-data
 // MEMO: DB 内の image は longblob
 func putIsuIcon(c echo.Context) error {
-	jiaUserID, err := getUserIdFromSession(c.Request())
+	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not sign in")
@@ -1052,7 +1052,7 @@ func putIsuIcon(c echo.Context) error {
 // conditionを何件か集めて、ISUにとっての快適度数みたいな値を算出する
 // TODO: 文面の変更
 func getIsuGraph(c echo.Context) error {
-	jiaUserID, err := getUserIdFromSession(c.Request())
+	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not sign in")
@@ -1152,7 +1152,7 @@ func getAllIsuConditions(c echo.Context) error {
 	//               info: warning無し
 	//     * TODO: day2実装: message (文字列検索)
 
-	jiaUserID, err := getUserIdFromSession(c.Request())
+	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not sign in")
@@ -1333,7 +1333,7 @@ func getIsuConditions(c echo.Context) error {
 	//               info: warning無し
 	//     * TODO: day2実装: message (文字列検索)
 
-	jiaUserID, err := getUserIdFromSession(c.Request())
+	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not sign in")
