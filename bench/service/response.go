@@ -18,8 +18,6 @@ type Isu struct {
 	Name         string `json:"name"`
 	JIACatalogID string `json:"jia_catalog_id"`
 	Character    string `json:"character"`
-	// TODO: これはmodelの方にあるのが正しそう
-	Icon []byte `json:"-"`
 }
 
 type Catalog struct {
