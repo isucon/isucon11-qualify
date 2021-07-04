@@ -1,14 +1,12 @@
 package scenario
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"math/rand"
-	"net/http"
 	"time"
 
 	"github.com/isucon/isucandar"
+	"github.com/isucon/isucandar/agent"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
 )
@@ -24,7 +22,7 @@ type posterState struct {
 }
 
 //POST /api/isu/{jia_isu_id}/conditionをたたくスレッド
-func KeepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetURL string, scenarioChan *model.StreamsForPoster) {
+func keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseURL string, jiaIsuUUID string, scenarioChan *model.StreamsForPoster) {
 	defer func() { scenarioChan.ActiveChan <- false }() //deactivate
 
 	nowRealTime := time.Now()
@@ -44,6 +42,11 @@ func KeepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetURL s
 		isuStateDelete:       false,
 	}
 	randEngine := rand.New(rand.NewSource(0))
+	postAgent, err := agent.NewAgent(agent.WithBaseURL(targetBaseURL))
+	if err != nil {
+		logger.AdminLogger.Panicln(err)
+	}
+	postAgent.Name = "i'm-a-isu"
 
 	//TODO: 頻度はちゃんと検討して変える
 	//本来は1分=60,000msに一回
@@ -74,29 +77,31 @@ func KeepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetURL s
 			_ = state.GenerateNextCondition(randEngine, model.IsuStateChangeNone)
 		}
 		//次のstateを生成
-		condition := state.GenerateNextCondition(randEngine, stateChange)
+		//TODO: CE防止のためのコメントアウトを外す
+		//condition := state.GenerateNextCondition(randEngine, stateChange)
 
-		conditionByte, err := json.Marshal(condition)
-		if err != nil {
-			logger.AdminLogger.Panic(err)
-			continue
-		}
+		//TODO:
+		// _, err := postIsuConditionAction(ctx, postAgent, jiaIsuUUID, service.PostIsuConditionRequest{
+		// 	IsSitting: condition.IsSitting,
+		// 	Condition: fmt.Sprintf("is_dirty=%v,is_overweight=%v,is_broken=%v",
+		// 		condition.IsDirty, condition.IsOverweight, condition.IsBroken,
+		// 	),
+		// 	Message:   condition.Message,
+		// 	Timestamp: condition.TimestampUnix,
+		// })
+		// if err != nil {
+		// 	step.AddError(err)
+		// 	return // goto next loop
+		// }
+		//defer res.Body.Close()
 
-		func() {
-			//TODO: 得点計算 step
-			resp, err := http.Post(
-				targetURL, "application/json",
-				bytes.NewBuffer(conditionByte),
-			)
-			if err != nil {
-				return // goto next loop
-			}
-			defer resp.Body.Close()
-
-			if resp.StatusCode != 201 {
-				return // goto next loop
-			}
-		}()
+		// if condition.ConditionLevel == model.ConditionLevelInfo {
+		// 	step.AddScore(ScorePostConditionInfo)
+		// } else if condition.ConditionLevel == model.ConditionLevelWarning {
+		// 	step.AddScore(ScorePostConditionWarning)
+		// } else {
+		// 	step.AddScore(ScorePostConditionCritical)
+		// }
 	}
 }
 
