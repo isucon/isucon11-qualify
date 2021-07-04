@@ -25,8 +25,8 @@ class Apis {
     return data
   }
 
-  async getIsus() {
-    const { data } = await axios.get<Isu[]>(`/api/isu`)
+  async getIsus(options?: { limit: number }) {
+    const { data } = await axios.get<Isu[]>(`/api/isu`, { params: options })
     return data
   }
 
@@ -71,14 +71,17 @@ class Apis {
     return data
   }
 
-  async getConditions() {
-    const { data } = await axios.get<Condition[]>(`/api/condition`)
+  async getConditions(req: ConditionRequest) {
+    const { data } = await axios.get<Condition[]>(`/api/condition`, {
+      params: req
+    })
     return data
   }
 
-  async getIsuConditions(jiaIsuUuid: string) {
+  async getIsuConditions(jiaIsuUuid: string, params: ConditionRequest) {
     const { data } = await axios.get<Condition[]>(
-      `/api/condition/${jiaIsuUuid}`
+      `/api/condition/${jiaIsuUuid}`,
+      { params }
     )
     return data
   }
@@ -152,9 +155,23 @@ export interface Condition {
   timestamp: string
   is_sitting: boolean
   condition: string
-  condition_level: string
+  condition_level: ConditionLevel
   message: string
 }
+
+type ConditionLevel = 'info' | 'warning' | 'critical'
+
+export interface ConditionRequest {
+  // TODO: unixタイムにする
+  start_time?: Date
+  // TODO: unixタイムにする
+  cursor_end_time: Date
+  cursor_jia_isu_uuid: string
+  // critical,warning,info をカンマ区切りで取り扱う
+  condition_level: string
+}
+
+export const DEFAULT_CONDITION_LIMIT = 20
 
 // TODO: 作問の開発用、消す
 export const debugGetJWT = async (

@@ -98,8 +98,22 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 	RegisterToJiaAPI(isu.JIAIsuUUID, streamsForPoster)
 
 	//backendにpostする
-	//isuPostAction() //TODO:
 	//TODO: 確率で失敗してリトライする
+	// req := service.PostIsuRequest{
+	// 	JIAIsuUUID: isu.JIAIsuUUID,
+	// 	IsuName:    isu.Name,
+	// }
+	// isuResponse, res, err := postIsuAction(ctx, owner.Agent, req)
+	// if err != nil {
+	// 	step.AddError(err)
+	// 	return nil
+	// }
+	// if isuResponse.JIAIsuUUID != isu.JIAIsuUUID ||
+	// 	isuResponse.Name != isu.Name ||
+	// 	isuResponse.JIACatalogID != isu.JIACatalogID ||
+	// 	isuResponse.Character != isu.Character {
+	// 	step.AddError(errorMissmatch(res, "レスポンスBodyが正しくありません"))
+	// }
 
 	//並列に生成する場合は後でgetにより正しい順番を得て、その順序でaddする
 	//その場合はaddToUser==falseになる

@@ -43,7 +43,7 @@ func RegisterToJiaAPI(jiaIsuUUID string, streams *model.StreamsForPoster) {
 	streamsForPoster[jiaIsuUUID] = streams
 }
 
-func JiaAPIThread(ctx context.Context, step *isucandar.BenchmarkStep) {
+func (s *Scenario) JiaAPIThread(ctx context.Context, step *isucandar.BenchmarkStep) {
 
 	jiaAPIContext = ctx
 	jiaAPIStep = step
@@ -96,9 +96,9 @@ func postActivate(c echo.Context) error {
 	if !(0 <= state.TargetPort && state.TargetPort < 0x1000) {
 		return echo.NewHTTPError(http.StatusBadRequest)
 	}
-	targetURL := fmt.Sprintf(
-		"http://%s:%d/api/isu/%s/condition",
-		state.TargetIP, state.TargetPort, state.IsuUUID,
+	targetBaseURL := fmt.Sprintf(
+		"http://%s:%d",
+		state.TargetIP, state.TargetPort,
 	)
 
 	//posterスレッドの起動
@@ -119,7 +119,7 @@ func postActivate(c echo.Context) error {
 			chancelFunc: chancelFunc,
 		}
 
-		go KeepPosting(posterContext, jiaAPIStep, targetURL, scenarioChan)
+		go keepPosting(posterContext, jiaAPIStep, targetBaseURL, state.IsuUUID, scenarioChan)
 		return nil
 	}()
 	if err != nil {

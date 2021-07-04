@@ -19,7 +19,7 @@ import (
 func reqNoContentResNoContent(ctx context.Context, agent *agent.Agent, method string, rpath string, allowedStatusCodes []int) (*http.Response, error) {
 	httpreq, err := agent.NewRequest(method, rpath, nil)
 	if err != nil {
-		return nil, failure.NewError(ErrHTTP, err)
+		logger.AdminLogger.Panic(err)
 	}
 
 	httpres, err := doRequest(ctx, agent, httpreq, allowedStatusCodes)
@@ -32,7 +32,7 @@ func reqNoContentResNoContent(ctx context.Context, agent *agent.Agent, method st
 func reqNoContentResError(ctx context.Context, agent *agent.Agent, method string, rpath string, allowedStatusCodes []int) (*http.Response, string, error) {
 	httpreq, err := agent.NewRequest(method, rpath, nil)
 	if err != nil {
-		return nil, "", failure.NewError(ErrHTTP, err)
+		logger.AdminLogger.Panic(err)
 	}
 
 	// TODO: resBodyの扱いを考える(現状でここに置いてるのは Close 周りの都合)
@@ -44,7 +44,7 @@ func reqNoContentResError(ctx context.Context, agent *agent.Agent, method string
 
 	resBody, err := checkContentTypeAndGetBody(httpres, "text/plain")
 	if err != nil {
-		return httpres, "", errorInvalidContentType(httpres, "text/plain")
+		return httpres, "", err
 	}
 
 	return httpres, string(resBody), nil
@@ -57,11 +57,10 @@ func reqPngResNoContent(ctx context.Context, agent *agent.Agent, method string, 
 	}
 	httpreq, err := agent.NewRequest(method, rpath, body)
 	if err != nil {
-		return nil, failure.NewError(ErrHTTP, err)
+		logger.AdminLogger.Panic(err)
 	}
 	httpreq.Header.Set("Content-Type", contentType)
 
-	// TODO: resBodyの扱いを考える(現状でここに置いてるのは Close 周りの都合)
 	httpres, err := doRequest(ctx, agent, httpreq, allowedStatusCodes)
 	if err != nil {
 		return nil, err
@@ -77,7 +76,7 @@ func reqPngResError(ctx context.Context, agent *agent.Agent, method string, rpat
 	}
 	httpreq, err := agent.NewRequest(method, rpath, body)
 	if err != nil {
-		return nil, "", failure.NewError(ErrHTTP, err)
+		logger.AdminLogger.Panic(err)
 	}
 	httpreq.Header.Set("Content-Type", contentType)
 
@@ -88,7 +87,7 @@ func reqPngResError(ctx context.Context, agent *agent.Agent, method string, rpat
 
 	resBody, err := checkContentTypeAndGetBody(httpres, "text/plain")
 	if err != nil {
-		return httpres, "", errorInvalidContentType(httpres, "text/plain")
+		return httpres, "", err
 	}
 
 	return httpres, string(resBody), nil
@@ -102,36 +101,36 @@ func getFormFromImage(image io.Reader) (io.Reader, string, error) {
 	part.Set("Content-Disposition", `form-data; name="image"; filename="image.png"`)
 	pw, err := mw.CreatePart(part)
 	if err != nil {
-		return nil, "", err
+		logger.AdminLogger.Panic(err)
 	}
 	_, err = io.Copy(pw, image)
 	if err != nil {
-		return nil, "", err
+		logger.AdminLogger.Panic(err)
 	}
 	contentType := mw.FormDataContentType()
 	err = mw.Close()
 	if err != nil {
-		return nil, "", err
+		logger.AdminLogger.Panic(err)
 	}
-	return body, contentType, err
+	return body, contentType, nil
 }
 
 func reqNoContentResPng(ctx context.Context, agent *agent.Agent, method string, rpath string, allowedStatusCodes []int) (*http.Response, []byte, error) {
 	httpreq, err := agent.NewRequest(method, rpath, nil)
 	if err != nil {
-		return nil, nil, failure.NewError(ErrHTTP, err)
+		logger.AdminLogger.Panic(err)
 	}
 
-	// TODO: resBodyの扱いを考える(現状でここに置いてるのは Close 周りの都合)
 	httpres, err := doRequest(ctx, agent, httpreq, allowedStatusCodes)
 	if err != nil {
 		return nil, nil, err
 	}
 	defer httpres.Body.Close()
 
+	// TODO: resBodyの扱いを考える(現状でここに置いてるのは Close 周りの都合)
 	resBody, err := checkContentTypeAndGetBody(httpres, "image/png")
 	if err != nil {
-		return httpres, nil, errorInvalidContentType(httpres, "image/png")
+		return httpres, nil, err
 	}
 
 	return httpres, resBody, nil
@@ -140,7 +139,7 @@ func reqNoContentResPng(ctx context.Context, agent *agent.Agent, method string, 
 func reqJSONResJSON(ctx context.Context, agent *agent.Agent, method string, rpath string, body io.Reader, res interface{}, allowedStatusCodes []int) (*http.Response, error) {
 	httpreq, err := agent.NewRequest(method, rpath, body)
 	if err != nil {
-		return nil, failure.NewError(ErrHTTP, err)
+		logger.AdminLogger.Panic(err)
 	}
 	httpreq.Header.Set("Content-Type", "application/json")
 
@@ -152,11 +151,10 @@ func reqJSONResJSON(ctx context.Context, agent *agent.Agent, method string, rpat
 
 	resBody, err := checkContentTypeAndGetBody(httpres, "application/json")
 	if err != nil {
-		return httpres, errorInvalidContentType(httpres, "application/json")
+		return httpres, err
 	}
 
 	if err := json.Unmarshal(resBody, res); err != nil {
-		logger.AdminLogger.Println(err)
 		return nil, errorInvalidJSON(httpres)
 	}
 
@@ -166,7 +164,7 @@ func reqJSONResJSON(ctx context.Context, agent *agent.Agent, method string, rpat
 func reqJSONResNoContent(ctx context.Context, agent *agent.Agent, method string, rpath string, body io.Reader, allowedStatusCodes []int) (*http.Response, error) {
 	httpreq, err := agent.NewRequest(method, rpath, body)
 	if err != nil {
-		return nil, failure.NewError(ErrHTTP, err)
+		logger.AdminLogger.Panic(err)
 	}
 	httpreq.Header.Set("Content-Type", "application/json")
 
@@ -181,7 +179,7 @@ func reqJSONResNoContent(ctx context.Context, agent *agent.Agent, method string,
 func reqJSONResError(ctx context.Context, agent *agent.Agent, method string, rpath string, body io.Reader, allowedStatusCodes []int) (*http.Response, string, error) {
 	httpreq, err := agent.NewRequest(method, rpath, body)
 	if err != nil {
-		return nil, "", failure.NewError(ErrHTTP, err)
+		logger.AdminLogger.Panic(err)
 	}
 	httpreq.Header.Set("Content-Type", "application/json")
 
@@ -192,7 +190,7 @@ func reqJSONResError(ctx context.Context, agent *agent.Agent, method string, rpa
 
 	resBody, err := checkContentTypeAndGetBody(httpres, "text/plain")
 	if err != nil {
-		return httpres, "", errorInvalidContentType(httpres, "text/plain")
+		return httpres, "", err
 	}
 
 	return httpres, string(resBody), nil
@@ -201,7 +199,7 @@ func reqJSONResError(ctx context.Context, agent *agent.Agent, method string, rpa
 func doRequest(ctx context.Context, agent *agent.Agent, httpreq *http.Request, allowedStatusCodes []int) (*http.Response, error) {
 	httpres, err := agent.Do(ctx, httpreq)
 	if err != nil {
-		return nil, failure.NewError(ErrHTTP, err)
+		logger.AdminLogger.Panic(err)
 	}
 
 	invalidStatusCode := true
@@ -211,7 +209,7 @@ func doRequest(ctx context.Context, agent *agent.Agent, httpreq *http.Request, a
 		}
 	}
 	if invalidStatusCode {
-		return nil, errorStatusCode500(httpres)
+		return nil, errorInvalidStatusCodes(httpres, allowedStatusCodes)
 	}
 
 	return httpres, nil
@@ -226,7 +224,7 @@ func checkContentTypeAndGetBody(httpres *http.Response, contentType string) ([]b
 
 	resBody, err := ioutil.ReadAll(httpres.Body)
 	if err != nil {
-		return nil, err
+		return nil, failure.NewError(ErrCritical, err)
 	}
 
 	return resBody, nil
