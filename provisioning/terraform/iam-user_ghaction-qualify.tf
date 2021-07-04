@@ -1,16 +1,16 @@
-resource "aws_iam_user" "ghaction-qualify" {
-  name                 = "ghaction-qualify"
-  permissions_boundary = aws_iam_policy.IsuAdmin.arn
+resource "aws_iam_user" "ghaction-qualify-dev" {
+  name                 = "ghaction-qualify-dev"
+  permissions_boundary = "arn:aws:iam::245943874622:policy/IsuAdmin"  # created from isucon/isucon11-portal
 }
 
-resource "aws_iam_user_policy" "ghaction-qualify-packer" {
-  user   = aws_iam_user.ghaction-qualify.name
+resource "aws_iam_user_policy" "ghaction-qualify-dev-packer" {
+  user   = aws_iam_user.ghaction-qualify-dev.name
   name   = "packer"
-  policy = data.aws_iam_policy_document.ghaction-qualify-packer.json
+  policy = data.aws_iam_policy_document.ghaction-qualify-dev-packer.json
 }
 
 # for packer (https://www.packer.io/docs/builders/amazon#iam-task-or-instance-role)
-data "aws_iam_policy_document" "ghaction-qualify-packer" {
+data "aws_iam_policy_document" "ghaction-qualify-dev-packer" {
   statement {
     effect = "Allow"
     actions = [
