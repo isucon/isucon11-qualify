@@ -5,6 +5,15 @@ import "fmt"
 //enum
 type IsuStateChange int
 
+const (
+	IsuStateChangeNone IsuStateChange = iota
+	IsuStateChangeClear
+	IsuStateChangeDetectOverweight
+	IsuStateChangeClearAndDetect
+	IsuStateChangeBad
+	IsuStateChangeDelete //椅子を削除する
+)
+
 //posterスレッドとシナリオスレッドとの通信に必要な情報
 //ISU協会はこれを使ってposterスレッドを起動、posterスレッドはこれを使って通信
 //複数回posterスレッドが起動するかもしれないのでcloseしない
