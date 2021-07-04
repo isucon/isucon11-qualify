@@ -1,5 +1,7 @@
 package model
 
+import "fmt"
+
 //enum
 type IsuStateChange int
 
@@ -37,14 +39,41 @@ type Isu struct {
 	Conditions         []IsuCondition      //シナリオスレッドからのみ参照
 }
 
-func NewIsu() *Isu {
-	v := &Isu{
-		isDeactivated: true,
-		//TODO: ポインタやchanの初期化
-	}
-	//TODO: ISU協会にIsu*を登録
+//新しいISUの生成
+//senarioのNewIsu以外からは呼び出さないこと！
+//戻り値を使ってbackendにpostする必要あり
+//戻り値をISU協会にIsu*を登録する必要あり
+//戻り値をownerに追加する必要あり
+func NewRandomIsuRaw(owner *User) (*Isu, *StreamsForPoster, error) {
+	activeChan := make(chan bool)
+	stateChan := make(chan IsuStateChange, 1)
+	conditionChan := make(chan IsuCondition)
 
-	return v
+	id := fmt.Sprintf("randomid-%s-%d", owner.UserID, len(owner.IsuListOrderByCreatedAt))     //TODO: ちゃんと生成する
+	name := fmt.Sprintf("randomname-%s-%d", owner.UserID, len(owner.IsuListOrderByCreatedAt)) //TODO: ちゃんと生成する
+	isu := &Isu{
+		Owner:             owner,
+		JIAIsuUUID:        id,
+		Name:              name,
+		ImageName:         "dafault-image", //TODO: ちゃんとデータに合わせる
+		JIACatalogID:      "",              //TODO:
+		Character:         "",              //TODO:
+		IsWantDeactivated: false,
+		isDeactivated:     true,
+		StreamsForScenario: &StreamsForScenario{
+			activeChan:    activeChan,
+			StateChan:     stateChan,
+			ConditionChan: conditionChan,
+		},
+		Conditions: []IsuCondition{},
+	}
+
+	streamsForPoster := &StreamsForPoster{
+		ActiveChan:    activeChan,
+		StateChan:     stateChan,
+		ConditionChan: conditionChan,
+	}
+	return isu, streamsForPoster, nil
 }
 
 //シナリオスレッドからのみ参照

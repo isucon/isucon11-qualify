@@ -37,10 +37,10 @@ type JiaAPI2PosterData struct {
 }
 
 //シナリオスレッドからの呼び出し
-func RegisterToJiaAPI(jiaIsuUUID string, data *model.StreamsForPoster) {
+func RegisterToJiaAPI(jiaIsuUUID string, streams *model.StreamsForPoster) {
 	streamsForPosterMutex.Lock()
 	defer streamsForPosterMutex.Unlock()
-	streamsForPoster[jiaIsuUUID] = data
+	streamsForPoster[jiaIsuUUID] = streams
 }
 
 func JiaAPIThread(ctx context.Context, step *isucandar.BenchmarkStep) {

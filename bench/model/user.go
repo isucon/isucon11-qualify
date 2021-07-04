@@ -28,10 +28,29 @@ type User struct {
 	Agent *agent.Agent
 }
 
-//
+func NewRandomUserRaw() (*User, error) {
+	userID, err := MakeRandomUserID()
+	if err != nil {
+		return nil, err
+	}
+	return &User{
+		UserID:                  userID,
+		Type:                    UserTypeNormal, //TODO: 一定の比にする
+		IsuListOrderByCreatedAt: []*Isu{},
+		IsuListByID:             map[string]*Isu{},
+		Agent:                   nil,
+	}, nil
+}
+
+//CreatedAt順で挿入すること
+func (u *User) AddIsu(isu *Isu) {
+	u.IsuListOrderByCreatedAt = append(u.IsuListOrderByCreatedAt, isu)
+	u.IsuListByID[isu.JIAIsuUUID] = isu
+}
 
 // utility
 
+//TODO: 差し替える
 func MakeRandomUserID() (string, error) {
 	//TODO: とりあえず完全乱数だけど、ちゃんとそれっぽいのを生成しても良いかも
 	//TODO: 重複削除
