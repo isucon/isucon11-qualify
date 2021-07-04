@@ -1211,10 +1211,8 @@ func getAllIsuConditions(c echo.Context) error {
 		jiaUserID,
 	)
 	if err != nil {
-		if !errors.Is(err, sql.ErrNoRows) {
-			c.Logger().Errorf("failed to select: %v", err)
-			return c.NoContent(http.StatusInternalServerError)
-		}
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	// ユーザの所持椅子毎に /api/condition/{jia_isu_uuid} を叩く
