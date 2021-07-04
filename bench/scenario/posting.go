@@ -2,6 +2,7 @@ package scenario
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/isucon/isucandar/agent"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
+	"github.com/isucon/isucon11-qualify/bench/service"
 )
 
 const DefaultPostInterval = 1 * time.Second //TODO:時間加速
@@ -77,31 +79,29 @@ func keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseU
 			_ = state.GenerateNextCondition(randEngine, model.IsuStateChangeNone)
 		}
 		//次のstateを生成
-		//TODO: CE防止のためのコメントアウトを外す
-		//condition := state.GenerateNextCondition(randEngine, stateChange)
+		condition := state.GenerateNextCondition(randEngine, stateChange)
 
-		//TODO:
-		// _, err := postIsuConditionAction(ctx, postAgent, jiaIsuUUID, service.PostIsuConditionRequest{
-		// 	IsSitting: condition.IsSitting,
-		// 	Condition: fmt.Sprintf("is_dirty=%v,is_overweight=%v,is_broken=%v",
-		// 		condition.IsDirty, condition.IsOverweight, condition.IsBroken,
-		// 	),
-		// 	Message:   condition.Message,
-		// 	Timestamp: condition.TimestampUnix,
-		// })
-		// if err != nil {
-		// 	step.AddError(err)
-		// 	return // goto next loop
-		// }
+		_, err := postIsuConditionAction(ctx, postAgent, jiaIsuUUID, service.PostIsuConditionRequest{
+			IsSitting: condition.IsSitting,
+			Condition: fmt.Sprintf("is_dirty=%v,is_overweight=%v,is_broken=%v",
+				condition.IsDirty, condition.IsOverweight, condition.IsBroken,
+			),
+			Message:   condition.Message,
+			Timestamp: condition.TimestampUnix,
+		})
+		if err != nil {
+			step.AddError(err)
+			return // goto next loop
+		}
 		//defer res.Body.Close()
 
-		// if condition.ConditionLevel == model.ConditionLevelInfo {
-		// 	step.AddScore(ScorePostConditionInfo)
-		// } else if condition.ConditionLevel == model.ConditionLevelWarning {
-		// 	step.AddScore(ScorePostConditionWarning)
-		// } else {
-		// 	step.AddScore(ScorePostConditionCritical)
-		// }
+		if condition.ConditionLevel == model.ConditionLevelInfo {
+			step.AddScore(ScorePostConditionInfo)
+		} else if condition.ConditionLevel == model.ConditionLevelWarning {
+			step.AddScore(ScorePostConditionWarning)
+		} else {
+			step.AddScore(ScorePostConditionCritical)
+		}
 	}
 }
 
