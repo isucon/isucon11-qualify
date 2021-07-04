@@ -2,7 +2,7 @@ FROM node:14 as frontend
 WORKDIR /app
 
 COPY webapp/frontend/package*.json ./
-RUN npm install
+RUN npm ci
 
 COPY webapp/frontend .
 RUN npm run build
