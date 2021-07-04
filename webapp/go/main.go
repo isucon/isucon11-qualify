@@ -356,7 +356,11 @@ func postAuthentication(c echo.Context) error {
 	}
 
 	// get jia_user_id from JWT Payload
-	claims, _ := token.Claims.(jwt.MapClaims) // TODO: 型アサーションのチェックの有無の議論
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		c.Logger().Errorf("type assertion error")
+		return c.NoContent(http.StatusInternalServerError)
+	}
 	jiaUserIdVar, ok := claims["jia_user_id"]
 	if !ok {
 		c.Logger().Errorf("invalid JWT payload")
