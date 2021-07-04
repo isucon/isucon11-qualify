@@ -1498,7 +1498,7 @@ func postIsuCondition(c echo.Context) error {
 
 	// jia_isu_uuid が存在するかを確認
 	var count int
-	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_isu_uuid` = ?  and `is_deleted`=false", jiaIsuUUID) //TODO: 記法の統一
+	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_isu_uuid` = ?  and `is_deleted` = false", jiaIsuUUID) //TODO: 記法の統一
 	if err != nil {
 		c.Logger().Errorf("failed to select: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
