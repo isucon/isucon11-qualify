@@ -284,7 +284,7 @@ func getSession(r *http.Request) *sessions.Session {
 	return session
 }
 
-func getUserIdFromSession(r *http.Request) (string, error) {
+func getUserIDFromSession(r *http.Request) (string, error) {
 	session := getSession(r)
 	userID, ok := session.Values["jia_user_id"]
 	if !ok {
@@ -356,26 +356,30 @@ func postAuthentication(c echo.Context) error {
 	}
 
 	// get jia_user_id from JWT Payload
-	claims, _ := token.Claims.(jwt.MapClaims) // TODO: 型アサーションのチェックの有無の議論
-	jiaUserIdVar, ok := claims["jia_user_id"]
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		c.Logger().Errorf("type assertion error")
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	jiaUserIDVar, ok := claims["jia_user_id"]
 	if !ok {
 		c.Logger().Errorf("invalid JWT payload")
 		return c.String(http.StatusBadRequest, "invalid JWT payload")
 	}
-	jiaUserId, ok := jiaUserIdVar.(string)
+	jiaUserID, ok := jiaUserIDVar.(string)
 	if !ok {
 		c.Logger().Errorf("invalid JWT payload")
 		return c.String(http.StatusBadRequest, "invalid JWT payload")
 	}
 
-	_, err = db.Exec("INSERT IGNORE INTO user (`jia_user_id`) VALUES (?)", jiaUserId)
+	_, err = db.Exec("INSERT IGNORE INTO user (`jia_user_id`) VALUES (?)", jiaUserID)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	session := getSession(c.Request())
-	session.Values["jia_user_id"] = jiaUserId
+	session.Values["jia_user_id"] = jiaUserID
 	err = session.Save(c.Request(), c.Response())
 	if err != nil {
 		c.Logger().Errorf("failed to set cookie: %v", err)
@@ -387,7 +391,7 @@ func postAuthentication(c echo.Context) error {
 
 //  POST /api/signout
 func postSignout(c echo.Context) error {
-	_, err := getUserIdFromSession(c.Request())
+	_, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not signed in")
@@ -412,7 +416,7 @@ func postSignout(c echo.Context) error {
 // }
 
 func getMe(c echo.Context) error {
-	userID, err := getUserIdFromSession(c.Request())
+	userID, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not signed in")
@@ -426,7 +430,7 @@ func getMe(c echo.Context) error {
 // カタログ情報を取得
 func getCatalog(c echo.Context) error {
 	// ログインチェック
-	_, err := getUserIdFromSession(c.Request())
+	_, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not signed in")
@@ -494,7 +498,7 @@ func castCatalogFromJIA(catalogFromJIA *CatalogFromJIA) (*Catalog, error) {
 }
 
 func getIsuList(c echo.Context) error {
-	jiaUserID, err := getUserIdFromSession(c.Request())
+	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not signed in")
@@ -526,7 +530,7 @@ func getIsuList(c echo.Context) error {
 //  POST /api/isu
 // 自分のISUの登録
 func postIsu(c echo.Context) error {
-	jiaUserID, err := getUserIdFromSession(c.Request())
+	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not signed in")
@@ -645,7 +649,7 @@ func getIsuSearch(c echo.Context) error {
 	//  * page: （default = 1)
 	//	* TODO: day2 二つのカラムを併せて計算した値での検索（x*yの面積での検索とか）
 
-	jiaUserID, err := getUserIdFromSession(c.Request())
+	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not sign in")
@@ -776,7 +780,7 @@ func getIsuSearch(c echo.Context) error {
 //  GET /api/isu/{jia_isu_uuid}
 // 椅子の情報を取得する
 func getIsu(c echo.Context) error {
-	jiaUserID, err := getUserIdFromSession(c.Request())
+	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not sign in")
@@ -786,8 +790,8 @@ func getIsu(c echo.Context) error {
 
 	// TODO: jia_user_id 判別はクエリに入れずその後のロジックとする？ (一通り完成した後に要考慮)
 	var isu Isu
-	err = db.Get(&isu, "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = ?",
-		jiaUserID, jiaIsuUUID, false)
+	err = db.Get(&isu, "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
+		jiaUserID, jiaIsuUUID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			c.Logger().Errorf("isu not found: %v", err)
@@ -804,7 +808,7 @@ func getIsu(c echo.Context) error {
 //  PUT /api/isu/{jia_isu_uuid}
 // 自分の所有しているISUの情報を変更する
 func putIsu(c echo.Context) error {
-	jiaUserID, err := getUserIdFromSession(c.Request())
+	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not sign in")
@@ -827,8 +831,8 @@ func putIsu(c echo.Context) error {
 	defer tx.Rollback()
 
 	var count int
-	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = ?",
-		jiaUserID, jiaIsuUUID, false)
+	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
+		jiaUserID, jiaIsuUUID)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -845,8 +849,8 @@ func putIsu(c echo.Context) error {
 	}
 
 	var isu Isu
-	err = tx.Get(&isu, "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = ?",
-		jiaUserID, jiaIsuUUID, false)
+	err = tx.Get(&isu, "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
+		jiaUserID, jiaIsuUUID)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -864,7 +868,7 @@ func putIsu(c echo.Context) error {
 //  DELETE /api/isu/{jia_isu_uuid}
 // 所有しているISUを削除する
 func deleteIsu(c echo.Context) error {
-	jiaUserID, err := getUserIdFromSession(c.Request())
+	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not signed in")
@@ -948,7 +952,7 @@ func deleteIsu(c echo.Context) error {
 //       https://tech.jxpress.net/entry/2018/08/23/104123
 // MEMO: DB 内の image は longblob
 func getIsuIcon(c echo.Context) error {
-	jiaUserID, err := getUserIdFromSession(c.Request())
+	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not sign in")
@@ -957,8 +961,8 @@ func getIsuIcon(c echo.Context) error {
 	jiaIsuUUID := c.Param("jia_isu_uuid")
 
 	var image []byte
-	err = db.Get(&image, "SELECT `image` FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = ?",
-		jiaUserID, jiaIsuUUID, false)
+	err = db.Get(&image, "SELECT `image` FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
+		jiaUserID, jiaIsuUUID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			c.Logger().Errorf("isu not found: %v", err)
@@ -978,7 +982,7 @@ func getIsuIcon(c echo.Context) error {
 // multipart/form-data
 // MEMO: DB 内の image は longblob
 func putIsuIcon(c echo.Context) error {
-	jiaUserID, err := getUserIdFromSession(c.Request())
+	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not sign in")
@@ -1019,8 +1023,8 @@ func putIsuIcon(c echo.Context) error {
 	defer tx.Rollback()
 
 	var count int
-	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = ? FOR UPDATE",
-		jiaUserID, jiaIsuUUID, false)
+	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false FOR UPDATE",
+		jiaUserID, jiaIsuUUID)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -1030,8 +1034,8 @@ func putIsuIcon(c echo.Context) error {
 		return c.String(http.StatusNotFound, "isu not found")
 	}
 
-	_, err = tx.Exec("UPDATE `isu` SET `image` = ? WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = ?",
-		image, jiaUserID, jiaIsuUUID, false)
+	_, err = tx.Exec("UPDATE `isu` SET `image` = ? WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
+		image, jiaUserID, jiaIsuUUID)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -1054,7 +1058,7 @@ func putIsuIcon(c echo.Context) error {
 // conditionを何件か集めて、ISUにとっての快適度数みたいな値を算出する
 // TODO: 文面の変更
 func getIsuGraph(c echo.Context) error {
-	jiaUserID, err := getUserIdFromSession(c.Request())
+	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not sign in")
@@ -1081,8 +1085,8 @@ func getIsuGraph(c echo.Context) error {
 	defer tx.Rollback()
 
 	var count int
-	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = ?",
-		jiaUserID, jiaIsuUUID, false)
+	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
+		jiaUserID, jiaIsuUUID)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -1154,7 +1158,7 @@ func getAllIsuConditions(c echo.Context) error {
 	//               info: warning無し
 	//     * TODO: day2実装: message (文字列検索)
 
-	jiaUserID, err := getUserIdFromSession(c.Request())
+	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not sign in")
@@ -1335,7 +1339,7 @@ func getIsuConditions(c echo.Context) error {
 	//               info: warning無し
 	//     * TODO: day2実装: message (文字列検索)
 
-	jiaUserID, err := getUserIdFromSession(c.Request())
+	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not sign in")
@@ -1501,7 +1505,7 @@ func postIsuCondition(c echo.Context) error {
 
 	// jia_isu_uuid が存在するかを確認
 	var count int
-	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_isu_uuid` = ?  and `is_deleted`=false", jiaIsuUUID) //TODO: 記法の統一
+	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_isu_uuid` = ?  and `is_deleted` = false", jiaIsuUUID) //TODO: 記法の統一
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
