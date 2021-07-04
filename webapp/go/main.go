@@ -1418,12 +1418,9 @@ func getIsuConditions(c echo.Context) error {
 	}
 	if err != nil {
 		if !errors.Is(err, sql.ErrNoRows) {
-			c.Logger().Errorf("isu not found: %v", err)
-			return c.String(http.StatusNotFound, "isu not found")
+			c.Logger().Errorf("failed to select: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
 		}
-
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	//condition_levelでの絞り込み
