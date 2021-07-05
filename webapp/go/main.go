@@ -233,7 +233,7 @@ func main() {
 	e.Use(middleware.Recover())
 
 	// Static
-	e.Static("/", "frontend") // TODO: webapp/frontend 以下のファイルすべてが取得可能となっているのを直す
+	e.Static("/", "/public") // TODO: webapp/frontend 以下のファイルすべてが取得可能となっているのを直す
 
 	// Initialize
 	e.POST("/initialize", postInitialize)

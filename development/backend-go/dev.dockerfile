@@ -1,3 +1,13 @@
+FROM node:14 as frontend
+WORKDIR /app
+
+COPY webapp/frontend/package*.json ./
+RUN npm ci
+
+COPY webapp/frontend .
+RUN npm run build
+
+
 FROM golang:1.16.5-buster
 
 WORKDIR /development
@@ -10,7 +20,7 @@ RUN wget https://dev.mysql.com/get/mysql-apt-config_0.8.17-1_all.deb \
     && apt-get update \
     && apt-get install -y mysql-client  \
     && rm ./mysql-apt-config_0.8.17-1_all.deb
-    
+
 WORKDIR /webapp/go
 
 ENV DOCKERIZE_VERSION v0.6.1
@@ -23,3 +33,5 @@ COPY webapp/go/go.mod .
 COPY webapp/go/go.sum .
 
 RUN go mod download
+
+COPY --from=frontend /app/dist /public
