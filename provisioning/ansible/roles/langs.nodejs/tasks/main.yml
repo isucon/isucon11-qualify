@@ -1,0 +1,12 @@
+---
+- name: "roles/langs.nodejs/tasks/main: Install Node.js v15.12.0 from xbuild"
+  become_user: isucon
+  command: /tmp/xbuild/node-install v15.12.0 /home/isucon/local/node
+
+- name: "roles/langs.nodejs/tasks/main: Add PATH for Node.js"
+  become_user: isucon
+  blockinfile:
+    marker: "# {mark} ANSIBLE MANAGED BLOCK nodejs"
+    path: /home/isucon/.bashrc
+    content: |
+      export PATH=/home/isucon/local/node/bin:$PATH'
