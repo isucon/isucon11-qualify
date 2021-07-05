@@ -134,7 +134,19 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 
 		if randEngine.Intn(3) < 2 {
 			//定期的にconditionを見に行くシナリオ
-
+			_, conditions, errs = browserGetIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
+				service.GetIsuConditionRequest{
+					StartTime: nil,
+					CursorEndTime: ,//TODO:
+					CursorJIAIsuUUID: ""
+					ConditionLevel: "info,warning,critical"
+					Limit: nil,
+				},
+				func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
+					//TODO: conditionの検証
+					return []error{}
+				},
+			)
 		} else {
 
 			//TODO: graphを見に行くシナリオ

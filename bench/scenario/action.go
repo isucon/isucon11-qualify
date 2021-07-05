@@ -587,7 +587,9 @@ func getIsuConditionRequestParams(base string, req service.GetIsuConditionReques
 		q.Set("start_time", fmt.Sprint(*req.StartTime))
 	}
 	q.Set("cursor_end_time", fmt.Sprint(req.CursorEndTime))
-	q.Set("cursor_jia_isu_uuid", req.CursorJIAIsuUUID)
+	if req.CursorJIAIsuUUID != "" {
+		q.Set("cursor_jia_isu_uuid", req.CursorJIAIsuUUID)
+	}
 	q.Set("condition_level", req.ConditionLevel)
 	if req.Limit != nil {
 		q.Set("limit", fmt.Sprint(*req.Limit))
