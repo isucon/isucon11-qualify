@@ -89,12 +89,19 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 		_ = s.NewIsu(ctx, step, user, true)
 	}
 
+	scenarioDoneCount := 0
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		default:
 		}
-		//TODO:
+
+		//定期的にconditionを見に行くシナリオ
+
+		//TODO: graphを見に行くシナリオ
+
+		scenarioDoneCount++
+		//TODO: 椅子の追加
 	}
 }
