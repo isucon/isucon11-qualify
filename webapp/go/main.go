@@ -1478,18 +1478,10 @@ func postIsuCondition(c echo.Context) error {
 		c.Logger().Errorf("jia_isu_uuid is missing")
 		return c.String(http.StatusBadRequest, "jia_isu_uuid is missing")
 	}
-	var req PostIsuConditionRequest
+	var req []PostIsuConditionRequest
 	err := c.Bind(&req)
 	if err != nil {
 		c.Logger().Errorf("bad request body: %v", err)
-		return c.String(http.StatusBadRequest, "bad request body")
-	}
-
-	//Parse
-	timestamp := time.Unix(req.Timestamp, 0)
-
-	if !conditionFormat.Match([]byte(req.Condition)) {
-		c.Logger().Errorf("bad request body")
 		return c.String(http.StatusBadRequest, "bad request body")
 	}
 
@@ -1514,25 +1506,36 @@ func postIsuCondition(c echo.Context) error {
 	}
 
 	//isu_conditionに記録
-	//confilct確認
-	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu_condition` WHERE (`timestamp`, `jia_isu_uuid`) = (?, ?)  FOR UPDATE", //TODO: 記法の統一
-		timestamp, jiaIsuUUID,
-	)
-	if err != nil {
-		c.Logger().Errorf("failed to begin tx: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	if count != 0 {
-		c.Logger().Errorf("isu condition already exist")
-		return c.String(http.StatusConflict, "isu_condition already exist")
-	}
 	//insert
-	_, err = tx.Exec("INSERT INTO `isu_condition`"+
-		"	(`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`) VALUES (?, ?, ?, ?, ?)",
-		jiaIsuUUID, timestamp, req.IsSitting, req.Condition, req.Message,
-	)
+	query := "INSERT INTO `isu_condition` (`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`) VALUES "
+	queryParam := []interface{}{}
+
+	for i, cond := range req {
+		//Parse
+		timestamp := time.Unix(cond.Timestamp, 0)
+
+		if !conditionFormat.Match([]byte(cond.Condition)) {
+			c.Logger().Errorf("bad request body")
+			return c.String(http.StatusBadRequest, "bad request body")
+		}
+
+		if i == 0 {
+			query += " (?, ?, ?, ?, ?)"
+		} else {
+			query += " , (?, ?, ?, ?, ?)"
+		}
+		queryParam = append(queryParam, jiaIsuUUID, timestamp, cond.IsSitting, cond.Condition, cond.Message)
+	}
+	_, err = tx.Exec(query, queryParam...)
 	if err != nil {
-		c.Logger().Errorf("failed to insert: %v", err)
+		mysqlErr, ok := err.(*mysql.MySQLError)
+
+		if ok && mysqlErr.Number == uint16(mysqlErrNumDuplicateEntry) {
+			c.Logger().Errorf("duplicated condition: %v", err)
+			return c.String(http.StatusConflict, "duplicated condition")
+		}
+
+		c.Logger().Errorf("failed to insert conditions: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
