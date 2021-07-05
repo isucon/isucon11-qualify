@@ -1417,6 +1417,9 @@ func getIsuConditions(c echo.Context) error {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
+	if len(conditions) == 0 {
+		return c.JSON(http.StatusOK, conditions)
+	}
 
 	//condition_levelでの絞り込み
 	conditionsResponse := []GetIsuConditionResponse{}
