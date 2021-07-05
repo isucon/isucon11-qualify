@@ -30,11 +30,19 @@ type Scenario struct {
 	normalUserWorker  *worker.Worker //通常ユーザーのシナリオスレッド
 	maniacUserWorker  *worker.Worker //マニアユーザーのシナリオスレッド
 	companyUserWorker *worker.Worker //企業ユーザーのシナリオスレッド
+
+	//内部状態
+	normalUsersMtx sync.Mutex
+	normalUsers    []*model.User
 }
 
 func NewScenario() (*Scenario, error) {
 	return &Scenario{
 		// TODO: シナリオを初期化する
+		normalUserWorker:  nil,
+		maniacUserWorker:  nil,
+		companyUserWorker: nil,
+		normalUsers:       []*model.User{},
 	}, nil
 }
 

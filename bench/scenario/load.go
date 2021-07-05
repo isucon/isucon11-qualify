@@ -61,11 +61,32 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 }
 
 func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.BenchmarkStep) {
-	//TODO:
+
 	select {
 	case <-ctx.Done():
 		return
 	default:
+	}
+
+	//ユーザー作成
+	userAgent, err := s.NewAgent()
+	if err != nil {
+		logger.AdminLogger.Panicln(err)
+	}
+	user := s.NewUser(ctx, step, userAgent)
+	if user == nil {
+		return //致命的でないエラー
+	}
+	func() {
+		s.normalUsersMtx.Lock()
+		defer s.normalUsersMtx.Unlock()
+		s.normalUsers = append(s.normalUsers, user)
+	}()
+
+	//椅子作成
+	isuCount := 3
+	for i := 0; i < isuCount; i++ {
+		_ = s.NewIsu(ctx, step, user, true)
 	}
 
 	for {
