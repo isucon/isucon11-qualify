@@ -196,7 +196,7 @@ func authActionWithoutJWT(ctx context.Context, a *agent.Agent) []error {
 	return errors
 }
 
-//auth utlity
+//auth utility
 
 const authActionErrorNum = 8 //authActionErrorが何種類のエラーを持っているか
 
