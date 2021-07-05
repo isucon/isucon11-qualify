@@ -26,6 +26,8 @@ func reqNoContentResNoContent(ctx context.Context, agent *agent.Agent, method st
 	if err != nil {
 		return nil, err
 	}
+	defer httpres.Body.Close()
+
 	return httpres, nil
 }
 
@@ -65,6 +67,7 @@ func reqPngResNoContent(ctx context.Context, agent *agent.Agent, method string, 
 	if err != nil {
 		return nil, err
 	}
+	defer httpres.Body.Close()
 
 	return httpres, nil
 }
@@ -172,6 +175,7 @@ func reqJSONResNoContent(ctx context.Context, agent *agent.Agent, method string,
 	if err != nil {
 		return nil, err
 	}
+	defer httpres.Body.Close()
 
 	return httpres, nil
 }
