@@ -1215,7 +1215,6 @@ func getAllIsuConditions(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	if len(isuList) == 0 {
-		fmt.Println("no isu") // FIXME
 		return c.JSON(http.StatusOK, isuList)
 	}
 
