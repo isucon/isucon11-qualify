@@ -53,7 +53,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 	httpClient.Timeout = 1 * time.Second
 
 	//TODO: 頻度はちゃんと検討して変える
-	timer := time.NewTicker(PostInterval * PostContentNum / time.Duration(s.virtualTimeMulti))
+	timer := time.NewTicker(PostInterval * PostContentNum / s.virtualTimeMulti)
 	defer timer.Stop()
 	for {
 		select {

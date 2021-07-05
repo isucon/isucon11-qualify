@@ -94,9 +94,8 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 	}
 
 	randEngine := rand.New(rand.NewSource(5498513))
-	scenarioDoneCount := 0
 	nextTargetIsuIndex := 0
-	for {
+	for scenarioDoneCount := 0; true; scenarioDoneCount++ {
 		select {
 		case <-ctx.Done():
 			return
@@ -134,25 +133,36 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 
 		if randEngine.Intn(3) < 2 {
 			//定期的にconditionを見に行くシナリオ
-			_, conditions, errs = browserGetIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
+			virtualNow := s.ToVirtualTime(time.Now())
+			_, conditions, errs := browserGetIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
 				service.GetIsuConditionRequest{
-					StartTime: nil,
-					CursorEndTime: ,//TODO:
-					CursorJIAIsuUUID: ""
-					ConditionLevel: "info,warning,critical"
-					Limit: nil,
+					StartTime:        nil,
+					CursorEndTime:    uint64(virtualNow.Unix()), //TODO:
+					CursorJIAIsuUUID: "",
+					ConditionLevel:   "info,warning,critical",
+					Limit:            nil,
 				},
 				func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
 					//TODO: conditionの検証
 					return []error{}
 				},
 			)
+			for _, err := range errs {
+				step.AddError(err)
+			}
+			if len(errs) > 0 {
+				continue
+			}
+
+			//TODO: conditionの検証
+			if len(conditions) > 0 { //エラーつぶし
+				conditions = nil
+			}
 		} else {
 
 			//TODO: graphを見に行くシナリオ
 		}
 
-		scenarioDoneCount++
 		//TODO: 椅子の追加
 	}
 }

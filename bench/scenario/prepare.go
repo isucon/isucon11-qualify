@@ -37,6 +37,7 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 	}
 
 	s.Language = initResponse.Language
+	s.realTimeStart = time.Now()
 
 	//各エンドポイントのチェック
 	err = s.prepareCheckAuth(ctx, step)
