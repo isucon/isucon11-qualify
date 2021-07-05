@@ -1,16 +1,18 @@
 package scenario
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/rand"
+	"net/http"
 	"time"
 
 	"github.com/isucon/isucandar"
-	"github.com/isucon/isucandar/agent"
+	"github.com/isucon/isucandar/failure"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
-	"github.com/isucon/isucon11-qualify/bench/service"
 )
 
 const DefaultPostInterval = 1 * time.Second //TODO:時間加速
@@ -44,11 +46,9 @@ func keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseU
 		isuStateDelete:       false,
 	}
 	randEngine := rand.New(rand.NewSource(0))
-	postAgent, err := agent.NewAgent(agent.WithBaseURL(targetBaseURL))
-	if err != nil {
-		logger.AdminLogger.Panicln(err)
-	}
-	postAgent.Name = "i'm-a-isu"
+	targetURL := fmt.Sprintf("%s/api/isu/%s/condition", targetBaseURL, jiaIsuUUID)
+	httpClient := http.Client{}
+	httpClient.Timeout = 1 * time.Second
 
 	//TODO: 頻度はちゃんと検討して変える
 	//本来は1分=60,000msに一回
@@ -81,27 +81,36 @@ func keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseU
 		//次のstateを生成
 		condition := state.GenerateNextCondition(randEngine, stateChange)
 
-		_, err := postIsuConditionAction(ctx, postAgent, jiaIsuUUID, service.PostIsuConditionRequest{
-			IsSitting: condition.IsSitting,
-			Condition: fmt.Sprintf("is_dirty=%v,is_overweight=%v,is_broken=%v",
-				condition.IsDirty, condition.IsOverweight, condition.IsBroken,
-			),
-			Message:   condition.Message,
-			Timestamp: condition.TimestampUnix,
-		})
+		//リクエスト
+		conditionByte, err := json.Marshal(condition)
 		if err != nil {
-			step.AddError(err)
-			return // goto next loop
+			logger.AdminLogger.Panic(err)
 		}
-		//defer res.Body.Close()
+		res, err := httpClient.Post(
+			targetURL, "application/json",
+			bytes.NewBuffer(conditionByte),
+		)
+		if err != nil {
+			step.AddError(failure.NewError(ErrHTTP, err))
+			continue // goto next loop
+		}
+		func() {
+			defer res.Body.Close()
 
-		if condition.ConditionLevel == model.ConditionLevelInfo {
-			step.AddScore(ScorePostConditionInfo)
-		} else if condition.ConditionLevel == model.ConditionLevelWarning {
-			step.AddScore(ScorePostConditionWarning)
-		} else {
-			step.AddScore(ScorePostConditionCritical)
-		}
+			err = verifyStatusCode(res, http.StatusCreated)
+			if err != nil {
+				step.AddError(err)
+				return // goto next loop
+			}
+
+			if condition.ConditionLevel == model.ConditionLevelInfo {
+				step.AddScore(ScorePostConditionInfo)
+			} else if condition.ConditionLevel == model.ConditionLevelWarning {
+				step.AddScore(ScorePostConditionWarning)
+			} else {
+				step.AddScore(ScorePostConditionCritical)
+			}
+		}()
 	}
 }
 
