@@ -3,6 +3,7 @@ package scenario
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/isucon/isucandar"
 	"github.com/isucon/isucandar/agent"
@@ -19,9 +20,11 @@ import (
 type Scenario struct {
 	// TODO: シナリオ実行に必要なフィールドを書く
 
-	BaseURL string // ベンチ対象 Web アプリの URL
-	UseTLS  bool   // https で接続するかどうか
-	NoLoad  bool   // Load(ベンチ負荷)を強要しない
+	BaseURL          string // ベンチ対象 Web アプリの URL
+	UseTLS           bool   // https で接続するかどうか
+	NoLoad           bool   // Load(ベンチ負荷)を強要しない
+	virtualTimeStart time.Time
+	virtualTimeMulti int //時間が何倍速になっているか
 
 	// 競技者の実装言語
 	Language string
@@ -39,6 +42,8 @@ type Scenario struct {
 func NewScenario() (*Scenario, error) {
 	return &Scenario{
 		// TODO: シナリオを初期化する
+		virtualTimeStart:  time.Date(2020, 7, 1, 0, 0, 0, 0, nil), //TODO: ちゃんと決める
+		virtualTimeMulti:  3000,                                   //5分=300秒に一回 => 1秒に10回
 		normalUserWorker:  nil,
 		maniacUserWorker:  nil,
 		companyUserWorker: nil,

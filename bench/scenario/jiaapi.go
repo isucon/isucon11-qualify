@@ -59,7 +59,7 @@ func (s *Scenario) JiaAPIThread(ctx context.Context, step *isucandar.BenchmarkSt
 
 	// Initialize
 	e.GET("/api/catalog/:catalog_id", getCatalog)
-	e.POST("/api/activate", postActivate)
+	e.POST("/api/activate", func(c echo.Context) error { return s.postActivate(c) })
 	e.POST("/api/deactivate", postDeactivate)
 
 	// Start server
@@ -87,7 +87,7 @@ func getCatalog(c echo.Context) error {
 	return fmt.Errorf("NotImplemented")
 }
 
-func postActivate(c echo.Context) error {
+func (s *Scenario) postActivate(c echo.Context) error {
 	state := &IsuConditionPosterRequest{}
 	err := c.Bind(state)
 	if err != nil {
@@ -119,7 +119,7 @@ func postActivate(c echo.Context) error {
 			chancelFunc: chancelFunc,
 		}
 
-		go keepPosting(posterContext, jiaAPIStep, targetBaseURL, state.IsuUUID, scenarioChan)
+		go s.keepPosting(posterContext, jiaAPIStep, targetBaseURL, state.IsuUUID, scenarioChan)
 		return nil
 	}()
 	if err != nil {

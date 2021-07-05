@@ -15,10 +15,13 @@ import (
 	"github.com/isucon/isucon11-qualify/bench/model"
 )
 
-const DefaultPostInterval = 1 * time.Second //TODO:時間加速
+const (
+	PostInterval   = 5 * time.Minute //Virtual Timeでのpost間隔
+	PostContentNum = 10              //一回のpostで何要素postするか
+)
 
 type posterState struct {
-	PostInterval         time.Duration
+	//PostInterval         time.Duration
 	lastCondition        model.IsuCondition
 	lastClean            time.Time
 	lastDetectOverweight time.Time
@@ -26,13 +29,12 @@ type posterState struct {
 }
 
 //POST /api/isu/{jia_isu_id}/conditionをたたくスレッド
-func keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseURL string, jiaIsuUUID string, scenarioChan *model.StreamsForPoster) {
+func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseURL string, jiaIsuUUID string, scenarioChan *model.StreamsForPoster) {
 	defer func() { scenarioChan.ActiveChan <- false }() //deactivate
 
 	nowRealTime := time.Now()
 	nowTimeStamp := nowRealTime //TODO: 時間調整
 	state := posterState{
-		PostInterval: DefaultPostInterval,
 		lastCondition: model.IsuCondition{
 			IsSitting:     false,
 			IsDirty:       false,
@@ -51,9 +53,7 @@ func keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseU
 	httpClient.Timeout = 1 * time.Second
 
 	//TODO: 頻度はちゃんと検討して変える
-	//本来は1分=60,000msに一回
-	//60倍速
-	timer := time.NewTicker(state.PostInterval)
+	timer := time.NewTicker(PostInterval * PostContentNum / time.Duration(s.virtualTimeMulti))
 	defer timer.Stop()
 	for {
 		select {
@@ -73,6 +73,8 @@ func keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseU
 			}
 		default:
 		}
+
+		//TODO: まとめて投げる
 
 		//postし損ねたconditionを捨てる
 		for !state.NextIsLatestTimestamp(nowTimeStamp) {
@@ -115,10 +117,10 @@ func keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseU
 }
 
 func (state *posterState) NextConditionTimestamp() time.Time {
-	return time.Unix(state.lastCondition.TimestampUnix, 0).Add(state.PostInterval)
+	return time.Unix(state.lastCondition.TimestampUnix, 0).Add(PostInterval)
 }
 func (state *posterState) NextIsLatestTimestamp(nowTimeStamp time.Time) bool {
-	return nowTimeStamp.Before(time.Unix(state.lastCondition.TimestampUnix, 0).Add(state.PostInterval * 2))
+	return nowTimeStamp.Before(time.Unix(state.lastCondition.TimestampUnix, 0).Add(PostInterval * 2))
 }
 func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChange model.IsuStateChange) *model.IsuCondition {
 
