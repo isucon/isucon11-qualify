@@ -1214,6 +1214,10 @@ func getAllIsuConditions(c echo.Context) error {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
+	if len(isuList) == 0 {
+		fmt.Println("no isu") // FIXME
+		return c.JSON(http.StatusOK, isuList)
+	}
 
 	// ユーザの所持椅子毎に /api/condition/{jia_isu_uuid} を叩く
 	conditionsResponse := []*GetIsuConditionResponse{}
