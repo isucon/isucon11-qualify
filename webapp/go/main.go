@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html/template"
 	"io/ioutil"
 	"math"
 	"net/http"
@@ -35,6 +36,7 @@ const (
 	conditionLimit         = 20
 	notificationLimit      = 20
 	isuListLimit           = 200 // TODO 修正が必要なら変更
+	frontendContentsPath   = "../frontend/dist"
 	jwtVerificationKeyPath = "../ec256-public.pem"
 	defaultIconFilePath    = "../NoImage.png"
 	defaultJIAServiceURL   = "http://localhost:5000"
@@ -50,6 +52,7 @@ var scorePerCondition = map[string]int{
 var conditionFormat = regexp.MustCompile(`^[-a-zA-Z_]+=(true|false)(,[-a-zA-Z_]+=(true|false))*$`)
 
 var (
+	templates           *template.Template
 	db                  *sqlx.DB
 	sessionStore        sessions.Store
 	mySQLConnectionData *MySQLConnectionEnv
@@ -212,6 +215,10 @@ func (mc *MySQLConnectionEnv) ConnectDB() (*sqlx.DB, error) {
 func init() {
 	sessionStore = sessions.NewCookieStore([]byte(getEnv("SESSION_KEY", "isucondition")))
 
+	templates = template.Must(template.ParseFiles(
+		frontendContentsPath + "/index.html",
+	))
+
 	key, err := ioutil.ReadFile(jwtVerificationKeyPath)
 	if err != nil {
 		log.Fatalf("Unable to read file: %v", err)
@@ -232,16 +239,12 @@ func main() {
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 
-	// Static
-	e.Static("/", "/public") // TODO: webapp/frontend 以下のファイルすべてが取得可能となっているのを直す
-
 	// Initialize
 	e.POST("/initialize", postInitialize)
-
+	// API for User
 	e.POST("/api/auth", postAuthentication)
 	e.POST("/api/signout", postSignout)
 	e.GET("/api/user/me", getMe)
-
 	e.GET("/api/catalog/:jia_catalog_id", getCatalog)
 	e.GET("/api/isu", getIsuList)
 	e.POST("/api/isu", postIsu)
@@ -254,8 +257,17 @@ func main() {
 	e.GET("/api/isu/:jia_isu_uuid/graph", getIsuGraph)
 	e.GET("/api/condition", getAllIsuConditions)
 	e.GET("/api/condition/:jia_isu_uuid", getIsuConditions)
-
+	// API for ISU
 	e.POST("/api/isu/:jia_isu_uuid/condition", postIsuCondition)
+	// Frontend
+	e.GET("/", getIndex)
+	e.GET("/condition", getIndex)
+	e.GET("/search", getIndex)
+	e.GET("/isu/:jia_isu_uuid", getIndex)
+	e.GET("/register", getIndex)
+	e.GET("/login", getIndex)
+	// Assets
+	e.Static("/assets", frontendContentsPath + "/assets")
 
 	mySQLConnectionData = NewMySQLConnectionEnv()
 
@@ -303,6 +315,15 @@ func getJIAServiceURL() string {
 		return defaultJIAServiceURL
 	}
 	return config.URL
+}
+
+func getIndex(c echo.Context) error {
+	err := templates.ExecuteTemplate(c.Response().Writer, "index.html", struct{}{})
+	if err != nil {
+		c.Logger().Errorf("getIndex error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	return nil
 }
 
 func postInitialize(c echo.Context) error {
