@@ -30,14 +30,15 @@ import (
 )
 
 const (
-	sessionName            = "isucondition"
-	searchLimit            = 20
-	conditionLimit         = 20
-	notificationLimit      = 20
-	isuListLimit           = 200 // TODO 修正が必要なら変更
-	jwtVerificationKeyPath = "../ec256-public.pem"
-	defaultIconFilePath    = "../NoImage.png"
-	defaultJIAServiceURL   = "http://localhost:5000"
+	sessionName               = "isucondition"
+	searchLimit               = 20
+	conditionLimit            = 20
+	notificationLimit         = 20
+	isuListLimit              = 200 // TODO 修正が必要なら変更
+	jwtVerificationKeyPath    = "../ec256-public.pem"
+	defaultIconFilePath       = "../NoImage.png"
+	defaultJIAServiceURL      = "http://localhost:5000"
+	mysqlErrNumDuplicateEntry = 1062
 )
 
 var scorePerCondition = map[string]int{
