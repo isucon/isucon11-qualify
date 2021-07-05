@@ -615,12 +615,15 @@ func getIsuGraphErrorAction(ctx context.Context, a *agent.Agent, id string, date
 	return text, res, nil
 }
 
-func browserGetHomeAction(ctx context.Context, a *agent.Agent) ([]*service.Isu, []*service.GetIsuConditionResponse, []error) {
+func browserGetHomeAction(ctx context.Context, a *agent.Agent,
+	validateIsu func(*http.Response, []*service.Isu) []error,
+	validateCondition func(*http.Response, []*service.GetIsuConditionResponse) []error,
+) ([]*service.Isu, []*service.GetIsuConditionResponse, []error) {
 	// TODO: 静的ファイルのGET
 
 	errors := []error{}
 	// TODO: ここ以下は多分並列
-	isuList, _, err := getIsuAction(ctx, a)
+	isuList, hres, err := getIsuAction(ctx, a)
 	if err != nil {
 		errors = append(errors, err)
 	}
@@ -633,11 +636,14 @@ func browserGetHomeAction(ctx context.Context, a *agent.Agent) ([]*service.Isu, 
 			}
 			isu.Icon = icon
 		}
+		errors = append(errors, validateIsu(hres, isuList)...)
 	}
 
-	conditions, _, err := getConditionAction(ctx, a, service.GetIsuConditionRequest{CursorEndTime: uint64(time.Now().Unix()), CursorJIAIsuUUID: "z", ConditionLevel: "critical,warning,info"})
+	conditions, hres, err := getConditionAction(ctx, a, service.GetIsuConditionRequest{CursorEndTime: uint64(time.Now().Unix()), CursorJIAIsuUUID: "z", ConditionLevel: "critical,warning,info"})
 	if err != nil {
 		errors = append(errors, err)
+	} else {
+		errors = append(errors, validateCondition(hres, conditions)...)
 	}
 	return isuList, conditions, nil
 }
