@@ -8,3 +8,5 @@
   unarchive:
     src: archive.tar
     dest: /tmp/isucon11-qualify/
+    owner: isucon
+    group: isucon

@@ -1,32 +1,11 @@
 ---
-- name: "roles/contestant/tasks/isucondition-frontend: Build Web Application Go"
-  become_user: isucon
-  args:
-    chdir: /home/isucon/webapp/go/
-  environment:
-    PATH: "/home/isucon/local/go/bin:{{ ansible_env.PATH }}"
-  shell: |
-    go build -o isucondition .
-
-- name: "roles/contestant/tasks/isucondition-frontend: Deploy Service file"
-  become_user: root
-  copy:
-    src: "{{ item }}"
-    dest: "/{{ item }}"
-    owner: "root"
-    group: "root"
-    mode: "0644"
-  with_items:
-    - etc/systemd/system/isucondition.go.service
-
 - name: "roles/contestant/tasks/isucondition-frontend: Install frontend packages"
   become_user: isucon
   args:
     chdir: /home/isucon/webapp/frontend
   environment:
     PATH: "/home/isucon/local/node/bin:{{ ansible_env.PATH }}"
-  shell: |
-    npm ci
+  command: npm ci
 
 - name: "roles/contestant/tasks/isucondition-frontend: Build frontend application"
   become_user: isucon
@@ -34,8 +13,7 @@
     chdir: /home/isucon/webapp/frontend
   environment:
     PATH: "/home/isucon/local/node/bin:{{ ansible_env.PATH }}"
-  shell: |
-    npm run build
+  command: npm run build
 
 - name: Deploy static files
   become_user: root

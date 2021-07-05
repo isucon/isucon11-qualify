@@ -9,4 +9,4 @@
     marker: "# {mark} ANSIBLE MANAGED BLOCK nodejs"
     path: /home/isucon/.bashrc
     content: |
-      export PATH=/home/isucon/local/node/bin:$PATH'
+      export PATH=/home/isucon/local/node/bin:$PATH
