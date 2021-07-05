@@ -35,6 +35,7 @@ import (
 
 func initializeAction(ctx context.Context, a *agent.Agent) (*service.InitializeResponse, []error) {
 	errors := []error{}
+
 	//リクエスト
 	req, err := a.POST("/initialize", nil)
 	if err != nil {
@@ -614,11 +615,8 @@ func getIsuGraphErrorAction(ctx context.Context, a *agent.Agent, id string, date
 	return text, res, nil
 }
 
-func browserGetHomeAction(ctx context.Context, a *agent.Agent) (agent.Resources, []*service.Isu, []*service.GetIsuConditionResponse, []error) {
-	_, resources, err := getResources(ctx, a, "/")
-	if err != nil {
-		return nil, nil, nil, []error{err}
-	}
+func browserGetHomeAction(ctx context.Context, a *agent.Agent) ([]*service.Isu, []*service.GetIsuConditionResponse, []error) {
+	// TODO: 静的ファイルのGET
 
 	errors := []error{}
 	// TODO: ここ以下は多分並列
@@ -626,33 +624,47 @@ func browserGetHomeAction(ctx context.Context, a *agent.Agent) (agent.Resources,
 	if err != nil {
 		errors = append(errors, err)
 	}
+	if isuList != nil {
+		// TODO: ここ以下は多分並列
+		for _, isu := range isuList {
+			icon, _, err := getIsuIconAction(ctx, a, isu.JIAIsuUUID)
+			if err != nil {
+				errors = append(errors, err)
+			}
+			isu.Icon = icon
+		}
+	}
 
 	conditions, _, err := getConditionAction(ctx, a, service.GetIsuConditionRequest{CursorEndTime: uint64(time.Now().Unix()), CursorJIAIsuUUID: "z", ConditionLevel: "critical,warning,info"})
 	if err != nil {
 		errors = append(errors, err)
 	}
-	return resources, isuList, conditions, errors
+	return isuList, conditions, nil
 }
 
-func browserGetSearchAction(ctx context.Context, a *agent.Agent, req service.GetIsuSearchRequest) (agent.Resources, []*service.Isu, []error) {
-	_, resources, err := getResources(ctx, a, getIsuSearchRequestParams(req))
-	if err != nil {
-		return nil, nil, []error{err}
-	}
+func browserGetSearchAction(ctx context.Context, a *agent.Agent, req service.GetIsuSearchRequest) ([]*service.Isu, []error) {
+	// TODO: 静的ファイルのGET
 
 	errors := []error{}
 	isuList, _, err := getIsuSearchAction(ctx, a, req)
 	if err != nil {
 		errors = append(errors, err)
 	}
-	return resources, isuList, nil
+	if isuList != nil {
+		// TODO: ここ以下は多分並列
+		for _, isu := range isuList {
+			icon, _, err := getIsuIconAction(ctx, a, isu.JIAIsuUUID)
+			if err != nil {
+				errors = append(errors, err)
+			}
+			isu.Icon = icon
+		}
+	}
+	return isuList, nil
 }
 
-func browserGetConditionsAction(ctx context.Context, a *agent.Agent, req service.GetIsuConditionRequest) (agent.Resources, []*service.GetIsuConditionResponse, []error) {
-	_, resources, err := getResources(ctx, a, getIsuConditionRequestParams("/condition", req))
-	if err != nil {
-		return nil, nil, []error{err}
-	}
+func browserGetConditionsAction(ctx context.Context, a *agent.Agent, req service.GetIsuConditionRequest) ([]*service.GetIsuConditionResponse, []error) {
+	// TODO: 静的ファイルのGET
 
 	errors := []error{}
 	// TODO: ここ以下は多分並列
@@ -660,34 +672,25 @@ func browserGetConditionsAction(ctx context.Context, a *agent.Agent, req service
 	if err != nil {
 		errors = append(errors, err)
 	}
-	return resources, conditions, nil
+	return conditions, nil
 }
 
-func browserGetRegisterAction(ctx context.Context, a *agent.Agent) (agent.Resources, []error) {
-	_, resources, err := getResources(ctx, a, "/register")
-	if err != nil {
-		return nil, []error{err}
-	}
+func browserGetRegisterAction(ctx context.Context, a *agent.Agent) []error {
+	// TODO: 静的ファイルのGET
 
 	errors := []error{}
-	return resources, errors
+	return errors
 }
 
-func browserGetAuthAction(ctx context.Context, a *agent.Agent) (agent.Resources, []error) {
-	_, resources, err := getResources(ctx, a, "/auth")
-	if err != nil {
-		return nil, []error{err}
-	}
+func browserGetAuthAction(ctx context.Context, a *agent.Agent) []error {
+	// TODO: 静的ファイルのGET
 
 	errors := []error{}
-	return resources, errors
+	return errors
 }
 
-func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string) (agent.Resources, *service.Isu, *service.Catalog, []error) {
-	_, resources, err := getResources(ctx, a, fmt.Sprintf("/isu/%s", id))
-	if err != nil {
-		return nil, nil, nil, []error{err}
-	}
+func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string) (*service.Isu, *service.Catalog, []error) {
+	// TODO: 静的ファイルのGET
 
 	errors := []error{}
 	// TODO: ここはISU個別ページから遷移してきたならすでに持ってるからリクエストしない(変えてもいいけどフロントが不思議な実装になる)
@@ -696,20 +699,24 @@ func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string) (
 		errors = append(errors, err)
 	}
 	if isu != nil {
+		// TODO: ここ以下は多分並列
+		icon, _, err := getIsuIconAction(ctx, a, id)
+		if err != nil {
+			errors = append(errors, err)
+		}
+		isu.Icon = icon
+
 		catalog, _, err := getCatalogAction(ctx, a, isu.JIACatalogID)
 		if err != nil {
 			errors = append(errors, err)
 		}
-		return resources, isu, catalog, errors
+		return isu, catalog, errors
 	}
-	return resources, nil, nil, errors
+	return nil, nil, errors
 }
 
-func browserGetIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req service.GetIsuConditionRequest) (agent.Resources, *service.Isu, []*service.GetIsuConditionResponse, []error) {
-	_, resources, err := getResources(ctx, a, getIsuConditionRequestParams(fmt.Sprintf("/isu/%s", id), req))
-	if err != nil {
-		return nil, nil, nil, []error{err}
-	}
+func browserGetIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req service.GetIsuConditionRequest) (*service.Isu, []*service.GetIsuConditionResponse, []error) {
+	// TODO: 静的ファイルのGET
 
 	errors := []error{}
 	// TODO: ここはISU個別ページから遷移してきたならすでに持ってるからリクエストしない(変えてもいいけどフロントが不思議な実装になる)
@@ -721,14 +728,11 @@ func browserGetIsuConditionAction(ctx context.Context, a *agent.Agent, id string
 	if err != nil {
 		errors = append(errors, err)
 	}
-	return resources, isu, conditions, errors
+	return isu, conditions, errors
 }
 
-func browserGetIsuGraph(ctx context.Context, a *agent.Agent, id string, date uint64) (agent.Resources, *service.Isu, []*service.GraphResponse, []error) {
-	_, resources, err := getResources(ctx, a, fmt.Sprintf("/isu/%s/graph?date=%d", id, date))
-	if err != nil {
-		return nil, nil, nil, []error{err}
-	}
+func browserGetIsuGraph(ctx context.Context, a *agent.Agent, id string, date uint64) (*service.Isu, []*service.GraphResponse, []error) {
+	// TODO: 静的ファイルのGET
 
 	errors := []error{}
 	// TODO: ここはISU個別ページから遷移してきたならすでに持ってるからリクエストしない(変えてもいいけどフロントが不思議な実装になる)
@@ -740,24 +744,5 @@ func browserGetIsuGraph(ctx context.Context, a *agent.Agent, id string, date uin
 	if err != nil {
 		errors = append(errors, err)
 	}
-	return resources, isu, graph, errors
-}
-
-func getResources(ctx context.Context, agent *agent.Agent, rpath string) (*http.Response, agent.Resources, error) {
-	req, err := agent.GET(rpath)
-	if err != nil {
-		return nil, nil, failure.NewError(ErrHTTP, err)
-	}
-
-	res, err := agent.Do(ctx, req)
-	if err != nil {
-		return nil, nil, failure.NewError(ErrHTTP, err)
-	}
-
-	resources, err := agent.ProcessHTML(ctx, res, res.Body)
-	if err != nil {
-		return res, resources, failure.NewError(ErrHTTP, err)
-	}
-
-	return res, resources, err
+	return isu, graph, errors
 }
