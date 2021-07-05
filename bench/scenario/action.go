@@ -695,7 +695,9 @@ func browserGetAuthAction(ctx context.Context, a *agent.Agent) []error {
 	return errors
 }
 
-func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string) (*service.Isu, *service.Catalog, []error) {
+func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string,
+	validateCatalog func(*http.Response, *service.Catalog) []error,
+) (*service.Isu, *service.Catalog, []error) {
 	// TODO: 静的ファイルのGET
 
 	errors := []error{}
@@ -712,16 +714,20 @@ func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string) (
 		}
 		isu.Icon = icon
 
-		catalog, _, err := getCatalogAction(ctx, a, isu.JIACatalogID)
+		catalog, hres, err := getCatalogAction(ctx, a, isu.JIACatalogID)
 		if err != nil {
 			errors = append(errors, err)
+		} else {
+			errors = append(errors, validateCatalog(hres, catalog)...)
 		}
 		return isu, catalog, errors
 	}
 	return nil, nil, errors
 }
 
-func browserGetIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req service.GetIsuConditionRequest) (*service.Isu, []*service.GetIsuConditionResponse, []error) {
+func browserGetIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req service.GetIsuConditionRequest,
+	validateCondition func(*http.Response, []*service.GetIsuConditionResponse) []error,
+) (*service.Isu, []*service.GetIsuConditionResponse, []error) {
 	// TODO: 静的ファイルのGET
 
 	errors := []error{}
@@ -730,9 +736,11 @@ func browserGetIsuConditionAction(ctx context.Context, a *agent.Agent, id string
 	if err != nil {
 		errors = append(errors, err)
 	}
-	conditions, _, err := getIsuConditionAction(ctx, a, id, req)
+	conditions, hres, err := getIsuConditionAction(ctx, a, id, req)
 	if err != nil {
 		errors = append(errors, err)
+	} else {
+		errors = append(errors, validateCondition(hres, conditions)...)
 	}
 	return isu, conditions, errors
 }

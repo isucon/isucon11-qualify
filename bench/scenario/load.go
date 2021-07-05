@@ -5,11 +5,14 @@ package scenario
 
 import (
 	"context"
+	"math/rand"
+	"net/http"
 	"time"
 
 	"github.com/isucon/isucandar"
 	"github.com/isucon/isucandar/worker"
 	"github.com/isucon/isucon11-qualify/bench/logger"
+	"github.com/isucon/isucon11-qualify/bench/service"
 )
 
 func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) error {
@@ -84,12 +87,15 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 	}()
 
 	//椅子作成
-	isuCount := 3
+	const isuCountMax = 4 //ルートページに表示する最大数
+	isuCount := 1
 	for i := 0; i < isuCount; i++ {
 		_ = s.NewIsu(ctx, step, user, true)
 	}
 
+	randEngine := rand.New(rand.NewSource(5498513))
 	scenarioDoneCount := 0
+	nextTargetIsuIndex := 0
 	for {
 		select {
 		case <-ctx.Done():
@@ -97,9 +103,42 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 		default:
 		}
 
-		//定期的にconditionを見に行くシナリオ
+		//TODO: 乱数にする
+		nextTargetIsuIndex += 1
+		nextTargetIsuIndex %= isuCount
+		targetIsu := user.IsuListOrderByCreatedAt[nextTargetIsuIndex]
 
-		//TODO: graphを見に行くシナリオ
+		//GET /
+		_, _, errs := browserGetHomeAction(ctx, user.Agent,
+			func(res *http.Response, isuList []*service.Isu) []error {
+				return verifyIsuOrderByCreatedAt(res, user.IsuListOrderByCreatedAt, isuList)
+			},
+			func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
+				//TODO: conditionの検証
+				return []error{}
+			},
+		)
+		for _, err := range errs {
+			step.AddError(err)
+		}
+
+		//GET /isu/{jia_isu_uuid}
+		browserGetIsuDetailAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
+			func(res *http.Response, catalog *service.Catalog) []error {
+				//TODO: catalogの検証
+				//targetIsu.JIACatalogID
+				//return verifyCatalog(res, , catalog)
+				return []error{}
+			},
+		)
+
+		if randEngine.Intn(3) < 2 {
+			//定期的にconditionを見に行くシナリオ
+
+		} else {
+
+			//TODO: graphを見に行くシナリオ
+		}
 
 		scenarioDoneCount++
 		//TODO: 椅子の追加
