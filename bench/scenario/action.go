@@ -645,7 +645,7 @@ func browserGetHomeAction(ctx context.Context, a *agent.Agent,
 	} else {
 		errors = append(errors, validateCondition(hres, conditions)...)
 	}
-	return isuList, conditions, nil
+	return isuList, conditions, errors
 }
 
 func browserGetSearchAction(ctx context.Context, a *agent.Agent, req service.GetIsuSearchRequest) ([]*service.Isu, []error) {
@@ -666,7 +666,7 @@ func browserGetSearchAction(ctx context.Context, a *agent.Agent, req service.Get
 			isu.Icon = icon
 		}
 	}
-	return isuList, nil
+	return isuList, errors
 }
 
 func browserGetConditionsAction(ctx context.Context, a *agent.Agent, req service.GetIsuConditionRequest) ([]*service.GetIsuConditionResponse, []error) {
@@ -678,7 +678,7 @@ func browserGetConditionsAction(ctx context.Context, a *agent.Agent, req service
 	if err != nil {
 		errors = append(errors, err)
 	}
-	return conditions, nil
+	return conditions, errors
 }
 
 func browserGetRegisterAction(ctx context.Context, a *agent.Agent) []error {
