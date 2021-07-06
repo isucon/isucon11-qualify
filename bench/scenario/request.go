@@ -203,7 +203,7 @@ func reqJSONResError(ctx context.Context, agent *agent.Agent, method string, rpa
 func doRequest(ctx context.Context, agent *agent.Agent, httpreq *http.Request, allowedStatusCodes []int) (*http.Response, error) {
 	httpres, err := agent.Do(ctx, httpreq)
 	if err != nil {
-		logger.AdminLogger.Panic(err)
+		return nil, failure.NewError(ErrHTTP, err)
 	}
 
 	invalidStatusCode := true
