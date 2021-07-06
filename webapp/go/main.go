@@ -1431,7 +1431,7 @@ func getIsuConditions(c echo.Context) error {
 }
 
 func getIsuConditionsFromDB(jiaIsuUUID string, cursorEndTime time.Time, conditionLevel map[string]interface{}, startTime time.Time,
-	limit int, isuName string) ([]GetIsuConditionResponse, error) {
+	limit int, isuName string) ([]*GetIsuConditionResponse, error) {
 
 	conditions := []IsuCondition{}
 	var err error
@@ -1457,7 +1457,7 @@ func getIsuConditionsFromDB(jiaIsuUUID string, cursorEndTime time.Time, conditio
 	}
 
 	//condition_levelでの絞り込み
-	conditionsResponse := []GetIsuConditionResponse{}
+	conditionsResponse := []*GetIsuConditionResponse{}
 	for _, c := range conditions {
 		var cLevel string
 		warnCount := strings.Count(c.Condition, "=true")
@@ -1481,7 +1481,7 @@ func getIsuConditionsFromDB(jiaIsuUUID string, cursorEndTime time.Time, conditio
 				ConditionLevel: cLevel,
 				Message:        c.Message,
 			}
-			conditionsResponse = append(conditionsResponse, data)
+			conditionsResponse = append(conditionsResponse, &data)
 		}
 	}
 
