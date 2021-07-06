@@ -18,6 +18,13 @@ data "aws_iam_policy_document" "ghaction-qualify-dev-packer" {
   statement {
     effect = "Allow"
     actions = [
+      # TODO: S3 の push, pull 権限
+    ]
+    resources = ["*"]
+  }
+  statement {
+    effect = "Allow"
+    actions = [
       "ec2:AttachVolume",
       "ec2:AuthorizeSecurityGroupIngress",
       "ec2:CopyImage",

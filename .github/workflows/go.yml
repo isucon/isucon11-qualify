@@ -39,4 +39,5 @@ jobs:
       - name: Test Go App
         run: target=go docker-compose -f docker-compose-ci.yml up --build --exit-code-from apitest -- apitest
       - name: Clean up
+        if: failure() || true
         run: target=go docker-compose -f docker-compose-ci.yml down
