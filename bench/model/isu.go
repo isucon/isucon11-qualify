@@ -56,7 +56,7 @@ type Isu struct {
 func NewRandomIsuRaw(owner *User) (*Isu, *StreamsForPoster, error) {
 	activeChan := make(chan bool)
 	stateChan := make(chan IsuStateChange, 1)
-	conditionChan := make(chan *IsuCondition)
+	conditionChan := make(chan *IsuCondition, 30)
 
 	id := fmt.Sprintf("randomid-%s-%d", owner.UserID, len(owner.IsuListOrderByCreatedAt))     //TODO: ちゃんと生成する
 	name := fmt.Sprintf("randomname-%s-%d", owner.UserID, len(owner.IsuListOrderByCreatedAt)) //TODO: ちゃんと生成する
