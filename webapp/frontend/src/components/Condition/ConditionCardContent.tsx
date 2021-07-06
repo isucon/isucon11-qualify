@@ -1,5 +1,5 @@
-import apis from '../../lib/apis'
-import ConditionNavigator from './ConditionNavigator'
+import apis, { DEFAULT_CONDITION_LIMIT } from '../../lib/apis'
+import PagingNavigator from '../UI/PagingNavigator'
 import Conditions from './Conditions'
 import SearchInputs from './SearchInputs'
 import usePaging from './use/paging'
@@ -15,8 +15,9 @@ const ConditionCardContent = () => {
       <SearchInputs query={query} times={times} search={search} />
       <div className="flex flex-col gap-4 items-center">
         <Conditions conditions={conditions} />
-        <ConditionNavigator
-          conditions={conditions}
+        <PagingNavigator
+          length={conditions.length}
+          maxLength={DEFAULT_CONDITION_LIMIT}
           page={page}
           next={next}
           prev={prev}

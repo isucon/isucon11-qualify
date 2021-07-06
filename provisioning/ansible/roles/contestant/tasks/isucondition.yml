@@ -17,6 +17,9 @@
     group: "isucon"
     mode: "0644"
 
+- name: "roles/contestant/tasks/isucondition: Include isucondition-frontend.yml"
+  include: isucondition-frontend.yml
+
 - name: "roles/contestant/tasks/isucondition: Include isucondition-go.yml"
   include: isucondition-go.yml
 
