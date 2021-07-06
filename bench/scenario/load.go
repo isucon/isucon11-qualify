@@ -40,6 +40,7 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	s.AddCompanyUser(ctx, step, 1)
 
 	<-ctx.Done()
+	s.jiaChancel()
 	s.loadWaitGroup.Wait()
 
 	return nil

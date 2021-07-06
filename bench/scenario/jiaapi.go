@@ -81,7 +81,7 @@ func (s *Scenario) JiaAPIThread(ctx context.Context, step *isucandar.BenchmarkSt
 
 	//コンテキストにより終了された場合は、echoサーバーも終了
 	<-ctx.Done()
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	err := e.Shutdown(ctx)
 	if err != nil {
