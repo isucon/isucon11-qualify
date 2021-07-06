@@ -6,7 +6,8 @@ const GuardedRoute = <T extends { path: string; children?: JSX.Element }>(
 ) => {
   const state = useStateContext()
   if (!state.me) {
-    return <Redirect to="/login" />
+    const url = new URL(location.href)
+    return <Redirect to={`/login${url.search}`} />
   }
 
   return <Route {...props} />

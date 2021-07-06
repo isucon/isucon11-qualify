@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+
+<body>
+  <div style="display: flex;flex-direction: column;">
+    <label>
+      ユーザー名
+      <input id="user">
+    </label>
+    <label>
+      パスワード
+      <input id="password" type="password">
+    </label>
+    <button id="login">login</button>
+  </div>
+</body>
+<script>
+  const userEl = document.getElementById('user')
+  const passwordEl = document.getElementById('password')
+  const loginEl = document.getElementById('login')
+  loginEl.addEventListener('click', () => {
+    fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user: userEl.value, password: passwordEl.value })
+    }).then(v => {
+      console.log(v)
+      v.text().then(jwt => {
+        console.log(jwt)
+        location.href = `http://localhost:3000?jwt=${jwt}`
+      })
+    })
+  })
+</script>
+
+</html>

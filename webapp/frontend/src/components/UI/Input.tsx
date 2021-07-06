@@ -1,23 +1,33 @@
+import { DetailedHTMLProps, InputHTMLAttributes } from 'react'
+
 interface Props {
   label: string
   value: string
   setValue: (newValue: string) => void
+  classname?: string
+  inputProps?: InputProps
 }
 
-const Input = <T extends Props>({
+type InputProps = DetailedHTMLProps<
+  InputHTMLAttributes<HTMLInputElement>,
+  HTMLInputElement
+>
+
+const Input = ({
   label,
   value,
   setValue,
-  ...inputProps
-}: T) => {
+  classname,
+  inputProps
+}: Props & InputProps) => {
   return (
-    <label>
+    <label className={'flex flex-col ' + classname}>
       {label}
       <input
-        className="border-dark-200 border"
+        {...inputProps}
+        className="p-1 bg-teritary border border-solid border-outline rounded"
         value={value}
         onChange={e => setValue(e.target.value)}
-        {...inputProps}
       ></input>
     </label>
   )
