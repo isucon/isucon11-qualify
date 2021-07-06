@@ -33,41 +33,21 @@ import (
 
 // ==============================initialize==============================
 
-func initializeAction(ctx context.Context, a *agent.Agent) (*service.InitializeResponse, []error) {
+func initializeAction(ctx context.Context, a *agent.Agent, req service.PostInitializeRequest) (*service.InitializeResponse, []error) {
 	errors := []error{}
 
 	//リクエスト
-	req, err := a.POST("/initialize", nil)
+	body, err := json.Marshal(req)
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 	}
-	res, err := a.Do(ctx, req)
-	if err != nil {
-		err = failure.NewError(ErrHTTP, err)
-		errors = append(errors, err)
-		return nil, errors
-	}
-	defer res.Body.Close()
-
-	//httpリクエストの検証
 	initializeResponse := &service.InitializeResponse{}
-	err = verifyStatusCode(res, http.StatusOK)
+	res, err := reqJSONResJSON(ctx, a, http.MethodPost, "/initialize", bytes.NewReader(body), &initializeResponse, []int{http.StatusOK})
 	if err != nil {
 		errors = append(errors, err)
-		return nil, errors
 	}
 
 	//データの検証
-	err = verifyContentType(res, "application/json")
-	if err != nil {
-		errors = append(errors, err)
-		//続行
-	}
-	err = verifyJSONBody(res, &initializeResponse)
-	if err != nil {
-		errors = append(errors, err)
-		return nil, errors
-	}
 	if initializeResponse.Language == "" {
 		err = errorBadResponse(res, "利用言語(language)が設定されていません")
 		errors = append(errors, err)
