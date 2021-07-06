@@ -6,7 +6,7 @@
 
 - name: "roles/common/tasks/isucon11-qualify: Deploy isucon/isucon11-qualify"
   unarchive:
-    src: archive.tar
+    src: isucon11-qualify.tar
     dest: /tmp/isucon11-qualify/
     owner: isucon
     group: isucon
