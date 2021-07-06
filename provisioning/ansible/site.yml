@@ -18,6 +18,7 @@
     - standalone
   roles:
     - langs.go
+    - langs.nodejs
     - contestant
 
 - name: bench
