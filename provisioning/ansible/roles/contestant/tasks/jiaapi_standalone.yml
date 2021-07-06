@@ -1,0 +1,29 @@
+---
+- name: "roles/contestant/tasks/jiaapi_standalone: Build Web Application Go"
+  become_user: isucon
+  args:
+    chdir: /tmp/isucon11-qualify/extra/isuapi
+  environment:
+    PATH: "/home/isucon/local/go/bin:{{ ansible_env.PATH }}"
+  shell: |
+    go build -o /usr/local/bin/jiaapi_standalone .
+
+- name: "roles/contestant/tasks/jiaapi_standalone: Deploy Service file"
+  become_user: root
+  copy:
+    src: "{{ item }}"
+    dest: "/{{ item }}"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+  with_items:
+    - etc/systemd/system/jiaapi_standalone.service
+
+- name: "roles/contestant/tasks/jiaapi_standalone: Disable jiaapi_standalone.service"
+  become_user: root
+  systemd:
+    daemon_reload: "yes"
+    name: "jiaapi_standalone.service"
+    state: "stopped"
+    enabled: "no"
+
