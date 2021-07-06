@@ -47,7 +47,8 @@ var (
 
 func isCritical(err error) bool {
 	return failure.IsCode(err, ErrCritical) ||
-		failure.IsCode(err, ErrSecurityIncident)
+		failure.IsCode(err, ErrSecurityIncident) ||
+		failure.IsCode(err, isucandar.ErrPanic)
 }
 
 var (
