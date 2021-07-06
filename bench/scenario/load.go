@@ -137,13 +137,12 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 			_, conditions, errs := browserGetIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
 				service.GetIsuConditionRequest{
 					StartTime:        nil,
-					CursorEndTime:    uint64(virtualNow.Unix()), //TODO:
+					CursorEndTime:    uint64(virtualNow.Unix()),
 					CursorJIAIsuUUID: "",
 					ConditionLevel:   "info,warning,critical",
 					Limit:            nil,
 				},
 				func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
-					//TODO: conditionの検証
 					return []error{}
 				},
 			)
@@ -154,7 +153,32 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 				continue
 			}
 
+			//スクロール
+			var res *http.Response
+			for i := 0; i < 2 && len(conditions) == 20*(i+1); i++ {
+				var conditionsTmp []*service.GetIsuConditionResponse
+				conditionsTmp, res, err = getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
+					service.GetIsuConditionRequest{
+						StartTime:        nil,
+						CursorEndTime:    uint64(conditions[len(conditions)-1].Timestamp),
+						CursorJIAIsuUUID: "",
+						ConditionLevel:   "info,warning,critical",
+						Limit:            nil,
+					},
+				)
+				if err != nil {
+					step.AddError(err)
+					break
+				} else {
+					conditions = append(conditions, conditionsTmp...)
+				}
+			}
+
 			//TODO: conditionの検証
+			if res != nil { //エラーつぶし
+			}
+
+			//TODO: conditionを確認して、椅子状態を改善
 			if len(conditions) > 0 { //エラーつぶし
 				conditions = nil
 			}
