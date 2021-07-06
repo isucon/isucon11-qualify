@@ -1181,11 +1181,6 @@ func getAllIsuConditions(c echo.Context) error {
 		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
-	sessionCookie, err := c.Cookie(sessionName)
-	if err != nil {
-		c.Logger().Errorf("failed to http request: %v", err)
-		return c.String(http.StatusBadRequest, "cookie is missing")
-	}
 	//required query param
 	cursorEndTimeInt64, err := strconv.ParseInt(c.QueryParam("cursor_end_time"), 10, 64)
 	if err != nil {
@@ -1203,19 +1198,25 @@ func getAllIsuConditions(c echo.Context) error {
 		JIAIsuUUID: cursorJIAIsuUUID,
 		Timestamp:  cursorEndTime.Unix(),
 	}
-	conditionLevel := c.QueryParam("condition_level")
-	if conditionLevel == "" {
+	conditionLevelCSV := c.QueryParam("condition_level")
+	if conditionLevelCSV == "" {
 		c.Logger().Errorf("condition_level is missing")
 		return c.String(http.StatusBadRequest, "condition_level is missing")
 	}
+	conditionLevel := map[string]interface{}{}
+	for _, level := range strings.Split(conditionLevelCSV, ",") {
+		conditionLevel[level] = struct{}{}
+	}
 	//optional query param
 	startTimeStr := c.QueryParam("start_time")
+	startTime := time.Time{}
 	if startTimeStr != "" {
-		_, err = strconv.ParseInt(startTimeStr, 10, 64)
+		startTimeInt64, err := strconv.ParseInt(startTimeStr, 10, 64)
 		if err != nil {
 			c.Logger().Errorf("bad format: start_time: %v", err)
 			return c.String(http.StatusBadRequest, "bad format: start_time")
 		}
+		startTime = time.Unix(startTimeInt64, 0)
 	}
 
 	limitStr := c.QueryParam("limit")
@@ -1249,11 +1250,9 @@ func getAllIsuConditions(c echo.Context) error {
 		//  cursorEndTime >= timestampを取りたいので、
 		//  cursorEndTime + 1sec > timestampとしてリクエストを送る
 		//この一要素はフィルターにかかるかどうか分からないので、limitも+1しておく
-		conditionsTmp, err := getIsuConditionsFromLocalhost(
-			isu.JIAIsuUUID, strconv.FormatInt(cursorEndTime.Add(1*time.Second).Unix(), 10),
-			conditionLevel, startTimeStr, strconv.Itoa(limit+1),
-			sessionCookie,
-		)
+
+		conditionsTmp, err := getIsuConditionsFromDB(isu.JIAIsuUUID, cursorEndTime.Add(1*time.Second), conditionLevel,
+			startTime, limit, isu.Name)
 		if err != nil {
 			c.Logger().Errorf("failed to http request: %v", err)
 			return c.NoContent(http.StatusInternalServerError)
