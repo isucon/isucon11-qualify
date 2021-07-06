@@ -186,7 +186,7 @@ func main() {
 	s.BaseURL = fmt.Sprintf("%s://%s/", scheme, targetAddress)
 	s.NoLoad = noLoad
 
-	b, err := isucandar.NewBenchmark(isucandar.WithLoadTimeout(70 * time.Second))
+	b, err := isucandar.NewBenchmark(isucandar.WithLoadTimeout(70*time.Second), isucandar.WithoutPanicRecover())
 	if err != nil {
 		panic(err)
 	}
