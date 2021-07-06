@@ -19,6 +19,9 @@ import (
 func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) error {
 	logger.ContestantLogger.Printf("===> PREPARE")
 
+	//初期データの生成
+	s.InitializeData()
+
 	//initialize
 	initializer, err := s.NewAgent(
 		agent.WithNoCache(), agent.WithNoCookie(), agent.WithTimeout(20*time.Second),

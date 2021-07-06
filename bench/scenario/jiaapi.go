@@ -59,7 +59,7 @@ func (s *Scenario) JiaAPIThread(ctx context.Context, step *isucandar.BenchmarkSt
 	e.Use(middleware.Recover())
 
 	// Initialize
-	e.GET("/api/catalog/:catalog_id", getCatalog)
+	e.GET("/api/catalog/:catalog_id", func(c echo.Context) error { return s.getCatalog(c) })
 	e.POST("/api/activate", func(c echo.Context) error { return s.postActivate(c) })
 	e.POST("/api/deactivate", postDeactivate)
 
@@ -83,9 +83,13 @@ func (s *Scenario) JiaAPIThread(ctx context.Context, step *isucandar.BenchmarkSt
 	}
 }
 
-func getCatalog(c echo.Context) error {
-	//TODO:
-	return fmt.Errorf("NotImplemented")
+func (s *Scenario) getCatalog(c echo.Context) error {
+	catalogID := c.Param("catalog_id")
+	catalog, ok := s.Catalogs[catalogID]
+	if !ok {
+		return echo.NewHTTPError(http.StatusNotFound)
+	}
+	return c.JSON(http.StatusOK, catalog)
 }
 
 func (s *Scenario) postActivate(c echo.Context) error {
