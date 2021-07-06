@@ -619,7 +619,7 @@ func postIsu(c echo.Context) error {
 		"	(`jia_isu_uuid`, `name`, `image`, `character`, `jia_catalog_id`, `jia_user_id`) VALUES (?, ?, ?, ?, ?, ?)",
 		jiaIsuUUID, isuName, image, isuFromJIA.Character, isuFromJIA.JIACatalogID, jiaUserID)
 	if err != nil {
-		c.Logger().Errorf("cannot insert record: %v", err)
+		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -1498,7 +1498,7 @@ func postIsuCondition(c echo.Context) error {
 	// トランザクション開始
 	tx, err := db.Beginx()
 	if err != nil {
-		c.Logger().Errorf("failed to begin tx: %v", err)
+		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	defer tx.Rollback()
@@ -1521,7 +1521,7 @@ func postIsuCondition(c echo.Context) error {
 		timestamp, jiaIsuUUID,
 	)
 	if err != nil {
-		c.Logger().Errorf("failed to begin tx: %v", err)
+		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	if count != 0 {
