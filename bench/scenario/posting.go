@@ -13,6 +13,7 @@ import (
 	"github.com/isucon/isucandar/failure"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
+	"github.com/isucon/isucon11-qualify/bench/service"
 )
 
 const (
@@ -82,7 +83,16 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		condition := state.GenerateNextCondition(randEngine, stateChange)
 
 		//リクエスト
-		conditionByte, err := json.Marshal(condition)
+		conditionByte, err := json.Marshal(service.PostIsuConditionRequest{
+			IsSitting: condition.IsSitting,
+			Condition: fmt.Sprintf("is_dirty=%v,is_overweight=%v,is_broken=%v",
+				condition.IsDirty,
+				condition.IsOverweight,
+				condition.IsBroken,
+			),
+			Message:   condition.Message,
+			Timestamp: condition.TimestampUnix,
+		})
 		if err != nil {
 			logger.AdminLogger.Panic(err)
 		}
