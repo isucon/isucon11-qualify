@@ -49,7 +49,7 @@ type Isu struct {
 }
 
 //新しいISUの生成
-//senarioのNewIsu以外からは呼び出さないこと！
+//scenarioのNewIsu以外からは呼び出さないこと！
 //戻り値を使ってbackendにpostする必要あり
 //戻り値をISU協会にIsu*を登録する必要あり
 //戻り値をownerに追加する必要あり
@@ -64,7 +64,7 @@ func NewRandomIsuRaw(owner *User) (*Isu, *StreamsForPoster, error) {
 		Owner:             owner,
 		JIAIsuUUID:        id,
 		Name:              name,
-		ImageName:         "dafault-image", //TODO: ちゃんとデータに合わせる
+		ImageName:         "default-image", //TODO: ちゃんとデータに合わせる
 		JIACatalogID:      "",              //TODO:
 		Character:         "",              //TODO:
 		IsWantDeactivated: false,
