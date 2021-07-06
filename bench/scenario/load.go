@@ -86,7 +86,7 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 	if err != nil {
 		logger.AdminLogger.Panicln(err)
 	}
-	user := s.NewUser(ctx, step, userAgent)
+	user := s.NewUser(ctx, step, userAgent, model.UserTypeNormal)
 	if user == nil {
 		return //致命的でないエラー
 	}

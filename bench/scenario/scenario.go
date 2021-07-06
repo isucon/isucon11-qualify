@@ -86,8 +86,8 @@ func (s *Scenario) AddCompanyUser(ctx context.Context, step *isucandar.Benchmark
 
 //新しい登録済みUserの生成
 //失敗したらnilを返す
-func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a *agent.Agent) *model.User {
-	user, err := model.NewRandomUserRaw()
+func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a *agent.Agent, userType model.UserType) *model.User {
+	user, err := model.NewRandomUserRaw(userType)
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 		return nil
@@ -102,6 +102,7 @@ func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a
 	if len(errs) > 0 {
 		return nil
 	}
+	user.Agent = a
 
 	return user
 }
