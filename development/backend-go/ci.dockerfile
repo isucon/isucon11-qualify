@@ -1,4 +1,4 @@
-FROM node:14 as frontend
+FROM node:15.12 as frontend
 WORKDIR /app
 
 COPY webapp/frontend/package*.json ./
