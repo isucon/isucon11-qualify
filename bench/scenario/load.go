@@ -89,6 +89,7 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 			return
 		default:
 		}
+		time.Sleep(100 * time.Millisecond)
 
 		//posterからconditionの取得
 		for _, isu := range user.IsuListOrderByCreatedAt {
