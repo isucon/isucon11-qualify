@@ -40,9 +40,10 @@
 
 - name: "roles.contestant.tasks.isucondition: Initialize isucondition Database"
   become_user: isucon
-  command: |
+  shell: |
     mysql -uisucon -pisucon < /tmp/initial-data.sql
-    curl -X POST http://localhost/initialize -f
+    # TODO
+    #curl -X POST http://localhost/initialize -f
 
 - name: "roles.contestant.tasks.isucondition: Remove isucon11 initial-data"
   file:

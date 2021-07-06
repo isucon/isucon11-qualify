@@ -33,8 +33,8 @@ jobs:
           curl -sL https://github.com/jwilder/dockerize/releases/download/${DOCKERIZE_VERSION}/dockerize-alpine-linux-amd64-${DOCKERIZE_VERSION}.tar.gz -o /tmp/dockerize.tar.gz \
             && tar xvzf /tmp/dockerize.tar.gz -C $HOME/work/_tool/isucon11-qualify/
           curl -sL https://awscli.amazonaws.com/awscli-exe-linux-x86_64-${AWS_CLI_VERSION}.zip -o /tmp/awscliv2.zip \
-            && unzip /tmp/awscliv2.zip -d /tmp/ \
-            && /tmp/aws/install -i $HOME/work/_tool/isucon11-qualify/aws-cli -b $HOME/work/_tool/isucon11-qualify
+            && unzip -o /tmp/awscliv2.zip -d /tmp/ \
+            && /tmp/aws/install --update -i $HOME/work/_tool/isucon11-qualify/aws-cli -b $HOME/work/_tool/isucon11-qualify
 
       - name: Run MySQL
         working-directory: development
@@ -49,7 +49,7 @@ jobs:
       - name: Dump initial-data
         working-directory: development
         run: |
-          sh -c "docker-compose -f docker-compose-dev.yml exec -t mysql-backend mysqldump -uisucon -pisucon isucondition" > initial-data.sql
+          sh -c "docker-compose -f docker-compose-ci.yml exec -T mysql-backend mysqldump -uroot -proot --databases isucondition" > initial-data.sql
       - name: Stop MySQL
         if: failure() || true
         working-directory: development
@@ -86,20 +86,22 @@ jobs:
         run: |
           mkdir -p $HOME/work/_tool/isucon11-qualify/
           curl -sL https://github.com/google/go-jsonnet/releases/download/${GO_JSONNET_VERSION}/go-jsonnet_${GO_JSONNET_VERSION#"v"}_Linux_x86_64.tar.gz -o /tmp/go-jsonnet.tar.gz \
-            && tar xvzf go-jsonnet.tar.gz -C /tmp/ \
+            && tar xvzf /tmp/go-jsonnet.tar.gz -C /tmp/ \
             && mv /tmp/jsonnet* $HOME/work/_tool/isucon11-qualify/
           curl -sL https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_linux_amd64.zip -o /tmp/packer.zip \
-            && unzip /tmp/packer.zip -d $HOME/work/_tool/isucon11-qualify/
+            && unzip -o /tmp/packer.zip -d $HOME/work/_tool/isucon11-qualify/
 
       - run: make clean
       - run: make clean-output
 
-      - run: |
+      - name: "make build-contestant"
+        run: |
           export PATH=${HOME}/work/_tool/isucon11-qualify:${PATH}
           make build-contestant
-      - run: |
+      - name: "make build-bench"
+        run: |
           export PATH=${HOME}/work/_tool/isucon11-qualify:${PATH}
-          make build-benchmarker
+          make build-bench
 
       - uses: actions/upload-artifact@v2
         with:
