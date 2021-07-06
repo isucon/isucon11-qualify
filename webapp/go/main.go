@@ -257,7 +257,7 @@ func main() {
 	e.GET("/api/isu/:jia_isu_uuid/graph", getIsuGraph)
 	e.GET("/api/condition", getAllIsuConditions)
 	e.GET("/api/condition/:jia_isu_uuid", getIsuConditions)
-	// API for ISU
+	// API for Isu
 	e.POST("/api/isu/:jia_isu_uuid/condition", postIsuCondition)
 	// Frontend
 	e.GET("/", getIndex)
