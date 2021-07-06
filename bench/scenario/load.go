@@ -53,6 +53,7 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 	default:
 	}
 	logger.AdminLogger.Println("Normal User start")
+	defer logger.AdminLogger.Println("Normal User END")
 
 	//ユーザー作成
 	userAgent, err := s.NewAgent()
@@ -187,6 +188,7 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 			}
 
 			//conditionを確認して、椅子状態を改善
+			//TODO: すでに改善済みのものを弾く
 			solvedCondition := model.IsuStateChangeNone
 			for _, c := range conditions {
 				//MEMO: 重かったらフォーマットが想定通りの前提で最適化する
