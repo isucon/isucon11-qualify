@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/isucon/isucandar"
-	"github.com/isucon/isucandar/worker"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
 	"github.com/isucon/isucon11-qualify/bench/service"
@@ -34,37 +33,11 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	*/
 
 	//通常ユーザー
-	normalUserWorker, err := worker.NewWorker(func(ctx context.Context, _ int) {
-		defer s.loadWaitGroup.Done()
-		s.loadNormalUser(ctx, step)
-	}, worker.WithInfinityLoop(), worker.WithMaxParallelism(10))
-	if err != nil {
-		logger.AdminLogger.Panic(err)
-	}
-	s.normalUserWorker = normalUserWorker
-	go s.normalUserWorker.Process(ctx)
+	s.AddNormalUser(ctx, step, 10)
 	//マニアユーザー
-	maniacUserWorker, err := worker.NewWorker(func(ctx context.Context, _ int) {
-		defer s.loadWaitGroup.Done()
-		<-ctx.Done() //TODO: 消す
-		//s.loadManiacUser(ctx, step) //TODO:
-	}, worker.WithInfinityLoop(), worker.WithMaxParallelism(1))
-	if err != nil {
-		logger.AdminLogger.Panic(err)
-	}
-	s.maniacUserWorker = maniacUserWorker
-	go s.maniacUserWorker.Process(ctx)
+	s.AddManiacUser(ctx, step, 2)
 	//企業ユーザー
-	companyUserWorker, err := worker.NewWorker(func(ctx context.Context, _ int) {
-		defer s.loadWaitGroup.Done()
-		<-ctx.Done() //TODO: 消す
-		//s.loadCompanyUser(ctx, step) //TODO:
-	}, worker.WithInfinityLoop(), worker.WithMaxParallelism(1))
-	if err != nil {
-		logger.AdminLogger.Panic(err)
-	}
-	s.companyUserWorker = companyUserWorker
-	go s.companyUserWorker.Process(ctx)
+	s.AddCompanyUser(ctx, step, 1)
 
 	<-ctx.Done()
 	s.loadWaitGroup.Wait()
@@ -88,6 +61,7 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 	}
 	user := s.NewUser(ctx, step, userAgent, model.UserTypeNormal)
 	if user == nil {
+		logger.AdminLogger.Println("Normal User fail: NewUser")
 		return //致命的でないエラー
 	}
 	func() {
@@ -100,7 +74,11 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 	const isuCountMax = 4 //ルートページに表示する最大数
 	isuCount := 1
 	for i := 0; i < isuCount; i++ {
-		_ = s.NewIsu(ctx, step, user, true)
+		isu := s.NewIsu(ctx, step, user, true)
+		if isu == nil {
+			logger.AdminLogger.Println("Normal User fail: NewIsu(initialize)")
+			return //致命的でないエラー
+		}
 	}
 
 	randEngine := rand.New(rand.NewSource(5498513))

@@ -7,7 +7,6 @@ import (
 
 	"github.com/isucon/isucandar"
 	"github.com/isucon/isucandar/agent"
-	"github.com/isucon/isucandar/worker"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
 	"github.com/isucon/isucon11-qualify/bench/service"
@@ -30,11 +29,8 @@ type Scenario struct {
 	// 競技者の実装言語
 	Language string
 
-	loadWaitGroup     sync.WaitGroup
-	normalUserWorker  *worker.Worker //通常ユーザーのシナリオスレッド
-	maniacUserWorker  *worker.Worker //マニアユーザーのシナリオスレッド
-	companyUserWorker *worker.Worker //企業ユーザーのシナリオスレッド
-	jiaChancel        context.CancelFunc
+	loadWaitGroup sync.WaitGroup
+	jiaChancel    context.CancelFunc
 
 	//内部状態
 	normalUsersMtx sync.Mutex
@@ -45,12 +41,9 @@ func NewScenario() (*Scenario, error) {
 	return &Scenario{
 		// TODO: シナリオを初期化する
 		//realTimeStart: time.Now()
-		virtualTimeStart:  time.Date(2020, 7, 1, 0, 0, 0, 0, time.Local), //TODO: ちゃんと決める
-		virtualTimeMulti:  3000,                                          //5分=300秒に一回 => 1秒に10回
-		normalUserWorker:  nil,
-		maniacUserWorker:  nil,
-		companyUserWorker: nil,
-		normalUsers:       []*model.User{},
+		virtualTimeStart: time.Date(2020, 7, 1, 0, 0, 0, 0, time.Local), //TODO: ちゃんと決める
+		virtualTimeMulti: 3000,                                          //5分=300秒に一回 => 1秒に10回
+		normalUsers:      []*model.User{},
 	}, nil
 }
 
@@ -65,23 +58,38 @@ func (s *Scenario) ToVirtualTime(realTime time.Time) time.Time {
 
 //load用
 //通常ユーザーのシナリオスレッドを追加する
-func (s *Scenario) AddNormalUser(ctx context.Context, step *isucandar.BenchmarkStep, count int32) {
+func (s *Scenario) AddNormalUser(ctx context.Context, step *isucandar.BenchmarkStep, count int) {
 	s.loadWaitGroup.Add(int(count))
-	s.normalUserWorker.AddParallelism(count)
+	for i := 0; i < count; i++ {
+		go func(ctx context.Context, step *isucandar.BenchmarkStep) {
+			defer s.loadWaitGroup.Done()
+			s.loadNormalUser(ctx, step)
+		}(ctx, step)
+	}
 }
 
 //load用
 //マニアユーザーのシナリオスレッドを追加する
-func (s *Scenario) AddManiacUser(ctx context.Context, step *isucandar.BenchmarkStep, count int32) {
+func (s *Scenario) AddManiacUser(ctx context.Context, step *isucandar.BenchmarkStep, count int) {
 	s.loadWaitGroup.Add(int(count))
-	s.maniacUserWorker.AddParallelism(count)
+	for i := 0; i < count; i++ {
+		go func(ctx context.Context, step *isucandar.BenchmarkStep) {
+			defer s.loadWaitGroup.Done()
+			//s.loadManiacUser(ctx, step) //TODO:
+		}(ctx, step)
+	}
 }
 
 //load用
 //企業ユーザーのシナリオスレッドを追加する
-func (s *Scenario) AddCompanyUser(ctx context.Context, step *isucandar.BenchmarkStep, count int32) {
+func (s *Scenario) AddCompanyUser(ctx context.Context, step *isucandar.BenchmarkStep, count int) {
 	s.loadWaitGroup.Add(int(count))
-	s.companyUserWorker.AddParallelism(count)
+	for i := 0; i < count; i++ {
+		go func(ctx context.Context, step *isucandar.BenchmarkStep) {
+			defer s.loadWaitGroup.Done()
+			//s.loadCompanyUser(ctx, step) //TODO:
+		}(ctx, step)
+	}
 }
 
 //新しい登録済みUserの生成
