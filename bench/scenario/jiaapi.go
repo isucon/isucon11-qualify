@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -62,9 +63,9 @@ func (s *Scenario) JiaAPIThread(ctx context.Context, step *isucandar.BenchmarkSt
 	e.POST("/api/activate", func(c echo.Context) error { return s.postActivate(c) })
 	e.POST("/api/deactivate", postDeactivate)
 
-	// Start server
+	// Start
+	serverPort := s.jiaServiceURL[strings.LastIndexAny(s.jiaServiceURL, ":"):] //":80"
 	go func() {
-		serverPort := ":80"
 		err := e.Start(serverPort)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			panic(fmt.Errorf("ISU協会サービスが異常終了しました: %v", err))

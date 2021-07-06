@@ -27,6 +27,7 @@ var (
 	targetAddress      string
 	profileFile        string
 	hostAdvertise      string
+	jiaServiceURL      string
 	tlsCertificatePath string
 	tlsKeyPath         string
 	useTLS             bool
@@ -63,6 +64,7 @@ func init() {
 	flag.StringVar(&targetAddress, "target", getEnv("TARGET_ADDRESS", "localhost:9292"), "ex: localhost:9292")
 	flag.StringVar(&profileFile, "profile", "", "ex: cpu.out")
 	flag.StringVar(&hostAdvertise, "host-advertise", "local.t.isucon.dev", "hostname to advertise against target")
+	flag.StringVar(&jiaServiceURL, "jia-service-url", "http://apitest:80", "jia service url")
 	flag.StringVar(&tlsCertificatePath, "tls-cert", "../secrets/cert.pem", "path to TLS certificate for a push service")
 	flag.StringVar(&tlsKeyPath, "tls-key", "../secrets/key.pem", "path to private key of TLS certificate for a push service")
 	flag.BoolVar(&exitStatusOnFail, "exit-status", false, "set exit status non-zero when a benchmark result is failing")
@@ -176,7 +178,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	s, err := scenario.NewScenario()
+	s, err := scenario.NewScenario(jiaServiceURL)
 	scheme := "http"
 	if useTLS {
 		scheme = "https"

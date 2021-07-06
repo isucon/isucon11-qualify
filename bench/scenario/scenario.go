@@ -25,6 +25,7 @@ type Scenario struct {
 	realTimeStart    time.Time
 	virtualTimeStart time.Time
 	virtualTimeMulti time.Duration //時間が何倍速になっているか
+	jiaServiceURL    string
 
 	// 競技者の実装言語
 	Language string
@@ -37,12 +38,13 @@ type Scenario struct {
 	normalUsers    []*model.User
 }
 
-func NewScenario() (*Scenario, error) {
+func NewScenario(jiaServiceURL string) (*Scenario, error) {
 	return &Scenario{
 		// TODO: シナリオを初期化する
 		//realTimeStart: time.Now()
 		virtualTimeStart: time.Date(2020, 7, 1, 0, 0, 0, 0, time.Local), //TODO: ちゃんと決める
 		virtualTimeMulti: 3000,                                          //5分=300秒に一回 => 1秒に10回
+		jiaServiceURL:    jiaServiceURL,
 		normalUsers:      []*model.User{},
 	}, nil
 }
