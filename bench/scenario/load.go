@@ -37,29 +37,34 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	normalUserWorker, err := worker.NewWorker(func(ctx context.Context, _ int) {
 		defer s.loadWaitGroup.Done()
 		s.loadNormalUser(ctx, step)
-	}, worker.WithInfinityLoop())
+	}, worker.WithInfinityLoop(), worker.WithMaxParallelism(10))
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 	}
 	s.normalUserWorker = normalUserWorker
+	go s.normalUserWorker.Process(ctx)
 	//マニアユーザー
 	maniacUserWorker, err := worker.NewWorker(func(ctx context.Context, _ int) {
 		defer s.loadWaitGroup.Done()
+		<-ctx.Done() //TODO: 消す
 		//s.loadManiacUser(ctx, step) //TODO:
-	}, worker.WithInfinityLoop())
+	}, worker.WithInfinityLoop(), worker.WithMaxParallelism(1))
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 	}
 	s.maniacUserWorker = maniacUserWorker
+	go s.maniacUserWorker.Process(ctx)
 	//企業ユーザー
 	companyUserWorker, err := worker.NewWorker(func(ctx context.Context, _ int) {
 		defer s.loadWaitGroup.Done()
+		<-ctx.Done() //TODO: 消す
 		//s.loadCompanyUser(ctx, step) //TODO:
-	}, worker.WithInfinityLoop())
+	}, worker.WithInfinityLoop(), worker.WithMaxParallelism(1))
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 	}
 	s.companyUserWorker = companyUserWorker
+	go s.companyUserWorker.Process(ctx)
 
 	<-ctx.Done()
 	s.loadWaitGroup.Wait()
@@ -74,6 +79,7 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 		return
 	default:
 	}
+	logger.AdminLogger.Println("Normal User start")
 
 	//ユーザー作成
 	userAgent, err := s.NewAgent()
