@@ -20,10 +20,16 @@ var (
 	streamsForPosterMutex sync.Mutex
 	isuIsActivated        = map[string]JiaAPI2PosterData{}
 	streamsForPoster      = map[string]*model.StreamsForPoster{}
+	isuDetailInfomation   = map[string]*IsuDetailInfomation{}
 
 	jiaAPIContext context.Context
 	jiaAPIStep    *isucandar.BenchmarkStep
 )
+
+type IsuDetailInfomation struct {
+	CatalogID string `json:"catalog_id"`
+	Character string `json:"character"`
+}
 
 type IsuConditionPosterRequest struct {
 	TargetIP   string `json:"target_ip"`
@@ -38,9 +44,10 @@ type JiaAPI2PosterData struct {
 }
 
 //シナリオスレッドからの呼び出し
-func RegisterToJiaAPI(jiaIsuUUID string, streams *model.StreamsForPoster) {
+func RegisterToJiaAPI(jiaIsuUUID string, detail *IsuDetailInfomation, streams *model.StreamsForPoster) {
 	streamsForPosterMutex.Lock()
 	defer streamsForPosterMutex.Unlock()
+	isuDetailInfomation[jiaIsuUUID] = detail
 	streamsForPoster[jiaIsuUUID] = streams
 }
 
@@ -107,11 +114,14 @@ func (s *Scenario) postActivate(c echo.Context) error {
 	)
 
 	//posterスレッドの起動
+	var isuDetail *IsuDetailInfomation
+	var scenarioChan *model.StreamsForPoster
 	posterContext, chancelFunc := context.WithCancel(jiaAPIContext)
 	err = func() error {
+		var ok bool
 		streamsForPosterMutex.Lock()
 		defer streamsForPosterMutex.Unlock()
-		scenarioChan, ok := streamsForPoster[state.IsuUUID]
+		scenarioChan, ok = streamsForPoster[state.IsuUUID]
 		if !ok {
 			return echo.NewHTTPError(http.StatusNotFound)
 		}
@@ -123,17 +133,16 @@ func (s *Scenario) postActivate(c echo.Context) error {
 			activated:   true,
 			chancelFunc: chancelFunc,
 		}
+		isuDetail = isuDetailInfomation[state.IsuUUID]
 
-		go s.keepPosting(posterContext, jiaAPIStep, targetBaseURL, state.IsuUUID, scenarioChan)
 		return nil
 	}()
 	if err != nil {
 		return err
 	}
+	go s.keepPosting(posterContext, jiaAPIStep, targetBaseURL, state.IsuUUID, scenarioChan)
 
-	//return c.JSON(http.StatusAccepted, isuState)
-	//TODO:
-	return fmt.Errorf("NotImplemented")
+	return c.JSON(http.StatusAccepted, isuDetail)
 }
 
 func postDeactivate(c echo.Context) error {
