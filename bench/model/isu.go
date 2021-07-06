@@ -64,9 +64,9 @@ func NewRandomIsuRaw(owner *User) (*Isu, *StreamsForPoster, error) {
 		Owner:             owner,
 		JIAIsuUUID:        id,
 		Name:              name,
-		ImageName:         "default-image", //TODO: ちゃんとデータに合わせる
-		JIACatalogID:      "",              //TODO:
-		Character:         "",              //TODO:
+		ImageName:         "default-image",                        //TODO: ちゃんとデータに合わせる
+		JIACatalogID:      "550e8400-e29b-41d4-a716-446655440000", //TODO:
+		Character:         "",                                     //TODO:
 		IsWantDeactivated: false,
 		isDeactivated:     true,
 		StreamsForScenario: &StreamsForScenario{
