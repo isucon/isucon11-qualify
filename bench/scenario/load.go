@@ -105,6 +105,7 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 					}
 					isu.Conditions = append(isu.Conditions, *cond)
 				default:
+					break getConditionFromPosterLoop
 				}
 			}
 		}
@@ -212,7 +213,7 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 			if solvedCondition != model.IsuStateChangeNone {
 				//TODO: graph
 
-				targetIsu.StreamsForScenario.StateChan <- solvedCondition
+				go func() { targetIsu.StreamsForScenario.StateChan <- solvedCondition }()
 			}
 		} else {
 
