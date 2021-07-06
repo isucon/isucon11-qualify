@@ -1,0 +1,22 @@
+---
+- name: "roles/contestant/tasks/isucondition-frontend: Install frontend packages"
+  become_user: isucon
+  args:
+    chdir: /home/isucon/webapp/frontend
+  environment:
+    PATH: "/home/isucon/local/node/bin:{{ ansible_env.PATH }}"
+  command: npm ci
+
+- name: "roles/contestant/tasks/isucondition-frontend: Build frontend application"
+  become_user: isucon
+  args:
+    chdir: /home/isucon/webapp/frontend
+  environment:
+    PATH: "/home/isucon/local/node/bin:{{ ansible_env.PATH }}"
+  command: npm run build
+
+- name: Deploy static files
+  become_user: root
+  shell: |
+    mkdir -p /www/data && cp -pR /home/isucon/webapp/frontend/dist/* /www/data/
+
