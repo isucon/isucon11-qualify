@@ -673,7 +673,7 @@ func getIsuSearch(c echo.Context) error {
 	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
-		return c.String(http.StatusUnauthorized, "you are not sign in")
+		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 	//optional query param
 	name := c.QueryParam("name")
@@ -804,7 +804,7 @@ func getIsu(c echo.Context) error {
 	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
-		return c.String(http.StatusUnauthorized, "you are not sign in")
+		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 
 	jiaIsuUUID := c.Param("jia_isu_uuid")
@@ -831,7 +831,7 @@ func putIsu(c echo.Context) error {
 	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
-		return c.String(http.StatusUnauthorized, "you are not sign in")
+		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 
 	jiaIsuUUID := c.Param("jia_isu_uuid")
@@ -975,7 +975,7 @@ func getIsuIcon(c echo.Context) error {
 	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
-		return c.String(http.StatusUnauthorized, "you are not sign in")
+		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 
 	jiaIsuUUID := c.Param("jia_isu_uuid")
@@ -1004,7 +1004,7 @@ func putIsuIcon(c echo.Context) error {
 	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
-		return c.String(http.StatusUnauthorized, "you are not sign in")
+		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 
 	jiaIsuUUID := c.Param("jia_isu_uuid")
@@ -1080,7 +1080,7 @@ func getIsuGraph(c echo.Context) error {
 	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
-		return c.String(http.StatusUnauthorized, "you are not sign in")
+		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 
 	jiaIsuUUID := c.Param("jia_isu_uuid")
@@ -1180,7 +1180,7 @@ func getAllIsuConditions(c echo.Context) error {
 	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
-		return c.String(http.StatusUnauthorized, "you are not sign in")
+		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 	sessionCookie, err := c.Cookie(sessionName)
 	if err != nil {
@@ -1362,7 +1362,7 @@ func getIsuConditions(c echo.Context) error {
 	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
-		return c.String(http.StatusUnauthorized, "you are not sign in")
+		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 	jiaIsuUUID := c.Param("jia_isu_uuid")
 	if jiaIsuUUID == "" {
