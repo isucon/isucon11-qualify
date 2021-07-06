@@ -39,6 +39,15 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 	s.Language = initResponse.Language
 	s.realTimeStart = time.Now()
 
+	//jiaの起動
+	s.loadWaitGroup.Add(1)
+	ctxJIA, jiaChancelFunc := context.WithCancel(context.Background())
+	s.jiaChancel = jiaChancelFunc
+	go func() {
+		defer s.loadWaitGroup.Done()
+		s.JiaAPIThread(ctxJIA, step)
+	}()
+
 	//各エンドポイントのチェック
 	err = s.prepareCheckAuth(ctx, step)
 	if err != nil {

@@ -34,6 +34,7 @@ type Scenario struct {
 	normalUserWorker  *worker.Worker //通常ユーザーのシナリオスレッド
 	maniacUserWorker  *worker.Worker //マニアユーザーのシナリオスレッド
 	companyUserWorker *worker.Worker //企業ユーザーのシナリオスレッド
+	jiaChancel        context.CancelFunc
 
 	//内部状態
 	normalUsersMtx sync.Mutex

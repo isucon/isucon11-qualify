@@ -18,6 +18,8 @@ import (
 )
 
 func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) error {
+	defer s.jiaChancel()
+	step.Result().Score.Reset()
 	if s.NoLoad {
 		return nil
 	}
