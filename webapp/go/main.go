@@ -139,6 +139,10 @@ type MySQLConnectionEnv struct {
 	Password string
 }
 
+type InitializeRequest struct {
+	JIAServiceURL string `json:"jia_service_url"`
+}
+
 type InitializeResponse struct {
 	Language string `json:"language"`
 }
@@ -306,6 +310,13 @@ func getJIAServiceURL() string {
 }
 
 func postInitialize(c echo.Context) error {
+	request := InitializeRequest{}
+	err := c.Bind(&request)
+	if err != nil {
+		c.Logger().Errorf("bad request body: %v", err)
+		return c.String(http.StatusBadRequest, "bad request body")
+	}
+
 	sqlDir := filepath.Join("..", "mysql", "db")
 	paths := []string{
 		filepath.Join(sqlDir, "0_Schema.sql"),
@@ -326,6 +337,16 @@ func postInitialize(c echo.Context) error {
 			c.Logger().Errorf("Initialize script error : %v", err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
+	}
+
+	_, err = db.Exec(
+		"INSERT INTO `isu_association_config` (`name`, `url`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `url` = VALUES(`url`)",
+		"jia_service_url",
+		request.JIAServiceURL,
+	)
+	if err != nil {
+		c.Logger().Errorf("db error : %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	return c.JSON(http.StatusOK, InitializeResponse{
