@@ -10,6 +10,8 @@ jobs:
     name: build initial-data.sql
     runs-on: [self-hosted]
     steps:
+      - uses: actions/checkout@v2
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -30,6 +32,9 @@ jobs:
           go run .
       - name: Dump initial-data
         run: mysqldump -h127.0.0.1 -uroot -proot isucondition > initial-data.sql
+      - name: Stop MySQL
+        working-directory: development
+        run: docker-compose -f docker-compose-ci.yml down
 
       - name: Upload initial-data to S3
         run: aws s3 cp ./initial-data.sql s3://isucon11-qualify/
@@ -56,6 +61,17 @@ jobs:
           role-duration-seconds: 14400
           role-session-name: isucon11-qualify-${{ github.run_id }}-${{ github.run_number }}
           aws-region: ap-northeast-1
+
+      - name: Install some utils
+        env:
+          GO_JSONNET_VERSION: v0.17.0
+          PACKER_VERSION: 1.7.3
+        run: |
+          curl -sL https://github.com/google/go-jsonnet/releases/download/${GO_JSONNET_VERSION}/go-jsonnet_${GO_JSONNET_VERSION#"v"}_Linux_x86_64.tar.gz -o /tmp/go-jsonnet.tar.gz \
+            && tar xvzf go-jsonnet.tar.gz -C /tmp/ \
+            && mv /tmp/jsonnet* /usr/local/bin/
+          curl -sL https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_linux_amd64.zip -o /tmp/packer.zip \
+            && unzip /tmp/packer.zip -d /usr/local/bin/
 
       - run: make clean
       - run: make clean-output
