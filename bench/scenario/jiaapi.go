@@ -86,7 +86,7 @@ func (s *Scenario) JiaAPIThread(ctx context.Context, step *isucandar.BenchmarkSt
 	err := e.Shutdown(ctx)
 	if err != nil {
 		//有効なエラー処理は出来ないのでエラーは握り潰し
-		logger.AdminLogger.Printf("Failed to write prom file: %s", err)
+		logger.AdminLogger.Printf("Failed to shutdown jia service: %s", err)
 	}
 }
 
