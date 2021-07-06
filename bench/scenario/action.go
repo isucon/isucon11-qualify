@@ -45,12 +45,12 @@ func initializeAction(ctx context.Context, a *agent.Agent, req service.PostIniti
 	res, err := reqJSONResJSON(ctx, a, http.MethodPost, "/initialize", bytes.NewReader(body), &initializeResponse, []int{http.StatusOK})
 	if err != nil {
 		errors = append(errors, err)
-	}
-
-	//データの検証
-	if initializeResponse.Language == "" {
-		err = errorBadResponse(res, "利用言語(language)が設定されていません")
-		errors = append(errors, err)
+	} else {
+		//データの検証
+		if initializeResponse.Language == "" {
+			err = errorBadResponse(res, "利用言語(language)が設定されていません")
+			errors = append(errors, err)
+		}
 	}
 
 	return initializeResponse, errors
