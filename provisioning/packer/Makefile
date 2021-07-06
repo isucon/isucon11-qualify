@@ -14,7 +14,7 @@ files-generated/isucon11-qualify.tar: files-generated/REVISION
 
 files-generated/initial-data.sql:
 	mkdir -p files-generated/
-	aws s3 cp s3://isucon11-qualify/initial-data.sql files-generated/initial-data.sql
+	aws s3 cp s3://isucon11-qualify-dev/initial-data.sql files-generated/initial-data.sql
 
 generate: output target/contestant.json target/bench.json target/standalone.json
 

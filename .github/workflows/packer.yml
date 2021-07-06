@@ -57,7 +57,7 @@ jobs:
 
       - name: Upload initial-data to S3
         working-directory: development
-        run: ${HOME}/work/_tool/isucon11-qualify/aws s3 cp ./initial-data.sql s3://isucon11-qualify/
+        run: ${HOME}/work/_tool/isucon11-qualify/aws s3 cp ./initial-data.sql s3://isucon11-qualify-dev/
 
   build-packer:
     name: packer build
