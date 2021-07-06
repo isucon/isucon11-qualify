@@ -29,10 +29,8 @@ func CheckError(err error) (critical bool, timeout bool, deduction bool) {
 	if failure.IsCode(err, isucandar.ErrLoad) {
 		if isTimeout(err) {
 			timeout = true
-			return
-		}
-		if isDeduction(err) {
-			timeout = true
+		} else if isDeduction(err) {
+			deduction = true
 		}
 	}
 
