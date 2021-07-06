@@ -938,7 +938,7 @@ func deleteIsu(c echo.Context) error {
 
 	err = tx.Commit()
 	if err != nil {
-		c.Logger().Errorf("failed to commit tx: %v", err)
+		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -1534,7 +1534,7 @@ func postIsuCondition(c echo.Context) error {
 		jiaIsuUUID, timestamp, req.IsSitting, req.Condition, req.Message,
 	)
 	if err != nil {
-		c.Logger().Errorf("failed to insert: %v", err)
+		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -1548,7 +1548,7 @@ func postIsuCondition(c echo.Context) error {
 	// トランザクション終了
 	err = tx.Commit()
 	if err != nil {
-		c.Logger().Errorf("failed to commit tx: %v", err)
+		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
