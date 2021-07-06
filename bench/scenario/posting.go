@@ -32,8 +32,7 @@ type posterState struct {
 func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseURL string, jiaIsuUUID string, scenarioChan *model.StreamsForPoster) {
 	defer func() { scenarioChan.ActiveChan <- false }() //deactivate
 
-	nowRealTime := time.Now()
-	nowTimeStamp := nowRealTime //TODO: 時間調整
+	nowTimeStamp := s.ToVirtualTime(time.Now())
 	state := posterState{
 		lastCondition: model.IsuCondition{
 			IsSitting:     false,
@@ -61,8 +60,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 			return
 		case <-timer.C:
 		}
-		nowRealTime = time.Now()
-		nowTimeStamp = nowRealTime //TODO: 時間調整
+		nowTimeStamp = s.ToVirtualTime(time.Now())
 
 		//状態変化
 		stateChange := model.IsuStateChangeNone
