@@ -45,8 +45,8 @@ func NewScenario() (*Scenario, error) {
 	return &Scenario{
 		// TODO: シナリオを初期化する
 		//realTimeStart: time.Now()
-		virtualTimeStart:  time.Date(2020, 7, 1, 0, 0, 0, 0, nil), //TODO: ちゃんと決める
-		virtualTimeMulti:  3000,                                   //5分=300秒に一回 => 1秒に10回
+		virtualTimeStart:  time.Date(2020, 7, 1, 0, 0, 0, 0, time.Local), //TODO: ちゃんと決める
+		virtualTimeMulti:  3000,                                          //5分=300秒に一回 => 1秒に10回
 		normalUserWorker:  nil,
 		maniacUserWorker:  nil,
 		companyUserWorker: nil,
