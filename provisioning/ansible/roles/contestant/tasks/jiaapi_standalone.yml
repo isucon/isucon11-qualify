@@ -5,8 +5,7 @@
     chdir: /tmp/isucon11-qualify/extra/isuapi
   environment:
     PATH: "/home/isucon/local/go/bin:{{ ansible_env.PATH }}"
-  shell: |
-    go build -o /usr/local/bin/jiaapi_standalone .
+  command: make
 
 - name: "roles/contestant/tasks/jiaapi_standalone: Deploy Service file"
   become_user: root

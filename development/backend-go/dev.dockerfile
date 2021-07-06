@@ -1,4 +1,4 @@
-FROM node:14 as frontend
+FROM node:15.12 as frontend
 WORKDIR /app
 
 COPY webapp/frontend/package*.json ./
@@ -13,13 +13,9 @@ FROM golang:1.16.5-buster
 WORKDIR /development
 COPY development/backend-go/air.toml .
 
-#install mysql-client
-RUN wget https://dev.mysql.com/get/mysql-apt-config_0.8.17-1_all.deb \
-    && apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y ./mysql-apt-config_0.8.17-1_all.deb \
-    && apt-get update \
-    && apt-get install -y mysql-client  \
-    && rm ./mysql-apt-config_0.8.17-1_all.deb
+#install mariadb-client
+RUN apt-get update \
+    && apt-get install -y default-mysql-client
 
 WORKDIR /webapp/go
 
@@ -34,4 +30,4 @@ COPY webapp/go/go.sum .
 
 RUN go mod download
 
-COPY --from=frontend /app/dist /public
+COPY --from=frontend /app /webapp/frontend
