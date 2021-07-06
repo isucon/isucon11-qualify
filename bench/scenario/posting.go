@@ -110,7 +110,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 			} else {
 				step.AddScore(ScorePostConditionCritical)
 			}
-			scenarioChan.ConditionChan <- condition
+			go func() { scenarioChan.ConditionChan <- condition }()
 		}()
 	}
 }

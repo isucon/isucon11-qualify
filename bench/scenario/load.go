@@ -7,11 +7,13 @@ import (
 	"context"
 	"math/rand"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/isucon/isucandar"
 	"github.com/isucon/isucandar/worker"
 	"github.com/isucon/isucon11-qualify/bench/logger"
+	"github.com/isucon/isucon11-qualify/bench/model"
 	"github.com/isucon/isucon11-qualify/bench/service"
 )
 
@@ -102,6 +104,23 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 		default:
 		}
 
+		//posterからconditionの取得
+		for _, isu := range user.IsuListOrderByCreatedAt {
+		getConditionFromPosterLoop:
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case cond, ok := <-isu.StreamsForScenario.ConditionChan:
+					if !ok {
+						break getConditionFromPosterLoop
+					}
+					isu.Conditions = append(isu.Conditions, *cond)
+				default:
+				}
+			}
+		}
+
 		//TODO: 乱数にする
 		nextTargetIsuIndex += 1
 		nextTargetIsuIndex %= isuCount
@@ -132,6 +151,8 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 		)
 
 		if randEngine.Intn(3) < 2 {
+			//TODO: リロード
+
 			//定期的にconditionを見に行くシナリオ
 			virtualNow := s.ToVirtualTime(time.Now())
 			_, conditions, errs := browserGetIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
@@ -178,9 +199,31 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 			if res != nil { //エラーつぶし
 			}
 
-			//TODO: conditionを確認して、椅子状態を改善
-			if len(conditions) > 0 { //エラーつぶし
-				conditions = nil
+			//conditionを確認して、椅子状態を改善
+			solvedCondition := model.IsuStateChangeNone
+			for _, c := range conditions {
+				//MEMO: 重かったらフォーマットが想定通りの前提で最適化する
+				for _, cond := range strings.Split(c.Condition, ",") {
+					keyValue := strings.Split(cond, "=")
+					if len(keyValue) != 2 {
+						continue //形式に従っていないものは無視
+					}
+					if keyValue[1] != "false" {
+						if keyValue[0] == "is_dirty" {
+							solvedCondition |= model.IsuStateChangeClear
+						} else if keyValue[0] == "is_overweight" {
+							solvedCondition |= model.IsuStateChangeDetectOverweight
+						} else if keyValue[0] == "is_broken" {
+							solvedCondition |= model.IsuStateChangeRepair
+						}
+					}
+				}
+			}
+
+			if solvedCondition != model.IsuStateChangeNone {
+				//TODO: graph
+
+				targetIsu.StreamsForScenario.StateChan <- solvedCondition
 			}
 		} else {
 
