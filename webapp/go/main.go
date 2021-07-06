@@ -1251,8 +1251,8 @@ func getAllIsuConditions(c echo.Context) error {
 		//  cursorEndTime + 1sec > timestampとしてリクエストを送る
 		//この一要素はフィルターにかかるかどうか分からないので、limitも+1しておく
 
-		conditionsTmp, err := getIsuConditionsFromDB(isu.JIAIsuUUID, cursorEndTime.Add(1*time.Second), conditionLevel,
-			startTime, limit, isu.Name)
+		conditionsTmp, err := getIsuConditionsFromDB(isu.JIAIsuUUID, cursorEndTime.Add(1*time.Second),
+			conditionLevel, startTime, limit+1, isu.Name)
 		if err != nil {
 			c.Logger().Errorf("failed to http request: %v", err)
 			return c.NoContent(http.StatusInternalServerError)
