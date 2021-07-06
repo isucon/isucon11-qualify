@@ -22,6 +22,11 @@ import (
 	"github.com/isucon/isucon11-qualify/bench/scenario"
 )
 
+const (
+	// FAIL になるエラー回数
+	FAIL_ERROR_COUNT int64 = 100
+)
+
 var (
 	COMMIT             string
 	targetAddress      string
@@ -90,11 +95,21 @@ func checkError(err error) (critical bool, timeout bool, deduction bool) {
 
 func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish bool) bool {
 	passed := true
-	reason := ""
+	reason := "pass"
 	errors := result.Errors.All()
 
+	result.Score.Set(scenario.ScorePostConditionInfo, 2)
+	result.Score.Set(scenario.ScorePostConditionWarning, 1)
+	result.Score.Set(scenario.ScorePostConditionCritical, 0)
+	//TODO: 他の得点源
+
+	scoreRaw := result.Score.Sum()
 	deduction := int64(0)
 	timeoutCount := int64(0)
+
+	for tag, count := range result.Score.Breakdown() {
+		logger.AdminLogger.Printf("SCORE: %s: %d", tag, count)
+	}
 
 	for _, err := range errors {
 		isCritical, isTimeout, isDeduction := checkError(err)
@@ -106,9 +121,28 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 		case isTimeout:
 			timeoutCount++
 		case isDeduction:
-			deduction++
+			if scenario.IsValidation(err) {
+				deduction += 50
+			} else {
+				deduction++
+			}
 		}
 	}
+	deductionTotal := deduction + timeoutCount/10 //TODO:
+
+	if passed && deduction > FAIL_ERROR_COUNT {
+		passed = false
+		reason = fmt.Sprintf("Error count over %d", FAIL_ERROR_COUNT)
+	}
+
+	score := scoreRaw - deductionTotal
+	if score <= 0 && passed {
+		passed = false
+		reason = "Score"
+	}
+
+	logger.ContestantLogger.Printf("score: %d(%d - %d) : %s", score, scoreRaw, deductionTotal, reason)
+	logger.ContestantLogger.Printf("deduction: %d / timeout: %d", deduction, timeoutCount)
 
 	// TODO: isucon11-portal に差し替え
 	/*
@@ -208,7 +242,7 @@ func main() {
 
 		critical, _, deduction := checkError(err)
 
-		if critical || (deduction && atomic.AddInt64(&errorCount, 1) >= 100) {
+		if critical || (deduction && atomic.AddInt64(&errorCount, 1) >= FAIL_ERROR_COUNT) {
 			step.Cancel()
 		}
 

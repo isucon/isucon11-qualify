@@ -87,7 +87,7 @@ func isTimeout(err error) bool {
 	return failure.IsCode(err, failure.TimeoutErrorCode)
 }
 
-func isValidation(err error) bool {
+func IsValidation(err error) bool {
 	return failure.IsCode(err, isucandar.ErrValidation)
 }
 
