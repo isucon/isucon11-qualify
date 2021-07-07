@@ -727,7 +727,9 @@ func browserGetIsuConditionAction(ctx context.Context, a *agent.Agent, id string
 	return isu, conditions, errors
 }
 
-func browserGetIsuGraph(ctx context.Context, a *agent.Agent, id string, date uint64) (*service.Isu, []*service.GraphResponse, []error) {
+func browserGetIsuGraphAction(ctx context.Context, a *agent.Agent, id string, date uint64,
+	validateGraph func(*http.Response, []*service.GraphResponse) []error,
+) (*service.Isu, []*service.GraphResponse, []error) {
 	// TODO: 静的ファイルのGET
 
 	errors := []error{}
@@ -736,9 +738,11 @@ func browserGetIsuGraph(ctx context.Context, a *agent.Agent, id string, date uin
 	if err != nil {
 		errors = append(errors, err)
 	}
-	graph, _, err := getIsuGraphAction(ctx, a, id, date)
+	graph, res, err := getIsuGraphAction(ctx, a, id, date)
 	if err != nil {
 		errors = append(errors, err)
+	} else {
+		errors = append(errors, validateGraph(res, graph)...)
 	}
 	return isu, graph, errors
 }
