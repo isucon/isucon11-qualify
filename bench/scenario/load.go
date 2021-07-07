@@ -140,7 +140,7 @@ scenarioLoop:
 		}
 
 		//GET /isu/{jia_isu_uuid}
-		browserGetIsuDetailAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
+		_, _, errs = browserGetIsuDetailAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
 			func(res *http.Response, catalog *service.Catalog) []error {
 				//TODO: catalogの検証
 				//targetIsu.JIACatalogID
@@ -148,6 +148,10 @@ scenarioLoop:
 				return []error{}
 			},
 		)
+		for _, err := range errs {
+			scenarioSuccess = false
+			step.AddError(err)
+		}
 
 		if randEngine.Intn(3) < 2 {
 			//TODO: リロード
