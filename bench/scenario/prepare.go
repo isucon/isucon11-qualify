@@ -53,7 +53,7 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 
 	s.Language = initResponse.Language
 
-	//jia起動待ち
+	//jia起動待ち TODO: これで本当に良いのか？
 	<-jiaWait
 
 	//各エンドポイントのチェック
