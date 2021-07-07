@@ -1631,13 +1631,13 @@ func getGraphDatas(tx *sqlx.Tx, jiaIsuUUID string, date time.Time) ([]Graph, err
 	}
 
 	endDate := date.Add(time.Hour * 24)
-	startIndex := -1
-	endIndex := len(IsuConditionCluster) - 1
+	startIndex := 0
+	endIndex := len(graphDatas) - 1
 	for i, graph := range graphDatas {
 		if startIndex == -1 && !graph.StartAt.Before(date) {
 			startIndex = i
 		}
-		if endIndex == len(IsuConditionCluster) - 1 && graph.StartAt.After(endDate) {
+		if endIndex == len(graphDatas) - 1 && graph.StartAt.After(endDate) {
 			endIndex = i
 		}
 	}
