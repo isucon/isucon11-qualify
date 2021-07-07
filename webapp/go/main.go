@@ -660,7 +660,7 @@ func postIsu(c echo.Context) error {
 		"	(`jia_isu_uuid`, `name`, `image`, `character`, `jia_catalog_id`, `jia_user_id`) VALUES (?, ?, ?, ?, ?, ?)",
 		jiaIsuUUID, isuName, image, isuFromJIA.Character, isuFromJIA.JIACatalogID, jiaUserID)
 	if err != nil {
-		c.Logger().Errorf("cannot insert record: %v", err)
+		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -751,7 +751,7 @@ func getIsuSearch(c echo.Context) error {
 		queryParam...,
 	)
 	if err != nil {
-		c.Logger().Errorf("failed to select: %v", err)
+		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -833,11 +833,12 @@ func getIsu(c echo.Context) error {
 	var isu Isu
 	err = db.Get(&isu, "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
 		jiaUserID, jiaIsuUUID)
-	if errors.Is(err, sql.ErrNoRows) {
-		c.Logger().Errorf("isu not found: %v", err)
-		return c.String(http.StatusNotFound, "isu not found")
-	}
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.Logger().Errorf("isu not found: %v", err)
+			return c.String(http.StatusNotFound, "isu not found")
+		}
+
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
@@ -978,7 +979,7 @@ func deleteIsu(c echo.Context) error {
 
 	err = tx.Commit()
 	if err != nil {
-		c.Logger().Errorf("failed to commit tx: %v", err)
+		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -1008,6 +1009,7 @@ func getIsuIcon(c echo.Context) error {
 			c.Logger().Errorf("isu not found: %v", err)
 			return c.String(http.StatusNotFound, "isu not found")
 		}
+
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
@@ -1432,12 +1434,13 @@ func getIsuConditions(c echo.Context) error {
 		"SELECT name FROM `isu` WHERE `jia_isu_uuid` = ? AND `jia_user_id` = ? AND `is_deleted` = false",
 		jiaIsuUUID, jiaUserID,
 	)
-	if errors.Is(err, sql.ErrNoRows) {
-		c.Logger().Errorf("isu not found: %v", err)
-		return c.String(http.StatusNotFound, "isu not found")
-	}
 	if err != nil {
-		c.Logger().Errorf("failed to select: %v", err)
+		if errors.Is(err, sql.ErrNoRows) {
+			c.Logger().Errorf("isu not found: %v", err)
+			return c.String(http.StatusNotFound, "isu not found")
+		}
+
+		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -1537,7 +1540,7 @@ func postIsuCondition(c echo.Context) error {
 	// トランザクション開始
 	tx, err := db.Beginx()
 	if err != nil {
-		c.Logger().Errorf("failed to begin tx: %v", err)
+		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	defer tx.Rollback()
@@ -1546,7 +1549,7 @@ func postIsuCondition(c echo.Context) error {
 	var count int
 	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_isu_uuid` = ?  and `is_deleted` = false", jiaIsuUUID) //TODO: 記法の統一
 	if err != nil {
-		c.Logger().Errorf("failed to select: %v", err)
+		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	if count == 0 {
@@ -1560,7 +1563,7 @@ func postIsuCondition(c echo.Context) error {
 		timestamp, jiaIsuUUID,
 	)
 	if err != nil {
-		c.Logger().Errorf("failed to begin tx: %v", err)
+		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	if count != 0 {
@@ -1573,7 +1576,7 @@ func postIsuCondition(c echo.Context) error {
 		jiaIsuUUID, timestamp, req.IsSitting, req.Condition, req.Message,
 	)
 	if err != nil {
-		c.Logger().Errorf("failed to insert: %v", err)
+		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -1587,7 +1590,7 @@ func postIsuCondition(c echo.Context) error {
 	// トランザクション終了
 	err = tx.Commit()
 	if err != nil {
-		c.Logger().Errorf("failed to commit tx: %v", err)
+		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
