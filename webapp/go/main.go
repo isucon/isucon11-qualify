@@ -124,8 +124,6 @@ type Graph struct {
 	JIAIsuUUID string    `db:"jia_isu_uuid"`
 	StartAt    time.Time `db:"start_at"`
 	Data       string    `db:"data"`
-	CreatedAt  time.Time `db:"created_at"`
-	UpdatedAt  time.Time `db:"updated_at"`
 }
 
 type User struct {
@@ -1632,17 +1630,17 @@ func getGraphDatas(tx *sqlx.Tx, jiaIsuUUID string, date time.Time) ([]Graph, err
 
 	endDate := date.Add(time.Hour * 24)
 	startIndex := 0
-	endIndex := len(graphDatas) - 1
+	endNextIndex := len(graphDatas)
 	for i, graph := range graphDatas {
-		if startIndex == -1 && !graph.StartAt.Before(date) {
+		if startIndex == 0 && !graph.StartAt.Before(date) {
 			startIndex = i
 		}
-		if endIndex == len(graphDatas) - 1 && graph.StartAt.After(endDate) {
-			endIndex = i
+		if endNextIndex == len(graphDatas) && graph.StartAt.After(endDate) {
+			endNextIndex = i
 		}
 	}
 
-	return graphDatas[startIndex : endIndex + 1], nil
+	return graphDatas[startIndex : endNextIndex], nil
 }
 
 //分以下を切り捨て、一時間単位にする関数
