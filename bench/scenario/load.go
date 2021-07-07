@@ -98,6 +98,7 @@ scenarioLoop:
 		time.Sleep(100 * time.Millisecond)
 		if scenarioSuccess {
 			scenarioDoneCount++
+			step.AddScore(ScoreNormalUserLoop) //TODO: 得点条件の修正
 		}
 		scenarioSuccess = true
 
