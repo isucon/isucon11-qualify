@@ -1,6 +1,6 @@
 default: generate
 
-files-generated:  files-generated/REVISION files-generated/archive.tar
+files-generated:  files-generated/REVISION files-generated/isucon11-qualify.tar files-generated/initial-data.sql
 
 files-generated/REVISION:
 	mkdir -p files-generated/
@@ -8,27 +8,30 @@ files-generated/REVISION:
 	if [ ! -e files-generated/REVISION ]; then git rev-parse HEAD > files-generated/REVISION; fi
 	test -e files-generated/REVISION
 
-files-generated/archive.tar: files-generated/REVISION
+files-generated/isucon11-qualify.tar: files-generated/REVISION
 	mkdir -p files-generated/
-	git -C "$(shell git rev-parse --show-toplevel)" archive "$(shell cat files-generated/REVISION)" > files-generated/archive.tar
+	git -C "$(shell git rev-parse --show-toplevel)" archive "$(shell cat files-generated/REVISION)" > files-generated/isucon11-qualify.tar
 
+files-generated/initial-data.sql:
+	mkdir -p files-generated/
+	aws s3 cp s3://isucon11-qualify-dev/initial-data.sql files-generated/initial-data.sql
 
 generate: output target/contestant.json target/bench.json target/standalone.json
 
 output:
 	mkdir -p output/
 
-target/contestant.json: files-generated *.libsonnet contestant.jsonnet
+target/contestant.json: files-generated output base.libsonnet contestant.jsonnet
 	mkdir -p target/
 	jsonnet --jpath . contestant.jsonnet > target/contestant.json
 	packer validate target/contestant.json
 
-target/bench.json: files-generated *.libsonnet bench.jsonnet
+target/bench.json: files-generated output base.libsonnet bench.jsonnet
 	mkdir -p target/
 	jsonnet --jpath . bench.jsonnet > target/bench.json
 	packer validate target/bench.json
 
-target/standalone.json: files-generated *.libsonnet standalone.jsonnet
+target/standalone.json: files-generated base.libsonnet standalone.jsonnef
 	mkdir -p target/
 	jsonnet --jpath . standalone.jsonnet > target/standalone.json
 	packer validate target/standalone.json
