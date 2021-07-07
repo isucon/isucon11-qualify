@@ -86,7 +86,9 @@ const genGraphData = (graphs: Graph[]) => {
     }
 
     const date = new Date(graph.start_at * 1000)
-    timeCategories.push(date.toLocaleTimeString('ja-JP'))
+    timeCategories.push(
+      date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+    )
   })
 
   score = Math.floor(score / graphs.length)
