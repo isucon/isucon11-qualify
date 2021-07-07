@@ -28,14 +28,14 @@ type User struct {
 	Agent *agent.Agent
 }
 
-func NewRandomUserRaw() (*User, error) {
+func NewRandomUserRaw(userType UserType) (*User, error) {
 	userID, err := MakeRandomUserID()
 	if err != nil {
 		return nil, err
 	}
 	return &User{
 		UserID:                  userID,
-		Type:                    UserTypeNormal, //TODO: 一定の比にする
+		Type:                    userType,
 		IsuListOrderByCreatedAt: []*Isu{},
 		IsuListByID:             map[string]*Isu{},
 		Agent:                   nil,

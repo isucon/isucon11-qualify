@@ -13,10 +13,25 @@ import (
 	"github.com/isucon/isucandar/worker"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
+	"github.com/isucon/isucon11-qualify/bench/service"
 )
 
 func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) error {
 	logger.ContestantLogger.Printf("===> PREPARE")
+
+	//初期データの生成
+	s.InitializeData()
+	s.realTimeStart = time.Now()
+
+	//jiaの起動
+	s.loadWaitGroup.Add(1)
+	ctxJIA, jiaChancelFunc := context.WithCancel(context.Background())
+	s.jiaChancel = jiaChancelFunc
+	go func() {
+		defer s.loadWaitGroup.Done()
+		s.JiaAPIThread(ctxJIA, step)
+	}()
+	jiaWait := time.After(10 * time.Second)
 
 	//initialize
 	initializer, err := s.NewAgent(
@@ -27,7 +42,7 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 	}
 	initializer.Name = "benchmarker-initializer"
 
-	initResponse, errs := initializeAction(ctx, initializer)
+	initResponse, errs := initializeAction(ctx, initializer, service.PostInitializeRequest{JIAServiceURL: s.jiaServiceURL})
 	for _, err := range errs {
 		step.AddError(err)
 	}
@@ -37,6 +52,9 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 	}
 
 	s.Language = initResponse.Language
+
+	//jia起動待ち TODO: これで本当に良いのか？
+	<-jiaWait
 
 	//各エンドポイントのチェック
 	err = s.prepareCheckAuth(ctx, step)

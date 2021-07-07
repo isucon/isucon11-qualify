@@ -22,11 +22,17 @@ import (
 	"github.com/isucon/isucon11-qualify/bench/scenario"
 )
 
+const (
+	// FAIL になるエラー回数
+	FAIL_ERROR_COUNT int64 = 100
+)
+
 var (
 	COMMIT             string
 	targetAddress      string
 	profileFile        string
 	hostAdvertise      string
+	jiaServiceURL      string
 	tlsCertificatePath string
 	tlsKeyPath         string
 	useTLS             bool
@@ -63,6 +69,7 @@ func init() {
 	flag.StringVar(&targetAddress, "target", getEnv("TARGET_ADDRESS", "localhost:9292"), "ex: localhost:9292")
 	flag.StringVar(&profileFile, "profile", "", "ex: cpu.out")
 	flag.StringVar(&hostAdvertise, "host-advertise", "local.t.isucon.dev", "hostname to advertise against target")
+	flag.StringVar(&jiaServiceURL, "jia-service-url", "http://apitest:80", "jia service url")
 	flag.StringVar(&tlsCertificatePath, "tls-cert", "../secrets/cert.pem", "path to TLS certificate for a push service")
 	flag.StringVar(&tlsKeyPath, "tls-key", "../secrets/key.pem", "path to private key of TLS certificate for a push service")
 	flag.BoolVar(&exitStatusOnFail, "exit-status", false, "set exit status non-zero when a benchmark result is failing")
@@ -88,11 +95,24 @@ func checkError(err error) (critical bool, timeout bool, deduction bool) {
 
 func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish bool) bool {
 	passed := true
-	reason := ""
+	reason := "pass"
 	errors := result.Errors.All()
 
+	//TODO: 得点調整
+	result.Score.Set(scenario.ScoreNormalUserInitialize, 10)
+	result.Score.Set(scenario.ScoreNormalUserLoop, 10)
+	result.Score.Set(scenario.ScorePostConditionInfo, 2)
+	result.Score.Set(scenario.ScorePostConditionWarning, 1)
+	result.Score.Set(scenario.ScorePostConditionCritical, 0)
+	//TODO: 他の得点源
+
+	scoreRaw := result.Score.Sum()
 	deduction := int64(0)
 	timeoutCount := int64(0)
+
+	for tag, count := range result.Score.Breakdown() {
+		logger.AdminLogger.Printf("SCORE: %s: %d", tag, count)
+	}
 
 	for _, err := range errors {
 		isCritical, isTimeout, isDeduction := checkError(err)
@@ -104,9 +124,28 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 		case isTimeout:
 			timeoutCount++
 		case isDeduction:
-			deduction++
+			if scenario.IsValidation(err) {
+				deduction += 50
+			} else {
+				deduction++
+			}
 		}
 	}
+	deductionTotal := deduction + timeoutCount/10 //TODO:
+
+	if passed && deduction > FAIL_ERROR_COUNT {
+		passed = false
+		reason = fmt.Sprintf("Error count over %d", FAIL_ERROR_COUNT)
+	}
+
+	score := scoreRaw - deductionTotal
+	if passed && !s.NoLoad && score <= 0 {
+		passed = false
+		reason = "Score"
+	}
+
+	logger.ContestantLogger.Printf("score: %d(%d - %d) : %s", score, scoreRaw, deductionTotal, reason)
+	logger.ContestantLogger.Printf("deduction: %d / timeout: %d", deduction, timeoutCount)
 
 	// TODO: isucon11-portal に差し替え
 	/*
@@ -176,7 +215,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	s, err := scenario.NewScenario()
+	s, err := scenario.NewScenario(jiaServiceURL)
 	scheme := "http"
 	if useTLS {
 		scheme = "https"
@@ -184,7 +223,7 @@ func main() {
 	s.BaseURL = fmt.Sprintf("%s://%s/", scheme, targetAddress)
 	s.NoLoad = noLoad
 
-	b, err := isucandar.NewBenchmark(isucandar.WithLoadTimeout(70 * time.Second))
+	b, err := isucandar.NewBenchmark(isucandar.WithLoadTimeout(60*time.Second), isucandar.WithoutPanicRecover())
 	if err != nil {
 		panic(err)
 	}
@@ -206,7 +245,7 @@ func main() {
 
 		critical, _, deduction := checkError(err)
 
-		if critical || (deduction && atomic.AddInt64(&errorCount, 1) >= 100) {
+		if critical || (deduction && atomic.AddInt64(&errorCount, 1) >= FAIL_ERROR_COUNT) {
 			step.Cancel()
 		}
 

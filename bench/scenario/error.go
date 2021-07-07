@@ -29,10 +29,8 @@ func CheckError(err error) (critical bool, timeout bool, deduction bool) {
 	if failure.IsCode(err, isucandar.ErrLoad) {
 		if isTimeout(err) {
 			timeout = true
-			return
-		}
-		if isDeduction(err) {
-			timeout = true
+		} else if isDeduction(err) {
+			deduction = true
 		}
 	}
 
@@ -47,7 +45,8 @@ var (
 
 func isCritical(err error) bool {
 	return failure.IsCode(err, ErrCritical) ||
-		failure.IsCode(err, ErrSecurityIncident)
+		failure.IsCode(err, ErrSecurityIncident) ||
+		failure.IsCode(err, isucandar.ErrPanic)
 }
 
 var (
@@ -86,7 +85,7 @@ func isTimeout(err error) bool {
 	return failure.IsCode(err, failure.TimeoutErrorCode)
 }
 
-func isValidation(err error) bool {
+func IsValidation(err error) bool {
 	return failure.IsCode(err, isucandar.ErrValidation)
 }
 
@@ -117,7 +116,7 @@ func errorInvalidJSON(res *http.Response) error {
 
 func errorMissmatch(res *http.Response, message string, args ...interface{}) error {
 	args = append(args, res.StatusCode, res.Request.Method, res.Request.URL.Path)
-	return failure.NewError(ErrBadResponse, fmt.Errorf(message+": %d (%s: %s)", args...))
+	return failure.NewError(ErrMissmatch, fmt.Errorf(message+": %d (%s: %s)", args...))
 }
 
 func errorBadResponse(res *http.Response, message string, args ...interface{}) error {

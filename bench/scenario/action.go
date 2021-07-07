@@ -33,44 +33,24 @@ import (
 
 // ==============================initialize==============================
 
-func initializeAction(ctx context.Context, a *agent.Agent) (*service.InitializeResponse, []error) {
+func initializeAction(ctx context.Context, a *agent.Agent, req service.PostInitializeRequest) (*service.InitializeResponse, []error) {
 	errors := []error{}
 
 	//リクエスト
-	req, err := a.POST("/initialize", nil)
+	body, err := json.Marshal(req)
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 	}
-	res, err := a.Do(ctx, req)
-	if err != nil {
-		err = failure.NewError(ErrHTTP, err)
-		errors = append(errors, err)
-		return nil, errors
-	}
-	defer res.Body.Close()
-
-	//httpリクエストの検証
 	initializeResponse := &service.InitializeResponse{}
-	err = verifyStatusCode(res, http.StatusOK)
+	res, err := reqJSONResJSON(ctx, a, http.MethodPost, "/initialize", bytes.NewReader(body), &initializeResponse, []int{http.StatusOK})
 	if err != nil {
 		errors = append(errors, err)
-		return nil, errors
-	}
-
-	//データの検証
-	err = verifyContentType(res, "application/json")
-	if err != nil {
-		errors = append(errors, err)
-		//続行
-	}
-	err = verifyJSONBody(res, &initializeResponse)
-	if err != nil {
-		errors = append(errors, err)
-		return nil, errors
-	}
-	if initializeResponse.Language == "" {
-		err = errorBadResponse(res, "利用言語(language)が設定されていません")
-		errors = append(errors, err)
+	} else {
+		//データの検証
+		if initializeResponse.Language == "" {
+			err = errorBadResponse(res, "利用言語(language)が設定されていません")
+			errors = append(errors, err)
+		}
 	}
 
 	return initializeResponse, errors
@@ -587,7 +567,9 @@ func getIsuConditionRequestParams(base string, req service.GetIsuConditionReques
 		q.Set("start_time", fmt.Sprint(*req.StartTime))
 	}
 	q.Set("cursor_end_time", fmt.Sprint(req.CursorEndTime))
-	q.Set("cursor_jia_isu_uuid", req.CursorJIAIsuUUID)
+	if req.CursorJIAIsuUUID != "" {
+		q.Set("cursor_jia_isu_uuid", req.CursorJIAIsuUUID)
+	}
 	q.Set("condition_level", req.ConditionLevel)
 	if req.Limit != nil {
 		q.Set("limit", fmt.Sprint(*req.Limit))
@@ -695,7 +677,9 @@ func browserGetAuthAction(ctx context.Context, a *agent.Agent) []error {
 	return errors
 }
 
-func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string) (*service.Isu, *service.Catalog, []error) {
+func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string,
+	validateCatalog func(*http.Response, *service.Catalog) []error,
+) (*service.Isu, *service.Catalog, []error) {
 	// TODO: 静的ファイルのGET
 
 	errors := []error{}
@@ -712,16 +696,20 @@ func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string) (
 		}
 		isu.Icon = icon
 
-		catalog, _, err := getCatalogAction(ctx, a, isu.JIACatalogID)
+		catalog, hres, err := getCatalogAction(ctx, a, isu.JIACatalogID)
 		if err != nil {
 			errors = append(errors, err)
+		} else {
+			errors = append(errors, validateCatalog(hres, catalog)...)
 		}
 		return isu, catalog, errors
 	}
 	return nil, nil, errors
 }
 
-func browserGetIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req service.GetIsuConditionRequest) (*service.Isu, []*service.GetIsuConditionResponse, []error) {
+func browserGetIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req service.GetIsuConditionRequest,
+	validateCondition func(*http.Response, []*service.GetIsuConditionResponse) []error,
+) (*service.Isu, []*service.GetIsuConditionResponse, []error) {
 	// TODO: 静的ファイルのGET
 
 	errors := []error{}
@@ -730,9 +718,11 @@ func browserGetIsuConditionAction(ctx context.Context, a *agent.Agent, id string
 	if err != nil {
 		errors = append(errors, err)
 	}
-	conditions, _, err := getIsuConditionAction(ctx, a, id, req)
+	conditions, hres, err := getIsuConditionAction(ctx, a, id, req)
 	if err != nil {
 		errors = append(errors, err)
+	} else {
+		errors = append(errors, validateCondition(hres, conditions)...)
 	}
 	return isu, conditions, errors
 }

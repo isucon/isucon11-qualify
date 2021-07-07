@@ -13,12 +13,16 @@ import (
 	"github.com/isucon/isucandar/failure"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
+	"github.com/isucon/isucon11-qualify/bench/service"
 )
 
-const DefaultPostInterval = 1 * time.Second //TODO:時間加速
+const (
+	PostInterval   = 5 * time.Minute //Virtual Timeでのpost間隔
+	PostContentNum = 10              //一回のpostで何要素postするか
+)
 
 type posterState struct {
-	PostInterval         time.Duration
+	//PostInterval         time.Duration
 	lastCondition        model.IsuCondition
 	lastClean            time.Time
 	lastDetectOverweight time.Time
@@ -26,13 +30,11 @@ type posterState struct {
 }
 
 //POST /api/isu/{jia_isu_id}/conditionをたたくスレッド
-func keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseURL string, jiaIsuUUID string, scenarioChan *model.StreamsForPoster) {
+func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseURL string, jiaIsuUUID string, scenarioChan *model.StreamsForPoster) {
 	defer func() { scenarioChan.ActiveChan <- false }() //deactivate
 
-	nowRealTime := time.Now()
-	nowTimeStamp := nowRealTime //TODO: 時間調整
+	nowTimeStamp := s.ToVirtualTime(time.Now())
 	state := posterState{
-		PostInterval: DefaultPostInterval,
 		lastCondition: model.IsuCondition{
 			IsSitting:     false,
 			IsDirty:       false,
@@ -51,9 +53,7 @@ func keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseU
 	httpClient.Timeout = 1 * time.Second
 
 	//TODO: 頻度はちゃんと検討して変える
-	//本来は1分=60,000msに一回
-	//60倍速
-	timer := time.NewTicker(state.PostInterval)
+	timer := time.NewTicker(PostInterval * PostContentNum / s.virtualTimeMulti)
 	defer timer.Stop()
 	for {
 		select {
@@ -61,8 +61,7 @@ func keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseU
 			return
 		case <-timer.C:
 		}
-		nowRealTime = time.Now()
-		nowTimeStamp = nowRealTime //TODO: 時間調整
+		nowTimeStamp = s.ToVirtualTime(time.Now())
 
 		//状態変化
 		stateChange := model.IsuStateChangeNone
@@ -74,16 +73,26 @@ func keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseU
 		default:
 		}
 
+		//TODO: まとめて投げる
+
 		//postし損ねたconditionを捨てる
 		for !state.NextIsLatestTimestamp(nowTimeStamp) {
 			_ = state.GenerateNextCondition(randEngine, model.IsuStateChangeNone)
 		}
 		//次のstateを生成
-		//TODO: CE防止のためのコメントアウトを外す
 		condition := state.GenerateNextCondition(randEngine, stateChange)
 
 		//リクエスト
-		conditionByte, err := json.Marshal(condition)
+		conditionByte, err := json.Marshal(service.PostIsuConditionRequest{
+			IsSitting: condition.IsSitting,
+			Condition: fmt.Sprintf("is_dirty=%v,is_overweight=%v,is_broken=%v",
+				condition.IsDirty,
+				condition.IsOverweight,
+				condition.IsBroken,
+			),
+			Message:   condition.Message,
+			Timestamp: condition.TimestampUnix,
+		})
 		if err != nil {
 			logger.AdminLogger.Panic(err)
 		}
@@ -104,23 +113,23 @@ func keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseU
 				return // goto next loop
 			}
 
-			//TODO: コメントアウト
-			// if condition.ConditionLevel == model.ConditionLevelInfo {
-			// 	step.AddScore(ScorePostConditionInfo)
-			// } else if condition.ConditionLevel == model.ConditionLevelWarning {
-			// 	step.AddScore(ScorePostConditionWarning)
-			// } else {
-			// 	step.AddScore(ScorePostConditionCritical)
-			// }
+			if condition.ConditionLevel == model.ConditionLevelInfo {
+				step.AddScore(ScorePostConditionInfo)
+			} else if condition.ConditionLevel == model.ConditionLevelWarning {
+				step.AddScore(ScorePostConditionWarning)
+			} else {
+				step.AddScore(ScorePostConditionCritical)
+			}
+			go func() { scenarioChan.ConditionChan <- condition }()
 		}()
 	}
 }
 
 func (state *posterState) NextConditionTimestamp() time.Time {
-	return time.Unix(state.lastCondition.TimestampUnix, 0).Add(state.PostInterval)
+	return time.Unix(state.lastCondition.TimestampUnix, 0).Add(PostInterval)
 }
 func (state *posterState) NextIsLatestTimestamp(nowTimeStamp time.Time) bool {
-	return nowTimeStamp.Before(time.Unix(state.lastCondition.TimestampUnix, 0).Add(state.PostInterval * 2))
+	return nowTimeStamp.Before(time.Unix(state.lastCondition.TimestampUnix, 0).Add(PostInterval * 2))
 }
 func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChange model.IsuStateChange) *model.IsuCondition {
 

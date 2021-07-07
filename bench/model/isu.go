@@ -49,14 +49,14 @@ type Isu struct {
 }
 
 //新しいISUの生成
-//senarioのNewIsu以外からは呼び出さないこと！
+//scenarioのNewIsu以外からは呼び出さないこと！
 //戻り値を使ってbackendにpostする必要あり
 //戻り値をISU協会にIsu*を登録する必要あり
 //戻り値をownerに追加する必要あり
 func NewRandomIsuRaw(owner *User) (*Isu, *StreamsForPoster, error) {
 	activeChan := make(chan bool)
 	stateChan := make(chan IsuStateChange, 1)
-	conditionChan := make(chan *IsuCondition)
+	conditionChan := make(chan *IsuCondition, 30)
 
 	id := fmt.Sprintf("randomid-%s-%d", owner.UserID, len(owner.IsuListOrderByCreatedAt))     //TODO: ちゃんと生成する
 	name := fmt.Sprintf("randomname-%s-%d", owner.UserID, len(owner.IsuListOrderByCreatedAt)) //TODO: ちゃんと生成する
@@ -64,9 +64,9 @@ func NewRandomIsuRaw(owner *User) (*Isu, *StreamsForPoster, error) {
 		Owner:             owner,
 		JIAIsuUUID:        id,
 		Name:              name,
-		ImageName:         "dafault-image", //TODO: ちゃんとデータに合わせる
-		JIACatalogID:      "",              //TODO:
-		Character:         "",              //TODO:
+		ImageName:         "default-image",                        //TODO: ちゃんとデータに合わせる
+		JIACatalogID:      "550e8400-e29b-41d4-a716-446655440000", //TODO:
+		Character:         "",                                     //TODO:
 		IsWantDeactivated: false,
 		isDeactivated:     true,
 		StreamsForScenario: &StreamsForScenario{

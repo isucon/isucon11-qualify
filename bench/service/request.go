@@ -1,5 +1,9 @@
 package service
 
+type PostInitializeRequest struct {
+	JIAServiceURL string `json:"jia_service_url"`
+}
+
 type PostIsuConditionRequest struct {
 	IsSitting bool   `json:"is_sitting"`
 	Condition string `json:"condition"`

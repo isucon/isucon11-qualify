@@ -9,6 +9,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+
+	"github.com/isucon/isucon11-qualify/bench/model"
+	"github.com/isucon/isucon11-qualify/bench/service"
 )
 
 //汎用関数
@@ -73,3 +76,37 @@ func verifyIsuNotFound(res *http.Response, text string) error {
 	expected := "isu not found"
 	return verify4xxError(res, text, expected, http.StatusNotFound)
 }
+
+//データ整合性チェック
+
+func verifyIsuOrderByCreatedAt(res *http.Response, expectedReverse []*model.Isu, isuList []*service.Isu) []error {
+	errs := []error{}
+	length := len(expectedReverse)
+	if length != len(isuList) {
+		errs = append(errs, errorMissmatch(res, "椅子の数が異なります"))
+		return errs
+	}
+	for i, isu := range isuList {
+		exp := expectedReverse[length-1-i]
+		if exp.JIACatalogID == isu.JIACatalogID {
+			if exp.Character == isu.Character &&
+				exp.JIAIsuUUID == isu.JIAIsuUUID &&
+				exp.Name == isu.Name {
+				//TODO: iconの検証
+
+			} else {
+				errs = append(errs, errorMissmatch(res, "%d番目の椅子の情報が異なります: ID=%s", i+1, isu.JIACatalogID))
+			}
+		} else {
+			errs = append(errs, errorMissmatch(res, "%d番目の椅子が異なります: ID=%s (expected=%s)", i+1, isu.JIACatalogID, exp.JIACatalogID))
+		}
+	}
+
+	return errs
+}
+
+//TODO:
+// func verifyCatalog(res *http.Response, expected *model.Catalog, catalog *service.Catalog) []error {
+// 	errs := []error{}
+// 	return errs
+// }

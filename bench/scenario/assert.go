@@ -7,7 +7,7 @@ import (
 )
 
 type equal interface {
-	Eqaul(interface{}) bool
+	Equal(interface{}) bool
 }
 
 func AssertEqual(msg string, expected interface{}, actual interface{}) bool {
@@ -24,7 +24,7 @@ func assertEqual(expected interface{}, actual interface{}) bool {
 	}
 
 	if e, ok := expected.(equal); ok {
-		return e.Eqaul(actual)
+		return e.Equal(actual)
 	}
 
 	actualType := reflect.TypeOf(actual)

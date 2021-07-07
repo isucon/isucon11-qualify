@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,10 +20,16 @@ var (
 	streamsForPosterMutex sync.Mutex
 	isuIsActivated        = map[string]JiaAPI2PosterData{}
 	streamsForPoster      = map[string]*model.StreamsForPoster{}
+	isuDetailInfomation   = map[string]*IsuDetailInfomation{}
 
 	jiaAPIContext context.Context
 	jiaAPIStep    *isucandar.BenchmarkStep
 )
+
+type IsuDetailInfomation struct {
+	CatalogID string `json:"catalog_id"`
+	Character string `json:"character"`
+}
 
 type IsuConditionPosterRequest struct {
 	TargetIP   string `json:"target_ip"`
@@ -37,9 +44,10 @@ type JiaAPI2PosterData struct {
 }
 
 //シナリオスレッドからの呼び出し
-func RegisterToJiaAPI(jiaIsuUUID string, streams *model.StreamsForPoster) {
+func RegisterToJiaAPI(jiaIsuUUID string, detail *IsuDetailInfomation, streams *model.StreamsForPoster) {
 	streamsForPosterMutex.Lock()
 	defer streamsForPosterMutex.Unlock()
+	isuDetailInfomation[jiaIsuUUID] = detail
 	streamsForPoster[jiaIsuUUID] = streams
 }
 
@@ -58,13 +66,13 @@ func (s *Scenario) JiaAPIThread(ctx context.Context, step *isucandar.BenchmarkSt
 	e.Use(middleware.Recover())
 
 	// Initialize
-	e.GET("/api/catalog/:catalog_id", getCatalog)
-	e.POST("/api/activate", postActivate)
+	e.GET("/api/catalog/:catalog_id", func(c echo.Context) error { return s.getCatalog(c) })
+	e.POST("/api/activate", func(c echo.Context) error { return s.postActivate(c) })
 	e.POST("/api/deactivate", postDeactivate)
 
-	// Start server
+	// Start
+	serverPort := s.jiaServiceURL[strings.LastIndexAny(s.jiaServiceURL, ":"):] //":80"
 	go func() {
-		serverPort := ":80"
 		err := e.Start(serverPort)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			panic(fmt.Errorf("ISU協会サービスが異常終了しました: %v", err))
@@ -73,21 +81,25 @@ func (s *Scenario) JiaAPIThread(ctx context.Context, step *isucandar.BenchmarkSt
 
 	//コンテキストにより終了された場合は、echoサーバーも終了
 	<-ctx.Done()
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	err := e.Shutdown(ctx)
 	if err != nil {
 		//有効なエラー処理は出来ないのでエラーは握り潰し
-		logger.AdminLogger.Printf("Failed to write prom file: %s", err)
+		logger.AdminLogger.Printf("Failed to shutdown jia service: %s", err)
 	}
 }
 
-func getCatalog(c echo.Context) error {
-	//TODO:
-	return fmt.Errorf("NotImplemented")
+func (s *Scenario) getCatalog(c echo.Context) error {
+	catalogID := c.Param("catalog_id")
+	catalog, ok := s.Catalogs[catalogID]
+	if !ok {
+		return echo.NewHTTPError(http.StatusNotFound)
+	}
+	return c.JSON(http.StatusOK, catalog)
 }
 
-func postActivate(c echo.Context) error {
+func (s *Scenario) postActivate(c echo.Context) error {
 	state := &IsuConditionPosterRequest{}
 	err := c.Bind(state)
 	if err != nil {
@@ -102,11 +114,14 @@ func postActivate(c echo.Context) error {
 	)
 
 	//posterスレッドの起動
+	var isuDetail *IsuDetailInfomation
+	var scenarioChan *model.StreamsForPoster
 	posterContext, chancelFunc := context.WithCancel(jiaAPIContext)
 	err = func() error {
+		var ok bool
 		streamsForPosterMutex.Lock()
 		defer streamsForPosterMutex.Unlock()
-		scenarioChan, ok := streamsForPoster[state.IsuUUID]
+		scenarioChan, ok = streamsForPoster[state.IsuUUID]
 		if !ok {
 			return echo.NewHTTPError(http.StatusNotFound)
 		}
@@ -118,17 +133,16 @@ func postActivate(c echo.Context) error {
 			activated:   true,
 			chancelFunc: chancelFunc,
 		}
+		isuDetail = isuDetailInfomation[state.IsuUUID]
 
-		go keepPosting(posterContext, jiaAPIStep, targetBaseURL, state.IsuUUID, scenarioChan)
 		return nil
 	}()
 	if err != nil {
 		return err
 	}
+	go s.keepPosting(posterContext, jiaAPIStep, targetBaseURL, state.IsuUUID, scenarioChan)
 
-	//return c.JSON(http.StatusAccepted, isuState)
-	//TODO:
-	return fmt.Errorf("NotImplemented")
+	return c.JSON(http.StatusAccepted, isuDetail)
 }
 
 func postDeactivate(c echo.Context) error {
