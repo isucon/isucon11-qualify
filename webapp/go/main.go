@@ -1463,10 +1463,11 @@ func getIsuConditions(c echo.Context) error {
 		)
 	}
 	if err != nil {
-		if !errors.Is(err, sql.ErrNoRows) {
-			c.Logger().Errorf("failed to select: %v", err)
-			return c.NoContent(http.StatusInternalServerError)
-		}
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	if len(conditions) == 0 {
+		return c.JSON(http.StatusOK, conditions)
 	}
 
 	//condition_levelでの絞り込み
