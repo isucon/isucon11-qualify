@@ -217,9 +217,19 @@ scenarioLoop:
 			}
 
 			//conditionを確認して、椅子状態を改善
-			solvedCondition := findBadIsuState(conditions)
+			solvedCondition, timestamp := findBadIsuState(conditions)
 			if solvedCondition != model.IsuStateChangeNone {
-				//TODO: graph
+				//graphを見る
+				virtualDay := (timestamp / (24 * 60 * 60)) * (24 * 60 * 60)
+				_, _, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, uint64(virtualDay),
+					func(res *http.Response, graph []*service.GraphResponse) []error {
+						return []error{} //TODO: 検証
+					},
+				)
+				for _, err := range errs {
+					scenarioSuccess = false
+					step.AddError(err)
+				}
 
 				go func() { targetIsu.StreamsForScenario.StateChan <- solvedCondition }()
 			}
@@ -258,16 +268,17 @@ scenarioLoop:
 			//悪いものを探す
 			var errorEndAtUnix int64 = 0
 			for _, g := range graphToday {
-				if g.Data.Score < 100 {
+				if g.Data != nil && g.Data.Score < 100 {
 					errorEndAtUnix = g.StartAt
 				}
 			}
 
 			//悪いものがあれば、そのconditionを取る
 			if errorEndAtUnix != 0 {
+				startTime := uint64(errorEndAtUnix - 60*60)
 				_, conditions, errs := browserGetIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
 					service.GetIsuConditionRequest{
-						StartTime:        nil,
+						StartTime:        &startTime,
 						CursorEndTime:    uint64(errorEndAtUnix),
 						CursorJIAIsuUUID: "",
 						ConditionLevel:   "info,warning,critical",
@@ -286,7 +297,7 @@ scenarioLoop:
 					continue scenarioLoop
 				}
 
-				solvedCondition := findBadIsuState(conditions)
+				solvedCondition, _ := findBadIsuState(conditions)
 				if solvedCondition != model.IsuStateChangeNone {
 					go func() { targetIsu.StreamsForScenario.StateChan <- solvedCondition }()
 				}
@@ -295,18 +306,21 @@ scenarioLoop:
 	}
 }
 
-func findBadIsuState(conditions []*service.GetIsuConditionResponse) model.IsuStateChange {
+func findBadIsuState(conditions []*service.GetIsuConditionResponse) (model.IsuStateChange, int64) {
 	//TODO: すでに改善済みのものを弾く
 
+	var virtualTimestamp int64
 	solvedCondition := model.IsuStateChangeNone
 	for _, c := range conditions {
 		//MEMO: 重かったらフォーマットが想定通りの前提で最適化する
+		bad := false
 		for _, cond := range strings.Split(c.Condition, ",") {
 			keyValue := strings.Split(cond, "=")
 			if len(keyValue) != 2 {
 				continue //形式に従っていないものは無視
 			}
 			if keyValue[1] != "false" {
+				bad = true
 				if keyValue[0] == "is_dirty" {
 					solvedCondition |= model.IsuStateChangeClear
 				} else if keyValue[0] == "is_overweight" {
@@ -316,7 +330,10 @@ func findBadIsuState(conditions []*service.GetIsuConditionResponse) model.IsuSta
 				}
 			}
 		}
+		if bad {
+			virtualTimestamp = c.Timestamp
+		}
 	}
 
-	return solvedCondition
+	return solvedCondition, virtualTimestamp
 }
