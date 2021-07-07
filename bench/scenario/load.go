@@ -22,8 +22,9 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	if s.NoLoad {
 		return nil
 	}
-	ctx, cancel := context.WithTimeout(parent, 60*time.Second)
-	defer cancel()
+	// ctx, cancel := context.WithTimeout(parent, 60*time.Second) //mainで指定している方を見るべき
+	// defer cancel()
+	ctx := parent
 
 	logger.ContestantLogger.Printf("===> LOAD")
 	logger.AdminLogger.Printf("LOAD INFO\n  Language: %s\n  Campaign: None\n", s.Language)
@@ -99,6 +100,8 @@ scenarioLoop:
 		if scenarioSuccess {
 			scenarioDoneCount++
 			step.AddScore(ScoreNormalUserLoop) //TODO: 得点条件の修正
+
+			if scenarioDoneCount
 		}
 		scenarioSuccess = true
 
