@@ -1093,7 +1093,7 @@ func getIsuGraph(c echo.Context) error {
 		c.Logger().Errorf("date is invalid format")
 		return c.String(http.StatusBadRequest, "date is invalid format")
 	}
-	date := time.Unix(dateInt64, 0)
+	date := truncateAfterHours(time.Unix(dateInt64, 0))
 
 	tx, err := db.Beginx()
 	if err != nil {
