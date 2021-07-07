@@ -136,7 +136,7 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 	}
 
 	score := scoreRaw - deductionTotal
-	if passed && score < 0 {
+	if passed && !s.NoLoad && score <= 0 {
 		passed = false
 		reason = "Score"
 	}
