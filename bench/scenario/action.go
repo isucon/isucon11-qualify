@@ -585,6 +585,9 @@ func getIsuGraphAction(ctx context.Context, a *agent.Agent, id string, date uint
 	if err != nil {
 		return nil, nil, err
 	}
+
+	//TODO: バリデーション
+
 	return graph, res, nil
 }
 

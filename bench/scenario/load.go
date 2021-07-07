@@ -217,27 +217,7 @@ scenarioLoop:
 			}
 
 			//conditionを確認して、椅子状態を改善
-			//TODO: すでに改善済みのものを弾く
-			solvedCondition := model.IsuStateChangeNone
-			for _, c := range conditions {
-				//MEMO: 重かったらフォーマットが想定通りの前提で最適化する
-				for _, cond := range strings.Split(c.Condition, ",") {
-					keyValue := strings.Split(cond, "=")
-					if len(keyValue) != 2 {
-						continue //形式に従っていないものは無視
-					}
-					if keyValue[1] != "false" {
-						if keyValue[0] == "is_dirty" {
-							solvedCondition |= model.IsuStateChangeClear
-						} else if keyValue[0] == "is_overweight" {
-							solvedCondition |= model.IsuStateChangeDetectOverweight
-						} else if keyValue[0] == "is_broken" {
-							solvedCondition |= model.IsuStateChangeRepair
-						}
-					}
-				}
-			}
-
+			solvedCondition := findBadIsuState(conditions)
 			if solvedCondition != model.IsuStateChangeNone {
 				//TODO: graph
 
@@ -246,8 +226,97 @@ scenarioLoop:
 		} else {
 
 			//TODO: graphを見に行くシナリオ
-		}
+			virtualNow := s.ToVirtualTime(time.Now())
+			virtualToday := time.Date(virtualNow.Year(), virtualNow.Month(), virtualNow.Day(), 0, 0, 0, 0, virtualNow.Location())
+			_, graphToday, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, uint64(virtualToday.Unix()),
+				func(res *http.Response, graph []*service.GraphResponse) []error {
+					return []error{} //TODO: 検証
+				},
+			)
+			for _, err := range errs {
+				scenarioSuccess = false
+				step.AddError(err)
+			}
+			if len(errs) > 0 {
+				continue scenarioLoop
+			}
 
-		//TODO: 椅子の追加
+			//前日のグラフ
+			_, _, errs = browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, uint64(virtualToday.Add(-24*time.Hour).Unix()),
+				func(res *http.Response, graph []*service.GraphResponse) []error {
+					return []error{} //TODO: 検証
+				},
+			)
+			for _, err := range errs {
+				scenarioSuccess = false
+				step.AddError(err)
+			}
+			if len(errs) > 0 {
+				continue scenarioLoop
+			}
+
+			//悪いものを探す
+			var errorEndAtUnix int64 = 0
+			for _, g := range graphToday {
+				if g.Data.Score < 100 {
+					errorEndAtUnix = g.StartAt
+				}
+			}
+
+			//悪いものがあれば、そのconditionを取る
+			if errorEndAtUnix != 0 {
+				_, conditions, errs := browserGetIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
+					service.GetIsuConditionRequest{
+						StartTime:        nil,
+						CursorEndTime:    uint64(errorEndAtUnix),
+						CursorJIAIsuUUID: "",
+						ConditionLevel:   "info,warning,critical",
+						Limit:            nil,
+					},
+					func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
+						return []error{}
+						//TODO: 検証
+					},
+				)
+				for _, err := range errs {
+					scenarioSuccess = false
+					step.AddError(err)
+				}
+				if len(errs) > 0 {
+					continue scenarioLoop
+				}
+
+				solvedCondition := findBadIsuState(conditions)
+				if solvedCondition != model.IsuStateChangeNone {
+					go func() { targetIsu.StreamsForScenario.StateChan <- solvedCondition }()
+				}
+			}
+		}
 	}
+}
+
+func findBadIsuState(conditions []*service.GetIsuConditionResponse) model.IsuStateChange {
+	//TODO: すでに改善済みのものを弾く
+
+	solvedCondition := model.IsuStateChangeNone
+	for _, c := range conditions {
+		//MEMO: 重かったらフォーマットが想定通りの前提で最適化する
+		for _, cond := range strings.Split(c.Condition, ",") {
+			keyValue := strings.Split(cond, "=")
+			if len(keyValue) != 2 {
+				continue //形式に従っていないものは無視
+			}
+			if keyValue[1] != "false" {
+				if keyValue[0] == "is_dirty" {
+					solvedCondition |= model.IsuStateChangeClear
+				} else if keyValue[0] == "is_overweight" {
+					solvedCondition |= model.IsuStateChangeDetectOverweight
+				} else if keyValue[0] == "is_broken" {
+					solvedCondition |= model.IsuStateChangeRepair
+				}
+			}
+		}
+	}
+
+	return solvedCondition
 }
