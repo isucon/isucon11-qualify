@@ -73,26 +73,39 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		default:
 		}
 
-		//TODO: まとめて投げる
+		//TODO: 検証可能な生成方法にする
+		//TODO: stateの適用タイミングをちゃんと考える
+		conditions := []*model.IsuCondition{}
+		conditionsReq := []service.PostIsuConditionRequest{}
+		conditionLevelWorst := model.ConditionLevelInfo
+		for state.NextConditionTimestamp().Before(nowTimeStamp) {
+			//次のstateを生成
+			condition := state.GenerateNextCondition(randEngine, stateChange) //TODO: stateの適用タイミングをちゃんと考える
+			stateChange = model.IsuStateChangeNone                            //TODO: stateの適用タイミングをちゃんと考える
+			if conditionLevelWorst < condition.ConditionLevel {
+				conditionLevelWorst = condition.ConditionLevel
+			}
 
-		//postし損ねたconditionを捨てる
-		for !state.NextIsLatestTimestamp(nowTimeStamp) {
-			_ = state.GenerateNextCondition(randEngine, model.IsuStateChangeNone)
+			//リクエスト
+			conditions = append(conditions, condition)
+			conditionsReq = append(conditionsReq, service.PostIsuConditionRequest{
+				IsSitting: condition.IsSitting,
+				Condition: fmt.Sprintf("is_dirty=%v,is_overweight=%v,is_broken=%v",
+					condition.IsDirty,
+					condition.IsOverweight,
+					condition.IsBroken,
+				),
+				Message:   condition.Message,
+				Timestamp: condition.TimestampUnix,
+			})
 		}
-		//次のstateを生成
-		condition := state.GenerateNextCondition(randEngine, stateChange)
+		//postし損ねたconditionの数を制限
+		if len(conditions) > 10 {
+			conditions = conditions[len(conditions)-10:]
+			conditionsReq = conditionsReq[len(conditionsReq)-10:]
+		}
 
-		//リクエスト
-		conditionByte, err := json.Marshal(service.PostIsuConditionRequest{
-			IsSitting: condition.IsSitting,
-			Condition: fmt.Sprintf("is_dirty=%v,is_overweight=%v,is_broken=%v",
-				condition.IsDirty,
-				condition.IsOverweight,
-				condition.IsBroken,
-			),
-			Message:   condition.Message,
-			Timestamp: condition.TimestampUnix,
-		})
+		conditionByte, err := json.Marshal(conditionsReq)
 		if err != nil {
 			logger.AdminLogger.Panic(err)
 		}
@@ -113,14 +126,18 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 				return // goto next loop
 			}
 
-			if condition.ConditionLevel == model.ConditionLevelInfo {
+			if conditionLevelWorst == model.ConditionLevelInfo {
 				step.AddScore(ScorePostConditionInfo)
-			} else if condition.ConditionLevel == model.ConditionLevelWarning {
+			} else if conditionLevelWorst == model.ConditionLevelWarning {
 				step.AddScore(ScorePostConditionWarning)
 			} else {
 				step.AddScore(ScorePostConditionCritical)
 			}
-			go func() { scenarioChan.ConditionChan <- condition }()
+			go func() {
+				for _, c := range conditions {
+					scenarioChan.ConditionChan <- c
+				}
+			}()
 		}()
 	}
 }
