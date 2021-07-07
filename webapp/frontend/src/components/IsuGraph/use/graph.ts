@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react'
 import { GraphRequest, Graph } from '../../../lib/apis'
 
 interface UseGraphResult {
-  graphs: Graph[];
-  transitionData: number[];
-  sittingData: number[];
-  timeCategories: string[];
-  score: number;
-  day: string;
+  graphs: Graph[]
+  transitionData: number[]
+  sittingData: number[]
+  timeCategories: string[]
+  score: number
+  day: string
 }
 
 const useGraph = (getGraphs: (req: GraphRequest) => Promise<Graph[]>) => {
@@ -17,24 +17,24 @@ const useGraph = (getGraphs: (req: GraphRequest) => Promise<Graph[]>) => {
     sittingData: [],
     timeCategories: [],
     score: 0,
-    day: '',
-  });
+    day: ''
+  })
 
   useEffect(() => {
     const fetchGraphs = async () => {
       const date = new Date()
       const graphs = await getGraphs({
         date: Date.parse(date.toLocaleDateString('ja-JP')) / 1000
-      });
+      })
       const graphData = genGraphData(graphs)
-      updateResult((state) => ({
+      updateResult(state => ({
         ...state,
         graphs,
         transitionData: graphData.transitionData,
         sittingData: graphData.sittingData,
         timeCategories: graphData.timeCategories,
         score: graphData.score,
-        day: date.toLocaleDateString('ja-JP'),
+        day: date.toLocaleDateString('ja-JP')
       }))
     }
     fetchGraphs()
@@ -42,10 +42,10 @@ const useGraph = (getGraphs: (req: GraphRequest) => Promise<Graph[]>) => {
 
   const fetchGraphs = async (payload: { day: string }) => {
     // バリデーション
-    const graphs = await getGraphs({ date: Date.parse(payload.day) / 1000 });
+    const graphs = await getGraphs({ date: Date.parse(payload.day) / 1000 })
     const graphData = genGraphData(graphs)
 
-    updateResult((state) => ({
+    updateResult(state => ({
       ...state,
       loading: false,
       graphs,
@@ -53,7 +53,7 @@ const useGraph = (getGraphs: (req: GraphRequest) => Promise<Graph[]>) => {
       sittingData: graphData.sittingData,
       timeCategories: graphData.timeCategories,
       score: graphData.score,
-      day: payload.day,
+      day: payload.day
     }))
   }
 
