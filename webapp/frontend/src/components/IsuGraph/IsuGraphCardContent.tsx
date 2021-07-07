@@ -17,7 +17,7 @@ const IsuGraphCardContent = ({ isu }: Props) => {
     (params: GraphRequest) => {
       return apis.getIsuGraphs(isu.jia_isu_uuid, params)
     },
-    [isu]
+    [isu.jia_isu_uuid]
   )
 
   const {

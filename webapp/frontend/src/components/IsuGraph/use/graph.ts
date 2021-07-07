@@ -1,61 +1,63 @@
 import { useEffect, useState } from 'react'
 import { GraphRequest, Graph } from '../../../lib/apis'
 
+interface UseGraphResult {
+  graphs: Graph[];
+  transitionData: number[];
+  sittingData: number[];
+  timeCategories: string[];
+  score: number;
+  day: string;
+}
+
 const useGraph = (getGraphs: (req: GraphRequest) => Promise<Graph[]>) => {
-  const [graphs, setGraphs] = useState<Graph[]>([])
-  const [transitionData, setTransitionData] = useState<number[]>([])
-  const [sittingData, setSittingData] = useState<number[]>([])
-  const [timeCategories, setTimeCategories] = useState<string[]>([])
-  const [score, setScore] = useState<number>(0)
-  const [day, setDay] = useState<string>('')
+  const [result, updateResult] = useState<UseGraphResult>({
+    graphs: [],
+    transitionData: [],
+    sittingData: [],
+    timeCategories: [],
+    score: 0,
+    day: '',
+  });
+
   useEffect(() => {
     const fetchGraphs = async () => {
       const date = new Date()
-      setGraphs(
-        await getGraphs({
-          date: Date.parse(date.toLocaleDateString('ja-JP')) / 1000
-        })
-      )
-
+      const graphs = await getGraphs({
+        date: Date.parse(date.toLocaleDateString('ja-JP')) / 1000
+      });
       const graphData = genGraphData(graphs)
-      setTransitionData(graphData.transitionData)
-      setSittingData(graphData.sittingData)
-      setTimeCategories(graphData.timeCategories)
-      setScore(graphData.score)
-      setDay(date.toLocaleDateString('ja-JP'))
+      updateResult((state) => ({
+        ...state,
+        graphs,
+        transitionData: graphData.transitionData,
+        sittingData: graphData.sittingData,
+        timeCategories: graphData.timeCategories,
+        score: graphData.score,
+        day: date.toLocaleDateString('ja-JP'),
+      }))
     }
     fetchGraphs()
-  }, [
-    getGraphs,
-    setGraphs,
-    graphs,
-    setTransitionData,
-    setSittingData,
-    setTimeCategories,
-    setScore,
-    setDay
-  ])
+  }, [getGraphs, updateResult])
 
   const fetchGraphs = async (payload: { day: string }) => {
     // バリデーション
-    setDay(payload.day)
-    setGraphs(await getGraphs({ date: Date.parse(payload.day) / 1000 }))
+    const graphs = await getGraphs({ date: Date.parse(payload.day) / 1000 });
     const graphData = genGraphData(graphs)
-    setTransitionData(graphData.transitionData)
-    setSittingData(graphData.sittingData)
-    setTimeCategories(graphData.timeCategories)
-    setScore(graphData.score)
+
+    updateResult((state) => ({
+      ...state,
+      loading: false,
+      graphs,
+      transitionData: graphData.transitionData,
+      sittingData: graphData.sittingData,
+      timeCategories: graphData.timeCategories,
+      score: graphData.score,
+      day: payload.day,
+    }))
   }
 
-  return {
-    graphs,
-    transitionData,
-    sittingData,
-    timeCategories,
-    score,
-    day,
-    fetchGraphs
-  }
+  return { ...result, fetchGraphs }
 }
 
 const dateToUnixtime = (date: Date) => {
