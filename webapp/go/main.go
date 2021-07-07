@@ -1552,7 +1552,7 @@ func postIsuCondition(c echo.Context) error {
 
 	//isu_conditionに記録
 	for _, cond := range req {
-		// parser
+		// parse
 		timestamp := time.Unix(cond.Timestamp, 0)
 
 		if !conditionFormat.Match([]byte(cond.Condition)) {
