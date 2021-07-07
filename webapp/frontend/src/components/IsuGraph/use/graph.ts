@@ -22,7 +22,7 @@ const useGraph = (getGraphs: (req: GraphRequest) => Promise<Graph[]>) => {
       setSittingData(graphData.sittingData)
       setTimeCategories(graphData.timeCategories)
       setScore(graphData.score)
-      setDay('2021/7/7')
+      setDay(date.toLocaleDateString('ja-JP'))
     }
     fetchGraphs()
   }, [
