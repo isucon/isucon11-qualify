@@ -41,8 +41,13 @@ const useGraph = (getGraphs: (req: GraphRequest) => Promise<Graph[]>) => {
   }, [getGraphs, updateResult])
 
   const fetchGraphs = async (payload: { day: string }) => {
-    // バリデーション
-    const graphs = await getGraphs({ date: Date.parse(payload.day) / 1000 })
+    const miliUnixtime = Date.parse(payload.day)
+    if (isNaN(miliUnixtime)) {
+      alert('日時の指定が不正です')
+      return
+    }
+
+    const graphs = await getGraphs({ date: miliUnixtime / 1000 })
     const graphData = genGraphData(graphs)
 
     updateResult(state => ({
