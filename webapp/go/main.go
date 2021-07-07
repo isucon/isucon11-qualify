@@ -270,7 +270,7 @@ func main() {
 	e.GET("/register", getIndex)
 	e.GET("/login", getIndex)
 	// Assets
-	e.Static("/assets", frontendContentsPath + "/assets")
+	e.Static("/assets", frontendContentsPath+"/assets")
 
 	mySQLConnectionData = NewMySQLConnectionEnv()
 
