@@ -89,7 +89,7 @@ const genGraphData = (graphs: Graph[]) => {
     timeCategories.push(date.toLocaleTimeString('ja-JP'))
   })
 
-  score /= graphs.length
+  score = Math.floor(score / graphs.length)
 
   return {
     transitionData,
