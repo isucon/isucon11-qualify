@@ -16,22 +16,3 @@
     PATH: "/home/isucon/local/go/bin:{{ ansible_env.PATH }}"
   shell: |
     go build -o bench .
-
-- name: "roles/bench/tasks/bench: Copy Service file"
-  become_user: root
-  copy:
-    src: "{{ item }}"
-    dest: "/{{ item }}"
-    owner: "root"
-    group: "root"
-    mode: "0644"
-  with_items:
-    - etc/systemd/system/bench.service
-
-- name: "roles/bench/tasks/bench: Enable bench.service"
-  become_user: root
-  systemd:
-    daemon_reload: "yes"
-    name: "bench.service"
-    state: "restarted"
-    enabled: "yes"

@@ -1,11 +1,21 @@
 ---
-- name: "roles/contestant/tasks/jiaapi_standalone: Build Web Application Go"
+- name: "roles/contestant/tasks/jiaapi_standalone: Build isuapi_standalone"
   become_user: isucon
   args:
     chdir: /tmp/isucon11-qualify/extra/isuapi
   environment:
     PATH: "/home/isucon/local/go/bin:{{ ansible_env.PATH }}"
   command: make
+
+- name: "roles/contestant/tasks/jiaapi_standalone: Deploy isuapi_standalone"
+  become_user: root
+  copy:
+    remote_src: yes
+    src: /tmp/isucon11-qualify/extra/isuapi/isuapi_standalone
+    dest: /usr/local/bin/
+    owner: "root"
+    group: "root"
+    mode: "0755"
 
 - name: "roles/contestant/tasks/jiaapi_standalone: Deploy Service file"
   become_user: root
