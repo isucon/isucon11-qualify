@@ -82,16 +82,24 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 			return //致命的でないエラー
 		}
 	}
+	step.AddScore(ScoreNormalUserInitialize)
 
 	randEngine := rand.New(rand.NewSource(5498513))
 	nextTargetIsuIndex := 0
-	for scenarioDoneCount := 0; true; scenarioDoneCount++ {
+	scenarioDoneCount := 0
+	scenarioSuccess := false
+scenarioLoop:
+	for {
 		select {
 		case <-ctx.Done():
 			return
 		default:
 		}
 		time.Sleep(100 * time.Millisecond)
+		if scenarioSuccess {
+			scenarioDoneCount++
+		}
+		scenarioSuccess = true
 
 		//posterからconditionの取得
 		for _, isu := range user.IsuListOrderByCreatedAt {
@@ -127,6 +135,7 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 			},
 		)
 		for _, err := range errs {
+			scenarioSuccess = false
 			step.AddError(err)
 		}
 
@@ -158,10 +167,11 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 				},
 			)
 			for _, err := range errs {
+				scenarioSuccess = false
 				step.AddError(err)
 			}
 			if len(errs) > 0 {
-				continue
+				continue scenarioLoop
 			}
 
 			//スクロール
@@ -178,6 +188,7 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 					},
 				)
 				if err != nil {
+					scenarioSuccess = false
 					step.AddError(err)
 					break
 				} else {
