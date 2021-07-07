@@ -16,7 +16,8 @@ const SittingGraph = ({ isuGraphs }: Props) => {
       const tmpCategories: string[] = []
       isuGraphs.forEach(graph => {
         tmpData.push(graph.data ? graph.data.sitting : 0)
-        tmpCategories.push(graph.start_at)
+        const date = new Date(graph.start_at * 1000)
+        tmpCategories.push(date.toLocaleTimeString('ja-JP'))
       })
 
       setData(tmpData)

@@ -66,7 +66,6 @@ class Apis {
     })
   }
 
-  // TODO: dateの型を修正
   async getIsuGraphs(jiaIsuUuid: string, params: GraphRequest) {
     const { data } = await axios.get<Graph[]>(`/api/isu/${jiaIsuUuid}/graph`, {
       params
@@ -131,11 +130,9 @@ export interface GraphData {
 
 export interface Graph {
   jia_isu_uuid: string
-  start_at: string
-  end_at: string
+  start_at: number
+  end_at: number
   data: GraphData | null
-  created_at: string
-  updated_at: string
 }
 
 export interface IsuSearchRequest {
@@ -177,7 +174,7 @@ export interface ConditionRequest {
 }
 
 export interface GraphRequest {
-  date: Date
+  date: number
 }
 
 export const DEFAULT_CONDITION_LIMIT = 20

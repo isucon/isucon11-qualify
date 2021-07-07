@@ -4,7 +4,7 @@ import Button from '../UI/Button'
 
 interface Props {
   date: Date
-  search: (payload: { date: Date }) => Promise<void>
+  search: (date: Date) => Promise<void>
 }
 
 const DateInput = ({ date, search }: Props) => {
@@ -19,7 +19,7 @@ const DateInput = ({ date, search }: Props) => {
       <Button
         label="検索"
         onClick={() => {
-          search({ date: tmpDate })
+          search(tmpDate)
         }}
       />
     </div>

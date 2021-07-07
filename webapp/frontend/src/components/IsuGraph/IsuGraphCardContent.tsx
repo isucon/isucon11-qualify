@@ -16,14 +16,16 @@ const IsuGraphCardContent = ({ isu }: Props) => {
   const [date, setDate] = useState(new Date())
   const id = isu.jia_isu_uuid
 
-  const search = async (payload: { date: Date }) => {
-    setIsuGraphs(await apis.getIsuGraphs(id, payload))
+  const search = async (date: Date) => {
+    setIsuGraphs(
+      await apis.getIsuGraphs(id, { date: Math.floor(date.getTime() / 1000) })
+    )
   }
 
   useEffect(() => {
     const load = async () => {
       // TODO: dateの取得方法を直す
-      search({ date: date })
+      search(date)
     }
     load()
   })
