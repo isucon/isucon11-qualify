@@ -34,14 +34,21 @@ const IsuGraphCardContent = ({ isu }: Props) => {
     return <NowLoading />
   }
   return (
-    <div>
-      <DateInput day={day} fetchGraphs={fetchGraphs} />
-      <TransitionGraph
-        transitionData={transitionData}
-        timeCategories={timeCategories}
-      />
-      <SittingGraph sittingData={sittingData} timeCategories={timeCategories} />
-      <Score score={score} />
+    <div className="flex flex-col gap-12">
+      <div className="flex">
+        <DateInput day={day} fetchGraphs={fetchGraphs} />
+      </div>
+      <div className="flex flex-col gap-8">
+        <TransitionGraph
+          transitionData={transitionData}
+          timeCategories={timeCategories}
+        />
+        <SittingGraph
+          sittingData={sittingData}
+          timeCategories={timeCategories}
+        />
+        <Score score={score} />
+      </div>
     </div>
   )
 }

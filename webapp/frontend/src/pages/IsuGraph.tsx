@@ -12,7 +12,7 @@ const IsuGraph = ({ isu }: Props) => {
     return <NowLoading />
   }
   return (
-    <div>
+    <div className="flex flex-col gap-10 items-center">
       <Card>
         <IsuGraphCardContent isu={isu} />
       </Card>

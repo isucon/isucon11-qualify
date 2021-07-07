@@ -38,6 +38,7 @@ const Score = ({ score }: Props) => {
 
   return (
     <div>
+      <div className="mb-3 text-xl">一日のスコア</div>
       <Chart type="radialBar" options={option} series={option.series}></Chart>
     </div>
   )

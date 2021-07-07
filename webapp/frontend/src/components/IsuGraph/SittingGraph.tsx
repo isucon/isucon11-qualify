@@ -40,6 +40,7 @@ const SittingGraph = ({ sittingData, timeCategories }: Props) => {
 
   return (
     <div>
+      <div className="mb-3 text-xl">座った時間</div>
       <Chart type="heatmap" options={option} series={option.series}></Chart>
     </div>
   )
