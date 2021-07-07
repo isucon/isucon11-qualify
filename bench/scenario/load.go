@@ -96,7 +96,7 @@ scenarioLoop:
 			return
 		default:
 		}
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(500 * time.Millisecond) //TODO: 頻度調整
 		if scenarioSuccess {
 			scenarioDoneCount++
 			step.AddScore(ScoreNormalUserLoop) //TODO: 得点条件の修正
