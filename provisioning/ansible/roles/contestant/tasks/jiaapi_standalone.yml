@@ -11,7 +11,7 @@
   become_user: root
   copy:
     remote_src: yes
-    src: /tmp/isucon11-qualify/extra/isuapi/isuapi_standalone
+    src: /tmp/isucon11-qualify/extra/isuapi/isuapi-standalone
     dest: /usr/local/bin/
     owner: "root"
     group: "root"
