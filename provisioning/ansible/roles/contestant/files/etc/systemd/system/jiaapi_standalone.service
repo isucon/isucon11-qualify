@@ -1,12 +1,12 @@
 [Unit]
-Description=jiaapi_standalone
+Description=jiaapi-standalone
 
 [Service]
-PIDFile=/var/run/jiaapi_standalone
+PIDFile=/var/run/jiaapi-standalone
 
 User=isucon
 Group=isucon
-ExecStart=/usr/local/bin/jiaapi_standalone
+ExecStart=/usr/local/bin/jiaapi-standalone
 ExecStop=/bin/kill -s QUIT $MAINPID
 
 Restart   = always
