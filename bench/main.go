@@ -83,11 +83,7 @@ func init() {
 }
 
 func checkError(err error) (critical bool, timeout bool, deduction bool) {
-	critical = false  // TODO: クリティカルなエラー(起きたら即ベンチを止める)
-	timeout = false   // TODO: リクエストタイムアウト(ある程度の数許容するかも)
-	deduction = false // TODO: 減点対象になるエラー
-
-	return
+	return scenario.CheckError(err)
 }
 
 func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish bool) bool {

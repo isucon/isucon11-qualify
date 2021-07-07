@@ -1,0 +1,10 @@
+---
+
+- name: "roles/bench/tasks/main: Include kernel.yml"
+  include: kernel.yml
+  become_user: root
+
+- name: "roles/bench/tasks/main: Include bench.yml"
+  include: bench.yml
+  become_user: root
+

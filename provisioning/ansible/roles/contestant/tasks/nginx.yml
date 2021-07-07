@@ -1,0 +1,36 @@
+---
+- name: "roles/contestant/tasks/nginx: Install package"
+  apt:
+    name:
+    - nginx
+    update_cache: yes
+
+- name: "roles/contestant/tasks/nginx: Deploy nginx configs"
+  copy:
+    src: "{{ item }}"
+    dest: "/{{ item }}"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+  with_items:
+  - etc/nginx/nginx.conf
+  - etc/nginx/sites-available/isucondition.conf
+
+- name: "roles/contestant/tasks/nginx: Enable isucondition.config"
+  file:
+    path: /etc/nginx/sites-enabled/isucondition.conf
+    src: /etc/nginx/sites-available/isucondition.conf
+    state: link
+
+- name: "roles/contestant/tasks/nginx: Delete default config"
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+
+- name: "roles/contestant/tasks/nginx: Start nginx"
+  systemd:
+    daemon_reload: "yes"
+    name: "nginx"
+    state: "reloaded"
+    enabled: "yes"
+

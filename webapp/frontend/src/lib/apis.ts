@@ -148,6 +148,8 @@ export interface IsuSearchRequest {
   page?: string
 }
 
+export const DEFAULT_SEARCH_LIMIT = 20
+
 export interface PutIsuRequest {
   name: string
 }

@@ -1,0 +1,18 @@
+---
+
+- name: "roles/contestant/tasks/main: Include nginx.yml"
+  include: nginx.yml
+  become_user: root
+
+- name: "roles/contestant/tasks/main: Include mysql.yml"
+  include: mysql.yml
+  become_user: root
+
+- name: "roles/contestant/tasks/main: Include isucondition.yml"
+  include: isucondition.yml
+  become_user: root
+
+- name: "roles/contestant/tasks/main: Include jiaapi_standalone.yml"
+  include: jiaapi_standalone.yml
+  become_user: root
+

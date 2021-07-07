@@ -1,0 +1,20 @@
+---
+- name: "roles/contestant/tasks/isucondition-go: Build Web Application Go"
+  become_user: isucon
+  args:
+    chdir: /home/isucon/webapp/go/
+  environment:
+    PATH: "/home/isucon/local/go/bin:{{ ansible_env.PATH }}"
+  shell: |
+    go build -o isucondition .
+
+- name: "roles/contestant/tasks/isucondition-go: Deploy Service file"
+  become_user: root
+  copy:
+    src: "{{ item }}"
+    dest: "/{{ item }}"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+  with_items:
+    - etc/systemd/system/isucondition.go.service

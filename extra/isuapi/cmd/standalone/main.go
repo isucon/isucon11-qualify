@@ -57,7 +57,7 @@ type IsuNotification struct {
 	IsSitting bool   `json:"is_sitting"`
 	Condition string `json:"condition"`
 	Message   string `json:"message"`
-	Timestamp string `json:"timestamp"`
+	Timestamp int64  `json:"timestamp"`
 }
 
 func getEnv(key string, defaultValue string) string {
@@ -151,6 +151,9 @@ func main() {
 	// Middleware
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
+
+	// 動作確認用のログインページ
+	e.Static("/", "./index.html")
 
 	// Initialize
 	e.POST("/api/auth", postAuth)
@@ -336,7 +339,7 @@ func (state *IsuConditionPoster) keepPosting(ctx context.Context) {
 				(randEngine.Intn(2) == 0),
 			),
 			Message:   "今日もいい天気",
-			Timestamp: nowTime.Format("2006-01-02T15:04:05Z07:00"),
+			Timestamp: nowTime.Unix(),
 		})
 		if err != nil {
 			log.Error(err)

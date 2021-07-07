@@ -5,6 +5,7 @@ import Condition from './pages/Condition'
 import Home from './pages/Home'
 import IsuRoot from './pages/IsuRoot'
 import Register from './pages/Register'
+import Search from './pages/Search'
 import GuardedRoute from './router/GuardedRoute'
 
 const App = () => {
@@ -21,7 +22,7 @@ const App = () => {
               <Condition />
             </GuardedRoute>
             <GuardedRoute path="/search" exact>
-              <div>検索画面</div>
+              <Search />
             </GuardedRoute>
             <GuardedRoute path="/isu/:id">
               <IsuRoot />

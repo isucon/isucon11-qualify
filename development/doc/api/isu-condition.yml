@@ -31,22 +31,21 @@ paths:
     post:
       tags: [backend]
       summary: 'api/auth'
-      description: ''
+      description: 'サービスへのログイン'
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          description: 'JWTのトークン'
+          schema:
+            type: string
       responses:
         '200':
           description: '認証成功'
         '400':
-          description: 'JWT内のデータエラー'
-          content:
-            text/plain:
-              schema:
-                $ref:  "#/components/schemas/BadRequestError"
+          $ref:  "#/components/responses/BadRequestError"
         '403':
-          description: 'JWTのValidationエラー'
-          content:
-            text/plain:
-              schema:
-                $ref:  "#/components/schemas/ForbiddenError"
+          $ref: "#/components/responses/ForbiddenError"
 
 
   /api/signout:
@@ -58,11 +57,7 @@ paths:
         '200':
           description: 'サインアウト成功'
         '401':
-          description: '未ログイン時の操作エラー'
-          content:
-            text/plain:
-              schema:
-                $ref:  "#/components/schemas/ForbiddenError"
+          $ref: "#/components/responses/UnauthorizedError"
 
 
   /api/user/me:
@@ -83,13 +78,9 @@ paths:
                 required:
                   - "JIAUserId"
                 example:
-                  "JIAUserId": xxxxxx
+                  "JIAUserID": xxxxxx
         '401':
-          description: '未ログイン時の操作エラー'
-          content:
-            application/json:
-              schema:
-                $ref:  "#/components/schemas/UnauthorizedError"
+          $ref: "#/components/responses/UnauthorizedError"
 
 
   /api/catalog/{isu_catalog_id}:
@@ -97,13 +88,26 @@ paths:
       tags: [backend]
       summary: '/api/catalog/{isu_catalog_id}'
       description: 'JIAにカタログ情報を問い合わせる'
+      parameters:
+        - name: isu_catalog_id
+          in: path
+          required: true
+          description: 'JIAに存在するIsu ID'
+          schema:
+            type: string
       responses:
         '200':
-          description: ''
+          description: 'JIAから得られたカタログ情報'
           content:
             application/json:
               schema:
-                type: 'boolean'
+                $ref:  "#/components/schemas/Catalog"
+        '400':
+          $ref:  "#/components/responses/BadRequestError"
+        '401':
+          $ref: "#/components/responses/UnauthorizedError"
+        '404':
+          $ref:  "#/components/responses/NotFoundError"
 
 
   /api/isu:
@@ -111,25 +115,49 @@ paths:
       tags: [backend]
       summary: '/api/isu'
       description: '自分の ISU 一覧を取得'
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: '取得するIsuの上限数'
+          schema:
+            type: integer
       responses:
         '200':
           description: ''
           content:
             application/json:
               schema:
-                type: 'boolean'
+                $ref: '#/components/schemas/IsuList'
+        '400':
+          $ref:  "#/components/responses/BadRequestError"
+        '401':
+          $ref: "#/components/responses/UnauthorizedError"
 
     post:
       tags: [backend]
       summary: '/api/isu'
       description: '自分のISUの登録'
+      requestBody:
+        description: 'Isu登録用のパラメーター'
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PostIsuBody"
       responses:
         '200':
           description: ''
           content:
             application/json:
               schema:
-                type: 'boolean'
+                $ref: "#/components/schemas/Isu"
+        '400':
+          $ref:  "#/components/responses/BadRequestError"
+        '401':
+          $ref: "#/components/responses/UnauthorizedError"
+        '409':
+          $ref:  "#/components/responses/ConflictError"
 
 
   /api/isu/search:
@@ -137,51 +165,127 @@ paths:
       tags: [backend]
       summary: '/api/isu/search'
       description: '自分の ISU を検索'
+      parameters:
+        - name: name
+          in: query
+          required: false
+          description: ISUの名前
+          schema: 
+            type: string
+        - name: character
+          in: query
+          required: false
+          description: ISUの性格
+          schema: 
+            type: string
+        - name: catalog_name
+          in: query
+          required: false
+          description: JIAのカタログ上の名前
+          schema: 
+            type: string
+        - name: min_limit_weight
+          in: query
+          required: false
+          description: 耐荷重の下限
+          schema: 
+            type: integer
+        - name: max_limit_weight
+          in: query
+          required: false
+          description: 耐荷重の上限
+          schema: 
+            type: integer
+        - name: catalog_tags
+          in: query
+          required: false
+          description: カタログ上の付加情報
+          schema: 
+            type: string
+        - name: page
+          in: query
+          required: false
+          description: ページ番号
+          schema: 
+            type: integer
+
       responses:
         '200':
-          description: ''
+          description: '検索条件に一致したISUのリスト'
           content:
             application/json:
               schema:
-                type: 'boolean'
+                $ref:  "#/components/schemas/IsuList"
+        '400':
+          $ref:  "#/components/responses/BadRequestError"
 
 
   /api/isu/{jia_isu_uuid}:
     get:
       tags: [backend]
       summary: '/api/isu/{jia_isu_uuid}'
-      description: '椅子の情報を取得する'
+      description: 'ISUの情報を取得する'
+      parameters:
+        - name: jia_isu_uuid
+          in: path
+          required: true
+          description: '取得したいISUのID'
       responses:
         '200':
-          description: ''
+          description: 'ISUの取得成功'
           content:
             application/json:
               schema:
-                type: 'boolean'
+                $ref:  "#/components/schemas/Isu"
+        '401':
+          $ref:  "#/components/responses/UnauthorizedError"
 
     put:
       tags: [backend]
       summary: '/api/isu/{jia_isu_uuid}'
       description: '自分の所有しているISUの情報を変更する'
+      parameters:
+        - name: jia_isu_uuid
+          in: path
+          required: true
+          description: '更新したいISUのID'
+      requestBody:
+        description: 'Isu更新用のパラメーター'
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref:  "#/components/schemas/PutIsuBody"
       responses:
         '200':
-          description: ''
+          description: 'ISUの更新に成功'
           content:
             application/json:
               schema:
-                type: 'boolean'
+                $ref:  "#/components/schemas/Isu"
+        '400':
+          $ref:   "#/components/responses/BadRequestError"
+        '401':
+          $ref:  "#/components/responses/UnauthorizedError"
+        '404':
+          $ref:  "#/components/responses/NotFoundError"
 
     delete:
       tags: [backend]
       summary: '/api/isu/{jia_isu_uuid}'
       description: '自分の所有しているISUを削除する'
+      parameters:
+        - name: jia_isu_uuid
+          in: path
+          required: true
+          description: '削除したいISUのID'
       responses:
-        '200':
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: 'boolean'
+        '204':
+          description: 'ISUの削除に成功'
+        '401':
+          $ref:  "#/components/responses/UnauthorizedError"
+        '404':
+          $ref:  "#/components/responses/NotFoundError"
 
 
   /api/isu/{jia_isu_uuid}/icon:
@@ -189,25 +293,50 @@ paths:
       tags: [backend]
       summary: '/api/isu/{jia_isu_uuid}/icon'
       description: 'ISUのアイコンを取得する'
+      parameters:
+        - name: jia_isu_uuid
+          in: path
+          required: true
+          description: 'アイコンを更新したいISUのID'
       responses:
         '200':
-          description: ''
+          description: 'ISUのアイコン取得成功'
           content:
-            application/json:
+            image/png:
               schema:
-                type: 'boolean'
+                type: string
+                format: binary
+        '401':
+          $ref:  "#/components/responses/UnauthorizedError"
+        '404':
+          $ref:  "#/components/responses/NotFoundError"
 
     put:
       tags: [backend]
       summary: '/api/isu/{jia_isu_uuid}/icon'
-      description: 'ISUのアイコンを登録する'
+      description: 'ISUのアイコンを登録/更新する'
+      parameters:
+        - name: jia_isu_uuid
+          in: path
+          required: true
+          description: 'アイコンを登録/更新したいISUのID'
+      requestBody:
+        description: '登録/更新用のISUアイコン'
+        required: true
+        content:
+          image/png:
+            schema:
+              type: string
+              format: binary
       responses:
-        '200':
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: 'boolean'
+        '204':
+          description: 'ISUのアイコン登録/更新成功'
+        '400':
+          $ref:   "#/components/responses/BadRequestError"
+        '401':
+          $ref:  "#/components/responses/UnauthorizedError"
+        '404':
+          $ref:  "#/components/responses/NotFoundError"
 
 
   /api/isu/{jia_isu_uuid}/graph:
@@ -215,13 +344,28 @@ paths:
       tags: [backend]
       summary: '/api/isu/{jia_isu_uuid}/graph'
       description: 'グラフ描画のための情報を計算して返却する'
+      parameters:
+        - name: jia_isu_uuid
+          in: path
+          required: true
+          description: 'グラフを取得したいISUのID'
+        - name: date
+          in:  query
+          required: true
+          description: グラフを取得したい日付
       responses:
         '200':
-          description: ''
+          description: 'グラフの取得成功'
           content:
             application/json:
               schema:
-                type: 'boolean'
+                $ref:  "#/components/schemas/GraphList"
+        '400':
+          $ref:   "#/components/responses/BadRequestError"
+        '401':
+          $ref:  "#/components/responses/UnauthorizedError"
+        '404':
+          $ref:  "#/components/responses/NotFoundError"
 
 
   /api/condition:
@@ -229,13 +373,49 @@ paths:
       tags: [backend]
       summary: '/api/condition'
       description: '自分の所持椅子の通知を取得する'
+      parameters:
+        - name: start_time
+          in: query
+          required: false
+          description: '開始時間'
+          schema:
+            type: integer
+        - name: cursor_end_time
+          in: query
+          required: true
+          description: '終了時間'
+          schema:
+            type: integer
+        - name: cursor_jia_isu_uuid
+          in: query
+          required: true
+          description: 'ISUのID'
+          schema:
+            type: string
+        - name: condition_level
+          in: query
+          required: true
+          description: 'critical,warning,info'
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          description: '返すリストの上限'
+          schema:
+            type: integer
+            minimum: 1
       responses:
         '200':
           description: ''
           content:
             application/json:
               schema:
-                type: 'boolean'
+                $ref:  "#/components/schemas/ConditionList"
+        '400':
+          $ref:   "#/components/responses/BadRequestError"
+        '401':
+          $ref:  "#/components/responses/UnauthorizedError"
 
 
   /api/condition/{jia_isu_uuid}:
@@ -243,13 +423,49 @@ paths:
       tags: [backend]
       summary: '/api/condition/{jia_isu_uuid}'
       description: '自分の所持椅子のうち、指定したjia_isu_uuidの通知を取得する'
+      parameters:
+        - name: jia_isu_uuid
+          in: path
+          required: true
+          description: 'コンディションを確認したいISUのID'
+        - name: start_time
+          in: query
+          required: false
+          description: '開始時間'
+          schema:
+            type: integer
+        - name: cursor_end_time
+          in: query
+          required: true
+          description: '終了時間'
+          schema:
+            type: integer
+        - name: condition_level
+          in: query
+          required: true
+          description: 'critical,warning,info'
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          description: '返すリストの上限'
+          schema:
+            type: integer
+            minimum: 1
       responses:
         '200':
-          description: ''
+          description: '指定したISUのコンディションの取得に成功'
           content:
             application/json:
               schema:
-                type: 'boolean'
+                $ref:  "#/components/schemas/ConditionList"
+        '400':
+          $ref:   "#/components/responses/BadRequestError"
+        '401':
+          $ref:  "#/components/responses/UnauthorizedError"
+        '404':
+          $ref:  "#/components/responses/NotFoundError"
 
 
   /api/isu/{jia_isu_uuid}/condition:
@@ -257,21 +473,34 @@ paths:
       tags: [backend]
       summary: '/api/isu/{jia_isu_uuid}/condition'
       description: 'ISUからのセンサデータを受け取る'
+      parameters:
+        - name: jia_isu_uuid
+          in: path
+          required: true
+          description: '情報を送信してくるISUのID'
+      requestBody:
+        description: 'ISUから送信されてくる情報'
+        required: true
+        content:
+          application/json:
+            schema: 
+              $ref:  "#/components/schemas/PostIsuCondition"
       responses:
-        '200':
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: 'boolean'
-
+        '201':
+          description: 'ISUからの送信データの受け取りに成功'
+        '400':
+          $ref: "#/components/responses/BadRequestError"
+        '404':
+          $ref:  "#/components/responses/NotFoundError"
+        '409':
+          $ref: "#/components/responses/ConflictError"
 
 
 components:
   schemas:
     BadRequestError:
       type: string
-      example: 'Bad Request'
+      example: "Bad Request"
 
     UnauthorizedError:
       type: string
@@ -283,11 +512,192 @@ components:
     
     NotFoundError:
       type: string
-      example: 'Error Message'
+      example: 'Not Found'
 
     ConflictError:
-      type: string
-      example: 'Error Message'
+     type: string
+     example: 'Conflict'
+
+    PostIsuBody:
+      type: object
+      properties:
+        jia_isu_uuid:
+          type: string
+          description: 登録するIsuのUUID
+        isu_name:
+          type: string
+          description: 登録するIsuの名前
+    
+    PutIsuBody:
+      type: object
+      properties:
+        name:
+          type: string
+          description: 登録するIsuの名前
+
+    Isu:
+      type: 'object'
+      properties:
+        jia_isu_uuid:
+          type: string
+          description: JIA Isu UUID
+        name:
+          type: string
+          description: Isuの名前
+        jia_catalog_id:
+          type: string
+          description: JIA Catalog ID
+        character:
+          type: string
+          description: Isuの性格
+    
+    IsuList:
+      type: 'array'
+      items: {
+        $ref: '#/components/schemas/Isu'
+      }
+
+    Catalog:
+      type: 'object'
+      properties:
+        jia_catalog_id:
+          type: string
+          description: JIA Catalog ID
+        name:
+          type: string
+          description: Isuの製品名
+        limit_weight:
+          type: integer
+          description: 耐荷重
+        weight:
+          type: integer
+          description: Isuの重さ
+        size:
+          type: string
+          description: Isuのサイズ情報
+        maker:
+          type: string
+          description: Isuのメーカー名
+        tags:
+          type: string
+          description: Isuの付加情報
+      
+    Graph:
+      type: 'object'
+      properties:
+        start_at:
+          type: integer
+          description: グラフの開始時間
+        end_at:
+          type: integer
+          description: グラフの終了時間
+        data:
+          $ref:  "#/components/schemas/GraphData"
+
+    GraphData:
+      type: 'object'
+      properties:
+        score:
+          type: integer
+          description: スコア
+        sitting:
+          type: integer
+          description: 座っていたかどうかの値
+        details:
+          type: object
+          properties:
+            key:
+              type: integer
+
+    GraphList:
+      type: 'array'
+      items: {
+        $ref:  "#/components/schemas/Graph"
+      }
+
+    Condition:
+      type: 'object'
+      properties:
+        jia_isu_uuid:
+          type: string
+          description: 'ISUのID'
+        isu_name:
+          type: string
+          description: 'ISUの名前'
+        timestamp:
+          type: integer
+          description: 'Unix Time'
+        is_sitting:
+          type: boolean
+          description: 座っていたかどうか
+        condition:
+          type: string
+          description: 'ISUの状態'
+        condition_level:
+          type: string
+          description: 'ISUの状態レベル'
+        message:
+          type: string
+          description: 'ISUからのメッセージ'
+
+    ConditionList:
+      type: 'array'
+      items: {
+        $ref:  "#/components/schemas/Condition"
+      }
+
+    PostIsuCondition:
+      type: object
+      properties:
+        is_sitting:
+          type: boolean
+          description: 座っていたかどうか
+        condition:
+          type: string
+          description: 'ISUの状態'
+        message:
+          type: string
+          description: 'ISUからのメッセージ'
+        timestamp:
+          type: integer
+          description: 'Unix Time(秒まで)'
+
+
+  responses:
+    BadRequestError:
+      description: 'Requestデータによるエラー'
+      content:
+        text/plain:
+          schema:
+            $ref:  "#/components/schemas/BadRequestError"
+
+    UnauthorizedError:
+      description: '未ログイン時の操作エラー'
+      content:
+        text/plain:
+          schema:
+            $ref:   "#/components/schemas/UnauthorizedError"
+
+    ForbiddenError:
+      description: '権限がないデータを操作したエラー'
+      content:
+        text/plain:
+          schema:
+            $ref:   "#/components/schemas/ForbiddenError"
+    
+    NotFoundError:
+      description: '指定したデータが見つからないエラー'
+      content:
+        text/plain:
+          schema:
+            $ref:   "#/components/schemas/NotFoundError"
+
+    ConflictError:
+      description: '重複登録エラー'
+      content:
+        text/plain:
+          schema:
+            $ref: "#/components/schemas/ConflictError"
 
 # #security:
 tags:

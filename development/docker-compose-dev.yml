@@ -11,12 +11,16 @@ services:
       MYSQL_DATABASE: isucondition
       MYSQL_USER: isucon
       MYSQL_PASSWORD: isucon
+      ISU_CONDITION_IP: backend-go
     entrypoint: dockerize -wait tcp://mysql-backend:3306 -timeout 60s
     command: air -c /development/air.toml
     ports:
       - "3000:3000"
     volumes:
-      - "../webapp:/webapp"
+      - "../webapp/go:/webapp/go"
+      - "../webapp/mysql:/webapp/mysql"
+      - "../webapp/ec256-public.pem:/webapp/ec256-public.pem"
+      - "../webapp/NoImage.png:/webapp/NoImage.png"
     depends_on:
       - mysql-backend
   # MEMO: 各言語用のコンテナをここ以下に列挙
@@ -24,14 +28,14 @@ services:
   # ...
 
   mysql-backend:
-    image: mysql:8.0.25
+    image: mariadb:10.6.2-focal
     restart: always
     environment:
       MYSQL_DATABASE: isucondition
       MYSQL_USER: isucon
       MYSQL_PASSWORD: isucon
       MYSQL_ROOT_PASSWORD: root
-    volumes: 
+    volumes:
       - "../development/mysql-backend/mysql.cnf:/etc/mysql/conf.d/mysql.cnf"
       # 開発環境用のものを使って初期化
       - "../webapp/mysql/db/0_Schema.sql:/docker-entrypoint-initdb.d/0_Schema.sql"

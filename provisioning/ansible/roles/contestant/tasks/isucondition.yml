@@ -1,0 +1,38 @@
+---
+- name: "roles/contestant/tasks/isucondition: Deploy isucon11-qualify"
+  become_user: isucon
+  copy:
+    remote_src: yes
+    src: /tmp/isucon11-qualify/webapp
+    dest: /home/isucon/
+    owner: isucon
+    group: isucon
+
+- name: "roles/contestant/tasks/isucondition: Deploy env.sh"
+  become_user: isucon
+  copy:
+    src: "home/isucon/env.sh"
+    dest: "/home/isucon/env.sh"
+    owner: "isucon"
+    group: "isucon"
+    mode: "0644"
+
+- name: "roles/contestant/tasks/isucondition: Include isucondition-frontend.yml"
+  include: isucondition-frontend.yml
+
+- name: "roles/contestant/tasks/isucondition: Include isucondition-go.yml"
+  include: isucondition-go.yml
+
+# TODO: 言語別の include
+
+- name: "roles/contestant/tasks/isucondition: Enable isucondition.go.service"
+  become_user: root
+  systemd:
+    daemon_reload: "yes"
+    name: "isucondition.go.service"
+    state: "restarted"
+    enabled: "yes"
+
+#- name: "roles.contestant.tasks.isucondition: Initialize isucon11"
+#  become_user: isucon
+#  command: curl -X POST http://localhost/initialize -f

@@ -26,7 +26,8 @@ module.exports = {
     }),
     extend: {
       gridTemplateColumns: {
-        isus: 'repeat(auto-fill,minmax(10rem,1fr))'
+        isus: 'repeat(auto-fill,minmax(10rem,1fr))',
+        search: '9rem 1fr'
       }
     }
   }
