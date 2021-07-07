@@ -1551,21 +1551,7 @@ func postIsuCondition(c echo.Context) error {
 	}
 
 	//isu_conditionに記録
-<<<<<<< HEAD
-=======
-	//confilct確認
-	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu_condition` WHERE (`timestamp`, `jia_isu_uuid`) = (?, ?)  FOR UPDATE", //TODO: 記法の統一
-		timestamp, jiaIsuUUID,
-	)
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	if count != 0 {
-		c.Logger().Errorf("isu condition already exist")
-		return c.String(http.StatusConflict, "isu_condition already exist")
-	}
->>>>>>> main
+
 	//insert
 	query := "INSERT INTO `isu_condition` (`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`) VALUES "
 	queryParam := []interface{}{}
@@ -1588,7 +1574,6 @@ func postIsuCondition(c echo.Context) error {
 	}
 	_, err = tx.Exec(query, queryParam...)
 	if err != nil {
-<<<<<<< HEAD
 		mysqlErr, ok := err.(*mysql.MySQLError)
 
 		if ok && mysqlErr.Number == uint16(mysqlErrNumDuplicateEntry) {
@@ -1596,10 +1581,7 @@ func postIsuCondition(c echo.Context) error {
 			return c.String(http.StatusConflict, "duplicated condition")
 		}
 
-		c.Logger().Errorf("failed to insert conditions: %v", err)
-=======
 		c.Logger().Errorf("db error: %v", err)
->>>>>>> main
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
