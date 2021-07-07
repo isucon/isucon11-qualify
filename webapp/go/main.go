@@ -11,7 +11,6 @@ import (
 	"io/ioutil"
 	"math"
 	"net/http"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -1281,54 +1280,6 @@ func getAllIsuConditions(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, conditionsResponse)
-}
-
-//http requestを飛ばし、そのレスポンスを[]GetIsuConditionResponseに変換する
-func getIsuConditionsFromLocalhost(
-	jiaIsuUUID string, cursorEndTimeStr string, conditionLevel string, startTimeStr string, limitStr string,
-	cookie *http.Cookie,
-) ([]*GetIsuConditionResponse, error) {
-	targetURLStr := fmt.Sprintf(
-		"http://localhost:%s/api/condition/%s",
-		getEnv("SERVER_PORT", "3000"), jiaIsuUUID,
-	)
-	targetURL, err := url.Parse(targetURLStr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse url: %v ;(%s,%s)", err, getEnv("SERVER_PORT", "3000"), jiaIsuUUID)
-	}
-
-	q := url.Values{}
-	q.Set("cursor_end_time", cursorEndTimeStr)
-	q.Set("condition_level", conditionLevel)
-	if startTimeStr != "" {
-		q.Set("start_time", startTimeStr)
-	}
-	if limitStr != "" {
-		q.Set("limit", limitStr)
-	}
-	targetURL.RawQuery = q.Encode()
-
-	req, err := http.NewRequest(http.MethodGet, targetURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-	req.AddCookie(cookie)
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to `GET %s` with status=`%s`", targetURL.String(), res.Status)
-	}
-
-	condition := []*GetIsuConditionResponse{}
-	err = json.NewDecoder(res.Body).Decode(&condition)
-	if err != nil {
-		return nil, err
-	}
-	return condition, nil
 }
 
 // left > right を計算する関数
