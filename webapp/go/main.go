@@ -1551,13 +1551,8 @@ func postIsuCondition(c echo.Context) error {
 	}
 
 	//isu_conditionに記録
-
-	//insert
-	query := "INSERT INTO `isu_condition` (`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`) VALUES "
-	queryParam := []interface{}{}
-
-	for i, cond := range req {
-		//Parse
+	for _, cond := range req {
+		// parser
 		timestamp := time.Unix(cond.Timestamp, 0)
 
 		if !conditionFormat.Match([]byte(cond.Condition)) {
@@ -1565,24 +1560,24 @@ func postIsuCondition(c echo.Context) error {
 			return c.String(http.StatusBadRequest, "bad request body")
 		}
 
-		if i == 0 {
-			query += " (?, ?, ?, ?, ?)"
-		} else {
-			query += " , (?, ?, ?, ?, ?)"
-		}
-		queryParam = append(queryParam, jiaIsuUUID, timestamp, cond.IsSitting, cond.Condition, cond.Message)
-	}
-	_, err = tx.Exec(query, queryParam...)
-	if err != nil {
-		mysqlErr, ok := err.(*mysql.MySQLError)
+		// insert
+		_, err = tx.Exec(
+			"INSERT INTO `isu_condition`"+
+				"	(`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`)"+
+				"	VALUES (?, ?, ?, ?, ?)",
+			jiaIsuUUID, timestamp, cond.IsSitting, cond.Condition, cond.Message)
+		if err != nil {
+			mysqlErr, ok := err.(*mysql.MySQLError)
 
-		if ok && mysqlErr.Number == uint16(mysqlErrNumDuplicateEntry) {
-			c.Logger().Errorf("duplicated condition: %v", err)
-			return c.String(http.StatusConflict, "duplicated condition")
+			if ok && mysqlErr.Number == uint16(mysqlErrNumDuplicateEntry) {
+				c.Logger().Errorf("duplicated condition: %v", err)
+				return c.String(http.StatusConflict, "duplicated condition")
+			}
+
+			c.Logger().Errorf("db error: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
 		}
 
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	// getGraph用のデータを計算し、DBを更新する
