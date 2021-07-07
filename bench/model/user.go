@@ -2,12 +2,55 @@ package model
 
 import (
 	"math/rand"
+
+	"github.com/isucon/isucandar/agent"
 )
 
-//TODO: Userのstructを書く
+//enum
+type UserType int
+
+const (
+	UserTypeNormal UserType = iota
+	UserTypeMania
+	UserTypeCompany
+)
+
+//基本的には一つのシナリオスレッドが一つのユーザーを占有する
+//=>Isuの追加操作と、参照操作が同時に必要になる場面は無いはずなので、
+//  IsuListのソートは追加が終わってからソートすれば良い
+type User struct {
+	UserID                  string `json:"jia_user_id"`
+	Type                    UserType
+	IsuListOrderByCreatedAt []*Isu          //CreatedAtは厳密にはわからないので、postした後にgetをした順番を正とする
+	IsuListByID             map[string]*Isu //IDをkeyにアクセス
+	//ここで[]IsuLogを持つと更新にmutexが必要で嫌なので持たない
+
+	Agent *agent.Agent
+}
+
+func NewRandomUserRaw(userType UserType) (*User, error) {
+	userID, err := MakeRandomUserID()
+	if err != nil {
+		return nil, err
+	}
+	return &User{
+		UserID:                  userID,
+		Type:                    userType,
+		IsuListOrderByCreatedAt: []*Isu{},
+		IsuListByID:             map[string]*Isu{},
+		Agent:                   nil,
+	}, nil
+}
+
+//CreatedAt順で挿入すること
+func (u *User) AddIsu(isu *Isu) {
+	u.IsuListOrderByCreatedAt = append(u.IsuListOrderByCreatedAt, isu)
+	u.IsuListByID[isu.JIAIsuUUID] = isu
+}
 
 // utility
 
+//TODO: 差し替える
 func MakeRandomUserID() (string, error) {
 	//TODO: とりあえず完全乱数だけど、ちゃんとそれっぽいのを生成しても良いかも
 	//TODO: 重複削除

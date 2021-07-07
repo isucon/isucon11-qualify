@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strconv"
 
 	"github.com/isucon/isucandar"
 	"github.com/isucon/isucandar/failure"
@@ -28,10 +29,8 @@ func CheckError(err error) (critical bool, timeout bool, deduction bool) {
 	if failure.IsCode(err, isucandar.ErrLoad) {
 		if isTimeout(err) {
 			timeout = true
-			return
-		}
-		if isDeduction(err) {
-			timeout = true
+		} else if isDeduction(err) {
+			deduction = true
 		}
 	}
 
@@ -46,7 +45,8 @@ var (
 
 func isCritical(err error) bool {
 	return failure.IsCode(err, ErrCritical) ||
-		failure.IsCode(err, ErrSecurityIncident)
+		failure.IsCode(err, ErrSecurityIncident) ||
+		failure.IsCode(err, isucandar.ErrPanic)
 }
 
 var (
@@ -54,10 +54,11 @@ var (
 	ErrInvalidContentType failure.StringCode = "content type"
 	ErrInvalidJSON        failure.StringCode = "json"
 	ErrInvalidAsset       failure.StringCode = "asset"
-	ErrMissmatch          failure.StringCode = "missmatch"    //データはあるが、間違っている（名前が違う等）
-	ErrInvalid            failure.StringCode = "invalid"      //ロジック的に誤り（存在しないはずのものが有る等）
-	ErrBadResponse        failure.StringCode = "bad-response" //不正な書式のレスポンス
-	ErrHTTP               failure.StringCode = "http"         //http通信回りのエラー（timeout含む）
+	ErrMissmatch          failure.StringCode = "missmatch"         //データはあるが、間違っている（名前が違う等）
+	ErrInvalid            failure.StringCode = "invalid"           //ロジック的に誤り（存在しないはずのものが有る等）
+	ErrBadResponse        failure.StringCode = "bad-response"      //不正な書式のレスポンス
+	ErrHTTP               failure.StringCode = "http"              //http通信回りのエラー（timeout含む）
+	ErrX5XX               failure.StringCode = "http-server-error" //500系のエラー
 )
 
 func isDeduction(err error) bool {
@@ -84,12 +85,21 @@ func isTimeout(err error) bool {
 	return failure.IsCode(err, failure.TimeoutErrorCode)
 }
 
-func isValidation(err error) bool {
+func IsValidation(err error) bool {
 	return failure.IsCode(err, isucandar.ErrValidation)
 }
 
 func errorInvalidStatusCode(res *http.Response, expected int) error {
 	return failure.NewError(ErrInvalidStatusCode, fmt.Errorf("期待する HTTP ステータスコード以外が返却されました (expected: %d): %d (%s: %s)", expected, res.StatusCode, res.Request.Method, res.Request.URL.Path))
+}
+
+func errorInvalidStatusCodes(res *http.Response, expected []int) error {
+	expectedStr := ""
+	for _, v := range expected {
+		expectedStr += strconv.Itoa(v) + ","
+	}
+	expectedStr = expectedStr[:len(expectedStr)-1]
+	return failure.NewError(ErrInvalidStatusCode, fmt.Errorf("期待する HTTP ステータスコード以外が返却されました (expected: %s): %d (%s: %s)", expectedStr, res.StatusCode, res.Request.Method, res.Request.URL.Path))
 }
 
 func errorInvalidContentType(res *http.Response, expected string) error {
@@ -106,7 +116,7 @@ func errorInvalidJSON(res *http.Response) error {
 
 func errorMissmatch(res *http.Response, message string, args ...interface{}) error {
 	args = append(args, res.StatusCode, res.Request.Method, res.Request.URL.Path)
-	return failure.NewError(ErrBadResponse, fmt.Errorf(message+": %d (%s: %s)", args...))
+	return failure.NewError(ErrMissmatch, fmt.Errorf(message+": %d (%s: %s)", args...))
 }
 
 func errorBadResponse(res *http.Response, message string, args ...interface{}) error {

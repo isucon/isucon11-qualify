@@ -4,5 +4,6 @@ go 1.16
 
 require (
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
-	github.com/isucon/isucandar v0.0.0-20210516110136-4274ebbe6701
+	github.com/isucon/isucandar v0.0.0-20210706075559-501b2c3ed1da
+	github.com/labstack/echo v3.3.10+incompatible
 )

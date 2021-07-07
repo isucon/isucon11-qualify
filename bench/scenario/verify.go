@@ -9,6 +9,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+
+	"github.com/isucon/isucon11-qualify/bench/model"
+	"github.com/isucon/isucon11-qualify/bench/service"
 )
 
 //汎用関数
@@ -35,5 +38,75 @@ func verifyJSONBody(res *http.Response, body interface{}) error {
 	}
 	return nil
 }
+func verifyText(res *http.Response, text string, expected string) error {
+	if text != expected {
+		return errorMissmatch(res, "エラーメッセージが不正確です: `%s` (expected: `%s`)", text, expected)
+	}
+	return nil
+}
+func verify4xxError(res *http.Response, text string, expectedText string, expectedCode int) error {
+	if res.StatusCode != expectedCode {
+		return errorInvalidStatusCode(res, expectedCode)
+	}
+	if text != expectedText {
+		return errorMissmatch(res, "エラーメッセージが不正確です: `%s` (expected: `%s`)", text, expectedCode)
+	}
+	return nil
+}
 
 // 文脈無しで検証できるもの
+
+func verifyNotSignedIn(res *http.Response, text string) error {
+	expected := "you are not signed in"
+	return verify4xxError(res, text, expected, http.StatusUnauthorized)
+}
+
+// TODO: 統一され次第消す
+func verifyNotSignedInTODO(res *http.Response, text string) error {
+	expected := "you are not sign in"
+	return verify4xxError(res, text, expected, http.StatusUnauthorized)
+}
+
+func verifyBadReqBody(res *http.Response, text string) error {
+	expected := "bad request body"
+	return verify4xxError(res, text, expected, http.StatusBadRequest)
+}
+
+func verifyIsuNotFound(res *http.Response, text string) error {
+	expected := "isu not found"
+	return verify4xxError(res, text, expected, http.StatusNotFound)
+}
+
+//データ整合性チェック
+
+func verifyIsuOrderByCreatedAt(res *http.Response, expectedReverse []*model.Isu, isuList []*service.Isu) []error {
+	errs := []error{}
+	length := len(expectedReverse)
+	if length != len(isuList) {
+		errs = append(errs, errorMissmatch(res, "椅子の数が異なります"))
+		return errs
+	}
+	for i, isu := range isuList {
+		exp := expectedReverse[length-1-i]
+		if exp.JIACatalogID == isu.JIACatalogID {
+			if exp.Character == isu.Character &&
+				exp.JIAIsuUUID == isu.JIAIsuUUID &&
+				exp.Name == isu.Name {
+				//TODO: iconの検証
+
+			} else {
+				errs = append(errs, errorMissmatch(res, "%d番目の椅子の情報が異なります: ID=%s", i+1, isu.JIACatalogID))
+			}
+		} else {
+			errs = append(errs, errorMissmatch(res, "%d番目の椅子が異なります: ID=%s (expected=%s)", i+1, isu.JIACatalogID, exp.JIACatalogID))
+		}
+	}
+
+	return errs
+}
+
+//TODO:
+// func verifyCatalog(res *http.Response, expected *model.Catalog, catalog *service.Catalog) []error {
+// 	errs := []error{}
+// 	return errs
+// }

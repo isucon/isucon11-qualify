@@ -10,16 +10,17 @@ services:
       MYSQL_DATABASE: isucondition
       MYSQL_USER: isucon
       MYSQL_PASSWORD: isucon
-      ISU_CONDITION_IP: backend-go
+      ISU_CONDITION_IP: backend
     ports:
       - "3000:3000"
     volumes:
       - "../webapp/ec256-public.pem:/webapp/ec256-public.pem"
+      - "../webapp/NoImage.png:/webapp/NoImage.png"
     depends_on:
       - mysql-backend
 
   mysql-backend:
-    image: mysql:8.0.25
+    image: mariadb:10.6.2-focal
     restart: always
     environment:
       MYSQL_DATABASE: isucondition

@@ -1,6 +1,6 @@
 resource "aws_iam_user" "ghaction-qualify-dev" {
   name                 = "ghaction-qualify-dev"
-  permissions_boundary = data.aws_iam_role.isu-admin.arn
+  permissions_boundary = data.aws_iam_policy.isu-admin.arn
 }
 
 resource "aws_iam_user_policy" "ghaction-qualify-dev-packer" {
@@ -9,7 +9,7 @@ resource "aws_iam_user_policy" "ghaction-qualify-dev-packer" {
   policy = data.aws_iam_policy_document.ghaction-qualify-dev-packer.json
 }
 
-data "aws_iam_role" "isu-admin" {
+data "aws_iam_policy" "isu-admin" {
   name = "IsuAdmin"
 }
 
