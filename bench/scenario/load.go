@@ -89,6 +89,7 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 	nextTargetIsuIndex := 0
 	scenarioDoneCount := 0
 	scenarioSuccess := false
+	lastSolvedTime := s.virtualTimeStart
 scenarioLoop:
 	for {
 		select {
@@ -186,7 +187,7 @@ scenarioLoop:
 				scenarioSuccess = false
 				step.AddError(err)
 			}
-			if len(errs) > 0 {
+			if len(errs) > 0 || len(conditions) == 0 {
 				continue scenarioLoop
 			}
 
@@ -217,10 +218,10 @@ scenarioLoop:
 			}
 
 			//conditionを確認して、椅子状態を改善
-			solvedCondition, timestamp := findBadIsuState(conditions)
-			if solvedCondition != model.IsuStateChangeNone {
+			solvedCondition, findTimestamp := findBadIsuState(conditions)
+			if solvedCondition != model.IsuStateChangeNone && lastSolvedTime.Before(time.Unix(findTimestamp, 0)) {
 				//graphを見る
-				virtualDay := (timestamp / (24 * 60 * 60)) * (24 * 60 * 60)
+				virtualDay := (findTimestamp / (24 * 60 * 60)) * (24 * 60 * 60)
 				_, _, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, uint64(virtualDay),
 					func(res *http.Response, graph []*service.GraphResponse) []error {
 						return []error{} //TODO: 検証
@@ -231,6 +232,8 @@ scenarioLoop:
 					step.AddError(err)
 				}
 
+				//状態改善
+				lastSolvedTime = time.Unix(findTimestamp, 0)
 				go func() { targetIsu.StreamsForScenario.StateChan <- solvedCondition }()
 			}
 		} else {
@@ -297,8 +300,10 @@ scenarioLoop:
 					continue scenarioLoop
 				}
 
-				solvedCondition, _ := findBadIsuState(conditions)
-				if solvedCondition != model.IsuStateChangeNone {
+				//状態改善
+				solvedCondition, findTimestamp := findBadIsuState(conditions)
+				if solvedCondition != model.IsuStateChangeNone && lastSolvedTime.Before(time.Unix(findTimestamp, 0)) {
+					lastSolvedTime = time.Unix(findTimestamp, 0)
 					go func() { targetIsu.StreamsForScenario.StateChan <- solvedCondition }()
 				}
 			}
@@ -330,7 +335,7 @@ func findBadIsuState(conditions []*service.GetIsuConditionResponse) (model.IsuSt
 				}
 			}
 		}
-		if bad {
+		if bad && virtualTimestamp == 0 {
 			virtualTimestamp = c.Timestamp
 		}
 	}
