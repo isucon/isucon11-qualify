@@ -4,23 +4,10 @@ import { ApexOptions } from 'apexcharts'
 import { useState, useEffect } from 'react'
 
 interface Props {
-  isuGraphs: Graph[]
+  score: number
 }
 
-const Score = ({ isuGraphs }: Props) => {
-  const [score, setScore] = useState<number>(0)
-  useEffect(() => {
-    const calcScore = () => {
-      let tmpScore = 0
-      isuGraphs.forEach(isuGraph => {
-        tmpScore += isuGraph.data ? isuGraph.data.score : 0
-      })
-      tmpScore /= isuGraphs.length
-      return tmpScore
-    }
-    setScore(calcScore())
-  }, [isuGraphs])
-
+const Score = ({ score }: Props) => {
   const option: ApexOptions = {
     chart: {
       type: 'radialBar',

@@ -5,29 +5,11 @@ import { useState } from 'react'
 import { useEffect } from 'react'
 
 interface Props {
-  isuGraphs: Graph[]
+  transitionData: number[]
+  timeCategories: string[]
 }
 
-const TransitionGraph = ({ isuGraphs }: Props) => {
-  const [data, setData] = useState<number[]>([])
-  const [categories, setCategories] = useState<string[]>([])
-
-  useEffect(() => {
-    const load = () => {
-      const tmpData: number[] = []
-      const tmpCategories: string[] = []
-      isuGraphs.forEach(graph => {
-        tmpData.push(graph.data ? graph.data.score : 0)
-        const date = new Date(graph.start_at * 1000)
-        tmpCategories.push(date.toLocaleTimeString('ja-JP'))
-      })
-
-      setData(tmpData)
-      setCategories(tmpCategories)
-    }
-    load()
-  }, [isuGraphs])
-
+const TransitionGraph = ({ transitionData, timeCategories }: Props) => {
   const option: ApexOptions = {
     chart: {
       height: 350
@@ -36,11 +18,11 @@ const TransitionGraph = ({ isuGraphs }: Props) => {
     series: [
       {
         type: 'line',
-        data: data
+        data: transitionData
       }
     ],
     xaxis: {
-      categories: categories
+      categories: timeCategories
     }
   }
 

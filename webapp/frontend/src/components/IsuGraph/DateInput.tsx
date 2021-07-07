@@ -3,23 +3,20 @@ import { useState } from 'react'
 import Button from '../UI/Button'
 
 interface Props {
-  date: Date
-  search: (date: Date) => Promise<void>
+  day: string
+  fetchGraphs: (payload: { day: string }) => Promise<void>
 }
 
-const DateInput = ({ date, search }: Props) => {
-  const [tmpDate, setTmpDate] = useState(date)
+const DateInput = ({ day, fetchGraphs }: Props) => {
+  const [tmpDay, setTmpDay] = useState(day)
 
   return (
     <div>
-      <input
-        value={dateToStr(tmpDate)}
-        onChange={e => setTmpDate(new Date(e.target.value))}
-      ></input>
+      <input value={tmpDay} onChange={e => setTmpDay(e.target.value)}></input>
       <Button
         label="検索"
         onClick={() => {
-          search(tmpDate)
+          fetchGraphs({ day: tmpDay })
         }}
       />
     </div>
