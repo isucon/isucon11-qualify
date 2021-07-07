@@ -3,7 +3,7 @@ name: packer
 on:
   push:
     tags:
-      - v*
+      - "*"
 
 jobs:
   build-initial-data:
