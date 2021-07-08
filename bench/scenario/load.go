@@ -103,13 +103,14 @@ scenarioLoop:
 			step.AddScore(ScoreNormalUserLoop) //TODO: 得点条件の修正
 
 			//シナリオに成功している場合は椅子追加
-			if isuCount < scenarioDoneCount/30 {
+			if isuCount < scenarioDoneCount/30 && isuCount < isuCountMax {
 				isu := s.NewIsu(ctx, step, user, true)
 				if isu == nil {
 					logger.AdminLogger.Println("Normal User fail: NewIsu")
 				} else {
 					isuCount++
 				}
+				//logger.AdminLogger.Printf("Normal User Isu: %d\n", isuCount)
 			}
 		}
 		scenarioSuccess = true
