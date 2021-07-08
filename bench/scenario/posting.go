@@ -80,8 +80,8 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		conditionLevelWorst := model.ConditionLevelInfo
 		for state.NextConditionTimestamp().Before(nowTimeStamp) {
 			//次のstateを生成
-			condition := state.GenerateNextCondition(randEngine, stateChange) //TODO: stateの適用タイミングをちゃんと考える
-			stateChange = model.IsuStateChangeNone                            //TODO: stateの適用タイミングをちゃんと考える
+			condition := state.GenerateNextCondition(randEngine, stateChange, jiaIsuUUID) //TODO: stateの適用タイミングをちゃんと考える
+			stateChange = model.IsuStateChangeNone                                        //TODO: stateの適用タイミングをちゃんと考える
 			if conditionLevelWorst < condition.ConditionLevel {
 				conditionLevelWorst = condition.ConditionLevel
 			}
@@ -146,7 +146,7 @@ func (state *posterState) NextConditionTimestamp() time.Time {
 func (state *posterState) NextIsLatestTimestamp(nowTimeStamp time.Time) bool {
 	return nowTimeStamp.Before(time.Unix(state.lastCondition.TimestampUnix, 0).Add(PostInterval * 2))
 }
-func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChange model.IsuStateChange) model.IsuCondition {
+func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChange model.IsuStateChange, jiaIsuUUID string) model.IsuCondition {
 
 	//乱数初期化（逆算できるように）
 	timeStamp := state.NextConditionTimestamp()
@@ -196,6 +196,7 @@ func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChan
 			ConditionLevel: model.ConditionLevelCritical,
 			Message:        "",
 			TimestampUnix:  timeStamp.Unix(),
+			OwnerID:        jiaIsuUUID,
 		}
 	} else {
 		//新しいConditionを生成
@@ -208,6 +209,7 @@ func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChan
 			//ConditionLevel: model.ConditionLevelCritical,
 			Message:       "",
 			TimestampUnix: timeStamp.Unix(),
+			OwnerID:       jiaIsuUUID,
 		}
 		//sitting
 		if condition.IsSitting {
