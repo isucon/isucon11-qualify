@@ -163,7 +163,7 @@ func main() {
 	e.POST("/api/die", postDie)
 
 	// Start server
-	serverPort := fmt.Sprintf(":%v", getEnv("ISUAPI_SERVER_PORT", "5000"))
+	serverPort := fmt.Sprintf(":%v", getEnv("JIAAPI_SERVER_PORT", "5000"))
 	e.Logger.Fatal(e.Start(serverPort))
 }
 
