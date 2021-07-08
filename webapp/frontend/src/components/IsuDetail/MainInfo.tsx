@@ -35,7 +35,7 @@ const MainInfo = ({ isu, setIsu }: Props) => {
           <div className="flex flex-no-wrap gap-4 justify-self-end mt-12">
             <IconInput putIsuIcon={putIsuIcon} />
             <button
-              className="border-error text-error px-3 py-1 border rounded"
+              className="px-3 py-1 text-error border border-error rounded"
               onClick={deleteIsu}
             >
               削除
