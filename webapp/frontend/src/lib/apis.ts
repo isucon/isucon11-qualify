@@ -66,8 +66,10 @@ class Apis {
     })
   }
 
-  async getIsuGraphs(jiaIsuUuid: string) {
-    const { data } = await axios.get<Graph[]>(`/api/isu/${jiaIsuUuid}/graph`)
+  async getIsuGraphs(jiaIsuUuid: string, params: GraphRequest) {
+    const { data } = await axios.get<Graph[]>(`/api/isu/${jiaIsuUuid}/graph`, {
+      params
+    })
     return data
   }
 
@@ -128,11 +130,9 @@ export interface GraphData {
 
 export interface Graph {
   jia_isu_uuid: string
-  start_at: string
-  end_at: string
+  start_at: number
+  end_at: number
   data: GraphData | null
-  created_at: string
-  updated_at: string
 }
 
 export interface IsuSearchRequest {
@@ -171,6 +171,10 @@ export interface ConditionRequest {
   cursor_jia_isu_uuid: string
   // critical,warning,info をカンマ区切りで取り扱う
   condition_level: string
+}
+
+export interface GraphRequest {
+  date: number
 }
 
 export const DEFAULT_CONDITION_LIMIT = 20
