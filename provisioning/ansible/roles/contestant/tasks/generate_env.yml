@@ -1,0 +1,9 @@
+---
+- name: "roles/contestant/tasks/generate_env: Deploy generate-env.sh"
+  tags:
+    - aws
+  become_user: root
+  copy:
+    src: "var/lib/cloud/scripts/per-instance/generate-env_aws.sh"
+    dest: "/var/lib/cloud/scripts/per-instance/generate-env.sh"
+    mode: "0755"
