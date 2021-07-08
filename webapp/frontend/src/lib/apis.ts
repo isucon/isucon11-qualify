@@ -113,7 +113,7 @@ export interface Catalog {
 
 export interface IsuLog {
   jia_isu_uuid: string
-  timestamp: string
+  timestamp: number
   is_sitting: boolean
   condition: string
   message: string
@@ -154,7 +154,7 @@ export interface PutIsuRequest {
 export interface Condition {
   jia_isu_uuid: string
   isu_name: string
-  timestamp: string
+  timestamp: number
   is_sitting: boolean
   condition: string
   condition_level: ConditionLevel
@@ -164,24 +164,11 @@ export interface Condition {
 type ConditionLevel = 'info' | 'warning' | 'critical'
 
 export interface ConditionRequest {
-  // TODO: unixタイムにする
-  start_time?: Date
-  // TODO: unixタイムにする
-  cursor_end_time: Date
+  start_time?: number
+  cursor_end_time: number
   cursor_jia_isu_uuid: string
   // critical,warning,info をカンマ区切りで取り扱う
   condition_level: string
 }
 
 export const DEFAULT_CONDITION_LIMIT = 20
-
-// TODO: 作問の開発用、消す
-export const debugGetJWT = async (
-  req: { user: string; password: string } = {
-    user: 'isucon',
-    password: 'isucon'
-  }
-) => {
-  const { data } = await axios.post<string>('/standalone/auth', req)
-  return data
-}

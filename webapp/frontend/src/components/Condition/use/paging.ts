@@ -13,7 +13,7 @@ const usePaging = (
     const fetchCondtions = async () => {
       setConditions(
         await getConditions({
-          cursor_end_time: new Date(),
+          cursor_end_time: Math.floor(new Date().getTime() / 1000),
           // 初回fetch時は'z'をセットすることで全件表示させてる
           cursor_jia_isu_uuid: 'z',
           condition_level: 'critical,warning,info'
@@ -82,8 +82,8 @@ const usePaging = (
     setTimes(payload.times)
 
     const params = {
-      start_time,
-      cursor_end_time,
+      start_time: start_time.getTime(),
+      cursor_end_time: cursor_end_time.getTime(),
       condition_level: payload.query,
       cursor_jia_isu_uuid: 'z'
     }
@@ -100,8 +100,8 @@ const usePaging = (
       : new Date(conditions[DEFAULT_CONDITION_LIMIT - 1].timestamp)
 
     return {
-      cursor_end_time,
-      start_time,
+      cursor_end_time: Math.floor(cursor_end_time.getTime() / 1000),
+      start_time: Math.floor(start_time.getTime() / 1000),
       cursor_jia_isu_uuid,
       condition_level: query
     }
