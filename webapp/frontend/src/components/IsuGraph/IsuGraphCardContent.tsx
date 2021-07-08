@@ -27,6 +27,7 @@ const IsuGraphCardContent = ({ isu }: Props) => {
     timeCategories,
     score,
     day,
+    tooltipData,
     fetchGraphs
   } = useGraph(getGraphs)
 
@@ -42,6 +43,7 @@ const IsuGraphCardContent = ({ isu }: Props) => {
         <TransitionGraph
           transitionData={transitionData}
           timeCategories={timeCategories}
+          tooltipData={tooltipData}
         />
         <SittingGraph
           sittingData={sittingData}

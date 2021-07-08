@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react'
 import { GraphRequest, Graph } from '../../../lib/apis'
 
+export interface Tooltip {
+  score: string
+  is_dirty: string
+  is_overweight: string
+  is_broken: string
+  missing_data: string
+}
+
 interface UseGraphResult {
   graphs: Graph[]
   transitionData: number[]
@@ -8,6 +16,7 @@ interface UseGraphResult {
   timeCategories: string[]
   score: number
   day: string
+  tooltipData: Tooltip[]
 }
 
 const useGraph = (getGraphs: (req: GraphRequest) => Promise<Graph[]>) => {
@@ -17,7 +26,8 @@ const useGraph = (getGraphs: (req: GraphRequest) => Promise<Graph[]>) => {
     sittingData: [],
     timeCategories: [],
     score: 0,
-    day: ''
+    day: '',
+    tooltipData: []
   })
 
   useEffect(() => {
@@ -34,7 +44,8 @@ const useGraph = (getGraphs: (req: GraphRequest) => Promise<Graph[]>) => {
         sittingData: graphData.sittingData,
         timeCategories: graphData.timeCategories,
         score: graphData.score,
-        day: date.toLocaleDateString('ja-JP')
+        day: date.toLocaleDateString('ja-JP'),
+        tooltipData: graphData.tooltipData
       }))
     }
     fetchGraphs()
@@ -58,7 +69,8 @@ const useGraph = (getGraphs: (req: GraphRequest) => Promise<Graph[]>) => {
       sittingData: graphData.sittingData,
       timeCategories: graphData.timeCategories,
       score: graphData.score,
-      day: payload.day
+      day: payload.day,
+      tooltipData: graphData.tooltipData
     }))
   }
 
@@ -74,15 +86,38 @@ const genGraphData = (graphs: Graph[]) => {
   const sittingData: number[] = []
   const timeCategories: string[] = []
   let score = 0
+  const tooltipData: Tooltip[] = []
 
   graphs.forEach(graph => {
     if (graph.data) {
       transitionData.push(graph.data.score)
       sittingData.push(graph.data.sitting)
       score += graph.data.score
+      tooltipData.push({
+        score: graph.data.score.toString(),
+        is_dirty: graph.data.detail['is_dirty']
+          ? graph.data.detail['is_dirty'].toString()
+          : '-',
+        is_overweight: graph.data.detail['is_overweight']
+          ? graph.data.detail['is_overweight'].toString()
+          : '-',
+        is_broken: graph.data.detail['is_broken']
+          ? graph.data.detail['is_broken'].toString()
+          : '-',
+        missing_data: graph.data.detail['missing_data']
+          ? graph.data.detail['missing_data'].toString()
+          : '-'
+      })
     } else {
       transitionData.push(0)
       sittingData.push(0)
+      tooltipData.push({
+        score: '-',
+        is_dirty: '-',
+        is_overweight: '-',
+        is_broken: '-',
+        missing_data: '-'
+      })
     }
 
     const date = new Date(graph.start_at * 1000)
@@ -97,7 +132,8 @@ const genGraphData = (graphs: Graph[]) => {
     transitionData,
     sittingData,
     timeCategories,
-    score
+    score,
+    tooltipData
   }
 }
 
