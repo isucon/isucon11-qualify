@@ -75,7 +75,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 
 		//TODO: 検証可能な生成方法にする
 		//TODO: stateの適用タイミングをちゃんと考える
-		conditions := []*model.IsuCondition{}
+		conditions := []model.IsuCondition{}
 		conditionsReq := []service.PostIsuConditionRequest{}
 		conditionLevelWorst := model.ConditionLevelInfo
 		for state.NextConditionTimestamp().Before(nowTimeStamp) {
@@ -134,9 +134,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 				step.AddScore(ScorePostConditionCritical)
 			}
 			go func() {
-				for _, c := range conditions {
-					scenarioChan.ConditionChan <- c
-				}
+				scenarioChan.ConditionChan <- conditions
 			}()
 		}()
 	}
@@ -148,7 +146,7 @@ func (state *posterState) NextConditionTimestamp() time.Time {
 func (state *posterState) NextIsLatestTimestamp(nowTimeStamp time.Time) bool {
 	return nowTimeStamp.Before(time.Unix(state.lastCondition.TimestampUnix, 0).Add(PostInterval * 2))
 }
-func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChange model.IsuStateChange) *model.IsuCondition {
+func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChange model.IsuStateChange) model.IsuCondition {
 
 	//乱数初期化（逆算できるように）
 	timeStamp := state.NextConditionTimestamp()
@@ -186,10 +184,10 @@ func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChan
 	}
 
 	//新しいConditionを生成
-	var condition *model.IsuCondition
+	var condition model.IsuCondition
 	if state.isuStateDelete {
 		//削除された椅子のConditionは0点固定
-		condition = &model.IsuCondition{
+		condition = model.IsuCondition{
 			StateChange:    model.IsuStateChangeDelete,
 			IsSitting:      true,
 			IsDirty:        true,
@@ -201,7 +199,7 @@ func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChan
 		}
 	} else {
 		//新しいConditionを生成
-		condition = &model.IsuCondition{
+		condition = model.IsuCondition{
 			StateChange:  stateChange,
 			IsSitting:    state.lastCondition.IsSitting,
 			IsDirty:      lastConditionIsDirty,
@@ -263,7 +261,7 @@ func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChan
 	}
 
 	//last更新
-	state.lastCondition = *condition
+	state.lastCondition = condition
 
 	return condition
 }

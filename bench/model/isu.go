@@ -21,7 +21,7 @@ const (
 type StreamsForPoster struct {
 	ActiveChan    chan<- bool
 	StateChan     <-chan IsuStateChange
-	ConditionChan chan<- *IsuCondition
+	ConditionChan chan<- []IsuCondition
 }
 
 //posterスレッドとシナリオスレッドとの通信に必要な情報
@@ -30,7 +30,7 @@ type StreamsForPoster struct {
 type StreamsForScenario struct {
 	activeChan    <-chan bool
 	StateChan     chan<- IsuStateChange
-	ConditionChan <-chan *IsuCondition
+	ConditionChan <-chan []IsuCondition
 }
 
 //一つのIsuにつき、一つの送信用スレッドがある
@@ -56,7 +56,7 @@ type Isu struct {
 func NewRandomIsuRaw(owner *User) (*Isu, *StreamsForPoster, error) {
 	activeChan := make(chan bool)
 	stateChan := make(chan IsuStateChange, 1)
-	conditionChan := make(chan *IsuCondition, 30)
+	conditionChan := make(chan []IsuCondition, 10)
 
 	id := fmt.Sprintf("randomid-%s-%d", owner.UserID, len(owner.IsuListOrderByCreatedAt))     //TODO: ちゃんと生成する
 	name := fmt.Sprintf("randomname-%s-%d", owner.UserID, len(owner.IsuListOrderByCreatedAt)) //TODO: ちゃんと生成する

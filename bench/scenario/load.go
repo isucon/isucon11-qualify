@@ -121,11 +121,11 @@ scenarioLoop:
 				select {
 				case <-ctx.Done():
 					return
-				case cond, ok := <-isu.StreamsForScenario.ConditionChan:
+				case conditions, ok := <-isu.StreamsForScenario.ConditionChan:
 					if !ok {
 						break getConditionFromPosterLoop
 					}
-					isu.Conditions = append(isu.Conditions, *cond)
+					isu.Conditions = append(isu.Conditions, conditions...)
 				default:
 					break getConditionFromPosterLoop
 				}
@@ -234,7 +234,7 @@ scenarioLoop:
 
 				//状態改善
 				lastSolvedTime = time.Unix(findTimestamp, 0)
-				go func() { targetIsu.StreamsForScenario.StateChan <- solvedCondition }()
+				targetIsu.StreamsForScenario.StateChan <- solvedCondition //バッファがあるのでブロック率は低い読みで直列に投げる
 			}
 		} else {
 
@@ -304,7 +304,7 @@ scenarioLoop:
 				solvedCondition, findTimestamp := findBadIsuState(conditions)
 				if solvedCondition != model.IsuStateChangeNone && lastSolvedTime.Before(time.Unix(findTimestamp, 0)) {
 					lastSolvedTime = time.Unix(findTimestamp, 0)
-					go func() { targetIsu.StreamsForScenario.StateChan <- solvedCondition }()
+					targetIsu.StreamsForScenario.StateChan <- solvedCondition //バッファがあるのでブロック率は低い読みで直列に投げる
 				}
 			}
 		}
