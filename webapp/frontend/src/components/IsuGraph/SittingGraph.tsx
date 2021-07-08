@@ -11,13 +11,16 @@ interface Props {
 const SittingGraph = ({ sittingData, timeCategories }: Props) => {
   const option: ApexOptions = {
     chart: {
-      height: 100
+      toolbar: {
+        show: false
+      }
     },
     colors: ['#ff6433'],
     series: [
       {
         type: 'heatmap',
-        data: sittingData
+        data: sittingData,
+        name: ''
       }
     ],
     xaxis: {

@@ -12,7 +12,9 @@ interface Props {
 const TransitionGraph = ({ transitionData, timeCategories }: Props) => {
   const option: ApexOptions = {
     chart: {
-      height: 350
+      toolbar: {
+        show: false
+      }
     },
     colors: ['#008FFB'],
     series: [
@@ -23,6 +25,9 @@ const TransitionGraph = ({ transitionData, timeCategories }: Props) => {
     ],
     xaxis: {
       categories: timeCategories
+    },
+    yaxis: {
+      max: 100
     }
   }
 
