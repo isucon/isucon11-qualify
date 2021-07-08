@@ -2,9 +2,9 @@ package main
 
 import (
 	"crypto/ecdsa"
-	"io/ioutil"
 	"log"
 	"time"
+	_ "embed"
 
 	"github.com/dgrijalva/jwt-go"
 )
@@ -14,15 +14,13 @@ const (
 	lifetime = 30 * time.Minute
 )
 
+//go:embed ec256-private.pem
+var privateKey []byte
 var jwtSecretKey *ecdsa.PrivateKey
 
 func init() {
-	jwtSecretKeyPath := getEnv("JWT_SECRETKEY_PATH", "./ec256-private.pem")
-	key, err := ioutil.ReadFile(jwtSecretKeyPath)
-	if err != nil {
-		log.Fatalf("Unable to read file: %v", err)
-	}
-	jwtSecretKey, err = jwt.ParseECPrivateKeyFromPEM(key)
+	var err error
+	jwtSecretKey, err = jwt.ParseECPrivateKeyFromPEM(privateKey)
 	if err != nil {
 		log.Fatalf("Unable to parse ECDSA private key: %v", err)
 	}
