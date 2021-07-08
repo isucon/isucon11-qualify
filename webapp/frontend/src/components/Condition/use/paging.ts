@@ -82,8 +82,8 @@ const usePaging = (
     setTimes(payload.times)
 
     const params = {
-      start_time: start_time.getTime(),
-      cursor_end_time: cursor_end_time.getTime(),
+      start_time: Math.floor(start_time.getTime() / 1000),
+      cursor_end_time: Math.floor(cursor_end_time.getTime() / 1000),
       condition_level: payload.query,
       cursor_jia_isu_uuid: 'z'
     }
