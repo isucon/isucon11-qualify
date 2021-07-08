@@ -4,7 +4,7 @@ import logo_white from '/@/assets/logo_white.svg'
 
 const PageHeader = () => {
   return (
-    <header className="h-14 flex items-center p-2 bg-primary">
+    <header className="h-14 bg-accent-primary flex items-center p-2">
       <Link to="/">
         <img
           src={logo_white}

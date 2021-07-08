@@ -2,10 +2,11 @@ module.exports = {
   theme: {
     backgroundColor: theme => ({
       ...theme('colors'),
-      primary: '#FF6433',
+      primary: '#F3F4F5',
       secondary: '#FFFFFF',
       teritary: '#F1F1F1',
       button: '#21394B',
+      'accent-primary': '#FF6433',
       'status-info': '#94EFBC',
       'status-warning': '#FFEF5B',
       'status-sitting': '#FFBC7E',
