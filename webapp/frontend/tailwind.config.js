@@ -16,6 +16,7 @@ module.exports = {
       ...theme('colors'),
       primary: '#241E12',
       secondary: '#6B6965',
+      error: '#CF1717',
       'white-primary': '#FFFFFF',
       'white-secondary': '#FFFFFF',
       'accent-primary': '#FF6433'
@@ -23,6 +24,7 @@ module.exports = {
     borderColor: theme => ({
       ...theme('colors'),
       outline: '#E1E5E6',
+      error: '#CF1717',
       'accent-primary': '#FF6433'
     }),
     extend: {
