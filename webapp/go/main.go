@@ -1410,7 +1410,7 @@ func getIsuConditions(c echo.Context) error {
 	}
 	//optional query param
 	startTimeStr := c.QueryParam("start_time")
-	var startTime time.Time
+	startTime := time.Time{}
 	if startTimeStr != "" {
 		startTimeInt64, err := strconv.ParseInt(startTimeStr, 10, 64)
 		if err != nil {
@@ -1446,8 +1446,22 @@ func getIsuConditions(c echo.Context) error {
 	}
 
 	// 対象isu_idの通知を取得(limit, cursorで絞り込み）
+	conditionsResponse, err := getIsuConditionsFromDB(jiaIsuUUID, cursorEndTime, conditionLevel, startTime, limit, isuName)
+	if err != nil {
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	return c.JSON(http.StatusOK, conditionsResponse)
+}
+
+func getIsuConditionsFromDB(jiaIsuUUID string, cursorEndTime time.Time, conditionLevel map[string]interface{}, startTime time.Time,
+	limit int, isuName string) ([]*GetIsuConditionResponse, error) {
+
 	conditions := []IsuCondition{}
-	if startTimeStr == "" {
+	var err error
+
+	if startTime.IsZero() {
 		err = db.Select(&conditions,
 			"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ?"+
 				"	AND `timestamp` < ?"+
@@ -1464,15 +1478,11 @@ func getIsuConditions(c echo.Context) error {
 		)
 	}
 	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	if len(conditions) == 0 {
-		return c.JSON(http.StatusOK, conditions)
+		return nil, err
 	}
 
 	//condition_levelでの絞り込み
-	conditionsResponse := []GetIsuConditionResponse{}
+	conditionsResponse := []*GetIsuConditionResponse{}
 	for _, c := range conditions {
 		var cLevel string
 		warnCount := strings.Count(c.Condition, "=true")
@@ -1496,7 +1506,7 @@ func getIsuConditions(c echo.Context) error {
 				ConditionLevel: cLevel,
 				Message:        c.Message,
 			}
-			conditionsResponse = append(conditionsResponse, data)
+			conditionsResponse = append(conditionsResponse, &data)
 		}
 	}
 
@@ -1504,7 +1514,8 @@ func getIsuConditions(c echo.Context) error {
 	if len(conditionsResponse) > limit {
 		conditionsResponse = conditionsResponse[:limit]
 	}
-	return c.JSON(http.StatusOK, conditionsResponse)
+
+	return conditionsResponse, nil
 }
 
 // POST /api/isu/{jia_isu_uuid}/condition
