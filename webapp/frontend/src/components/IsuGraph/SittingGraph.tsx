@@ -22,7 +22,8 @@ const SittingGraph = ({ sittingData, timeCategories }: Props) => {
       }
     ],
     xaxis: {
-      categories: timeCategories
+      categories: timeCategories,
+      labels: { show: false }
     },
     plotOptions: {
       heatmap: {
@@ -40,8 +41,9 @@ const SittingGraph = ({ sittingData, timeCategories }: Props) => {
   }
 
   return (
-    <div>
-      <div className="mb-3 text-xl">座った時間</div>
+    <div
+      style={{ transform: 'translateX(13px) translateY(-32px) scaleX(0.993)' }}
+    >
       <Chart type="heatmap" options={option} series={option.series}></Chart>
     </div>
   )

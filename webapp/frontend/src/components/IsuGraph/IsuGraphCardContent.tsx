@@ -38,16 +38,21 @@ const IsuGraphCardContent = ({ isu }: Props) => {
       <div className="flex">
         <DateInput day={day} fetchGraphs={fetchGraphs} />
       </div>
-      <div className="flex flex-col gap-8">
-        <TransitionGraph
-          transitionData={transitionData}
-          timeCategories={timeCategories}
-          tooltipData={tooltipData}
-        />
-        <SittingGraph
-          sittingData={sittingData}
-          timeCategories={timeCategories}
-        />
+      <div className="relative flex flex-col gap-8">
+        <div className="z-10">
+          <TransitionGraph
+            transitionData={transitionData}
+            timeCategories={timeCategories}
+            tooltipData={tooltipData}
+          />
+        </div>
+
+        <div className="absolute top-0 w-full">
+          <SittingGraph
+            sittingData={sittingData}
+            timeCategories={timeCategories}
+          />
+        </div>
         <Score score={score} />
       </div>
     </div>

@@ -19,6 +19,11 @@ const TransitionGraph = ({
         show: false
       }
     },
+    grid: {
+      yaxis: {
+        lines: { show: false }
+      }
+    },
     colors: ['#008FFB'],
     series: [
       {
@@ -41,7 +46,6 @@ const TransitionGraph = ({
 
   return (
     <div>
-      <div className="mb-3 text-xl">推移</div>
       <Chart type="line" options={option} series={option.series}></Chart>
     </div>
   )
