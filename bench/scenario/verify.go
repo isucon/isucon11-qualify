@@ -110,3 +110,43 @@ func verifyIsuOrderByCreatedAt(res *http.Response, expectedReverse []*model.Isu,
 // 	errs := []error{}
 // 	return errs
 // }
+
+//
+//mustExistUntil: この値以下のtimestampを持つものは全て反映されているべき
+func verifySingleIsuConditions(res *http.Response, base *model.IsuConditionArray, filter model.ConditionLevel, cursor model.IsuConditionCursor, backendData []service.GetIsuConditionResponse, mustExistUntil int64) error {
+
+	//expectedの開始位置を探す()
+	baseIter := base.End(filter)
+	baseIter.UpperBoundIsuConditionIndex(cursor.TimestampUnix, cursor.OwnerID)
+
+	//backendDataの先頭からチェック
+	lastSort := model.IsuConditionCursor{TimestampUnix: backendData[0].Timestamp + 1, OwnerID: ""}
+	for _, c := range backendData {
+		nowSort := model.IsuConditionCursor{TimestampUnix: c.Timestamp, OwnerID: c.JIAIsuUUID}
+		if !nowSort.Less(&lastSort) {
+			return errorInvalid(res, "整列順が正しくありません")
+		}
+
+		var expected *model.IsuCondition
+		for {
+			expected = baseIter.Prev()
+			if expected == nil {
+				return errorMissmatch(res, "存在しないはずのデータが返されました")
+			}
+
+			if expected.TimestampUnix == c.Timestamp {
+				break //ok
+			}
+
+			if expected.TimestampUnix <= mustExistUntil {
+				return errorMissmatch(res, "データが足りません")
+			}
+		}
+
+		//TODO: 等価チェック
+
+		lastSort = nowSort
+	}
+
+	return nil
+}

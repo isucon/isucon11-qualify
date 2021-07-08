@@ -37,6 +37,12 @@ type IsuConditionCursor struct {
 }
 
 //left < right
+func (left *IsuConditionCursor) Less(right *IsuConditionCursor) bool {
+	return left.TimestampUnix < right.TimestampUnix &&
+		(left.TimestampUnix == right.TimestampUnix && left.OwnerID < right.OwnerID)
+}
+
+//left < right
 func (left *IsuCondition) Less2(right *IsuConditionCursor) bool {
 	return left.TimestampUnix < right.TimestampUnix &&
 		(left.TimestampUnix == right.TimestampUnix && left.OwnerID < right.OwnerID)
