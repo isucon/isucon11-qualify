@@ -19,7 +19,11 @@ module.exports = {
       error: '#CF1717',
       'white-primary': '#FFFFFF',
       'white-secondary': '#FFFFFF',
-      'accent-primary': '#FF6433'
+      'accent-primary': '#FF6433',
+      'status-info': '#22623E',
+      'status-warning': '#605910',
+      'status-sitting': '#603A18',
+      'status-critical': '#512424'
     }),
     borderColor: theme => ({
       ...theme('colors'),
