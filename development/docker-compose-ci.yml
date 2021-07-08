@@ -27,6 +27,8 @@ services:
       MYSQL_USER: isucon
       MYSQL_PASSWORD: isucon
       MYSQL_ROOT_PASSWORD: root
+    volumes: 
+      - "../webapp/mysql/db/0_Schema.sql:/docker-entrypoint-initdb.d/0_Schema.sql"
     expose:
       - "3306"
     ports:

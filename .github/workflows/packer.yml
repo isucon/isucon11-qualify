@@ -1,0 +1,113 @@
+name: packer
+
+on:
+  push:
+    tags:
+      - "*"
+
+jobs:
+  build-initial-data:
+    name: build initial-data.sql
+    runs-on:
+      - self-hosted
+      - isucon11-github001 # 乱数のseedを合わせるために特定インスタンスを指定
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-1
+
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '^1.16.5'
+      - name: Install some utils
+        env:
+          DOCKERIZE_VERSION: v0.6.1
+          AWS_CLI_VERSION: 2.2.16
+        run: |
+          mkdir -p $HOME/work/_tool/isucon11-qualify/
+          curl -sL https://github.com/jwilder/dockerize/releases/download/${DOCKERIZE_VERSION}/dockerize-alpine-linux-amd64-${DOCKERIZE_VERSION}.tar.gz -o /tmp/dockerize.tar.gz \
+            && tar xvzf /tmp/dockerize.tar.gz -C $HOME/work/_tool/isucon11-qualify/
+          curl -sL https://awscli.amazonaws.com/awscli-exe-linux-x86_64-${AWS_CLI_VERSION}.zip -o /tmp/awscliv2.zip \
+            && unzip -o /tmp/awscliv2.zip -d /tmp/ \
+            && /tmp/aws/install --update -i $HOME/work/_tool/isucon11-qualify/aws-cli -b $HOME/work/_tool/isucon11-qualify
+
+      - name: Run MySQL
+        working-directory: development
+        run: docker-compose -f docker-compose-ci.yml up -d --build -- mysql-backend
+      - name: Insert initial-data
+        working-directory: extra/initial-data
+        run: |
+          ln -s /opt/isucon11-qualify/images ./images
+          ${HOME}/work/_tool/isucon11-qualify/dockerize -wait tcp://127.0.0.1:3306 -timeout 60s
+          sleep 10  # docker-entrypoint-initdb.d の読み込みを待つ
+          go run .
+      - name: Dump initial-data
+        working-directory: development
+        run: |
+          sh -c "docker-compose -f docker-compose-ci.yml exec -T mysql-backend mysqldump -uroot -proot --databases isucondition" > initial-data.sql
+      - name: Stop MySQL
+        if: failure() || true
+        working-directory: development
+        run: docker-compose -f docker-compose-ci.yml down
+
+      - name: Upload initial-data to S3
+        working-directory: development
+        run: ${HOME}/work/_tool/isucon11-qualify/aws s3 cp ./initial-data.sql s3://isucon11-qualify-dev/
+
+  build-packer:
+    name: packer build
+    runs-on: [self-hosted]
+    needs:
+      - build-initial-data
+    env:
+      PACKER_LOG: '1'
+    defaults:
+      run:
+        working-directory: provisioning/packer
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-1
+
+      - name: Install some utils
+        env:
+          GO_JSONNET_VERSION: v0.17.0
+          PACKER_VERSION: 1.7.3
+        run: |
+          mkdir -p $HOME/work/_tool/isucon11-qualify/
+          curl -sL https://github.com/google/go-jsonnet/releases/download/${GO_JSONNET_VERSION}/go-jsonnet_${GO_JSONNET_VERSION#"v"}_Linux_x86_64.tar.gz -o /tmp/go-jsonnet.tar.gz \
+            && tar xvzf /tmp/go-jsonnet.tar.gz -C /tmp/ \
+            && mv /tmp/jsonnet* $HOME/work/_tool/isucon11-qualify/
+          curl -sL https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_linux_amd64.zip -o /tmp/packer.zip \
+            && unzip -o /tmp/packer.zip -d $HOME/work/_tool/isucon11-qualify/
+
+      - run: make clean
+      - run: make clean-output
+
+      - name: "make build-contestant"
+        run: |
+          export PATH=${HOME}/work/_tool/isucon11-qualify:${PATH}
+          make build-contestant
+      - name: "make build-bench"
+        run: |
+          export PATH=${HOME}/work/_tool/isucon11-qualify:${PATH}
+          make build-bench
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: manifest-amd64-contestant.json
+          path: provisioning/packer/output/manifest-amd64-contestant.json
+      - uses: actions/upload-artifact@v2
+        with:
+          name: manifest-amd64-bench.json
+          path: provisioning/packer/output/manifest-amd64-bench.json
