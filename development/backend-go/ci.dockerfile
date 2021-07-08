@@ -28,7 +28,7 @@ COPY webapp/go/go.mod webapp/go/go.sum ./
 RUN go mod download
 
 COPY webapp/go/ .
-COPY --from=frontend /app /webapp/frontend
+COPY --from=frontend /public /webapp/public
 RUN go build -o app .
 
 ENTRYPOINT ["dockerize", "-wait=tcp://mysql-backend:3306", "-timeout=60s", "./app"]
