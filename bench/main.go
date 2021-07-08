@@ -98,6 +98,9 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 	reason := "pass"
 	errors := result.Errors.All()
 
+	//TODO: 得点調整
+	result.Score.Set(scenario.ScoreNormalUserInitialize, 10)
+	result.Score.Set(scenario.ScoreNormalUserLoop, 10)
 	result.Score.Set(scenario.ScorePostConditionInfo, 2)
 	result.Score.Set(scenario.ScorePostConditionWarning, 1)
 	result.Score.Set(scenario.ScorePostConditionCritical, 0)
@@ -136,7 +139,7 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 	}
 
 	score := scoreRaw - deductionTotal
-	if passed && score < 0 {
+	if passed && !s.NoLoad && score <= 0 {
 		passed = false
 		reason = "Score"
 	}
@@ -220,7 +223,7 @@ func main() {
 	s.BaseURL = fmt.Sprintf("%s://%s/", scheme, targetAddress)
 	s.NoLoad = noLoad
 
-	b, err := isucandar.NewBenchmark(isucandar.WithLoadTimeout(70*time.Second), isucandar.WithoutPanicRecover())
+	b, err := isucandar.NewBenchmark(isucandar.WithLoadTimeout(60*time.Second), isucandar.WithoutPanicRecover())
 	if err != nil {
 		panic(err)
 	}

@@ -13,8 +13,19 @@ data "aws_iam_policy" "isu-admin" {
   name = "IsuAdmin"
 }
 
-# for packer (https://www.packer.io/docs/builders/amazon#iam-task-or-instance-role)
 data "aws_iam_policy_document" "ghaction-qualify-dev-packer" {
+  # for S3 (upload/download)
+  statement {
+    effect = "Allow"
+    actions = [
+      "s3:GetObject",
+      "s3:PutObject"
+    ]
+    resources = [
+      "arn:aws:s3:::${aws_s3_bucket.isucon11-qualify-dev.id}/*",
+    ]
+  }
+  # for packer (https://www.packer.io/docs/builders/amazon#iam-task-or-instance-role)
   statement {
     effect = "Allow"
     actions = [

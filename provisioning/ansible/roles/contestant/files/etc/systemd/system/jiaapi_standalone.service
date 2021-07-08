@@ -6,7 +6,7 @@ PIDFile=/var/run/jiaapi_standalone
 
 User=isucon
 Group=isucon
-ExecStart=/usr/local/bin/jiaapi_standalone
+ExecStart=/usr/local/bin/isuapi-standalone
 ExecStop=/bin/kill -s QUIT $MAINPID
 
 Restart   = always

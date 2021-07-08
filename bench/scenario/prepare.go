@@ -21,6 +21,17 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 
 	//初期データの生成
 	s.InitializeData()
+	s.realTimeStart = time.Now()
+
+	//jiaの起動
+	s.loadWaitGroup.Add(1)
+	ctxJIA, jiaChancelFunc := context.WithCancel(context.Background())
+	s.jiaChancel = jiaChancelFunc
+	go func() {
+		defer s.loadWaitGroup.Done()
+		s.JiaAPIThread(ctxJIA, step)
+	}()
+	jiaWait := time.After(10 * time.Second)
 
 	//initialize
 	initializer, err := s.NewAgent(
@@ -41,16 +52,9 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 	}
 
 	s.Language = initResponse.Language
-	s.realTimeStart = time.Now()
 
-	//jiaの起動
-	s.loadWaitGroup.Add(1)
-	ctxJIA, jiaChancelFunc := context.WithCancel(context.Background())
-	s.jiaChancel = jiaChancelFunc
-	go func() {
-		defer s.loadWaitGroup.Done()
-		s.JiaAPIThread(ctxJIA, step)
-	}()
+	//jia起動待ち TODO: これで本当に良いのか？
+	<-jiaWait
 
 	//各エンドポイントのチェック
 	err = s.prepareCheckAuth(ctx, step)

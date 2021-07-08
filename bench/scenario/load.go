@@ -22,8 +22,9 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	if s.NoLoad {
 		return nil
 	}
-	ctx, cancel := context.WithTimeout(parent, 60*time.Second)
-	defer cancel()
+	// ctx, cancel := context.WithTimeout(parent, 60*time.Second) //mainで指定している方を見るべき
+	// defer cancel()
+	ctx := parent
 
 	logger.ContestantLogger.Printf("===> LOAD")
 	logger.AdminLogger.Printf("LOAD INFO\n  Language: %s\n  Campaign: None\n", s.Language)
@@ -82,16 +83,35 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 			return //致命的でないエラー
 		}
 	}
+	step.AddScore(ScoreNormalUserInitialize)
 
 	randEngine := rand.New(rand.NewSource(5498513))
 	nextTargetIsuIndex := 0
-	for scenarioDoneCount := 0; true; scenarioDoneCount++ {
+	scenarioDoneCount := 0
+	scenarioSuccess := false
+scenarioLoop:
+	for {
 		select {
 		case <-ctx.Done():
 			return
 		default:
 		}
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(500 * time.Millisecond) //TODO: 頻度調整
+		if scenarioSuccess {
+			scenarioDoneCount++
+			step.AddScore(ScoreNormalUserLoop) //TODO: 得点条件の修正
+
+			//シナリオに成功している場合は椅子追加
+			if isuCount < scenarioDoneCount/30 {
+				isu := s.NewIsu(ctx, step, user, true)
+				if isu == nil {
+					logger.AdminLogger.Println("Normal User fail: NewIsu")
+				} else {
+					isuCount++
+				}
+			}
+		}
+		scenarioSuccess = true
 
 		//posterからconditionの取得
 		for _, isu := range user.IsuListOrderByCreatedAt {
@@ -127,11 +147,12 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 			},
 		)
 		for _, err := range errs {
+			scenarioSuccess = false
 			step.AddError(err)
 		}
 
 		//GET /isu/{jia_isu_uuid}
-		browserGetIsuDetailAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
+		_, _, errs = browserGetIsuDetailAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
 			func(res *http.Response, catalog *service.Catalog) []error {
 				//TODO: catalogの検証
 				//targetIsu.JIACatalogID
@@ -139,6 +160,10 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 				return []error{}
 			},
 		)
+		for _, err := range errs {
+			scenarioSuccess = false
+			step.AddError(err)
+		}
 
 		if randEngine.Intn(3) < 2 {
 			//TODO: リロード
@@ -158,10 +183,11 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 				},
 			)
 			for _, err := range errs {
+				scenarioSuccess = false
 				step.AddError(err)
 			}
 			if len(errs) > 0 {
-				continue
+				continue scenarioLoop
 			}
 
 			//スクロール
@@ -178,6 +204,7 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 					},
 				)
 				if err != nil {
+					scenarioSuccess = false
 					step.AddError(err)
 					break
 				} else {
