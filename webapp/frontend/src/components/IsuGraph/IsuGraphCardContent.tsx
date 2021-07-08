@@ -1,6 +1,5 @@
-import apis, { Graph, Isu, GraphRequest } from '../../lib/apis'
-import { useEffect, useCallback } from 'react'
-import { useState } from 'react'
+import apis, { Isu, GraphRequest } from '../../lib/apis'
+import { useCallback } from 'react'
 import NowLoading from '../UI/NowLoading'
 import TransitionGraph from './TransitionGraph'
 import SittingGraph from './SittingGraph'

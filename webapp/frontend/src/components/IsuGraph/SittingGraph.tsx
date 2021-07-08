@@ -1,7 +1,5 @@
-import { Graph } from '../../lib/apis'
 import Chart from 'react-apexcharts'
 import { ApexOptions } from 'apexcharts'
-import { useEffect, useState } from 'react'
 
 interface Props {
   sittingData: number[]

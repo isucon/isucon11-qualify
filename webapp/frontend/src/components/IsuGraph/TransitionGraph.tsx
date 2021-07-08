@@ -1,8 +1,5 @@
-import { Graph } from '../../lib/apis'
 import Chart from 'react-apexcharts'
 import { ApexOptions } from 'apexcharts'
-import { useState } from 'react'
-import { useEffect } from 'react'
 import { Tooltip } from './use/graph'
 
 interface Props {
