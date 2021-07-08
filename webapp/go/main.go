@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/go-sql-driver/mysql"
 	"github.com/gorilla/sessions"
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
@@ -31,14 +31,15 @@ import (
 )
 
 const (
-	sessionName            = "isucondition"
-	searchLimit            = 20
-	conditionLimit         = 20
-	isuListLimit           = 200 // TODO 修正が必要なら変更
-	frontendContentsPath   = "../frontend/dist"
-	jwtVerificationKeyPath = "../ec256-public.pem"
-	defaultIconFilePath    = "../NoImage.png"
-	defaultJIAServiceURL   = "http://localhost:5000"
+	sessionName               = "isucondition"
+	searchLimit               = 20
+	conditionLimit            = 20
+	isuListLimit              = 200 // TODO 修正が必要なら変更
+	frontendContentsPath      = "../frontend/dist"
+	jwtVerificationKeyPath    = "../ec256-public.pem"
+	defaultIconFilePath       = "../NoImage.png"
+	defaultJIAServiceURL      = "http://localhost:5000"
+	mysqlErrNumDuplicateEntry = 1062
 )
 
 var scorePerCondition = map[string]int{
@@ -1523,18 +1524,10 @@ func postIsuCondition(c echo.Context) error {
 		c.Logger().Errorf("jia_isu_uuid is missing")
 		return c.String(http.StatusBadRequest, "jia_isu_uuid is missing")
 	}
-	var req PostIsuConditionRequest
+	var req []PostIsuConditionRequest
 	err := c.Bind(&req)
 	if err != nil {
 		c.Logger().Errorf("bad request body: %v", err)
-		return c.String(http.StatusBadRequest, "bad request body")
-	}
-
-	//Parse
-	timestamp := time.Unix(req.Timestamp, 0)
-
-	if !conditionFormat.Match([]byte(req.Condition)) {
-		c.Logger().Errorf("bad request body")
 		return c.String(http.StatusBadRequest, "bad request body")
 	}
 
@@ -1559,26 +1552,33 @@ func postIsuCondition(c echo.Context) error {
 	}
 
 	//isu_conditionに記録
-	//confilct確認
-	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu_condition` WHERE (`timestamp`, `jia_isu_uuid`) = (?, ?)  FOR UPDATE", //TODO: 記法の統一
-		timestamp, jiaIsuUUID,
-	)
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	if count != 0 {
-		c.Logger().Errorf("isu condition already exist")
-		return c.String(http.StatusConflict, "isu_condition already exist")
-	}
-	//insert
-	_, err = tx.Exec("INSERT INTO `isu_condition`"+
-		"	(`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`) VALUES (?, ?, ?, ?, ?)",
-		jiaIsuUUID, timestamp, req.IsSitting, req.Condition, req.Message,
-	)
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
+	for _, cond := range req {
+		// parse
+		timestamp := time.Unix(cond.Timestamp, 0)
+
+		if !conditionFormat.Match([]byte(cond.Condition)) {
+			c.Logger().Errorf("bad request body")
+			return c.String(http.StatusBadRequest, "bad request body")
+		}
+
+		// insert
+		_, err = tx.Exec(
+			"INSERT INTO `isu_condition`"+
+				"	(`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`)"+
+				"	VALUES (?, ?, ?, ?, ?)",
+			jiaIsuUUID, timestamp, cond.IsSitting, cond.Condition, cond.Message)
+		if err != nil {
+			mysqlErr, ok := err.(*mysql.MySQLError)
+
+			if ok && mysqlErr.Number == uint16(mysqlErrNumDuplicateEntry) {
+				c.Logger().Errorf("duplicated condition: %v", err)
+				return c.String(http.StatusConflict, "duplicated condition")
+			}
+
+			c.Logger().Errorf("db error: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+
 	}
 
 	// getGraph用のデータを計算し、DBを更新する
