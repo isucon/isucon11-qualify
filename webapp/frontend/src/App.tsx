@@ -13,7 +13,7 @@ const App = () => {
     <div className="flex flex-col min-h-full text-primary">
       <BrowserRouter>
         <PageHeader></PageHeader>
-        <div className="flex-1 bg-teritary">
+        <div className="flex-1 bg-primary">
           <Switch>
             <GuardedRoute path="/" exact>
               <Home />
