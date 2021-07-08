@@ -31,7 +31,7 @@ target/bench.json: files-generated output base.libsonnet bench.jsonnet
 	jsonnet --jpath . bench.jsonnet > target/bench.json
 	packer validate target/bench.json
 
-target/standalone.json: files-generated base.libsonnet standalone.jsonnef
+target/standalone.json: files-generated base.libsonnet standalone.jsonnet
 	mkdir -p target/
 	jsonnet --jpath . standalone.jsonnet > target/standalone.json
 	packer validate target/standalone.json
