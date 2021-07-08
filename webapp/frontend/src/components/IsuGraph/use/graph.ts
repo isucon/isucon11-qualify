@@ -77,10 +77,6 @@ const useGraph = (getGraphs: (req: GraphRequest) => Promise<Graph[]>) => {
   return { ...result, fetchGraphs }
 }
 
-const dateToUnixtime = (date: Date) => {
-  return Math.floor(date.getTime() / 1000)
-}
-
 const genGraphData = (graphs: Graph[]) => {
   const transitionData: number[] = []
   const sittingData: number[] = []

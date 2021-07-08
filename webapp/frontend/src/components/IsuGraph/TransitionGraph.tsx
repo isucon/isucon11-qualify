@@ -33,7 +33,7 @@ const TransitionGraph = ({
       max: 100
     },
     tooltip: {
-      custom: ({ series, seriesIndex, dataPointIndex, w }) => {
+      custom: ({ dataPointIndex }) => {
         return genTooltipCard(tooltopData[dataPointIndex])
       }
     }
