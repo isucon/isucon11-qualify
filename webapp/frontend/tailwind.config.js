@@ -2,7 +2,7 @@ module.exports = {
   theme: {
     backgroundColor: theme => ({
       ...theme('colors'),
-      primary: '#EF724A',
+      primary: '#FF6433',
       secondary: '#FFFFFF',
       teritary: '#F1F1F1',
       button: '#21394B',
@@ -17,12 +17,12 @@ module.exports = {
       secondary: '#6B6965',
       'white-primary': '#FFFFFF',
       'white-secondary': '#FFFFFF',
-      'accent-primary': '#EF724A'
+      'accent-primary': '#FF6433'
     }),
     borderColor: theme => ({
       ...theme('colors'),
       outline: '#E1E5E6',
-      'accent-primary': '#EF724A'
+      'accent-primary': '#FF6433'
     }),
     extend: {
       gridTemplateColumns: {
