@@ -111,6 +111,18 @@ func (iter *IsuConditionIterator) UpperBoundIsuConditionIndex(targetTimestamp in
 	}
 }
 
+func (iter *IsuConditionIterator) LowerBoundIsuConditionIndex(targetTimestamp int64, targetIsuUUID string) {
+	if (iter.filter & ConditionLevelInfo) != 0 {
+		iter.indexInfo = lowerBoundIsuConditionIndex(iter.parent.Info, len(iter.parent.Info), targetTimestamp, targetIsuUUID)
+	}
+	if (iter.filter & ConditionLevelWarning) != 0 {
+		iter.indexWarning = lowerBoundIsuConditionIndex(iter.parent.Warning, len(iter.parent.Warning), targetTimestamp, targetIsuUUID)
+	}
+	if (iter.filter & ConditionLevelCritical) != 0 {
+		iter.indexCritical = lowerBoundIsuConditionIndex(iter.parent.Critical, len(iter.parent.Critical), targetTimestamp, targetIsuUUID)
+	}
+}
+
 //return: nil:もう要素がない
 func (iter *IsuConditionIterator) Prev() *IsuCondition {
 	maxType := ConditionLevelNone
@@ -172,6 +184,42 @@ func upperBoundIsuConditionIndex(base []IsuCondition, end int, targetTimestamp i
 	for ok-ng > 1 {
 		mid := (ok + ng) / 2
 		if target.Less2(&base[mid]) {
+			ok = mid
+		} else {
+			ng = mid
+		}
+	}
+
+	return ok
+}
+
+//baseはlessの昇順
+func lowerBoundIsuConditionIndex(base []IsuCondition, end int, targetTimestamp int64, targetIsuUUID string) int {
+	//末尾の方にあることが分かっているので、末尾を固定要素ずつ線形探索 + 二分探索
+	//assert end <= len(base)
+	target := IsuConditionCursor{TimestampUnix: targetTimestamp, OwnerID: targetIsuUUID}
+	if end <= 0 {
+		return end //要素が見つからない
+	}
+	//[0]が番兵になるかチェック
+	if !base[0].Less2(&target) {
+		return 0 //0がupperBound
+	}
+
+	//線形探索 ngがbase[ng] <= targetになるまで探索
+	const defaultRange = 64
+	ok := end
+	ng := end - defaultRange
+	ng = (ng / defaultRange) * defaultRange //0未満になるのが嫌なので、defaultRangeの倍数にする
+	for base[ng].Less2(&target) {           //Timestampはunique仮定なので、<で良い（等価が見つかればそれで良し）
+		ok = ng
+		ng -= defaultRange
+	}
+
+	//答えは(ng, ok]内にあるはずなので、二分探索
+	for ok-ng > 1 {
+		mid := (ok + ng) / 2
+		if base[mid].Less2(&target) {
 			ok = mid
 		} else {
 			ng = mid

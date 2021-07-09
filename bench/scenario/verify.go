@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
 	"github.com/isucon/isucon11-qualify/bench/service"
 )
@@ -120,7 +121,8 @@ func verifyIsuConditions(res *http.Response,
 
 	//expectedの開始位置を探す()
 	baseIter := base.End(filter)
-	baseIter.UpperBoundIsuConditionIndex(cursor.TimestampUnix, cursor.OwnerID)
+	baseIter.LowerBoundIsuConditionIndex(cursor.TimestampUnix, cursor.OwnerID)
+	TODO_DebugMsg := fmt.Sprintf("%v -> %v -> %v (with %v)\n", base, base.End(filter), baseIter, cursor)
 
 	//backendDataの先頭からチェック
 	lastSort := model.IsuConditionCursor{TimestampUnix: backendData[0].Timestamp + 1, OwnerID: ""}
@@ -141,9 +143,13 @@ func verifyIsuConditions(res *http.Response,
 				break //ok
 			}
 
-			if expected.TimestampUnix <= mustExistUntil {
-				return errorMissmatch(res, "データが足りません")
+			if mustExistUntil < expected.TimestampUnix {
+				//反映されていないことが許可されているので、無視して良い
+				continue
 			}
+			logger.AdminLogger.Printf("%s%v vs %v", TODO_DebugMsg, expected, c)
+			logger.AdminLogger.Panic("データが正しくありません")
+			return errorMissmatch(res, "データが正しくありません")
 		}
 
 		//等価チェック
