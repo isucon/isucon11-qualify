@@ -116,9 +116,7 @@ scenarioLoop:
 		scenarioSuccess = true
 
 		//posterからconditionの取得
-		for _, isu := range user.IsuListOrderByCreatedAt {
-			getConditionFromChan(ctx, isu, nil) //TODO: userConditionBuffer
-		}
+		user.GetConditionFromChan(ctx)
 		select {
 		case <-ctx.Done():
 			return
@@ -138,8 +136,6 @@ scenarioLoop:
 				return verifyIsuOrderByCreatedAt(res, user.IsuListOrderByCreatedAt, isuList)
 			},
 			func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
-				//検証前にデータ取得
-				getConditionFromChan(ctx, targetIsu, nil) //TODO: userConditionBuffer
 				//TODO: conditionの検証
 				return []error{}
 			},
@@ -256,8 +252,8 @@ scenarioLoop:
 			_, graphToday, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, uint64(virtualToday.Unix()),
 				func(res *http.Response, graph []*service.GraphResponse) []error {
 					//検証前にデータ取得
-					getConditionFromChan(ctx, targetIsu, nil) //TODO: userConditionBuffer
-					return []error{}                          //TODO: 検証
+					user.GetConditionFromChan(ctx)
+					return []error{} //TODO: 検証
 				},
 			)
 			for _, err := range errs {
@@ -330,29 +326,6 @@ scenarioLoop:
 					targetIsu.StreamsForScenario.StateChan <- solvedCondition //バッファがあるのでブロック率は低い読みで直列に投げる
 				}
 			}
-		}
-	}
-}
-
-func getConditionFromChan(ctx context.Context, isu *model.Isu, userConditionBuffer *model.IsuConditionArray) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case conditions, ok := <-isu.StreamsForScenario.ConditionChan:
-			if !ok {
-				return
-			}
-			for _, c := range conditions {
-				isu.Conditions.Add(&c)
-			}
-			if userConditionBuffer != nil {
-				for _, c := range conditions {
-					userConditionBuffer.Add(&c)
-				}
-			}
-		default:
-			return
 		}
 	}
 }
