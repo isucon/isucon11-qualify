@@ -89,6 +89,7 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 	nextTargetIsuIndex := 0
 	scenarioDoneCount := 0
 	scenarioSuccess := false
+	lastSolvedTime := s.virtualTimeStart
 scenarioLoop:
 	for {
 		select {
@@ -186,7 +187,7 @@ scenarioLoop:
 				scenarioSuccess = false
 				step.AddError(err)
 			}
-			if len(errs) > 0 {
+			if len(errs) > 0 || len(conditions) == 0 {
 				continue scenarioLoop
 			}
 
@@ -217,37 +218,127 @@ scenarioLoop:
 			}
 
 			//conditionを確認して、椅子状態を改善
-			//TODO: すでに改善済みのものを弾く
-			solvedCondition := model.IsuStateChangeNone
-			for _, c := range conditions {
-				//MEMO: 重かったらフォーマットが想定通りの前提で最適化する
-				for _, cond := range strings.Split(c.Condition, ",") {
-					keyValue := strings.Split(cond, "=")
-					if len(keyValue) != 2 {
-						continue //形式に従っていないものは無視
-					}
-					if keyValue[1] != "false" {
-						if keyValue[0] == "is_dirty" {
-							solvedCondition |= model.IsuStateChangeClear
-						} else if keyValue[0] == "is_overweight" {
-							solvedCondition |= model.IsuStateChangeDetectOverweight
-						} else if keyValue[0] == "is_broken" {
-							solvedCondition |= model.IsuStateChangeRepair
-						}
-					}
+			solvedCondition, findTimestamp := findBadIsuState(conditions)
+			if solvedCondition != model.IsuStateChangeNone && lastSolvedTime.Before(time.Unix(findTimestamp, 0)) {
+				//graphを見る
+				virtualDay := (findTimestamp / (24 * 60 * 60)) * (24 * 60 * 60)
+				_, _, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, uint64(virtualDay),
+					func(res *http.Response, graph []*service.GraphResponse) []error {
+						return []error{} //TODO: 検証
+					},
+				)
+				for _, err := range errs {
+					scenarioSuccess = false
+					step.AddError(err)
 				}
-			}
 
-			if solvedCondition != model.IsuStateChangeNone {
-				//TODO: graph
-
+				//状態改善
+				lastSolvedTime = time.Unix(findTimestamp, 0)
 				go func() { targetIsu.StreamsForScenario.StateChan <- solvedCondition }()
 			}
 		} else {
 
 			//TODO: graphを見に行くシナリオ
-		}
+			virtualNow := s.ToVirtualTime(time.Now())
+			virtualToday := time.Date(virtualNow.Year(), virtualNow.Month(), virtualNow.Day(), 0, 0, 0, 0, virtualNow.Location())
+			_, graphToday, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, uint64(virtualToday.Unix()),
+				func(res *http.Response, graph []*service.GraphResponse) []error {
+					return []error{} //TODO: 検証
+				},
+			)
+			for _, err := range errs {
+				scenarioSuccess = false
+				step.AddError(err)
+			}
+			if len(errs) > 0 {
+				continue scenarioLoop
+			}
 
-		//TODO: 椅子の追加
+			//前日のグラフ
+			_, _, errs = browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, uint64(virtualToday.Add(-24*time.Hour).Unix()),
+				func(res *http.Response, graph []*service.GraphResponse) []error {
+					return []error{} //TODO: 検証
+				},
+			)
+			for _, err := range errs {
+				scenarioSuccess = false
+				step.AddError(err)
+			}
+			if len(errs) > 0 {
+				continue scenarioLoop
+			}
+
+			//悪いものを探す
+			var errorEndAtUnix int64 = 0
+			for _, g := range graphToday {
+				if g.Data != nil && g.Data.Score < 100 {
+					errorEndAtUnix = g.StartAt
+				}
+			}
+
+			//悪いものがあれば、そのconditionを取る
+			if errorEndAtUnix != 0 {
+				startTime := uint64(errorEndAtUnix - 60*60)
+				_, conditions, errs := browserGetIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
+					service.GetIsuConditionRequest{
+						StartTime:        &startTime,
+						CursorEndTime:    uint64(errorEndAtUnix),
+						CursorJIAIsuUUID: "",
+						ConditionLevel:   "info,warning,critical",
+						Limit:            nil,
+					},
+					func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
+						return []error{}
+						//TODO: 検証
+					},
+				)
+				for _, err := range errs {
+					scenarioSuccess = false
+					step.AddError(err)
+				}
+				if len(errs) > 0 {
+					continue scenarioLoop
+				}
+
+				//状態改善
+				solvedCondition, findTimestamp := findBadIsuState(conditions)
+				if solvedCondition != model.IsuStateChangeNone && lastSolvedTime.Before(time.Unix(findTimestamp, 0)) {
+					lastSolvedTime = time.Unix(findTimestamp, 0)
+					go func() { targetIsu.StreamsForScenario.StateChan <- solvedCondition }()
+				}
+			}
+		}
 	}
+}
+
+func findBadIsuState(conditions []*service.GetIsuConditionResponse) (model.IsuStateChange, int64) {
+	//TODO: すでに改善済みのものを弾く
+
+	var virtualTimestamp int64
+	solvedCondition := model.IsuStateChangeNone
+	for _, c := range conditions {
+		//MEMO: 重かったらフォーマットが想定通りの前提で最適化する
+		bad := false
+		for _, cond := range strings.Split(c.Condition, ",") {
+			keyValue := strings.Split(cond, "=")
+			if len(keyValue) != 2 {
+				continue //形式に従っていないものは無視
+			}
+			if keyValue[1] != "false" {
+				bad = true
+				if keyValue[0] == "is_dirty" {
+					solvedCondition |= model.IsuStateChangeClear
+				} else if keyValue[0] == "is_overweight" {
+					solvedCondition |= model.IsuStateChangeDetectOverweight
+				} else if keyValue[0] == "is_broken" {
+					solvedCondition |= model.IsuStateChangeRepair
+				}
+			}
+		}
+		if bad && virtualTimestamp == 0 {
+			virtualTimestamp = c.Timestamp
+		}
+	}
+
+	return solvedCondition, virtualTimestamp
 }
