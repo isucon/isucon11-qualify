@@ -37,7 +37,10 @@ jobs:
       - name: Build Go App
         run: target=go docker-compose -f docker-compose-ci.yml up -d --build -- backend mysql-backend
       - name: Test Go App
-        run: target=go docker-compose -f docker-compose-ci.yml up --build --exit-code-from apitest -- apitest
+        run: |
+          rm ../bench/images
+          ln -s /opt/isucon11-qualify/images ../bench/images
+          target=go docker-compose -f docker-compose-ci.yml up --build --exit-code-from apitest -- apitest
       - name: Clean up
         if: failure() || true
         run: target=go docker-compose -f docker-compose-ci.yml down
