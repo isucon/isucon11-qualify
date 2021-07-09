@@ -89,7 +89,10 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 	nextTargetIsuIndex := 0
 	scenarioDoneCount := 0
 	scenarioSuccess := false
-	lastSolvedTime := s.virtualTimeStart
+	lastSolvedTime := make(map[string]time.Time)
+	for _, isu := range user.IsuListOrderByCreatedAt {
+		lastSolvedTime[isu.JIAIsuUUID] = s.virtualTimeStart
+	}
 scenarioLoop:
 	for {
 		select {
@@ -224,7 +227,7 @@ scenarioLoop:
 
 			//conditionを確認して、椅子状態を改善
 			solvedCondition, findTimestamp := findBadIsuState(conditions)
-			if solvedCondition != model.IsuStateChangeNone && lastSolvedTime.Before(time.Unix(findTimestamp, 0)) {
+			if solvedCondition != model.IsuStateChangeNone && lastSolvedTime[targetIsu.JIAIsuUUID].Before(time.Unix(findTimestamp, 0)) {
 				//graphを見る
 				virtualDay := (findTimestamp / (24 * 60 * 60)) * (24 * 60 * 60)
 				_, _, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, uint64(virtualDay),
@@ -238,7 +241,7 @@ scenarioLoop:
 				}
 
 				//状態改善
-				lastSolvedTime = time.Unix(findTimestamp, 0)
+				lastSolvedTime[targetIsu.JIAIsuUUID] = time.Unix(findTimestamp, 0)
 				targetIsu.StreamsForScenario.StateChan <- solvedCondition //バッファがあるのでブロック率は低い読みで直列に投げる
 			}
 		} else {
@@ -317,8 +320,8 @@ scenarioLoop:
 
 				//状態改善
 				solvedCondition, findTimestamp := findBadIsuState(conditions)
-				if solvedCondition != model.IsuStateChangeNone && lastSolvedTime.Before(time.Unix(findTimestamp, 0)) {
-					lastSolvedTime = time.Unix(findTimestamp, 0)
+				if solvedCondition != model.IsuStateChangeNone && lastSolvedTime[targetIsu.JIAIsuUUID].Before(time.Unix(findTimestamp, 0)) {
+					lastSolvedTime[targetIsu.JIAIsuUUID] = time.Unix(findTimestamp, 0)
 					targetIsu.StreamsForScenario.StateChan <- solvedCondition //バッファがあるのでブロック率は低い読みで直列に投げる
 				}
 			}
