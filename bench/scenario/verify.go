@@ -114,7 +114,9 @@ func verifyIsuOrderByCreatedAt(res *http.Response, expectedReverse []*model.Isu,
 
 //
 //mustExistUntil: この値以下のtimestampを持つものは全て反映されているべき
-func verifyIsuConditions(res *http.Response, base *model.IsuConditionArray, filter model.ConditionLevel, cursor model.IsuConditionCursor, isuMap map[string]*model.Isu, backendData []service.GetIsuConditionResponse, mustExistUntil int64) error {
+func verifyIsuConditions(res *http.Response,
+	base *model.IsuConditionArray, filter model.ConditionLevel, cursor model.IsuConditionCursor, isuMap map[string]*model.Isu,
+	backendData []*service.GetIsuConditionResponse, mustExistUntil int64) error {
 
 	//expectedの開始位置を探す()
 	baseIter := base.End(filter)

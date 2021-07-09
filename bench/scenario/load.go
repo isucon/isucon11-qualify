@@ -126,7 +126,9 @@ scenarioLoop:
 					if !ok {
 						break getConditionFromPosterLoop
 					}
-					isu.Conditions = append(isu.Conditions, conditions...)
+					for _, c := range conditions {
+						isu.Conditions.Add(&c)
+					}
 				default:
 					break getConditionFromPosterLoop
 				}
@@ -139,7 +141,9 @@ scenarioLoop:
 		targetIsu := user.IsuListOrderByCreatedAt[nextTargetIsuIndex]
 
 		//GET /
-		_, _, errs := browserGetHomeAction(ctx, user.Agent,
+		realNow := time.Now()
+		virtualNow := s.ToVirtualTime(realNow)
+		_, _, errs := browserGetHomeAction(ctx, user.Agent, virtualNow.Unix(),
 			func(res *http.Response, isuList []*service.Isu) []error {
 				return verifyIsuOrderByCreatedAt(res, user.IsuListOrderByCreatedAt, isuList)
 			},
@@ -171,7 +175,8 @@ scenarioLoop:
 			//TODO: リロード
 
 			//定期的にconditionを見に行くシナリオ
-			virtualNow := s.ToVirtualTime(time.Now())
+			realNow = time.Now()
+			virtualNow = s.ToVirtualTime(realNow)
 			_, conditions, errs := browserGetIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
 				service.GetIsuConditionRequest{
 					StartTime:        nil,
@@ -181,6 +186,14 @@ scenarioLoop:
 					Limit:            nil,
 				},
 				func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
+					//conditionの検証
+					err := verifyIsuConditions(res, &targetIsu.Conditions, model.ConditionLevelInfo|model.ConditionLevelWarning|model.ConditionLevelCritical,
+						model.IsuConditionCursor{TimestampUnix: virtualNow.Unix(), OwnerID: targetIsu.JIAIsuUUID}, targetIsu.Owner.IsuListByID,
+						conditions, s.ToVirtualTime(realNow.Add(-1*time.Second)).Unix(),
+					)
+					if err != nil {
+						return []error{err}
+					}
 					return []error{}
 				},
 			)
@@ -193,13 +206,13 @@ scenarioLoop:
 			}
 
 			//スクロール
-			var res *http.Response
 			for i := 0; i < 2 && len(conditions) == 20*(i+1); i++ {
 				var conditionsTmp []*service.GetIsuConditionResponse
-				conditionsTmp, res, err = getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
+				CursorEndTime := conditions[len(conditions)-1].Timestamp
+				conditionsTmp, res, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
 					service.GetIsuConditionRequest{
 						StartTime:        nil,
-						CursorEndTime:    uint64(conditions[len(conditions)-1].Timestamp),
+						CursorEndTime:    uint64(CursorEndTime),
 						CursorJIAIsuUUID: "",
 						ConditionLevel:   "info,warning,critical",
 						Limit:            nil,
@@ -209,13 +222,19 @@ scenarioLoop:
 					scenarioSuccess = false
 					step.AddError(err)
 					break
-				} else {
-					conditions = append(conditions, conditionsTmp...)
 				}
-			}
+				//検証
+				err = verifyIsuConditions(res, &targetIsu.Conditions, model.ConditionLevelInfo|model.ConditionLevelWarning|model.ConditionLevelCritical,
+					model.IsuConditionCursor{TimestampUnix: CursorEndTime, OwnerID: targetIsu.JIAIsuUUID}, targetIsu.Owner.IsuListByID,
+					conditions, s.ToVirtualTime(realNow.Add(-1*time.Second)).Unix(),
+				)
+				if err != nil {
+					scenarioSuccess = false
+					step.AddError(err)
+					break
+				}
 
-			//TODO: conditionの検証
-			if res != nil { //エラーつぶし
+				conditions = append(conditions, conditionsTmp...)
 			}
 
 			//conditionを確認して、椅子状態を改善
@@ -240,7 +259,8 @@ scenarioLoop:
 		} else {
 
 			//TODO: graphを見に行くシナリオ
-			virtualNow := s.ToVirtualTime(time.Now())
+			realNow = time.Now()
+			virtualNow = s.ToVirtualTime(realNow)
 			virtualToday := time.Date(virtualNow.Year(), virtualNow.Month(), virtualNow.Day(), 0, 0, 0, 0, virtualNow.Location())
 			_, graphToday, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, uint64(virtualToday.Unix()),
 				func(res *http.Response, graph []*service.GraphResponse) []error {
@@ -285,12 +305,18 @@ scenarioLoop:
 						StartTime:        &startTime,
 						CursorEndTime:    uint64(errorEndAtUnix),
 						CursorJIAIsuUUID: "",
-						ConditionLevel:   "info,warning,critical",
+						ConditionLevel:   "warning,critical",
 						Limit:            nil,
 					},
 					func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
+						err := verifyIsuConditions(res, &targetIsu.Conditions, model.ConditionLevelWarning|model.ConditionLevelCritical,
+							model.IsuConditionCursor{TimestampUnix: errorEndAtUnix, OwnerID: targetIsu.JIAIsuUUID}, targetIsu.Owner.IsuListByID,
+							conditions, s.ToVirtualTime(realNow.Add(-1*time.Second)).Unix(),
+						)
+						if err != nil {
+							return []error{err}
+						}
 						return []error{}
-						//TODO: 検証
 					},
 				)
 				for _, err := range errs {

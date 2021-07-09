@@ -45,7 +45,7 @@ type Isu struct {
 	IsWantDeactivated  bool                //シナリオ上でDeleteリクエストを送ったかどうか
 	isDeactivated      bool                //実際にdeactivateされているか
 	StreamsForScenario *StreamsForScenario //posterスレッドとの通信
-	Conditions         []IsuCondition      //シナリオスレッドからのみ参照
+	Conditions         IsuConditionArray   //シナリオスレッドからのみ参照
 }
 
 //新しいISUの生成
@@ -74,7 +74,7 @@ func NewRandomIsuRaw(owner *User) (*Isu, *StreamsForPoster, error) {
 			StateChan:     stateChan,
 			ConditionChan: conditionChan,
 		},
-		Conditions: []IsuCondition{},
+		Conditions: NewIsuConditionArray(),
 	}
 
 	streamsForPoster := &StreamsForPoster{

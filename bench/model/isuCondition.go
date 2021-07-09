@@ -70,6 +70,25 @@ type IsuConditionIterator struct {
 	parent        *IsuConditionArray
 }
 
+func NewIsuConditionArray() IsuConditionArray {
+	return IsuConditionArray{
+		Info:     []IsuCondition{},
+		Warning:  []IsuCondition{},
+		Critical: []IsuCondition{},
+	}
+}
+
+func (ia *IsuConditionArray) Add(cond *IsuCondition) {
+	switch cond.ConditionLevel {
+	case ConditionLevelInfo:
+		ia.Info = append(ia.Info, *cond)
+	case ConditionLevelWarning:
+		ia.Warning = append(ia.Warning, *cond)
+	case ConditionLevelCritical:
+		ia.Critical = append(ia.Critical, *cond)
+	}
+}
+
 func (ia *IsuConditionArray) End(filter ConditionLevel) IsuConditionIterator {
 	return IsuConditionIterator{
 		filter:        filter,

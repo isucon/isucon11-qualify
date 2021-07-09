@@ -601,6 +601,7 @@ func getIsuGraphErrorAction(ctx context.Context, a *agent.Agent, id string, date
 }
 
 func browserGetHomeAction(ctx context.Context, a *agent.Agent,
+	virtualNowUnix int64,
 	validateIsu func(*http.Response, []*service.Isu) []error,
 	validateCondition func(*http.Response, []*service.GetIsuConditionResponse) []error,
 ) ([]*service.Isu, []*service.GetIsuConditionResponse, []error) {
@@ -624,7 +625,7 @@ func browserGetHomeAction(ctx context.Context, a *agent.Agent,
 		errors = append(errors, validateIsu(hres, isuList)...)
 	}
 
-	conditions, hres, err := getConditionAction(ctx, a, service.GetIsuConditionRequest{CursorEndTime: uint64(time.Now().Unix()), CursorJIAIsuUUID: "z", ConditionLevel: "critical,warning,info"})
+	conditions, hres, err := getConditionAction(ctx, a, service.GetIsuConditionRequest{CursorEndTime: uint64(virtualNowUnix), CursorJIAIsuUUID: "z", ConditionLevel: "critical,warning,info"})
 	if err != nil {
 		errors = append(errors, err)
 	} else {
