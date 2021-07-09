@@ -16,16 +16,6 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
--- Dumping data for table `graph`
---
-
-LOCK TABLES `graph` WRITE;
-/*!40000 ALTER TABLE `graph` DISABLE KEYS */;
-INSERT INTO `graph` VALUES ('0694e4d7-dfce-4aec-b7ca-887ac42cfb8f','2021-06-16 00:00:00','{\"score\": 70, \"detail\": {\"dirty\": 0, \"over_weight\": 0}, \"sitting\": 0}','2021-06-16 02:33:40.596857','2021-06-16 02:33:40.596857'),('0694e4d7-dfce-4aec-b7ca-887ac42cfb8f','2021-06-16 01:00:00','{\"score\": 50, \"detail\": {\"dirty\": -10, \"over_weight\": -10}, \"sitting\": 100}','2021-06-16 02:33:40.598760','2021-06-16 02:33:40.598760'),('f012233f-c50e-4349-9473-95681becff1e','2021-06-16 00:00:00','{\"score\": 50, \"detail\": {\"dirty\": -10, \"over_weight\": -10}, \"sitting\": 100}','2021-06-16 02:33:40.600613','2021-06-16 02:33:40.600613'),('f012233f-c50e-4349-9473-95681becff1e','2021-06-16 01:00:00','{\"score\": 30, \"detail\": {\"dirty\": -10, \"over_weight\": -10}, \"sitting\": 100}','2021-06-16 02:33:40.602674','2021-06-16 02:33:40.602674');
-/*!40000 ALTER TABLE `graph` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
 -- Dumping data for table `isu`
 --
 
