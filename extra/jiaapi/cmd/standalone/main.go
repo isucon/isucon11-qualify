@@ -349,8 +349,6 @@ func (state *IsuConditionPoster) keepPosting(ctx context.Context) {
 		}
 
 		func() {
-			fmt.Println("go go go!!")
-
 			resp, err := http.Post(
 				targetURL, "application/json",
 				bytes.NewBuffer(payload),
