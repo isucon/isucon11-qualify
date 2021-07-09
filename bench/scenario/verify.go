@@ -120,13 +120,13 @@ func verifyIsuConditions(res *http.Response,
 
 	//expectedの開始位置を探す()
 	baseIter := base.End(filter)
-	baseIter.LowerBoundIsuConditionIndex(cursor.TimestampUnix, cursor.OwnerID)
+	baseIter.UpperBoundIsuConditionIndex(cursor.TimestampUnix, cursor.OwnerID) //TODO: Lowerなきがする
 
 	//backendDataの先頭からチェック
-	lastSort := model.IsuConditionCursor{TimestampUnix: backendData[0].Timestamp + 1, OwnerID: ""}
-	for _, c := range backendData {
+	var lastSort model.IsuConditionCursor
+	for i, c := range backendData {
 		nowSort := model.IsuConditionCursor{TimestampUnix: c.Timestamp, OwnerID: c.JIAIsuUUID}
-		if !nowSort.Less(&lastSort) {
+		if i != 0 && !nowSort.Less(&lastSort) {
 			return errorInvalid(res, "整列順が正しくありません")
 		}
 
