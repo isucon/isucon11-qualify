@@ -2,6 +2,7 @@ package scenario
 
 import (
 	"context"
+	"math"
 	"sync"
 	"time"
 
@@ -156,4 +157,21 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 	}
 
 	return isu
+}
+
+func GetConditionDataExistTimestamp(s *Scenario, user *model.User) int64 {
+	if len(user.IsuListOrderByCreatedAt) == 0 {
+		return s.virtualTimeStart.Unix()
+	}
+	var timestamp int64 = math.MaxInt64
+	for _, isu := range user.IsuListOrderByCreatedAt {
+		cond := isu.Conditions.Back()
+		if cond == nil {
+			return s.virtualTimeStart.Unix()
+		}
+		if cond.TimestampUnix < timestamp {
+			timestamp = cond.TimestampUnix
+		}
+	}
+	return timestamp
 }

@@ -99,6 +99,11 @@ func (ia *IsuConditionArray) End(filter ConditionLevel) IsuConditionIterator {
 	}
 }
 
+func (ia *IsuConditionArray) Back() *IsuCondition {
+	iter := ia.End(ConditionLevelInfo | ConditionLevelWarning | ConditionLevelCritical)
+	return iter.Prev()
+}
+
 func (iter *IsuConditionIterator) UpperBoundIsuConditionIndex(targetTimestamp int64, targetIsuUUID string) {
 	if (iter.filter & ConditionLevelInfo) != 0 {
 		iter.indexInfo = upperBoundIsuConditionIndex(iter.parent.Info, len(iter.parent.Info), targetTimestamp, targetIsuUUID)

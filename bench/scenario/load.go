@@ -127,11 +127,11 @@ scenarioLoop:
 		nextTargetIsuIndex += 1
 		nextTargetIsuIndex %= isuCount
 		targetIsu := user.IsuListOrderByCreatedAt[nextTargetIsuIndex]
+		mustExistUntil := s.ToVirtualTime(time.Now().Add(-1 * time.Second)).Unix()
 
 		//GET /
-		realNow := time.Now()
-		virtualNow := s.ToVirtualTime(realNow)
-		_, _, errs := browserGetHomeAction(ctx, user.Agent, virtualNow.Unix(),
+		dataExistTimestamp := GetConditionDataExistTimestamp(s, user)
+		_, _, errs := browserGetHomeAction(ctx, user.Agent, dataExistTimestamp,
 			func(res *http.Response, isuList []*service.Isu) []error {
 				return verifyIsuOrderByCreatedAt(res, user.IsuListOrderByCreatedAt, isuList)
 			},
@@ -163,11 +163,9 @@ scenarioLoop:
 			//TODO: リロード
 
 			//定期的にconditionを見に行くシナリオ
-			realNow = time.Now()
-			virtualNow = s.ToVirtualTime(realNow)
 			request := service.GetIsuConditionRequest{
 				StartTime:        nil,
-				CursorEndTime:    uint64(virtualNow.Unix()),
+				CursorEndTime:    uint64(dataExistTimestamp),
 				CursorJIAIsuUUID: "",
 				ConditionLevel:   "info,warning,critical",
 				Limit:            nil,
@@ -177,7 +175,7 @@ scenarioLoop:
 				func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
 					//conditionの検証
 					err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request,
-						conditions, s.ToVirtualTime(realNow.Add(-1*time.Second)).Unix(),
+						conditions, mustExistUntil,
 					)
 					if err != nil {
 						return []error{err}
@@ -213,7 +211,7 @@ scenarioLoop:
 				//検証
 				//ここは、古いデータのはずなのでconditionのchanからの再取得は要らない
 				err = verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request,
-					conditionsTmp, s.ToVirtualTime(realNow.Add(-1*time.Second)).Unix(),
+					conditionsTmp, mustExistUntil,
 				)
 				if err != nil {
 					scenarioSuccess = false
@@ -246,10 +244,8 @@ scenarioLoop:
 		} else {
 
 			//TODO: graphを見に行くシナリオ
-			realNow = time.Now()
-			virtualNow = s.ToVirtualTime(realNow)
-			virtualToday := time.Date(virtualNow.Year(), virtualNow.Month(), virtualNow.Day(), 0, 0, 0, 0, virtualNow.Location())
-			_, graphToday, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, uint64(virtualToday.Unix()),
+			virtualToday := (dataExistTimestamp / (24 * 60 * 60)) * (24 * 60 * 60)
+			_, graphToday, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, uint64(virtualToday),
 				func(res *http.Response, graph []*service.GraphResponse) []error {
 					//検証前にデータ取得
 					user.GetConditionFromChan(ctx)
@@ -265,7 +261,7 @@ scenarioLoop:
 			}
 
 			//前日のグラフ
-			_, _, errs = browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, uint64(virtualToday.Add(-24*time.Hour).Unix()),
+			_, _, errs = browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, uint64(virtualToday-60*60),
 				func(res *http.Response, graph []*service.GraphResponse) []error {
 					return []error{} //TODO: 検証
 				},
@@ -303,7 +299,7 @@ scenarioLoop:
 						//ここは、古いデータのはずなのでconditionのchanからの再取得は要らない
 						//TODO: starttimeの検証
 						err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request,
-							conditions, s.ToVirtualTime(realNow.Add(-1*time.Second)).Unix(),
+							conditions, mustExistUntil,
 						)
 						if err != nil {
 							return []error{err}
