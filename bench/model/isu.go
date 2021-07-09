@@ -1,6 +1,9 @@
 package model
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+)
 
 //enum
 type IsuStateChange int
@@ -93,4 +96,27 @@ func (isu *Isu) IsDeactivated() bool {
 	default:
 	}
 	return isu.isDeactivated
+}
+
+func (isu *Isu) getConditionFromChan(ctx context.Context, userConditionBuffer *IsuConditionArray) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case conditions, ok := <-isu.StreamsForScenario.ConditionChan:
+			if !ok {
+				return
+			}
+			for _, c := range conditions {
+				isu.Conditions.Add(&c)
+			}
+			if userConditionBuffer != nil {
+				for _, c := range conditions {
+					userConditionBuffer.Add(&c)
+				}
+			}
+		default:
+			return
+		}
+	}
 }

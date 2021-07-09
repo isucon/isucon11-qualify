@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"math/rand"
 
 	"github.com/isucon/isucandar/agent"
@@ -46,6 +47,12 @@ func NewRandomUserRaw(userType UserType) (*User, error) {
 func (u *User) AddIsu(isu *Isu) {
 	u.IsuListOrderByCreatedAt = append(u.IsuListOrderByCreatedAt, isu)
 	u.IsuListByID[isu.JIAIsuUUID] = isu
+}
+
+func (user *User) GetConditionFromChan(ctx context.Context) {
+	for _, isu := range user.IsuListOrderByCreatedAt {
+		isu.getConditionFromChan(ctx, &user.Conditions)
+	}
 }
 
 // utility
