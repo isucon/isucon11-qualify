@@ -211,7 +211,7 @@ func lowerBoundIsuConditionIndex(base []IsuCondition, end int, targetTimestamp i
 	ok := end
 	ng := end - defaultRange
 	ng = (ng / defaultRange) * defaultRange //0未満になるのが嫌なので、defaultRangeの倍数にする
-	for base[ng].Less2(&target) {           //Timestampはunique仮定なので、<で良い（等価が見つかればそれで良し）
+	for !base[ng].Less2(&target) {          //Timestampはunique仮定なので、<で良い（等価が見つかればそれで良し）
 		ok = ng
 		ng -= defaultRange
 	}
@@ -219,7 +219,7 @@ func lowerBoundIsuConditionIndex(base []IsuCondition, end int, targetTimestamp i
 	//答えは(ng, ok]内にあるはずなので、二分探索
 	for ok-ng > 1 {
 		mid := (ok + ng) / 2
-		if base[mid].Less2(&target) {
+		if !base[mid].Less2(&target) {
 			ok = mid
 		} else {
 			ng = mid
