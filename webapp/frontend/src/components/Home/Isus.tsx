@@ -24,9 +24,6 @@ const Isus = () => {
         <Link to="/search">
           <Button label="もっと見る" />
         </Link>
-        <Link to="/register">
-          <Button label="ISUを登録" />
-        </Link>
       </div>
     </div>
   )
