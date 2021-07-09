@@ -10,8 +10,8 @@ RUN npm run build
 
 FROM golang:1.16.5-buster
 
-WORKDIR /webapp/mysql/db
-COPY webapp/mysql/db/ .
+WORKDIR /webapp/sql
+COPY webapp/sql/ .
 
 WORKDIR /webapp/go
 

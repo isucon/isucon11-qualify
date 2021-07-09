@@ -49,7 +49,7 @@ jobs:
       - name: Dump initial-data
         working-directory: development
         run: |
-          sh -c "docker-compose -f docker-compose-ci.yml exec -T mysql-backend mysqldump -uroot -proot --databases isucondition" > initial-data.sql
+          sh -c "docker-compose -f docker-compose-ci.yml exec -T mysql-backend mysqldump -uroot -proot isucondition -n -t" > initial-data.sql
       - name: Stop MySQL
         if: failure() || true
         working-directory: development
