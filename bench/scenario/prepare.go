@@ -31,7 +31,7 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 		defer s.loadWaitGroup.Done()
 		s.JiaAPIThread(ctxJIA, step)
 	}()
-	jiaWait := time.After(2 * time.Second)
+	jiaWait := time.After(10 * time.Second)
 
 	//initialize
 	initializer, err := s.NewAgent(
