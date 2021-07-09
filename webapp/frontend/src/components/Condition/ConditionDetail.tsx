@@ -6,7 +6,7 @@ interface Props {
 }
 
 const getTime = (condition: Condition) => {
-  const date = new Date(condition.timestamp)
+  const date = new Date(condition.timestamp * 1000)
   // 2020/01/01 01:01:01
   return `${date.getUTCFullYear()}/${pad0(date.getUTCMonth() + 1)}/${pad0(
     date.getUTCDate()
