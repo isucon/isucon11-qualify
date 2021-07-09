@@ -342,7 +342,7 @@ func (iter *IsuConditionTreeSetIterator) Prev() *IsuCondition {
 	var max *IsuCondition
 	if (iter.filter & ConditionLevelInfo) != 0 {
 		prevOK := iter.info.Prev()
-		if prevOK && (max == nil || max.Less(iter.info.Value().(*IsuCondition))) {
+		if prevOK && (max == nil || max.Less(iter.info.Key().(*IsuCondition))) {
 			maxType = ConditionLevelInfo
 			max = iter.info.Key().(*IsuCondition)
 		}
@@ -350,7 +350,7 @@ func (iter *IsuConditionTreeSetIterator) Prev() *IsuCondition {
 	}
 	if (iter.filter & ConditionLevelWarning) != 0 {
 		prevOK := iter.warning.Prev()
-		if prevOK && (max == nil || max.Less(iter.warning.Value().(*IsuCondition))) {
+		if prevOK && (max == nil || max.Less(iter.warning.Key().(*IsuCondition))) {
 			maxType = ConditionLevelWarning
 			max = iter.warning.Key().(*IsuCondition)
 		}
@@ -358,7 +358,7 @@ func (iter *IsuConditionTreeSetIterator) Prev() *IsuCondition {
 	}
 	if (iter.filter & ConditionLevelCritical) != 0 {
 		prevOK := iter.critical.Prev()
-		if prevOK && (max == nil || max.Less(iter.critical.Value().(*IsuCondition))) {
+		if prevOK && (max == nil || max.Less(iter.critical.Key().(*IsuCondition))) {
 			maxType = ConditionLevelCritical
 			max = iter.critical.Key().(*IsuCondition)
 		}
