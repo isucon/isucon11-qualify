@@ -519,7 +519,7 @@ func postIsuConditionErrorAction(ctx context.Context, a *agent.Agent, id string,
 }
 
 func getIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req service.GetIsuConditionRequest) ([]*service.GetIsuConditionResponse, *http.Response, error) {
-	reqUrl := getIsuConditionRequestParams(fmt.Sprintf("/api/condition/%s?", id), req)
+	reqUrl := getIsuConditionRequestParams(fmt.Sprintf("/api/condition/%s", id), req)
 	conditions := []*service.GetIsuConditionResponse{}
 	res, err := reqJSONResJSON(ctx, a, http.MethodGet, reqUrl, nil, &conditions, []int{http.StatusOK})
 	if err != nil {
@@ -529,7 +529,7 @@ func getIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req s
 }
 
 func getIsuConditionErrorAction(ctx context.Context, a *agent.Agent, id string, req service.GetIsuConditionRequest) (string, *http.Response, error) {
-	reqUrl := getIsuConditionRequestParams(fmt.Sprintf("/api/condition/%s?", id), req)
+	reqUrl := getIsuConditionRequestParams(fmt.Sprintf("/api/condition/%s", id), req)
 	res, text, err := reqNoContentResError(ctx, a, http.MethodGet, reqUrl, []int{http.StatusNotFound, http.StatusUnauthorized})
 	if err != nil {
 		return "", nil, err
@@ -538,7 +538,7 @@ func getIsuConditionErrorAction(ctx context.Context, a *agent.Agent, id string, 
 }
 
 func getConditionAction(ctx context.Context, a *agent.Agent, req service.GetIsuConditionRequest) ([]*service.GetIsuConditionResponse, *http.Response, error) {
-	reqUrl := getIsuConditionRequestParams("/api/condition?", req)
+	reqUrl := getIsuConditionRequestParams("/api/condition", req)
 	conditions := []*service.GetIsuConditionResponse{}
 	res, err := reqJSONResJSON(ctx, a, http.MethodGet, reqUrl, nil, &conditions, []int{http.StatusOK})
 	if err != nil {
@@ -548,7 +548,7 @@ func getConditionAction(ctx context.Context, a *agent.Agent, req service.GetIsuC
 }
 
 func getConditionErrorAction(ctx context.Context, a *agent.Agent, req service.GetIsuConditionRequest) (string, *http.Response, error) {
-	reqUrl := getIsuConditionRequestParams("/api/condition?", req)
+	reqUrl := getIsuConditionRequestParams("/api/condition", req)
 	res, text, err := reqNoContentResError(ctx, a, http.MethodGet, reqUrl, []int{http.StatusNotFound, http.StatusUnauthorized})
 	if err != nil {
 		return "", nil, err
