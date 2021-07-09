@@ -7,6 +7,7 @@ package scenario
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -113,7 +114,7 @@ func verifyIsuOrderByCreatedAt(res *http.Response, expectedReverse []*model.Isu,
 
 //
 //mustExistUntil: この値以下のtimestampを持つものは全て反映されているべき
-func verifySingleIsuConditions(res *http.Response, base *model.IsuConditionArray, filter model.ConditionLevel, cursor model.IsuConditionCursor, backendData []service.GetIsuConditionResponse, mustExistUntil int64) error {
+func verifyIsuConditions(res *http.Response, base *model.IsuConditionArray, filter model.ConditionLevel, cursor model.IsuConditionCursor, isuMap map[string]*model.Isu, backendData []service.GetIsuConditionResponse, mustExistUntil int64) error {
 
 	//expectedの開始位置を探す()
 	baseIter := base.End(filter)
@@ -143,7 +144,39 @@ func verifySingleIsuConditions(res *http.Response, base *model.IsuConditionArray
 			}
 		}
 
-		//TODO: 等価チェック
+		//等価チェック
+		expectedCondition := fmt.Sprintf("is_dirty=%v,is_overweight=%v,is_broken=%v",
+			expected.IsDirty,
+			expected.IsOverweight,
+			expected.IsBroken,
+		)
+		var expectedConditionLevelStr string
+		warnCount := 0
+		if expected.IsDirty {
+			warnCount++
+		}
+		if expected.IsOverweight {
+			warnCount++
+		}
+		if expected.IsBroken {
+			warnCount++
+		}
+		switch warnCount {
+		case 0:
+			expectedConditionLevelStr = "info"
+		case 1, 2:
+			expectedConditionLevelStr = "warning"
+		case 3:
+			expectedConditionLevelStr = "critical"
+		}
+		if c.Condition != expectedCondition ||
+			c.ConditionLevel != expectedConditionLevelStr ||
+			c.IsSitting != expected.IsSitting ||
+			c.JIAIsuUUID != expected.OwnerID ||
+			c.Message != expected.Message ||
+			c.IsuName != isuMap[expected.OwnerID].Name {
+			return errorMissmatch(res, "データが正しくありません")
+		}
 
 		lastSort = nowSort
 	}
