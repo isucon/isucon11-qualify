@@ -2,6 +2,7 @@ package scenario
 
 import (
 	"context"
+	"math"
 	"sync"
 	"time"
 
@@ -34,9 +35,11 @@ type Scenario struct {
 	jiaChancel    context.CancelFunc
 
 	//内部状態
-	normalUsersMtx sync.Mutex
-	normalUsers    []*model.User
-	Catalogs       map[string]*model.IsuCatalog
+	normalUsersMtx  sync.Mutex
+	normalUsers     []*model.User
+	companyUsersMtx sync.Mutex
+	companyUsers    []*model.User
+	Catalogs        map[string]*model.IsuCatalog
 }
 
 func NewScenario(jiaServiceURL string) (*Scenario, error) {
@@ -47,6 +50,7 @@ func NewScenario(jiaServiceURL string) (*Scenario, error) {
 		virtualTimeMulti: 3000,                                          //5分=300秒に一回 => 1秒に10回
 		jiaServiceURL:    jiaServiceURL,
 		normalUsers:      []*model.User{},
+		companyUsers:     []*model.User{},
 	}, nil
 }
 
@@ -90,7 +94,7 @@ func (s *Scenario) AddCompanyUser(ctx context.Context, step *isucandar.Benchmark
 	for i := 0; i < count; i++ {
 		go func(ctx context.Context, step *isucandar.BenchmarkStep) {
 			defer s.loadWaitGroup.Done()
-			//s.loadCompanyUser(ctx, step) //TODO:
+			s.loadCompanyUser(ctx, step)
 		}(ctx, step)
 	}
 }
@@ -156,4 +160,21 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 	}
 
 	return isu
+}
+
+func GetConditionDataExistTimestamp(s *Scenario, user *model.User) int64 {
+	if len(user.IsuListOrderByCreatedAt) == 0 {
+		return s.virtualTimeStart.Unix()
+	}
+	var timestamp int64 = math.MaxInt64
+	for _, isu := range user.IsuListOrderByCreatedAt {
+		cond := isu.Conditions.Back()
+		if cond == nil {
+			return s.virtualTimeStart.Unix()
+		}
+		if cond.TimestampUnix < timestamp {
+			timestamp = cond.TimestampUnix
+		}
+	}
+	return timestamp
 }

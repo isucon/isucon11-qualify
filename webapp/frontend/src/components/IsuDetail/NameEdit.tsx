@@ -48,10 +48,16 @@ const FinishEditButtons = ({
 }) => {
   return (
     <div className="flex gap-2 items-center">
-      <button onClick={confirmEdit} className="focus:outline-none">
+      <button
+        onClick={confirmEdit}
+        className="flex items-center focus:outline-none"
+      >
         <HiOutlineCheck size="20" />
       </button>
-      <button onClick={finishEdit} className="text-error focus:outline-none">
+      <button
+        onClick={finishEdit}
+        className="flex items-center text-error focus:outline-none"
+      >
         <IoMdClose size="20" />
       </button>
     </div>
@@ -60,7 +66,10 @@ const FinishEditButtons = ({
 
 const StartEditButton = ({ startEdit }: { startEdit: () => void }) => {
   return (
-    <button onClick={startEdit} className="focus:outline-none">
+    <button
+      onClick={startEdit}
+      className="flex items-center focus:outline-none"
+    >
       <HiOutlinePencil size="20" />
     </button>
   )

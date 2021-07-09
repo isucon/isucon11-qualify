@@ -7,6 +7,7 @@ package scenario
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -110,3 +111,120 @@ func verifyIsuOrderByCreatedAt(res *http.Response, expectedReverse []*model.Isu,
 // 	errs := []error{}
 // 	return errs
 // }
+
+//
+//mustExistUntil: この値以下のtimestampを持つものは全て反映されているべき
+func verifyIsuConditions(res *http.Response,
+	targetUser *model.User, targetIsuUUID string, request *service.GetIsuConditionRequest,
+	backendData []*service.GetIsuConditionResponse, mustExistUntil int64) error {
+
+	//limitを超えているかチェック
+	var limit int
+	if request.Limit != nil {
+		limit = int(*request.Limit)
+	} else {
+		limit = conditionLimit
+	}
+	if limit < len(backendData) {
+		return errorInvalid(res, "要素数が正しくありません")
+	}
+	//レスポンス側のstartTimeのチェック
+	if request.StartTime != nil && len(backendData) != 0 && backendData[len(backendData)-1].Timestamp < int64(*request.StartTime) {
+		return errorInvalid(res, "データが正しくありません")
+	}
+
+	//expectedの開始位置を探す
+	filter := model.ConditionLevelNone
+	for _, level := range strings.Split(request.ConditionLevel, ",") {
+		switch level[0] {
+		case 'i':
+			filter |= model.ConditionLevelInfo
+		case 'w':
+			filter |= model.ConditionLevelWarning
+		case 'c':
+			filter |= model.ConditionLevelCritical
+		}
+	}
+	var baseIter model.IsuConditionIterator
+	if targetIsuUUID != "" {
+		targetIsu := targetUser.IsuListByID[targetIsuUUID]
+		iterTmp := targetIsu.Conditions.LowerBound(filter, int64(request.CursorEndTime), request.CursorJIAIsuUUID)
+		baseIter = &iterTmp
+	} else {
+		iterTmp := targetUser.Conditions.LowerBound(filter, int64(request.CursorEndTime), request.CursorJIAIsuUUID)
+		baseIter = &iterTmp
+	}
+
+	//backendDataの先頭からチェック
+	var lastSort model.IsuConditionCursor
+	for i, c := range backendData {
+		nowSort := model.IsuConditionCursor{TimestampUnix: c.Timestamp, OwnerID: c.JIAIsuUUID}
+		if i != 0 && !nowSort.Less(&lastSort) {
+			return errorInvalid(res, "整列順が正しくありません")
+		}
+
+		var expected *model.IsuCondition
+		for {
+			expected = baseIter.Prev()
+			if expected == nil {
+				return errorMissmatch(res, "存在しないはずのデータが返されました")
+			}
+
+			if expected.TimestampUnix == c.Timestamp {
+				break //ok
+			}
+
+			if mustExistUntil < expected.TimestampUnix {
+				//反映されていないことが許可されているので、無視して良い
+				continue
+			}
+			return errorMissmatch(res, "データが正しくありません")
+		}
+
+		//等価チェック
+		expectedCondition := fmt.Sprintf("is_dirty=%v,is_overweight=%v,is_broken=%v",
+			expected.IsDirty,
+			expected.IsOverweight,
+			expected.IsBroken,
+		)
+		var expectedConditionLevelStr string
+		warnCount := 0
+		if expected.IsDirty {
+			warnCount++
+		}
+		if expected.IsOverweight {
+			warnCount++
+		}
+		if expected.IsBroken {
+			warnCount++
+		}
+		switch warnCount {
+		case 0:
+			expectedConditionLevelStr = "info"
+		case 1, 2:
+			expectedConditionLevelStr = "warning"
+		case 3:
+			expectedConditionLevelStr = "critical"
+		}
+		if c.Condition != expectedCondition ||
+			c.ConditionLevel != expectedConditionLevelStr ||
+			c.IsSitting != expected.IsSitting ||
+			c.JIAIsuUUID != expected.OwnerID ||
+			c.Message != expected.Message ||
+			c.IsuName != targetUser.IsuListByID[c.JIAIsuUUID].Name {
+			return errorMissmatch(res, "データが正しくありません")
+		}
+
+		lastSort = nowSort
+	}
+
+	//limitの検証
+	if len(backendData) < limit && baseIter.Prev() != nil {
+		prev := baseIter.Prev()
+		if prev != nil && request.StartTime != nil && int64(*request.StartTime) <= prev.TimestampUnix {
+			return errorInvalid(res, "要素数が正しくありません")
+		}
+	}
+
+	return nil
+}

@@ -33,7 +33,7 @@ const (
 	searchLimit               = 20
 	conditionLimit            = 20
 	isuListLimit              = 200 // TODO 修正が必要なら変更
-	frontendContentsPath      = "../frontend/dist"
+	frontendContentsPath      = "../public"
 	jwtVerificationKeyPath    = "../ec256-public.pem"
 	defaultIconFilePath       = "../NoImage.png"
 	defaultJIAServiceURL      = "http://localhost:5000"
@@ -120,11 +120,9 @@ type GraphData struct {
 
 //グラフ表示用  一時間のsummry
 type Graph struct {
-	JIAIsuUUID string    `db:"jia_isu_uuid"`
-	StartAt    time.Time `db:"start_at"`
-	Data       string    `db:"data"`
-	CreatedAt  time.Time `db:"created_at"`
-	UpdatedAt  time.Time `db:"updated_at"`
+	JIAIsuUUID string
+	StartAt    time.Time
+	Data       string
 }
 
 type User struct {
@@ -1123,11 +1121,9 @@ func getIsuGraph(c echo.Context) error {
 		return c.String(http.StatusNotFound, "isu not found")
 	}
 
-	var graphList []Graph
-	err = tx.Select(&graphList, "SELECT * FROM `graph` WHERE `jia_isu_uuid` = ? AND ? <= `start_at` AND `start_at` <= ? ORDER BY `start_at` ASC ",
-		jiaIsuUUID, date, date.Add(time.Hour*24))
+	graphList, err := getGraphDataList(tx, jiaIsuUUID, date)
 	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
+		c.Logger().Errorf("cannot get graph: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -1528,13 +1524,6 @@ func postIsuCondition(c echo.Context) error {
 
 	}
 
-	// getGraph用のデータを計算し、DBを更新する
-	err = updateGraph(tx, jiaIsuUUID)
-	if err != nil {
-		c.Logger().Errorf("failed to update graph: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
 	// トランザクション終了
 	err = tx.Commit()
 	if err != nil {
@@ -1545,22 +1534,21 @@ func postIsuCondition(c echo.Context) error {
 	return c.NoContent(http.StatusCreated)
 }
 
-// getGraph用のデータを計算し、DBを更新する
-func updateGraph(tx *sqlx.Tx, jiaIsuUUID string) error {
+func getGraphDataList(tx *sqlx.Tx, jiaIsuUUID string, date time.Time) ([]Graph, error) {
 	// IsuConditionを一時間ごとの区切りに分け、区切りごとにスコアを計算する
 	IsuConditionCluster := []IsuCondition{} // 一時間ごとの纏まり
 	var tmpIsuCondition IsuCondition
-	valuesForUpdate := []interface{}{} //3個1組、更新するgraphの各行のデータ
 	rows, err := tx.Queryx("SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` ASC", jiaIsuUUID)
 	if err != nil {
-		return err
+		return nil, err
 	}
+	graphDatas := []Graph{}
 	//一時間ごとに区切る
 	var startTime time.Time
 	for rows.Next() {
 		err = rows.StructScan(&tmpIsuCondition)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		tmpTime := truncateAfterHours(tmpIsuCondition.Timestamp)
 		if startTime != tmpTime {
@@ -1568,9 +1556,9 @@ func updateGraph(tx *sqlx.Tx, jiaIsuUUID string) error {
 				//tmpTimeは次の一時間なので、それ以外を使ってスコア計算
 				data, err := calculateGraphData(IsuConditionCluster)
 				if err != nil {
-					return fmt.Errorf("failed to calculate graph: %v", err)
+					return nil, fmt.Errorf("failed to calculate graph: %v", err)
 				}
-				valuesForUpdate = append(valuesForUpdate, jiaIsuUUID, startTime, data)
+				graphDatas = append(graphDatas, Graph{JIAIsuUUID: jiaIsuUUID, StartAt: startTime, Data: string(data)})
 			}
 
 			//次の一時間の探索
@@ -1583,24 +1571,28 @@ func updateGraph(tx *sqlx.Tx, jiaIsuUUID string) error {
 		//最後の一時間分
 		data, err := calculateGraphData(IsuConditionCluster)
 		if err != nil {
-			return fmt.Errorf("failed to calculate graph: %v", err)
+			return nil, fmt.Errorf("failed to calculate graph: %v", err)
 		}
-		valuesForUpdate = append(valuesForUpdate, jiaIsuUUID, startTime, data)
+		graphDatas = append(graphDatas, Graph{JIAIsuUUID: jiaIsuUUID, StartAt: startTime, Data: string(data)})
 	}
 
-	//insert or update
-	params := strings.Repeat("(?,?,?),", len(valuesForUpdate)/3)
-	params = params[:len(params)-1]
-	_, err = tx.Exec("INSERT INTO `graph` (`jia_isu_uuid`, `start_at`, `data`) VALUES "+
-		params+
-		"	ON DUPLICATE KEY UPDATE `data` = VALUES(`data`)",
-		valuesForUpdate...,
-	)
-	if err != nil {
-		return err
+	// 24時間分のグラフデータだけを取り出す処理
+	endDate := date.Add(time.Hour * 24)
+	startIndex := 0
+	endNextIndex := len(graphDatas)
+	for i, graph := range graphDatas {
+		if startIndex == 0 && !graph.StartAt.Before(date) {
+			startIndex = i
+		}
+		if endNextIndex == len(graphDatas) && graph.StartAt.After(endDate) {
+			endNextIndex = i
+		}
+	}
+	if endNextIndex < startIndex {
+		return []Graph{}, nil
 	}
 
-	return nil
+	return graphDatas[startIndex : endNextIndex], nil
 }
 
 //分以下を切り捨て、一時間単位にする関数

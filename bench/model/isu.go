@@ -1,6 +1,9 @@
 package model
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+)
 
 //enum
 type IsuStateChange int
@@ -21,7 +24,7 @@ const (
 type StreamsForPoster struct {
 	ActiveChan    chan<- bool
 	StateChan     <-chan IsuStateChange
-	ConditionChan chan<- *IsuCondition
+	ConditionChan chan<- []IsuCondition
 }
 
 //posterスレッドとシナリオスレッドとの通信に必要な情報
@@ -30,7 +33,7 @@ type StreamsForPoster struct {
 type StreamsForScenario struct {
 	activeChan    <-chan bool
 	StateChan     chan<- IsuStateChange
-	ConditionChan <-chan *IsuCondition
+	ConditionChan <-chan []IsuCondition
 }
 
 //一つのIsuにつき、一つの送信用スレッドがある
@@ -45,7 +48,7 @@ type Isu struct {
 	IsWantDeactivated  bool                //シナリオ上でDeleteリクエストを送ったかどうか
 	isDeactivated      bool                //実際にdeactivateされているか
 	StreamsForScenario *StreamsForScenario //posterスレッドとの通信
-	Conditions         []IsuCondition      //シナリオスレッドからのみ参照
+	Conditions         IsuConditionArray   //シナリオスレッドからのみ参照
 }
 
 //新しいISUの生成
@@ -56,7 +59,7 @@ type Isu struct {
 func NewRandomIsuRaw(owner *User) (*Isu, *StreamsForPoster, error) {
 	activeChan := make(chan bool)
 	stateChan := make(chan IsuStateChange, 1)
-	conditionChan := make(chan *IsuCondition, 30)
+	conditionChan := make(chan []IsuCondition, 10)
 
 	id := fmt.Sprintf("randomid-%s-%d", owner.UserID, len(owner.IsuListOrderByCreatedAt))     //TODO: ちゃんと生成する
 	name := fmt.Sprintf("randomname-%s-%d", owner.UserID, len(owner.IsuListOrderByCreatedAt)) //TODO: ちゃんと生成する
@@ -74,7 +77,7 @@ func NewRandomIsuRaw(owner *User) (*Isu, *StreamsForPoster, error) {
 			StateChan:     stateChan,
 			ConditionChan: conditionChan,
 		},
-		Conditions: []IsuCondition{},
+		Conditions: NewIsuConditionArray(),
 	}
 
 	streamsForPoster := &StreamsForPoster{
@@ -93,4 +96,27 @@ func (isu *Isu) IsDeactivated() bool {
 	default:
 	}
 	return isu.isDeactivated
+}
+
+func (isu *Isu) getConditionFromChan(ctx context.Context, userConditionBuffer *IsuConditionTreeSet) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case conditions, ok := <-isu.StreamsForScenario.ConditionChan:
+			if !ok {
+				return
+			}
+			for _, c := range conditions {
+				isu.Conditions.Add(&c)
+			}
+			if userConditionBuffer != nil {
+				for _, c := range conditions {
+					userConditionBuffer.Add(&c)
+				}
+			}
+		default:
+			return
+		}
+	}
 }
