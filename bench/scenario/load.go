@@ -360,3 +360,219 @@ func findBadIsuState(conditions []*service.GetIsuConditionResponse) (model.IsuSt
 
 	return solvedCondition, virtualTimestamp
 }
+
+func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.BenchmarkStep) {
+
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
+	logger.AdminLogger.Println("Company User start")
+	defer logger.AdminLogger.Println("Company User END")
+
+	//ユーザー作成
+	userAgent, err := s.NewAgent()
+	if err != nil {
+		logger.AdminLogger.Panicln(err)
+	}
+	user := s.NewUser(ctx, step, userAgent, model.UserTypeCompany)
+	if user == nil {
+		logger.AdminLogger.Println("Company User fail: NewUser")
+		return //致命的でないエラー
+	}
+	func() {
+		s.companyUsersMtx.Lock()
+		defer s.companyUsersMtx.Unlock()
+		s.companyUsers = append(s.companyUsers, user)
+	}()
+
+	//椅子作成
+	const isuCountMax = 1000
+	isuCount := 50
+	for i := 0; i < isuCount; i++ {
+		isu := s.NewIsu(ctx, step, user, true)
+		if isu == nil {
+			logger.AdminLogger.Println("Company User fail: NewIsu(initialize)")
+			return //致命的でないエラー
+		}
+	}
+	step.AddScore(ScoreCompanyUserInitialize)
+
+	randEngine := rand.New(rand.NewSource(5498513))
+	scenarioDoneCount := 0
+	scenarioSuccess := false
+	lastSolvedTime := make(map[string]time.Time)
+	for _, isu := range user.IsuListOrderByCreatedAt {
+		lastSolvedTime[isu.JIAIsuUUID] = s.virtualTimeStart
+	}
+scenarioLoop:
+	for {
+		//TODO: 今はnormal userそのままになっているので、ちゃんと企業ユーザー用に書き直す
+
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+		time.Sleep(500 * time.Millisecond) //TODO: 頻度調整
+		if scenarioSuccess {
+			scenarioDoneCount++
+			step.AddScore(ScoreCompanyUserLoop) //TODO: 得点条件の修正
+
+			//シナリオに成功している場合は椅子追加
+			//TODO: 係数調整
+			for isuCount < (scenarioDoneCount/30)*50 && isuCount < isuCountMax {
+				isu := s.NewIsu(ctx, step, user, true)
+				if isu == nil {
+					logger.AdminLogger.Println("Company User fail: NewIsu")
+				} else {
+					isuCount++
+				}
+				//logger.AdminLogger.Printf("Company User Isu: %d\n", isuCount)
+			}
+		}
+		scenarioSuccess = true
+
+		//posterからconditionの取得
+		user.GetConditionFromChan(ctx)
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+		mustExistUntil := s.ToVirtualTime(time.Now().Add(-1 * time.Second)).Unix()
+
+		//GET /
+		dataExistTimestamp := GetConditionDataExistTimestamp(s, user)
+		_, _, errs := browserGetHomeAction(ctx, user.Agent, dataExistTimestamp,
+			func(res *http.Response, isuList []*service.Isu) []error {
+				return verifyIsuOrderByCreatedAt(res, user.IsuListOrderByCreatedAt, isuList)
+			},
+			func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
+				//TODO: conditionの検証
+				return []error{}
+			},
+		)
+		for _, err := range errs {
+			scenarioSuccess = false
+			step.AddError(err)
+		}
+
+		if randEngine.Intn(100) < 80 {
+			//定期的にconditionを見に行くシナリオ
+			request := service.GetIsuConditionRequest{
+				StartTime:        nil,
+				CursorEndTime:    uint64(dataExistTimestamp),
+				CursorJIAIsuUUID: "z",
+				ConditionLevel:   "warning,critical",
+				Limit:            nil,
+			}
+			conditions, errs := browserGetConditionsAction(ctx, user.Agent,
+				request,
+				func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
+					//conditionの検証
+					err := verifyIsuConditions(res, user, "", &request,
+						conditions, mustExistUntil,
+					)
+					if err != nil {
+						return []error{err}
+					}
+					return []error{}
+				},
+			)
+			for _, err := range errs {
+				scenarioSuccess = false
+				step.AddError(err)
+			}
+			if len(errs) > 0 || len(conditions) == 0 {
+				continue scenarioLoop
+			}
+
+			//スクロール
+			for i := 0; i < 2 && len(conditions) == 20*(i+1); i++ {
+				var conditionsTmp []*service.GetIsuConditionResponse
+				request = service.GetIsuConditionRequest{
+					StartTime:        nil,
+					CursorEndTime:    uint64(conditions[len(conditions)-1].Timestamp),
+					CursorJIAIsuUUID: conditions[len(conditions)-1].JIAIsuUUID,
+					ConditionLevel:   "warning,critical",
+					Limit:            nil,
+				}
+				conditionsTmp, res, err := getConditionAction(ctx, user.Agent, request)
+				if err != nil {
+					scenarioSuccess = false
+					step.AddError(err)
+					break
+				}
+				//検証
+				//ここは、古いデータのはずなのでconditionのchanからの再取得は要らない
+				err = verifyIsuConditions(res, user, "", &request, conditions, mustExistUntil)
+				if err != nil {
+					scenarioSuccess = false
+					step.AddError(err)
+					break
+				}
+
+				conditions = append(conditions, conditionsTmp...)
+			}
+
+			//conditionを確認して、椅子状態を改善
+			solvedConditions, findTimestamps := findBadIsuStateWithID(conditions)
+			for targetIsuID, timestamp := range findTimestamps {
+				if solvedConditions[targetIsuID] != model.IsuStateChangeNone && lastSolvedTime[targetIsuID].Before(time.Unix(timestamp, 0)) {
+					//graphを見る
+					virtualDay := (timestamp / (24 * 60 * 60)) * (24 * 60 * 60)
+					_, _, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsuID, uint64(virtualDay),
+						func(res *http.Response, graph []*service.GraphResponse) []error {
+							return []error{} //TODO: 検証
+						},
+					)
+					for _, err := range errs {
+						scenarioSuccess = false
+						step.AddError(err)
+					}
+
+					//状態改善
+					lastSolvedTime[targetIsuID] = time.Unix(timestamp, 0)
+					user.IsuListByID[targetIsuID].StreamsForScenario.StateChan <- solvedConditions[targetIsuID] //バッファがあるのでブロック率は低い読みで直列に投げる
+				}
+			}
+		} else {
+			//TODO:
+		}
+	}
+}
+
+func findBadIsuStateWithID(conditions []*service.GetIsuConditionResponse) (map[string]model.IsuStateChange, map[string]int64) {
+	virtualTimestamp := make(map[string]int64)
+	solvedCondition := make(map[string]model.IsuStateChange)
+	for _, c := range conditions {
+		//MEMO: 重かったらフォーマットが想定通りの前提で最適化する
+		bad := false
+		if _, ok := solvedCondition[c.JIAIsuUUID]; !ok {
+			solvedCondition[c.JIAIsuUUID] = model.IsuStateChangeNone
+		}
+		for _, cond := range strings.Split(c.Condition, ",") {
+			keyValue := strings.Split(cond, "=")
+			if len(keyValue) != 2 {
+				continue //形式に従っていないものは無視
+			}
+			if keyValue[1] != "false" {
+				bad = true
+				if keyValue[0] == "is_dirty" {
+					solvedCondition[c.JIAIsuUUID] |= model.IsuStateChangeClear
+				} else if keyValue[0] == "is_overweight" {
+					solvedCondition[c.JIAIsuUUID] |= model.IsuStateChangeDetectOverweight
+				} else if keyValue[0] == "is_broken" {
+					solvedCondition[c.JIAIsuUUID] |= model.IsuStateChangeRepair
+				}
+			}
+		}
+		if _, ok := virtualTimestamp[c.JIAIsuUUID]; bad && !ok {
+			virtualTimestamp[c.JIAIsuUUID] = c.Timestamp
+		}
+	}
+
+	return solvedCondition, virtualTimestamp
+}
