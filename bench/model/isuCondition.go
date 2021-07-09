@@ -1,5 +1,10 @@
 package model
 
+import (
+	"github.com/emirpasic/gods/trees/redblacktree"
+	"github.com/isucon/isucon11-qualify/bench/model/eiya_redblacktree"
+)
+
 //enum
 type ConditionLevel int
 
@@ -54,7 +59,14 @@ func (left *IsuConditionCursor) Less2(right *IsuCondition) bool {
 		(left.TimestampUnix == right.TimestampUnix && left.OwnerID < right.OwnerID)
 }
 
-//conditionをcreated at順で見る
+//conditionをcreated atの大きい順で見る
+type IsuConditionIterator interface {
+	Prev() *IsuCondition
+}
+
+//Array実装
+
+//conditionをcreated atの大きい順で見る
 type IsuConditionArray struct {
 	Info     []IsuCondition
 	Warning  []IsuCondition
@@ -62,7 +74,7 @@ type IsuConditionArray struct {
 }
 
 //conditionをcreated atの大きい順で見る
-type IsuConditionIterator struct {
+type IsuConditionArrayIterator struct {
 	filter        ConditionLevel
 	indexInfo     int
 	indexWarning  int
@@ -89,8 +101,8 @@ func (ia *IsuConditionArray) Add(cond *IsuCondition) {
 	}
 }
 
-func (ia *IsuConditionArray) End(filter ConditionLevel) IsuConditionIterator {
-	return IsuConditionIterator{
+func (ia *IsuConditionArray) End(filter ConditionLevel) IsuConditionArrayIterator {
+	return IsuConditionArrayIterator{
 		filter:        filter,
 		indexInfo:     len(ia.Info),
 		indexWarning:  len(ia.Warning),
@@ -104,7 +116,8 @@ func (ia *IsuConditionArray) Back() *IsuCondition {
 	return iter.Prev()
 }
 
-func (iter *IsuConditionIterator) UpperBoundIsuConditionIndex(targetTimestamp int64, targetIsuUUID string) {
+func (ia *IsuConditionArray) UpperBound(filter ConditionLevel, targetTimestamp int64, targetIsuUUID string) IsuConditionArrayIterator {
+	iter := ia.End(filter)
 	if (iter.filter & ConditionLevelInfo) != 0 {
 		iter.indexInfo = upperBoundIsuConditionIndex(iter.parent.Info, len(iter.parent.Info), targetTimestamp, targetIsuUUID)
 	}
@@ -114,9 +127,11 @@ func (iter *IsuConditionIterator) UpperBoundIsuConditionIndex(targetTimestamp in
 	if (iter.filter & ConditionLevelCritical) != 0 {
 		iter.indexCritical = upperBoundIsuConditionIndex(iter.parent.Critical, len(iter.parent.Critical), targetTimestamp, targetIsuUUID)
 	}
+	return iter
 }
 
-func (iter *IsuConditionIterator) LowerBoundIsuConditionIndex(targetTimestamp int64, targetIsuUUID string) {
+func (ia *IsuConditionArray) LowerBound(filter ConditionLevel, targetTimestamp int64, targetIsuUUID string) IsuConditionArrayIterator {
+	iter := ia.End(filter)
 	if (iter.filter & ConditionLevelInfo) != 0 {
 		iter.indexInfo = lowerBoundIsuConditionIndex(iter.parent.Info, len(iter.parent.Info), targetTimestamp, targetIsuUUID)
 	}
@@ -126,10 +141,11 @@ func (iter *IsuConditionIterator) LowerBoundIsuConditionIndex(targetTimestamp in
 	if (iter.filter & ConditionLevelCritical) != 0 {
 		iter.indexCritical = lowerBoundIsuConditionIndex(iter.parent.Critical, len(iter.parent.Critical), targetTimestamp, targetIsuUUID)
 	}
+	return iter
 }
 
 //return: nil:もう要素がない
-func (iter *IsuConditionIterator) Prev() *IsuCondition {
+func (iter *IsuConditionArrayIterator) Prev() *IsuCondition {
 	maxType := ConditionLevelNone
 	var max *IsuCondition
 	if (iter.filter&ConditionLevelInfo) != 0 && iter.indexInfo != 0 {
@@ -232,4 +248,130 @@ func lowerBoundIsuConditionIndex(base []IsuCondition, end int, targetTimestamp i
 	}
 
 	return ok
+}
+
+//TreeSet実装
+
+//conditionをcreated atの大きい順で見る
+type IsuConditionTreeSet struct {
+	Info     *redblacktree.Tree
+	Warning  *redblacktree.Tree
+	Critical *redblacktree.Tree
+}
+
+//conditionをcreated atの大きい順で見る
+type IsuConditionTreeSetIterator struct {
+	filter   ConditionLevel
+	info     eiya_redblacktree.Iterator
+	warning  eiya_redblacktree.Iterator
+	critical eiya_redblacktree.Iterator
+	parent   *IsuConditionTreeSet
+}
+
+func NewIsuConditionTreeSet() IsuConditionTreeSet {
+	comp := func(a, b interface{}) int {
+		aAsserted := a.(*IsuCondition)
+		bAsserted := b.(*IsuCondition)
+		switch {
+		case bAsserted.Less(aAsserted): //a > b
+			return 1
+		case aAsserted.Less(bAsserted):
+			return -1
+		default:
+			return 0
+		}
+	}
+	return IsuConditionTreeSet{
+		Info:     redblacktree.NewWith(comp),
+		Warning:  redblacktree.NewWith(comp),
+		Critical: redblacktree.NewWith(comp),
+	}
+}
+
+func (is *IsuConditionTreeSet) Add(cond *IsuCondition) {
+	switch cond.ConditionLevel {
+	case ConditionLevelInfo:
+		is.Info.Put(cond, struct{}{})
+	case ConditionLevelWarning:
+		is.Warning.Put(cond, struct{}{})
+	case ConditionLevelCritical:
+		is.Critical.Put(cond, struct{}{})
+	}
+}
+
+func (ia *IsuConditionTreeSet) End(filter ConditionLevel) IsuConditionTreeSetIterator {
+	iter := IsuConditionTreeSetIterator{
+		filter:   filter,
+		info:     eiya_redblacktree.NewIterator(ia.Info),
+		warning:  eiya_redblacktree.NewIterator(ia.Warning),
+		critical: eiya_redblacktree.NewIterator(ia.Critical),
+		parent:   ia,
+	}
+	iter.info.End()
+	iter.warning.End()
+	iter.critical.End()
+	return iter
+}
+
+func (ia *IsuConditionTreeSet) Back() *IsuCondition {
+	iter := ia.End(ConditionLevelInfo | ConditionLevelWarning | ConditionLevelCritical)
+	return iter.Prev()
+}
+
+func (ia *IsuConditionTreeSet) LowerBound(filter ConditionLevel, targetTimestamp int64, targetIsuUUID string) IsuConditionTreeSetIterator {
+	iter := ia.End(filter)
+	cursor := &IsuCondition{TimestampUnix: targetTimestamp, OwnerID: targetIsuUUID}
+	if (filter & ConditionLevelInfo) != 0 {
+		node, _ := ia.Info.Ceiling(cursor)
+		iter.info = eiya_redblacktree.NewIteratorWithNode(ia.Info, node)
+	}
+	if (filter & ConditionLevelWarning) != 0 {
+		node, _ := ia.Warning.Ceiling(cursor)
+		iter.warning = eiya_redblacktree.NewIteratorWithNode(ia.Warning, node)
+	}
+	if (filter & ConditionLevelCritical) != 0 {
+		node, _ := ia.Critical.Ceiling(cursor)
+		iter.critical = eiya_redblacktree.NewIteratorWithNode(ia.Critical, node)
+	}
+	return iter
+}
+
+//return: nil:もう要素がない
+func (iter *IsuConditionTreeSetIterator) Prev() *IsuCondition {
+	maxType := ConditionLevelNone
+	var max *IsuCondition
+	if (iter.filter & ConditionLevelInfo) != 0 {
+		prevOK := iter.info.Prev()
+		if prevOK && (max == nil || max.Less(iter.info.Value().(*IsuCondition))) {
+			maxType = ConditionLevelInfo
+			max = iter.info.Key().(*IsuCondition)
+		}
+		iter.info.Next()
+	}
+	if (iter.filter & ConditionLevelWarning) != 0 {
+		prevOK := iter.warning.Prev()
+		if prevOK && (max == nil || max.Less(iter.warning.Value().(*IsuCondition))) {
+			maxType = ConditionLevelWarning
+			max = iter.warning.Key().(*IsuCondition)
+		}
+		iter.warning.Next()
+	}
+	if (iter.filter & ConditionLevelCritical) != 0 {
+		prevOK := iter.critical.Prev()
+		if prevOK && (max == nil || max.Less(iter.critical.Value().(*IsuCondition))) {
+			maxType = ConditionLevelCritical
+			max = iter.critical.Key().(*IsuCondition)
+		}
+		iter.critical.Next()
+	}
+
+	switch maxType {
+	case ConditionLevelInfo:
+		iter.info.Prev()
+	case ConditionLevelWarning:
+		iter.warning.Prev()
+	case ConditionLevelCritical:
+		iter.critical.Prev()
+	}
+	return max
 }

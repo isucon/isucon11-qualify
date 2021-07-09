@@ -98,7 +98,7 @@ func (isu *Isu) IsDeactivated() bool {
 	return isu.isDeactivated
 }
 
-func (isu *Isu) getConditionFromChan(ctx context.Context, userConditionBuffer *IsuConditionArray) {
+func (isu *Isu) getConditionFromChan(ctx context.Context, userConditionBuffer *IsuConditionTreeSet) {
 	for {
 		select {
 		case <-ctx.Done():

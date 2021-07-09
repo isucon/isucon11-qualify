@@ -145,15 +145,15 @@ func verifyIsuConditions(res *http.Response,
 			filter |= model.ConditionLevelCritical
 		}
 	}
-	var targetConditions *model.IsuConditionArray
+	var baseIter model.IsuConditionIterator
 	if targetIsuUUID != "" {
 		targetIsu := targetUser.IsuListByID[targetIsuUUID]
-		targetConditions = &targetIsu.Conditions
+		iterTmp := targetIsu.Conditions.LowerBound(filter, int64(request.CursorEndTime), request.CursorJIAIsuUUID)
+		baseIter = &iterTmp
 	} else {
-		targetConditions = &targetUser.Conditions
+		iterTmp := targetUser.Conditions.LowerBound(filter, int64(request.CursorEndTime), request.CursorJIAIsuUUID)
+		baseIter = &iterTmp
 	}
-	baseIter := targetConditions.End(filter)
-	baseIter.LowerBoundIsuConditionIndex(int64(request.CursorEndTime), request.CursorJIAIsuUUID)
 
 	//backendDataの先頭からチェック
 	var lastSort model.IsuConditionCursor
