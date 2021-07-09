@@ -2,10 +2,8 @@ package models
 
 import (
 	"fmt"
-	"log"
 	"time"
 
-	"github.com/isucon/isucon11-qualify/extra/initial-data/graph"
 	"github.com/isucon/isucon11-qualify/extra/initial-data/random"
 )
 
