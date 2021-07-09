@@ -55,9 +55,5 @@ func (c Condition) Create() error {
 		return fmt.Errorf("insert user: %w", err)
 	}
 
-	// INSERT INTO graph
-	if err := graph.UpdateGraph(db, c.Isu.JIAIsuUUID, c.CreatedAt); err != nil {
-		log.Fatal(err)
-	}
 	return nil
 }
