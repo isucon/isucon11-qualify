@@ -41,7 +41,7 @@ UNLOCK TABLES;
 
 LOCK TABLES `isu_association_config` WRITE;
 /*!40000 ALTER TABLE `isu_association_config` DISABLE KEYS */;
-INSERT INTO `isu_association_config` VALUES ('jia_service_url', 'http://isuapi-sa:5000');
+INSERT INTO `isu_association_config` VALUES ('jia_service_url', 'http://jiaapi-sa:5000');
 /*!40000 ALTER TABLE `isu_association_config` ENABLE KEYS */;
 UNLOCK TABLES;
 

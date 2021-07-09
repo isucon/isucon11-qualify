@@ -1,17 +1,17 @@
 ---
-- name: "roles/contestant/tasks/jiaapi_standalone: Build isuapi_standalone"
+- name: "roles/contestant/tasks/jiaapi_standalone: Build jiaapi-standalone"
   become_user: isucon
   args:
-    chdir: /tmp/isucon11-qualify/extra/isuapi
+    chdir: /tmp/isucon11-qualify/extra/jiaapi
   environment:
     PATH: "/home/isucon/local/go/bin:{{ ansible_env.PATH }}"
   command: make
 
-- name: "roles/contestant/tasks/jiaapi_standalone: Deploy isuapi_standalone"
+- name: "roles/contestant/tasks/jiaapi_standalone: Deploy jiaapi-standalone"
   become_user: root
   copy:
     remote_src: yes
-    src: /tmp/isucon11-qualify/extra/isuapi/isuapi-standalone
+    src: /tmp/isucon11-qualify/extra/jiaapi/jiaapi-standalone
     dest: /usr/local/bin/
     owner: "root"
     group: "root"
@@ -26,13 +26,13 @@
     group: "root"
     mode: "0644"
   with_items:
-    - etc/systemd/system/jiaapi_standalone.service
+    - etc/systemd/system/jiaapi-standalone.service
 
-- name: "roles/contestant/tasks/jiaapi_standalone: Disable jiaapi_standalone.service"
+- name: "roles/contestant/tasks/jiaapi_standalone: Disable jiaapi-standalone.service"
   become_user: root
   systemd:
     daemon_reload: "yes"
-    name: "jiaapi_standalone.service"
+    name: "jiaapi-standalone.service"
     state: "stopped"
     enabled: "no"
 
