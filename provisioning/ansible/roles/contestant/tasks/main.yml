@@ -12,7 +12,7 @@
   include: isucondition.yml
   become_user: root
 
-- name: "roles/contestant/tasks/main: Include jiaapi_standalone.yml"
-  include: jiaapi_standalone.yml
+- name: "roles/contestant/tasks/main: Include jiaapi_mock.yml"
+  include: jiaapi_mock.yml
   become_user: root
 
