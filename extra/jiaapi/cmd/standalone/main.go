@@ -331,7 +331,7 @@ func (state *IsuConditionPoster) keepPosting(ctx context.Context) {
 		nowTime := time.Now()
 		randEngine.Seed(nowTime.UnixNano()/1000000000 + 961054102)
 
-		notification, err := json.Marshal(IsuNotification{
+		notification := IsuNotification{
 			IsSitting: (randEngine.Intn(100) <= 70),
 			Condition: fmt.Sprintf("is_dirty=%v,is_overweight=%v,is_broken=%v",
 				(randEngine.Intn(2) == 0),
@@ -340,7 +340,9 @@ func (state *IsuConditionPoster) keepPosting(ctx context.Context) {
 			),
 			Message:   "今日もいい天気",
 			Timestamp: nowTime.Unix(),
-		})
+		}
+		notifications := []IsuNotification{notification}
+		payload, err := json.Marshal(notifications)
 		if err != nil {
 			log.Error(err)
 			continue
@@ -349,7 +351,7 @@ func (state *IsuConditionPoster) keepPosting(ctx context.Context) {
 		func() {
 			resp, err := http.Post(
 				targetURL, "application/json",
-				bytes.NewBuffer(notification),
+				bytes.NewBuffer(payload),
 			)
 			if err != nil {
 				log.Error(err)
