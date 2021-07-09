@@ -24,7 +24,6 @@
   systemd:
     daemon_reload: "yes"
     name: "isucondition.go.service"
-    state: "restarted"
     enabled: "yes"
 
 - name: "roles.contestant.tasks.isucondition: Deploy isucon11 initial-data"
