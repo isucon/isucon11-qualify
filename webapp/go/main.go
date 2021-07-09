@@ -1135,7 +1135,7 @@ func getIsuGraph(c echo.Context) error {
 		return c.String(http.StatusNotFound, "isu not found")
 	}
 
-	graphList, err := getGraphDatas(tx, jiaIsuUUID, date)
+	graphList, err := getGraphDataList(tx, jiaIsuUUID, date)
 	if err != nil {
 		c.Logger().Errorf("cannot get graph: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -1548,7 +1548,7 @@ func postIsuCondition(c echo.Context) error {
 	return c.NoContent(http.StatusCreated)
 }
 
-func getGraphDatas(tx *sqlx.Tx, jiaIsuUUID string, date time.Time) ([]Graph, error) {
+func getGraphDataList(tx *sqlx.Tx, jiaIsuUUID string, date time.Time) ([]Graph, error) {
 	// IsuConditionを一時間ごとの区切りに分け、区切りごとにスコアを計算する
 	IsuConditionCluster := []IsuCondition{} // 一時間ごとの纏まり
 	var tmpIsuCondition IsuCondition
