@@ -1601,6 +1601,9 @@ func getGraphDatas(tx *sqlx.Tx, jiaIsuUUID string, date time.Time) ([]Graph, err
 			endNextIndex = i
 		}
 	}
+	if endNextIndex < startIndex {
+		return []Graph{}, nil
+	}
 
 	return graphDatas[startIndex : endNextIndex], nil
 }
