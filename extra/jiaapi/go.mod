@@ -1,4 +1,4 @@
-module github.com/isucon/isucon11-qualify/extra/isuapi
+module github.com/isucon/isucon11-qualify/extra/jiaapi
 
 go 1.16
 

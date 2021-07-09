@@ -10,6 +10,7 @@
     aws_access_key: "{{env `AWS_ACCESS_KEY_ID`}}",
     aws_secret_key: "{{env `AWS_SECRET_ACCESS_KEY`}}",
     aws_session_token: "{{env `AWS_SESSION_TOKEN`}}",
+    git_tag: "{{env `GIT_TAG`}}",
   },
 
   builder_ec2:: {
@@ -35,6 +36,7 @@
       Packer: '1',
       Family: 'isucon11q-' + $.arg_arch + '-' + $.arg_variant,
       Project: 'qualify-dev',
+      GitTag: '{{user "git_tag"}}'
     },
 
     // TODO: spot instance を利用する
@@ -54,16 +56,6 @@
     ssh_timeout: '5m',
     ssh_interface: 'public_ip',
     associate_public_ip_address: true,
-
-    //vpc_id: 'vpc-0ee05560be5a92944',
-    // subnet_filter: {
-    //   filters: {
-    //     'vpc-id': 'vpc-0ee05560be5a92944',
-    //     'tag:Tier': 'public',
-    //     'availability-zone': 'ap-northeast-1c',
-    //   },
-    //   random: true,
-    // },
 
     run_tags: {
       Name: 'packer-isucon11q-' + $.arg_arch + '-' + $.arg_variant,
@@ -156,7 +148,7 @@
     run_ansible: {
       type: 'shell',
       inline: [
-        '( cd /dev/shm/ansible && sudo ansible-playbook -u root -i hosts -t ' + $.arg_variant + ' site.yml )',
+        '( cd /dev/shm/ansible && sudo ansible-playbook -u root -i hosts -t aws -t ' + $.arg_variant + ' site.yml )',
       ],
     },
     remove_ansible: {

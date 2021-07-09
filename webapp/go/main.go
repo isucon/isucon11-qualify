@@ -11,7 +11,6 @@ import (
 	"io/ioutil"
 	"math"
 	"net/http"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -1205,11 +1204,6 @@ func getAllIsuConditions(c echo.Context) error {
 		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
-	sessionCookie, err := c.Cookie(sessionName)
-	if err != nil {
-		c.Logger().Errorf("failed to http request: %v", err)
-		return c.String(http.StatusBadRequest, "cookie is missing")
-	}
 	//required query param
 	cursorEndTimeInt64, err := strconv.ParseInt(c.QueryParam("cursor_end_time"), 10, 64)
 	if err != nil {
@@ -1227,19 +1221,25 @@ func getAllIsuConditions(c echo.Context) error {
 		JIAIsuUUID: cursorJIAIsuUUID,
 		Timestamp:  cursorEndTime.Unix(),
 	}
-	conditionLevel := c.QueryParam("condition_level")
-	if conditionLevel == "" {
+	conditionLevelCSV := c.QueryParam("condition_level")
+	if conditionLevelCSV == "" {
 		c.Logger().Errorf("condition_level is missing")
 		return c.String(http.StatusBadRequest, "condition_level is missing")
 	}
+	conditionLevel := map[string]interface{}{}
+	for _, level := range strings.Split(conditionLevelCSV, ",") {
+		conditionLevel[level] = struct{}{}
+	}
 	//optional query param
 	startTimeStr := c.QueryParam("start_time")
+	startTime := time.Time{}
 	if startTimeStr != "" {
-		_, err = strconv.ParseInt(startTimeStr, 10, 64)
+		startTimeInt64, err := strconv.ParseInt(startTimeStr, 10, 64)
 		if err != nil {
 			c.Logger().Errorf("bad format: start_time: %v", err)
 			return c.String(http.StatusBadRequest, "bad format: start_time")
 		}
+		startTime = time.Unix(startTimeInt64, 0)
 	}
 
 	limitStr := c.QueryParam("limit")
@@ -1273,11 +1273,9 @@ func getAllIsuConditions(c echo.Context) error {
 		//  cursorEndTime >= timestampを取りたいので、
 		//  cursorEndTime + 1sec > timestampとしてリクエストを送る
 		//この一要素はフィルターにかかるかどうか分からないので、limitも+1しておく
-		conditionsTmp, err := getIsuConditionsFromLocalhost(
-			isu.JIAIsuUUID, strconv.FormatInt(cursorEndTime.Add(1*time.Second).Unix(), 10),
-			conditionLevel, startTimeStr, strconv.Itoa(limit+1),
-			sessionCookie,
-		)
+
+		conditionsTmp, err := getIsuConditionsFromDB(isu.JIAIsuUUID, cursorEndTime.Add(1*time.Second),
+			conditionLevel, startTime, limit+1, isu.Name)
 		if err != nil {
 			c.Logger().Errorf("failed to http request: %v", err)
 			return c.NoContent(http.StatusInternalServerError)
@@ -1306,54 +1304,6 @@ func getAllIsuConditions(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, conditionsResponse)
-}
-
-//http requestを飛ばし、そのレスポンスを[]GetIsuConditionResponseに変換する
-func getIsuConditionsFromLocalhost(
-	jiaIsuUUID string, cursorEndTimeStr string, conditionLevel string, startTimeStr string, limitStr string,
-	cookie *http.Cookie,
-) ([]*GetIsuConditionResponse, error) {
-	targetURLStr := fmt.Sprintf(
-		"http://localhost:%s/api/condition/%s",
-		getEnv("SERVER_PORT", "3000"), jiaIsuUUID,
-	)
-	targetURL, err := url.Parse(targetURLStr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse url: %v ;(%s,%s)", err, getEnv("SERVER_PORT", "3000"), jiaIsuUUID)
-	}
-
-	q := url.Values{}
-	q.Set("cursor_end_time", cursorEndTimeStr)
-	q.Set("condition_level", conditionLevel)
-	if startTimeStr != "" {
-		q.Set("start_time", startTimeStr)
-	}
-	if limitStr != "" {
-		q.Set("limit", limitStr)
-	}
-	targetURL.RawQuery = q.Encode()
-
-	req, err := http.NewRequest(http.MethodGet, targetURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-	req.AddCookie(cookie)
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to `GET %s` with status=`%s`", targetURL.String(), res.Status)
-	}
-
-	condition := []*GetIsuConditionResponse{}
-	err = json.NewDecoder(res.Body).Decode(&condition)
-	if err != nil {
-		return nil, err
-	}
-	return condition, nil
 }
 
 // left > right を計算する関数
@@ -1410,7 +1360,7 @@ func getIsuConditions(c echo.Context) error {
 	}
 	//optional query param
 	startTimeStr := c.QueryParam("start_time")
-	var startTime time.Time
+	startTime := time.Time{}
 	if startTimeStr != "" {
 		startTimeInt64, err := strconv.ParseInt(startTimeStr, 10, 64)
 		if err != nil {
@@ -1446,8 +1396,22 @@ func getIsuConditions(c echo.Context) error {
 	}
 
 	// 対象isu_idの通知を取得(limit, cursorで絞り込み）
+	conditionsResponse, err := getIsuConditionsFromDB(jiaIsuUUID, cursorEndTime, conditionLevel, startTime, limit, isuName)
+	if err != nil {
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	return c.JSON(http.StatusOK, conditionsResponse)
+}
+
+func getIsuConditionsFromDB(jiaIsuUUID string, cursorEndTime time.Time, conditionLevel map[string]interface{}, startTime time.Time,
+	limit int, isuName string) ([]*GetIsuConditionResponse, error) {
+
 	conditions := []IsuCondition{}
-	if startTimeStr == "" {
+	var err error
+
+	if startTime.IsZero() {
 		err = db.Select(&conditions,
 			"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ?"+
 				"	AND `timestamp` < ?"+
@@ -1464,15 +1428,11 @@ func getIsuConditions(c echo.Context) error {
 		)
 	}
 	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	if len(conditions) == 0 {
-		return c.JSON(http.StatusOK, conditions)
+		return nil, err
 	}
 
 	//condition_levelでの絞り込み
-	conditionsResponse := []GetIsuConditionResponse{}
+	conditionsResponse := []*GetIsuConditionResponse{}
 	for _, c := range conditions {
 		var cLevel string
 		warnCount := strings.Count(c.Condition, "=true")
@@ -1496,7 +1456,7 @@ func getIsuConditions(c echo.Context) error {
 				ConditionLevel: cLevel,
 				Message:        c.Message,
 			}
-			conditionsResponse = append(conditionsResponse, data)
+			conditionsResponse = append(conditionsResponse, &data)
 		}
 	}
 
@@ -1504,7 +1464,8 @@ func getIsuConditions(c echo.Context) error {
 	if len(conditionsResponse) > limit {
 		conditionsResponse = conditionsResponse[:limit]
 	}
-	return c.JSON(http.StatusOK, conditionsResponse)
+
+	return conditionsResponse, nil
 }
 
 // POST /api/isu/{jia_isu_uuid}/condition

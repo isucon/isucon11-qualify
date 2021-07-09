@@ -51,10 +51,7 @@ const FinishEditButtons = ({
       <button onClick={confirmEdit} className="focus:outline-none">
         <HiOutlineCheck size="20" />
       </button>
-      <button
-        onClick={finishEdit}
-        className="text-accent-primary focus:outline-none"
-      >
+      <button onClick={finishEdit} className="text-error focus:outline-none">
         <IoMdClose size="20" />
       </button>
     </div>

@@ -46,15 +46,15 @@ services:
     ports:
       - "3306:3306"
 
-  isuapi-sa:
+  jiaapi-sa:
     image: golang:1.16.5-buster
     restart: always
-    working_dir: /isuapi
+    working_dir: /jiaapi
     command: ["go", "run", "./cmd/standalone/"]
     environment:
       JWT_SECRETKEY_PATH: /bench/key/ec256-private.pem
     ports:
       - "5000:5000"
     volumes:
-      - "../extra/isuapi:/isuapi"
+      - "../extra/jiaapi:/jiaapi"
       - "../bench:/bench"

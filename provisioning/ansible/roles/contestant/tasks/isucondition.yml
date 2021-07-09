@@ -8,14 +8,8 @@
     owner: isucon
     group: isucon
 
-- name: "roles/contestant/tasks/isucondition: Deploy env.sh"
-  become_user: isucon
-  copy:
-    src: "home/isucon/env.sh"
-    dest: "/home/isucon/env.sh"
-    owner: "isucon"
-    group: "isucon"
-    mode: "0644"
+- name: "roles/contestant/tasks/isucondition: Include generate_env.yml"
+  include: generate_env.yml
 
 - name: "roles/contestant/tasks/isucondition: Include isucondition-frontend.yml"
   include: isucondition-frontend.yml
@@ -30,7 +24,6 @@
   systemd:
     daemon_reload: "yes"
     name: "isucondition.go.service"
-    state: "restarted"
     enabled: "yes"
 
 - name: "roles.contestant.tasks.isucondition: Deploy isucon11 initial-data"

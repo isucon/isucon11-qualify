@@ -2,9 +2,9 @@ import { useHistory } from 'react-router-dom'
 import Card from '../components/UI/Card'
 import apis from '../lib/apis'
 import { useEffect } from 'react'
-import logo from '/@/assets/logo.png'
 import { useDispatchContext } from '../context/state'
 import { useCallback } from 'react'
+import logo_orange from '/@/assets/logo_orange.svg'
 
 const Auth = () => {
   const dispatch = useDispatchContext()
@@ -40,7 +40,7 @@ const Auth = () => {
       <div className="flex justify-center w-full max-w-lg">
         <Card>
           <div className="flex flex-col items-center w-full">
-            <img src={logo} alt="isucondition" />
+            <img src={logo_orange} alt="isucondition" className="my-2" />
             <div className="mt-4 text-lg">ISUとつくる新しい明日</div>
             <div className="mt-6 w-full border-b border-outline" />
             <button
