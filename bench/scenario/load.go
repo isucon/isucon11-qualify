@@ -103,42 +103,35 @@ scenarioLoop:
 			step.AddScore(ScoreNormalUserLoop) //TODO: 得点条件の修正
 
 			//シナリオに成功している場合は椅子追加
-			if isuCount < scenarioDoneCount/30 {
+			if isuCount < scenarioDoneCount/30 && isuCount < isuCountMax {
 				isu := s.NewIsu(ctx, step, user, true)
 				if isu == nil {
 					logger.AdminLogger.Println("Normal User fail: NewIsu")
 				} else {
 					isuCount++
 				}
+				//logger.AdminLogger.Printf("Normal User Isu: %d\n", isuCount)
 			}
 		}
 		scenarioSuccess = true
 
 		//posterからconditionの取得
-		for _, isu := range user.IsuListOrderByCreatedAt {
-		getConditionFromPosterLoop:
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case cond, ok := <-isu.StreamsForScenario.ConditionChan:
-					if !ok {
-						break getConditionFromPosterLoop
-					}
-					isu.Conditions = append(isu.Conditions, *cond)
-				default:
-					break getConditionFromPosterLoop
-				}
-			}
+		user.GetConditionFromChan(ctx)
+		select {
+		case <-ctx.Done():
+			return
+		default:
 		}
 
 		//TODO: 乱数にする
 		nextTargetIsuIndex += 1
 		nextTargetIsuIndex %= isuCount
 		targetIsu := user.IsuListOrderByCreatedAt[nextTargetIsuIndex]
+		mustExistUntil := s.ToVirtualTime(time.Now().Add(-1 * time.Second)).Unix()
 
 		//GET /
-		_, _, errs := browserGetHomeAction(ctx, user.Agent,
+		dataExistTimestamp := GetConditionDataExistTimestamp(s, user)
+		_, _, errs := browserGetHomeAction(ctx, user.Agent, dataExistTimestamp,
 			func(res *http.Response, isuList []*service.Isu) []error {
 				return verifyIsuOrderByCreatedAt(res, user.IsuListOrderByCreatedAt, isuList)
 			},
@@ -170,16 +163,23 @@ scenarioLoop:
 			//TODO: リロード
 
 			//定期的にconditionを見に行くシナリオ
-			virtualNow := s.ToVirtualTime(time.Now())
+			request := service.GetIsuConditionRequest{
+				StartTime:        nil,
+				CursorEndTime:    uint64(dataExistTimestamp),
+				CursorJIAIsuUUID: "",
+				ConditionLevel:   "info,warning,critical",
+				Limit:            nil,
+			}
 			_, conditions, errs := browserGetIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
-				service.GetIsuConditionRequest{
-					StartTime:        nil,
-					CursorEndTime:    uint64(virtualNow.Unix()),
-					CursorJIAIsuUUID: "",
-					ConditionLevel:   "info,warning,critical",
-					Limit:            nil,
-				},
+				request,
 				func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
+					//conditionの検証
+					err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request,
+						conditions, mustExistUntil,
+					)
+					if err != nil {
+						return []error{err}
+					}
 					return []error{}
 				},
 			)
@@ -192,29 +192,34 @@ scenarioLoop:
 			}
 
 			//スクロール
-			var res *http.Response
 			for i := 0; i < 2 && len(conditions) == 20*(i+1); i++ {
 				var conditionsTmp []*service.GetIsuConditionResponse
-				conditionsTmp, res, err = getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
-					service.GetIsuConditionRequest{
-						StartTime:        nil,
-						CursorEndTime:    uint64(conditions[len(conditions)-1].Timestamp),
-						CursorJIAIsuUUID: "",
-						ConditionLevel:   "info,warning,critical",
-						Limit:            nil,
-					},
+				CursorEndTime := conditions[len(conditions)-1].Timestamp
+				request = service.GetIsuConditionRequest{
+					StartTime:        nil,
+					CursorEndTime:    uint64(CursorEndTime),
+					CursorJIAIsuUUID: "",
+					ConditionLevel:   "info,warning,critical",
+					Limit:            nil,
+				}
+				conditionsTmp, res, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
+				if err != nil {
+					scenarioSuccess = false
+					step.AddError(err)
+					break
+				}
+				//検証
+				//ここは、古いデータのはずなのでconditionのchanからの再取得は要らない
+				err = verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request,
+					conditionsTmp, mustExistUntil,
 				)
 				if err != nil {
 					scenarioSuccess = false
 					step.AddError(err)
 					break
-				} else {
-					conditions = append(conditions, conditionsTmp...)
 				}
-			}
 
-			//TODO: conditionの検証
-			if res != nil { //エラーつぶし
+				conditions = append(conditions, conditionsTmp...)
 			}
 
 			//conditionを確認して、椅子状態を改善
@@ -234,15 +239,16 @@ scenarioLoop:
 
 				//状態改善
 				lastSolvedTime = time.Unix(findTimestamp, 0)
-				go func() { targetIsu.StreamsForScenario.StateChan <- solvedCondition }()
+				targetIsu.StreamsForScenario.StateChan <- solvedCondition //バッファがあるのでブロック率は低い読みで直列に投げる
 			}
 		} else {
 
 			//TODO: graphを見に行くシナリオ
-			virtualNow := s.ToVirtualTime(time.Now())
-			virtualToday := time.Date(virtualNow.Year(), virtualNow.Month(), virtualNow.Day(), 0, 0, 0, 0, virtualNow.Location())
-			_, graphToday, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, uint64(virtualToday.Unix()),
+			virtualToday := (dataExistTimestamp / (24 * 60 * 60)) * (24 * 60 * 60)
+			_, graphToday, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, uint64(virtualToday),
 				func(res *http.Response, graph []*service.GraphResponse) []error {
+					//検証前にデータ取得
+					user.GetConditionFromChan(ctx)
 					return []error{} //TODO: 検証
 				},
 			)
@@ -255,7 +261,7 @@ scenarioLoop:
 			}
 
 			//前日のグラフ
-			_, _, errs = browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, uint64(virtualToday.Add(-24*time.Hour).Unix()),
+			_, _, errs = browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, uint64(virtualToday-60*60),
 				func(res *http.Response, graph []*service.GraphResponse) []error {
 					return []error{} //TODO: 検証
 				},
@@ -279,17 +285,26 @@ scenarioLoop:
 			//悪いものがあれば、そのconditionを取る
 			if errorEndAtUnix != 0 {
 				startTime := uint64(errorEndAtUnix - 60*60)
+				request := service.GetIsuConditionRequest{
+					StartTime:        &startTime,
+					CursorEndTime:    uint64(errorEndAtUnix),
+					CursorJIAIsuUUID: "",
+					ConditionLevel:   "warning,critical",
+					Limit:            nil,
+				}
 				_, conditions, errs := browserGetIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
-					service.GetIsuConditionRequest{
-						StartTime:        &startTime,
-						CursorEndTime:    uint64(errorEndAtUnix),
-						CursorJIAIsuUUID: "",
-						ConditionLevel:   "info,warning,critical",
-						Limit:            nil,
-					},
+					request,
 					func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
+						//検証
+						//ここは、古いデータのはずなのでconditionのchanからの再取得は要らない
+						//TODO: starttimeの検証
+						err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request,
+							conditions, mustExistUntil,
+						)
+						if err != nil {
+							return []error{err}
+						}
 						return []error{}
-						//TODO: 検証
 					},
 				)
 				for _, err := range errs {
@@ -304,7 +319,7 @@ scenarioLoop:
 				solvedCondition, findTimestamp := findBadIsuState(conditions)
 				if solvedCondition != model.IsuStateChangeNone && lastSolvedTime.Before(time.Unix(findTimestamp, 0)) {
 					lastSolvedTime = time.Unix(findTimestamp, 0)
-					go func() { targetIsu.StreamsForScenario.StateChan <- solvedCondition }()
+					targetIsu.StreamsForScenario.StateChan <- solvedCondition //バッファがあるのでブロック率は低い読みで直列に投げる
 				}
 			}
 		}
