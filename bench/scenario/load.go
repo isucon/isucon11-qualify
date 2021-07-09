@@ -117,22 +117,12 @@ scenarioLoop:
 
 		//posterからconditionの取得
 		for _, isu := range user.IsuListOrderByCreatedAt {
-		getConditionFromPosterLoop:
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case conditions, ok := <-isu.StreamsForScenario.ConditionChan:
-					if !ok {
-						break getConditionFromPosterLoop
-					}
-					for _, c := range conditions {
-						isu.Conditions.Add(&c)
-					}
-				default:
-					break getConditionFromPosterLoop
-				}
-			}
+			getConditionFromChan(ctx, isu, nil) //TODO: userConditionBuffer
+		}
+		select {
+		case <-ctx.Done():
+			return
+		default:
 		}
 
 		//TODO: 乱数にする
@@ -334,6 +324,29 @@ scenarioLoop:
 					targetIsu.StreamsForScenario.StateChan <- solvedCondition //バッファがあるのでブロック率は低い読みで直列に投げる
 				}
 			}
+		}
+	}
+}
+
+func getConditionFromChan(ctx context.Context, isu *model.Isu, userConditionBuffer *model.IsuConditionArray) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case conditions, ok := <-isu.StreamsForScenario.ConditionChan:
+			if !ok {
+				return
+			}
+			for _, c := range conditions {
+				isu.Conditions.Add(&c)
+			}
+			if userConditionBuffer != nil {
+				for _, c := range conditions {
+					userConditionBuffer.Add(&c)
+				}
+			}
+		default:
+			return
 		}
 	}
 }
