@@ -121,11 +121,9 @@ type GraphData struct {
 
 //グラフ表示用  一時間のsummry
 type Graph struct {
-	JIAIsuUUID string    `db:"jia_isu_uuid"`
-	StartAt    time.Time `db:"start_at"`
-	Data       string    `db:"data"`
-	CreatedAt  time.Time `db:"created_at"`
-	UpdatedAt  time.Time `db:"updated_at"`
+	JIAIsuUUID string
+	StartAt    time.Time
+	Data       string
 }
 
 type User struct {
