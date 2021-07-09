@@ -15,7 +15,7 @@ const Tip = ({ variant }: Props) => {
         return 'bg-status-critical text-status-critical'
     }
   })()
-  const className = `h-8 rounded-2xl py-1 px-4 font-medium text-center ${color}`
+  const className = `h-6 rounded-2xl px-4 font-medium text-center ${color}`
   return <div className={className}>{variant}</div>
 }
 

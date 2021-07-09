@@ -10,7 +10,7 @@ const ConditionCardContent = () => {
   )
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-4">
       <h2 className="text-xl font-bold">Condition</h2>
       <SearchInputs query={query} times={times} search={search} />
       <div className="flex flex-col gap-4 items-center">

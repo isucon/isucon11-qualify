@@ -11,7 +11,7 @@ const TabLink = ({ to, label }: Props) => {
   const isSelected = pathname === to
   return (
     <div
-      className={`w-16 flex justify-center ${
+      className={`w-20 flex justify-center ${
         isSelected
           ? 'border-b-2 text-accent-primary border-accent-primary font-bold'
           : 'text-secondary'
