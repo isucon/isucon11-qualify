@@ -29,7 +29,7 @@
 - name: "roles.contestant.tasks.isucondition: Deploy isucon11 initial-data"
   copy:
     src: "initial-data.sql"
-    dest: "/home/isucon/webapp/mysql/db/1_InitData.sql"
+    dest: "/home/isucon/webapp/sql/1_InitData.sql"
 
 - name: "roles.contestant.tasks.isucondition: Initialize isucondition Database"
   become_user: isucon
