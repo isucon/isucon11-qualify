@@ -461,8 +461,8 @@ scenarioLoop:
 			request := service.GetIsuConditionRequest{
 				StartTime:        nil,
 				CursorEndTime:    uint64(dataExistTimestamp),
-				CursorJIAIsuUUID: "",
-				ConditionLevel:   "info,warning,critical",
+				CursorJIAIsuUUID: "z",
+				ConditionLevel:   "warning,critical",
 				Limit:            nil,
 			}
 			conditions, errs := browserGetConditionsAction(ctx, user.Agent,
