@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
 	"github.com/isucon/isucon11-qualify/bench/service"
 )
@@ -116,13 +115,12 @@ func verifyIsuOrderByCreatedAt(res *http.Response, expectedReverse []*model.Isu,
 //
 //mustExistUntil: この値以下のtimestampを持つものは全て反映されているべき
 func verifyIsuConditions(res *http.Response,
-	base *model.IsuConditionArray, filter model.ConditionLevel, cursor model.IsuConditionCursor, isuMap map[string]*model.Isu,
+	base *model.IsuConditionArray, filter model.ConditionLevel, cursor model.IsuConditionCursor, limit int, isuMap map[string]*model.Isu,
 	backendData []*service.GetIsuConditionResponse, mustExistUntil int64) error {
 
 	//expectedの開始位置を探す()
 	baseIter := base.End(filter)
 	baseIter.LowerBoundIsuConditionIndex(cursor.TimestampUnix, cursor.OwnerID)
-	TODO_DebugMsg := fmt.Sprintf("%v -> %v -> %v (with %v)\n", base, base.End(filter), baseIter, cursor)
 
 	//backendDataの先頭からチェック
 	lastSort := model.IsuConditionCursor{TimestampUnix: backendData[0].Timestamp + 1, OwnerID: ""}
@@ -147,8 +145,6 @@ func verifyIsuConditions(res *http.Response,
 				//反映されていないことが許可されているので、無視して良い
 				continue
 			}
-			logger.AdminLogger.Printf("%s%v vs %v", TODO_DebugMsg, expected, c)
-			logger.AdminLogger.Panic("データが正しくありません")
 			return errorMissmatch(res, "データが正しくありません")
 		}
 
@@ -188,6 +184,8 @@ func verifyIsuConditions(res *http.Response,
 
 		lastSort = nowSort
 	}
+
+	//TODO: limitの検証
 
 	return nil
 }

@@ -182,7 +182,7 @@ scenarioLoop:
 					getConditionFromChan(ctx, targetIsu, nil) //TODO: userConditionBuffer
 					//conditionの検証
 					err := verifyIsuConditions(res, &targetIsu.Conditions, model.ConditionLevelInfo|model.ConditionLevelWarning|model.ConditionLevelCritical,
-						model.IsuConditionCursor{TimestampUnix: virtualNow.Unix(), OwnerID: targetIsu.JIAIsuUUID}, targetIsu.Owner.IsuListByID,
+						model.IsuConditionCursor{TimestampUnix: virtualNow.Unix(), OwnerID: targetIsu.JIAIsuUUID}, conditionLimit, targetIsu.Owner.IsuListByID,
 						conditions, s.ToVirtualTime(realNow.Add(-1*time.Second)).Unix(),
 					)
 					if err != nil {
@@ -220,7 +220,7 @@ scenarioLoop:
 				//検証
 				//ここは、古いデータのはずなのでconditionのchanからの再取得は要らない
 				err = verifyIsuConditions(res, &targetIsu.Conditions, model.ConditionLevelInfo|model.ConditionLevelWarning|model.ConditionLevelCritical,
-					model.IsuConditionCursor{TimestampUnix: CursorEndTime, OwnerID: targetIsu.JIAIsuUUID}, targetIsu.Owner.IsuListByID,
+					model.IsuConditionCursor{TimestampUnix: CursorEndTime, OwnerID: targetIsu.JIAIsuUUID}, conditionLimit, targetIsu.Owner.IsuListByID,
 					conditions, s.ToVirtualTime(realNow.Add(-1*time.Second)).Unix(),
 				)
 				if err != nil {
@@ -308,8 +308,9 @@ scenarioLoop:
 					func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
 						//検証
 						//ここは、古いデータのはずなのでconditionのchanからの再取得は要らない
+						//TODO: starttimeの検証
 						err := verifyIsuConditions(res, &targetIsu.Conditions, model.ConditionLevelWarning|model.ConditionLevelCritical,
-							model.IsuConditionCursor{TimestampUnix: errorEndAtUnix, OwnerID: targetIsu.JIAIsuUUID}, targetIsu.Owner.IsuListByID,
+							model.IsuConditionCursor{TimestampUnix: errorEndAtUnix, OwnerID: targetIsu.JIAIsuUUID}, conditionLimit, targetIsu.Owner.IsuListByID,
 							conditions, s.ToVirtualTime(realNow.Add(-1*time.Second)).Unix(),
 						)
 						if err != nil {
