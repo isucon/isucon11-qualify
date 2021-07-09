@@ -112,7 +112,9 @@ func (isu *Isu) getConditionFromChan(ctx context.Context, userConditionBuffer *I
 			}
 			if userConditionBuffer != nil {
 				for _, c := range conditions {
-					userConditionBuffer.Add(&c)
+					tmp := &IsuCondition{}
+					*tmp = c
+					userConditionBuffer.Add(tmp)
 				}
 			}
 		default:
