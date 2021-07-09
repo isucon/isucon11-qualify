@@ -1,7 +1,9 @@
 ### builder01: benchmarker
 FROM golang:1.16.5-alpine3.13 AS builder01
 WORKDIR /workdir
-COPY bench/go.mod bench/go.sum ./
+COPY bench/go.mod bench/go.sum ./bench/
+COPY extra/initial-data ./extra/initial-data
+WORKDIR /workdir/bench
 RUN go mod download
 COPY bench/ ./
 RUN go build -o bench main.go
@@ -16,6 +18,6 @@ RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSI
 ### runner
 FROM alpine:3.13 AS runner
 ARG app app
-COPY --from=builder01 /workdir/bench ./
+COPY --from=builder01 /workdir/bench/bench ./
 COPY --from=builder02 /usr/local/bin/dockerize /usr/local/bin/
 ENTRYPOINT ["./bench", "--no-load"]
