@@ -118,6 +118,7 @@ func verifyIsuConditions(res *http.Response,
 	targetUser *model.User, targetIsuUUID string, request *service.GetIsuConditionRequest,
 	backendData []*service.GetIsuConditionResponse, mustExistUntil int64) error {
 
+	//limitを超えているかチェック
 	var limit int
 	if request.Limit != nil {
 		limit = int(*request.Limit)
@@ -126,6 +127,10 @@ func verifyIsuConditions(res *http.Response,
 	}
 	if limit < len(backendData) {
 		return errorInvalid(res, "要素数が正しくありません")
+	}
+	//レスポンス側のstartTimeのチェック
+	if request.StartTime != nil && len(backendData) != 0 && backendData[len(backendData)-1].Timestamp < int64(*request.StartTime) {
+		return errorInvalid(res, "データが正しくありません")
 	}
 
 	//expectedの開始位置を探す
@@ -210,7 +215,10 @@ func verifyIsuConditions(res *http.Response,
 
 	//limitの検証
 	if len(backendData) < limit && baseIter.Prev() != nil {
-		return errorInvalid(res, "要素数が正しくありません")
+		prev := baseIter.Prev()
+		if prev != nil && request.StartTime != nil && int64(*request.StartTime) <= prev.TimestampUnix {
+			return errorInvalid(res, "要素数が正しくありません")
+		}
 	}
 
 	return nil
