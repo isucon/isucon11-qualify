@@ -23,7 +23,7 @@ type User struct {
 	Type                    UserType
 	IsuListOrderByCreatedAt []*Isu          //CreatedAtは厳密にはわからないので、postした後にgetをした順番を正とする
 	IsuListByID             map[string]*Isu //IDをkeyにアクセス
-	//ここで[]IsuLogを持つと更新にmutexが必要で嫌なので持たない
+	Conditions              IsuConditionArray
 
 	Agent *agent.Agent
 }

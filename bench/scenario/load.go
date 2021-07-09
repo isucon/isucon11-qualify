@@ -169,20 +169,18 @@ scenarioLoop:
 			//定期的にconditionを見に行くシナリオ
 			realNow = time.Now()
 			virtualNow = s.ToVirtualTime(realNow)
+			request := service.GetIsuConditionRequest{
+				StartTime:        nil,
+				CursorEndTime:    uint64(virtualNow.Unix()),
+				CursorJIAIsuUUID: "",
+				ConditionLevel:   "info,warning,critical",
+				Limit:            nil,
+			}
 			_, conditions, errs := browserGetIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
-				service.GetIsuConditionRequest{
-					StartTime:        nil,
-					CursorEndTime:    uint64(virtualNow.Unix()),
-					CursorJIAIsuUUID: "",
-					ConditionLevel:   "info,warning,critical",
-					Limit:            nil,
-				},
+				request,
 				func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
-					//検証前にデータ取得
-					getConditionFromChan(ctx, targetIsu, nil) //TODO: userConditionBuffer
 					//conditionの検証
-					err := verifyIsuConditions(res, &targetIsu.Conditions, model.ConditionLevelInfo|model.ConditionLevelWarning|model.ConditionLevelCritical,
-						model.IsuConditionCursor{TimestampUnix: virtualNow.Unix(), OwnerID: targetIsu.JIAIsuUUID}, conditionLimit, targetIsu.Owner.IsuListByID,
+					err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request,
 						conditions, s.ToVirtualTime(realNow.Add(-1*time.Second)).Unix(),
 					)
 					if err != nil {
@@ -203,15 +201,14 @@ scenarioLoop:
 			for i := 0; i < 2 && len(conditions) == 20*(i+1); i++ {
 				var conditionsTmp []*service.GetIsuConditionResponse
 				CursorEndTime := conditions[len(conditions)-1].Timestamp
-				conditionsTmp, res, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
-					service.GetIsuConditionRequest{
-						StartTime:        nil,
-						CursorEndTime:    uint64(CursorEndTime),
-						CursorJIAIsuUUID: "",
-						ConditionLevel:   "info,warning,critical",
-						Limit:            nil,
-					},
-				)
+				request = service.GetIsuConditionRequest{
+					StartTime:        nil,
+					CursorEndTime:    uint64(CursorEndTime),
+					CursorJIAIsuUUID: "",
+					ConditionLevel:   "info,warning,critical",
+					Limit:            nil,
+				}
+				conditionsTmp, res, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
 				if err != nil {
 					scenarioSuccess = false
 					step.AddError(err)
@@ -219,8 +216,7 @@ scenarioLoop:
 				}
 				//検証
 				//ここは、古いデータのはずなのでconditionのchanからの再取得は要らない
-				err = verifyIsuConditions(res, &targetIsu.Conditions, model.ConditionLevelInfo|model.ConditionLevelWarning|model.ConditionLevelCritical,
-					model.IsuConditionCursor{TimestampUnix: CursorEndTime, OwnerID: targetIsu.JIAIsuUUID}, conditionLimit, targetIsu.Owner.IsuListByID,
+				err = verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request,
 					conditionsTmp, s.ToVirtualTime(realNow.Add(-1*time.Second)).Unix(),
 				)
 				if err != nil {
@@ -297,20 +293,20 @@ scenarioLoop:
 			//悪いものがあれば、そのconditionを取る
 			if errorEndAtUnix != 0 {
 				startTime := uint64(errorEndAtUnix - 60*60)
+				request := service.GetIsuConditionRequest{
+					StartTime:        &startTime,
+					CursorEndTime:    uint64(errorEndAtUnix),
+					CursorJIAIsuUUID: "",
+					ConditionLevel:   "warning,critical",
+					Limit:            nil,
+				}
 				_, conditions, errs := browserGetIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
-					service.GetIsuConditionRequest{
-						StartTime:        &startTime,
-						CursorEndTime:    uint64(errorEndAtUnix),
-						CursorJIAIsuUUID: "",
-						ConditionLevel:   "warning,critical",
-						Limit:            nil,
-					},
+					request,
 					func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
 						//検証
 						//ここは、古いデータのはずなのでconditionのchanからの再取得は要らない
 						//TODO: starttimeの検証
-						err := verifyIsuConditions(res, &targetIsu.Conditions, model.ConditionLevelWarning|model.ConditionLevelCritical,
-							model.IsuConditionCursor{TimestampUnix: errorEndAtUnix, OwnerID: targetIsu.JIAIsuUUID}, conditionLimit, targetIsu.Owner.IsuListByID,
+						err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request,
 							conditions, s.ToVirtualTime(realNow.Add(-1*time.Second)).Unix(),
 						)
 						if err != nil {

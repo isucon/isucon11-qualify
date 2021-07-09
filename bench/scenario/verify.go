@@ -115,16 +115,35 @@ func verifyIsuOrderByCreatedAt(res *http.Response, expectedReverse []*model.Isu,
 //
 //mustExistUntil: この値以下のtimestampを持つものは全て反映されているべき
 func verifyIsuConditions(res *http.Response,
-	base *model.IsuConditionArray, filter model.ConditionLevel, cursor model.IsuConditionCursor, limit int, isuMap map[string]*model.Isu,
+	targetUser *model.User, targetIsuUUID string, request *service.GetIsuConditionRequest,
 	backendData []*service.GetIsuConditionResponse, mustExistUntil int64) error {
 
+	var limit int
+	if request.Limit != nil {
+		limit = int(*request.Limit)
+	} else {
+		limit = conditionLimit
+	}
 	if limit < len(backendData) {
 		return errorInvalid(res, "要素数が正しくありません")
 	}
 
-	//expectedの開始位置を探す()
-	baseIter := base.End(filter)
-	baseIter.LowerBoundIsuConditionIndex(cursor.TimestampUnix, cursor.OwnerID)
+	//expectedの開始位置を探す
+	filter := model.ConditionLevelNone
+	for _, level := range strings.Split(request.ConditionLevel, ",") {
+		switch level[0] {
+		case 'i':
+			filter |= model.ConditionLevelInfo
+		case 'w':
+			filter |= model.ConditionLevelWarning
+		case 'c':
+			filter |= model.ConditionLevelCritical
+		}
+	}
+	targetIsu := targetUser.IsuListByID[targetIsuUUID]
+	targetConditions := &targetIsu.Conditions
+	baseIter := targetConditions.End(filter)
+	baseIter.LowerBoundIsuConditionIndex(int64(request.CursorEndTime), request.CursorJIAIsuUUID)
 
 	//backendDataの先頭からチェック
 	var lastSort model.IsuConditionCursor
@@ -182,7 +201,7 @@ func verifyIsuConditions(res *http.Response,
 			c.IsSitting != expected.IsSitting ||
 			c.JIAIsuUUID != expected.OwnerID ||
 			c.Message != expected.Message ||
-			c.IsuName != isuMap[expected.OwnerID].Name {
+			c.IsuName != targetIsu.Name {
 			return errorMissmatch(res, "データが正しくありません")
 		}
 
