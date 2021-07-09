@@ -399,7 +399,10 @@ func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.Benchmar
 	randEngine := rand.New(rand.NewSource(5498513))
 	scenarioDoneCount := 0
 	scenarioSuccess := false
-	lastSolvedTime := s.virtualTimeStart
+	lastSolvedTime := make(map[string]time.Time)
+	for _, isu := range user.IsuListOrderByCreatedAt {
+		lastSolvedTime[isu.JIAIsuUUID] = s.virtualTimeStart
+	}
 scenarioLoop:
 	for {
 		//TODO: 今はnormal userそのままになっているので、ちゃんと企業ユーザー用に書き直す
@@ -517,7 +520,7 @@ scenarioLoop:
 			//conditionを確認して、椅子状態を改善
 			solvedConditions, findTimestamps := findBadIsuStateWithID(conditions)
 			for targetIsuID, timestamp := range findTimestamps {
-				if solvedConditions[targetIsuID] != model.IsuStateChangeNone && lastSolvedTime.Before(time.Unix(timestamp, 0)) {
+				if solvedConditions[targetIsuID] != model.IsuStateChangeNone && lastSolvedTime[targetIsuID].Before(time.Unix(timestamp, 0)) {
 					//graphを見る
 					virtualDay := (timestamp / (24 * 60 * 60)) * (24 * 60 * 60)
 					_, _, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsuID, uint64(virtualDay),
@@ -531,7 +534,7 @@ scenarioLoop:
 					}
 
 					//状態改善
-					lastSolvedTime = time.Unix(timestamp, 0)
+					lastSolvedTime[targetIsuID] = time.Unix(timestamp, 0)
 					user.IsuListByID[targetIsuID].StreamsForScenario.StateChan <- solvedConditions[targetIsuID] //バッファがあるのでブロック率は低い読みで直列に投げる
 				}
 			}
