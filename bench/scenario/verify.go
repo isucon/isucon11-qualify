@@ -120,7 +120,7 @@ func verifyIsuConditions(res *http.Response,
 
 	//expectedの開始位置を探す()
 	baseIter := base.End(filter)
-	baseIter.UpperBoundIsuConditionIndex(cursor.TimestampUnix, cursor.OwnerID) //TODO: Lowerなきがする
+	baseIter.LowerBoundIsuConditionIndex(cursor.TimestampUnix, cursor.OwnerID)
 
 	//backendDataの先頭からチェック
 	var lastSort model.IsuConditionCursor
