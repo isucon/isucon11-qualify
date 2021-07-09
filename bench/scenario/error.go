@@ -119,6 +119,11 @@ func errorMissmatch(res *http.Response, message string, args ...interface{}) err
 	return failure.NewError(ErrMissmatch, fmt.Errorf(message+": %d (%s: %s)", args...))
 }
 
+func errorInvalid(res *http.Response, message string, args ...interface{}) error {
+	args = append(args, res.StatusCode, res.Request.Method, res.Request.URL.Path)
+	return failure.NewError(ErrInvalid, fmt.Errorf(message+": %d (%s: %s)", args...))
+}
+
 func errorBadResponse(res *http.Response, message string, args ...interface{}) error {
 	args = append(args, res.StatusCode, res.Request.Method, res.Request.URL.Path)
 	return failure.NewError(ErrBadResponse, fmt.Errorf(message+": %d (%s: %s)", args...))

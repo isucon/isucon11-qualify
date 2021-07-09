@@ -29,6 +29,12 @@ import (
 	"github.com/isucon/isucon11-qualify/bench/service"
 )
 
+const (
+	searchLimit    = 20
+	conditionLimit = 20
+	isuListLimit   = 200 // TODO 修正が必要なら変更
+)
+
 //Action
 
 // ==============================initialize==============================
@@ -519,7 +525,7 @@ func postIsuConditionErrorAction(ctx context.Context, a *agent.Agent, id string,
 }
 
 func getIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req service.GetIsuConditionRequest) ([]*service.GetIsuConditionResponse, *http.Response, error) {
-	reqUrl := getIsuConditionRequestParams(fmt.Sprintf("/api/condition/%s?", id), req)
+	reqUrl := getIsuConditionRequestParams(fmt.Sprintf("/api/condition/%s", id), req)
 	conditions := []*service.GetIsuConditionResponse{}
 	res, err := reqJSONResJSON(ctx, a, http.MethodGet, reqUrl, nil, &conditions, []int{http.StatusOK})
 	if err != nil {
@@ -529,7 +535,7 @@ func getIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req s
 }
 
 func getIsuConditionErrorAction(ctx context.Context, a *agent.Agent, id string, req service.GetIsuConditionRequest) (string, *http.Response, error) {
-	reqUrl := getIsuConditionRequestParams(fmt.Sprintf("/api/condition/%s?", id), req)
+	reqUrl := getIsuConditionRequestParams(fmt.Sprintf("/api/condition/%s", id), req)
 	res, text, err := reqNoContentResError(ctx, a, http.MethodGet, reqUrl, []int{http.StatusNotFound, http.StatusUnauthorized})
 	if err != nil {
 		return "", nil, err
@@ -538,7 +544,7 @@ func getIsuConditionErrorAction(ctx context.Context, a *agent.Agent, id string, 
 }
 
 func getConditionAction(ctx context.Context, a *agent.Agent, req service.GetIsuConditionRequest) ([]*service.GetIsuConditionResponse, *http.Response, error) {
-	reqUrl := getIsuConditionRequestParams("/api/condition?", req)
+	reqUrl := getIsuConditionRequestParams("/api/condition", req)
 	conditions := []*service.GetIsuConditionResponse{}
 	res, err := reqJSONResJSON(ctx, a, http.MethodGet, reqUrl, nil, &conditions, []int{http.StatusOK})
 	if err != nil {
@@ -548,7 +554,7 @@ func getConditionAction(ctx context.Context, a *agent.Agent, req service.GetIsuC
 }
 
 func getConditionErrorAction(ctx context.Context, a *agent.Agent, req service.GetIsuConditionRequest) (string, *http.Response, error) {
-	reqUrl := getIsuConditionRequestParams("/api/condition?", req)
+	reqUrl := getIsuConditionRequestParams("/api/condition", req)
 	res, text, err := reqNoContentResError(ctx, a, http.MethodGet, reqUrl, []int{http.StatusNotFound, http.StatusUnauthorized})
 	if err != nil {
 		return "", nil, err
@@ -585,6 +591,9 @@ func getIsuGraphAction(ctx context.Context, a *agent.Agent, id string, date uint
 	if err != nil {
 		return nil, nil, err
 	}
+
+	//TODO: バリデーション
+
 	return graph, res, nil
 }
 
@@ -598,6 +607,7 @@ func getIsuGraphErrorAction(ctx context.Context, a *agent.Agent, id string, date
 }
 
 func browserGetHomeAction(ctx context.Context, a *agent.Agent,
+	virtualNowUnix int64,
 	validateIsu func(*http.Response, []*service.Isu) []error,
 	validateCondition func(*http.Response, []*service.GetIsuConditionResponse) []error,
 ) ([]*service.Isu, []*service.GetIsuConditionResponse, []error) {
@@ -621,7 +631,7 @@ func browserGetHomeAction(ctx context.Context, a *agent.Agent,
 		errors = append(errors, validateIsu(hres, isuList)...)
 	}
 
-	conditions, hres, err := getConditionAction(ctx, a, service.GetIsuConditionRequest{CursorEndTime: uint64(time.Now().Unix()), CursorJIAIsuUUID: "z", ConditionLevel: "critical,warning,info"})
+	conditions, hres, err := getConditionAction(ctx, a, service.GetIsuConditionRequest{CursorEndTime: uint64(virtualNowUnix), CursorJIAIsuUUID: "z", ConditionLevel: "critical,warning,info"})
 	if err != nil {
 		errors = append(errors, err)
 	} else {
@@ -727,7 +737,9 @@ func browserGetIsuConditionAction(ctx context.Context, a *agent.Agent, id string
 	return isu, conditions, errors
 }
 
-func browserGetIsuGraph(ctx context.Context, a *agent.Agent, id string, date uint64) (*service.Isu, []*service.GraphResponse, []error) {
+func browserGetIsuGraphAction(ctx context.Context, a *agent.Agent, id string, date uint64,
+	validateGraph func(*http.Response, []*service.GraphResponse) []error,
+) (*service.Isu, []*service.GraphResponse, []error) {
 	// TODO: 静的ファイルのGET
 
 	errors := []error{}
@@ -736,9 +748,11 @@ func browserGetIsuGraph(ctx context.Context, a *agent.Agent, id string, date uin
 	if err != nil {
 		errors = append(errors, err)
 	}
-	graph, _, err := getIsuGraphAction(ctx, a, id, date)
+	graph, res, err := getIsuGraphAction(ctx, a, id, date)
 	if err != nil {
 		errors = append(errors, err)
+	} else {
+		errors = append(errors, validateGraph(res, graph)...)
 	}
 	return isu, graph, errors
 }

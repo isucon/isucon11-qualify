@@ -245,7 +245,7 @@ func main() {
 
 		critical, _, deduction := checkError(err)
 
-		if critical || (deduction && atomic.AddInt64(&errorCount, 1) >= FAIL_ERROR_COUNT) {
+		if critical || (deduction && atomic.AddInt64(&errorCount, 1) > FAIL_ERROR_COUNT) {
 			step.Cancel()
 		}
 
