@@ -1590,6 +1590,7 @@ func getGraphDataList(tx *sqlx.Tx, jiaIsuUUID string, date time.Time) ([]Graph, 
 		graphDatas = append(graphDatas, Graph{JIAIsuUUID: jiaIsuUUID, StartAt: startTime, Data: string(data)})
 	}
 
+	// 24時間分のグラフデータだけを取り出す処理
 	endDate := date.Add(time.Hour * 24)
 	startIndex := 0
 	endNextIndex := len(graphDatas)
