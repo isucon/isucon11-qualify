@@ -486,36 +486,33 @@ scenarioLoop:
 				continue scenarioLoop
 			}
 
-			// //スクロール
-			// for i := 0; i < 2 && len(conditions) == 20*(i+1); i++ {
-			// 	var conditionsTmp []*service.GetIsuConditionResponse
-			// 	CursorEndTime := conditions[len(conditions)-1].Timestamp
-			// 	request = service.GetIsuConditionRequest{
-			// 		StartTime:        nil,
-			// 		CursorEndTime:    uint64(CursorEndTime),
-			// 		CursorJIAIsuUUID: "",
-			// 		ConditionLevel:   "info,warning,critical",
-			// 		Limit:            nil,
-			// 	}
-			// 	conditionsTmp, res, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
-			// 	if err != nil {
-			// 		scenarioSuccess = false
-			// 		step.AddError(err)
-			// 		break
-			// 	}
-			// 	//検証
-			// 	//ここは、古いデータのはずなのでconditionのchanからの再取得は要らない
-			// 	err = verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request,
-			// 		conditionsTmp, mustExistUntil,
-			// 	)
-			// 	if err != nil {
-			// 		scenarioSuccess = false
-			// 		step.AddError(err)
-			// 		break
-			// 	}
+			//スクロール
+			for i := 0; i < 2 && len(conditions) == 20*(i+1); i++ {
+				var conditionsTmp []*service.GetIsuConditionResponse
+				request = service.GetIsuConditionRequest{
+					StartTime:        nil,
+					CursorEndTime:    uint64(conditions[len(conditions)-1].Timestamp),
+					CursorJIAIsuUUID: conditions[len(conditions)-1].JIAIsuUUID,
+					ConditionLevel:   "warning,critical",
+					Limit:            nil,
+				}
+				conditionsTmp, res, err := getConditionAction(ctx, user.Agent, request)
+				if err != nil {
+					scenarioSuccess = false
+					step.AddError(err)
+					break
+				}
+				//検証
+				//ここは、古いデータのはずなのでconditionのchanからの再取得は要らない
+				err = verifyIsuConditions(res, user, "", &request, conditions, mustExistUntil)
+				if err != nil {
+					scenarioSuccess = false
+					step.AddError(err)
+					break
+				}
 
-			// 	conditions = append(conditions, conditionsTmp...)
-			// }
+				conditions = append(conditions, conditionsTmp...)
+			}
 
 			//conditionを確認して、椅子状態を改善
 			solvedConditions, findTimestamps := findBadIsuStateWithID(conditions)
