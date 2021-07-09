@@ -397,7 +397,6 @@ func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.Benchmar
 	step.AddScore(ScoreCompanyUserInitialize)
 
 	randEngine := rand.New(rand.NewSource(5498513))
-	nextTargetIsuIndex := 0
 	scenarioDoneCount := 0
 	scenarioSuccess := false
 	lastSolvedTime := s.virtualTimeStart
@@ -484,58 +483,93 @@ scenarioLoop:
 				continue scenarioLoop
 			}
 
-			//スクロール
-			for i := 0; i < 2 && len(conditions) == 20*(i+1); i++ {
-				var conditionsTmp []*service.GetIsuConditionResponse
-				CursorEndTime := conditions[len(conditions)-1].Timestamp
-				request = service.GetIsuConditionRequest{
-					StartTime:        nil,
-					CursorEndTime:    uint64(CursorEndTime),
-					CursorJIAIsuUUID: "",
-					ConditionLevel:   "info,warning,critical",
-					Limit:            nil,
-				}
-				conditionsTmp, res, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
-				if err != nil {
-					scenarioSuccess = false
-					step.AddError(err)
-					break
-				}
-				//検証
-				//ここは、古いデータのはずなのでconditionのchanからの再取得は要らない
-				err = verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request,
-					conditionsTmp, mustExistUntil,
-				)
-				if err != nil {
-					scenarioSuccess = false
-					step.AddError(err)
-					break
-				}
+			// //スクロール
+			// for i := 0; i < 2 && len(conditions) == 20*(i+1); i++ {
+			// 	var conditionsTmp []*service.GetIsuConditionResponse
+			// 	CursorEndTime := conditions[len(conditions)-1].Timestamp
+			// 	request = service.GetIsuConditionRequest{
+			// 		StartTime:        nil,
+			// 		CursorEndTime:    uint64(CursorEndTime),
+			// 		CursorJIAIsuUUID: "",
+			// 		ConditionLevel:   "info,warning,critical",
+			// 		Limit:            nil,
+			// 	}
+			// 	conditionsTmp, res, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
+			// 	if err != nil {
+			// 		scenarioSuccess = false
+			// 		step.AddError(err)
+			// 		break
+			// 	}
+			// 	//検証
+			// 	//ここは、古いデータのはずなのでconditionのchanからの再取得は要らない
+			// 	err = verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request,
+			// 		conditionsTmp, mustExistUntil,
+			// 	)
+			// 	if err != nil {
+			// 		scenarioSuccess = false
+			// 		step.AddError(err)
+			// 		break
+			// 	}
 
-				conditions = append(conditions, conditionsTmp...)
-			}
+			// 	conditions = append(conditions, conditionsTmp...)
+			// }
 
 			//conditionを確認して、椅子状態を改善
-			solvedCondition, findTimestamp := findBadIsuState(conditions)
-			if solvedCondition != model.IsuStateChangeNone && lastSolvedTime.Before(time.Unix(findTimestamp, 0)) {
-				//graphを見る
-				virtualDay := (findTimestamp / (24 * 60 * 60)) * (24 * 60 * 60)
-				_, _, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, uint64(virtualDay),
-					func(res *http.Response, graph []*service.GraphResponse) []error {
-						return []error{} //TODO: 検証
-					},
-				)
-				for _, err := range errs {
-					scenarioSuccess = false
-					step.AddError(err)
-				}
+			solvedConditions, findTimestamps := findBadIsuStateWithID(conditions)
+			for targetIsuID, timestamp := range findTimestamps {
+				if solvedConditions[targetIsuID] != model.IsuStateChangeNone && lastSolvedTime.Before(time.Unix(timestamp, 0)) {
+					//graphを見る
+					virtualDay := (timestamp / (24 * 60 * 60)) * (24 * 60 * 60)
+					_, _, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsuID, uint64(virtualDay),
+						func(res *http.Response, graph []*service.GraphResponse) []error {
+							return []error{} //TODO: 検証
+						},
+					)
+					for _, err := range errs {
+						scenarioSuccess = false
+						step.AddError(err)
+					}
 
-				//状態改善
-				lastSolvedTime = time.Unix(findTimestamp, 0)
-				targetIsu.StreamsForScenario.StateChan <- solvedCondition //バッファがあるのでブロック率は低い読みで直列に投げる
+					//状態改善
+					lastSolvedTime = time.Unix(timestamp, 0)
+					user.IsuListByID[targetIsuID].StreamsForScenario.StateChan <- solvedConditions[targetIsuID] //バッファがあるのでブロック率は低い読みで直列に投げる
+				}
 			}
 		} else {
 			//TODO:
 		}
 	}
+}
+
+func findBadIsuStateWithID(conditions []*service.GetIsuConditionResponse) (map[string]model.IsuStateChange, map[string]int64) {
+	virtualTimestamp := make(map[string]int64)
+	solvedCondition := make(map[string]model.IsuStateChange)
+	for _, c := range conditions {
+		//MEMO: 重かったらフォーマットが想定通りの前提で最適化する
+		bad := false
+		if _, ok := solvedCondition[c.JIAIsuUUID]; !ok {
+			solvedCondition[c.JIAIsuUUID] = model.IsuStateChangeNone
+		}
+		for _, cond := range strings.Split(c.Condition, ",") {
+			keyValue := strings.Split(cond, "=")
+			if len(keyValue) != 2 {
+				continue //形式に従っていないものは無視
+			}
+			if keyValue[1] != "false" {
+				bad = true
+				if keyValue[0] == "is_dirty" {
+					solvedCondition[c.JIAIsuUUID] |= model.IsuStateChangeClear
+				} else if keyValue[0] == "is_overweight" {
+					solvedCondition[c.JIAIsuUUID] |= model.IsuStateChangeDetectOverweight
+				} else if keyValue[0] == "is_broken" {
+					solvedCondition[c.JIAIsuUUID] |= model.IsuStateChangeRepair
+				}
+			}
+		}
+		if _, ok := virtualTimestamp[c.JIAIsuUUID]; bad && !ok {
+			virtualTimestamp[c.JIAIsuUUID] = c.Timestamp
+		}
+	}
+
+	return solvedCondition, virtualTimestamp
 }
