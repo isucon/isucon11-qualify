@@ -160,7 +160,7 @@ func upperBoundIsuConditionIndex(base []IsuCondition, end int, targetTimestamp i
 
 	//線形探索 ngがbase[ng] <= targetになるまで探索
 	const defaultRange = 64
-	ok := end - 1
+	ok := end
 	ng := end - defaultRange
 	ng = (ng / defaultRange) * defaultRange //0未満になるのが嫌なので、defaultRangeの倍数にする
 	for target.Less2(&base[ng]) {           //Timestampはunique仮定なので、<で良い（等価が見つかればそれで良し）
