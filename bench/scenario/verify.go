@@ -118,6 +118,10 @@ func verifyIsuConditions(res *http.Response,
 	base *model.IsuConditionArray, filter model.ConditionLevel, cursor model.IsuConditionCursor, limit int, isuMap map[string]*model.Isu,
 	backendData []*service.GetIsuConditionResponse, mustExistUntil int64) error {
 
+	if limit < len(backendData) {
+		return errorInvalid(res, "要素数が正しくありません")
+	}
+
 	//expectedの開始位置を探す()
 	baseIter := base.End(filter)
 	baseIter.LowerBoundIsuConditionIndex(cursor.TimestampUnix, cursor.OwnerID)
@@ -185,7 +189,10 @@ func verifyIsuConditions(res *http.Response,
 		lastSort = nowSort
 	}
 
-	//TODO: limitの検証
+	//limitの検証
+	if len(backendData) < limit && baseIter.Prev() != nil {
+		return errorInvalid(res, "要素数が正しくありません")
+	}
 
 	return nil
 }
