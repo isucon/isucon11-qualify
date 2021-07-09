@@ -42,7 +42,7 @@ services:
       TARGET_ADDRESS: backend:3000
     entrypoint: dockerize -wait http://backend:3000 -timeout 60s
     working_dir:  /isucon11-qualify/bench
-    command: ["/bench", "--exit-status"]
+    command: ["/bench", "--no-load", "--exit-status"]
     volumes:
       - "../:/isucon11-qualify"
     depends_on:
