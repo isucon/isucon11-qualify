@@ -15,8 +15,9 @@
     PATH: "/home/isucon/local/node/bin:{{ ansible_env.PATH }}"
   command: npm run build
 
-- name: "roles/contestant/tasks/isucondition-frontend: Deploy static files"
+- name: "roles/contestant/tasks/isucondition-frontend: Remove frontend source code"
   become_user: root
-  shell: |
-    mkdir -p /www/data && cp -pR /home/isucon/webapp/frontend/dist/* /www/data/
+  file:
+    path: /home/isucon/webapp/frontend
+    state: absent
 

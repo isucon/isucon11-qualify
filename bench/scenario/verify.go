@@ -145,10 +145,15 @@ func verifyIsuConditions(res *http.Response,
 			filter |= model.ConditionLevelCritical
 		}
 	}
-	targetIsu := targetUser.IsuListByID[targetIsuUUID]
-	targetConditions := &targetIsu.Conditions
-	baseIter := targetConditions.End(filter)
-	baseIter.LowerBoundIsuConditionIndex(int64(request.CursorEndTime), request.CursorJIAIsuUUID)
+	var baseIter model.IsuConditionIterator
+	if targetIsuUUID != "" {
+		targetIsu := targetUser.IsuListByID[targetIsuUUID]
+		iterTmp := targetIsu.Conditions.LowerBound(filter, int64(request.CursorEndTime), request.CursorJIAIsuUUID)
+		baseIter = &iterTmp
+	} else {
+		iterTmp := targetUser.Conditions.LowerBound(filter, int64(request.CursorEndTime), request.CursorJIAIsuUUID)
+		baseIter = &iterTmp
+	}
 
 	//backendDataの先頭からチェック
 	var lastSort model.IsuConditionCursor
@@ -206,7 +211,7 @@ func verifyIsuConditions(res *http.Response,
 			c.IsSitting != expected.IsSitting ||
 			c.JIAIsuUUID != expected.OwnerID ||
 			c.Message != expected.Message ||
-			c.IsuName != targetIsu.Name {
+			c.IsuName != targetUser.IsuListByID[c.JIAIsuUUID].Name {
 			return errorMissmatch(res, "データが正しくありません")
 		}
 

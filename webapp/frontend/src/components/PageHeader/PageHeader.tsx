@@ -4,12 +4,12 @@ import logo_white from '/@/assets/logo_white.svg'
 
 const PageHeader = () => {
   return (
-    <header className="h-14 flex items-center p-2 bg-accent-primary">
+    <header className="h-18 flex items-center pl-6 pr-8 bg-accent-primary">
       <Link to="/">
         <img
           src={logo_white}
           alt="isucondition"
-          className="w-50 ml-2 cursor-pointer"
+          className="h-11 cursor-pointer"
         />
       </Link>
       <Controls />

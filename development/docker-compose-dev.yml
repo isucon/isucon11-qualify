@@ -18,9 +18,12 @@ services:
       - "3000:3000"
     volumes:
       - "../webapp/go:/webapp/go"
-      - "../webapp/mysql:/webapp/mysql"
       - "../webapp/ec256-public.pem:/webapp/ec256-public.pem"
       - "../webapp/NoImage.png:/webapp/NoImage.png"
+      # SQLs
+      - "../webapp/sql/init.sh:/webapp/sql/init.sh"
+      - "../webapp/sql/0_Schema.sql:/webapp/sql/0_Schema.sql"
+      - "../development/mysql-backend/2_Init.sql:/webapp/sql/1_InitData.sql"
     depends_on:
       - mysql-backend
   # MEMO: 各言語用のコンテナをここ以下に列挙
@@ -38,7 +41,7 @@ services:
     volumes:
       - "../development/mysql-backend/mysql.cnf:/etc/mysql/conf.d/mysql.cnf"
       # 開発環境用のものを使って初期化
-      - "../webapp/mysql/db/0_Schema.sql:/docker-entrypoint-initdb.d/0_Schema.sql"
+      - "../webapp/sql/0_Schema.sql:/docker-entrypoint-initdb.d/0_Schema.sql"
       - "../development/mysql-backend/1_Constraint.sql:/docker-entrypoint-initdb.d/1_Constraint.sql"
       - "../development/mysql-backend/2_Init.sql:/docker-entrypoint-initdb.d/2_Init.sql"
     expose:
@@ -46,15 +49,12 @@ services:
     ports:
       - "3306:3306"
 
-  jiaapi-sa:
+  jiaapi-mock:
     image: golang:1.16.5-buster
     restart: always
     working_dir: /jiaapi
     command: ["go", "run", "./cmd/standalone/"]
-    environment:
-      JWT_SECRETKEY_PATH: /bench/key/ec256-private.pem
     ports:
       - "5000:5000"
     volumes:
-      - "../extra/jiaapi:/jiaapi"
-      - "../bench:/bench"
+      - "../webapp/jiaapi_mock:/jiaapi"

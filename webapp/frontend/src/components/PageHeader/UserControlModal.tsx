@@ -20,12 +20,12 @@ const UserControlModal = (props: Props) => {
     <Modal
       isOpen={props.isOpen}
       onRequestClose={props.toggle}
-      className="right-8 top-8 bg-gray-50 absolute p-4 w-40 border border-outline rounded"
+      className="top-18 bg-gray-50 absolute right-0 flex justify-items-center px-6 py-3 border border-outline rounded"
       overlayClassName="fixed inset-0"
       shouldCloseOnOverlayClick={true}
     >
       <Link to="/" onClick={logout} className="flex items-center text-primary">
-        <IoMdLogOut className="mr-3" size={20} />
+        <IoMdLogOut className="mr-1" size={16} />
         <div>logout</div>
       </Link>
     </Modal>

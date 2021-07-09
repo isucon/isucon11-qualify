@@ -25,7 +25,7 @@ const Input = ({
       {label}
       <input
         {...inputProps}
-        className="p-1 bg-teritary border border-solid border-outline rounded"
+        className="px-2 py-1 bg-teritary border border-solid border-outline rounded"
         value={value}
         onChange={e => setValue(e.target.value)}
       ></input>

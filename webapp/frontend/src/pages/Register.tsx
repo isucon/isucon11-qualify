@@ -36,11 +36,11 @@ const Register = () => {
                 value={name}
                 setValue={setName}
               ></Input>
-              <div className="flex flex-col gap-16 items-center mt-6">
+              <div className="flex flex-col gap-8 items-center mt-6">
                 <IconInput putIsuIcon={setFile} />
                 <button
                   onClick={submit}
-                  className="px-3 py-1 w-20 h-8 text-white-primary bg-button rounded-2xl focus:outline-none"
+                  className="px-3 py-1 w-20 h-8 text-white-primary font-bold bg-button rounded-2xl focus:outline-none"
                 >
                   登録
                 </button>
