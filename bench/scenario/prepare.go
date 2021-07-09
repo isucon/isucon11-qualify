@@ -35,7 +35,7 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 
 	//initialize
 	initializer, err := s.NewAgent(
-		agent.WithNoCache(), agent.WithNoCookie(), agent.WithTimeout(20*time.Second),
+		agent.WithNoCache(), agent.WithNoCookie(), agent.WithTimeout(s.initializeTimeout),
 	)
 	if err != nil {
 		return failure.NewError(ErrCritical, err)
