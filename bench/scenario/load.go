@@ -221,7 +221,7 @@ scenarioLoop:
 				//ここは、古いデータのはずなのでconditionのchanからの再取得は要らない
 				err = verifyIsuConditions(res, &targetIsu.Conditions, model.ConditionLevelInfo|model.ConditionLevelWarning|model.ConditionLevelCritical,
 					model.IsuConditionCursor{TimestampUnix: CursorEndTime, OwnerID: targetIsu.JIAIsuUUID}, conditionLimit, targetIsu.Owner.IsuListByID,
-					conditions, s.ToVirtualTime(realNow.Add(-1*time.Second)).Unix(),
+					conditionsTmp, s.ToVirtualTime(realNow.Add(-1*time.Second)).Unix(),
 				)
 				if err != nil {
 					scenarioSuccess = false
