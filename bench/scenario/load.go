@@ -138,6 +138,8 @@ scenarioLoop:
 				return verifyIsuOrderByCreatedAt(res, user.IsuListOrderByCreatedAt, isuList)
 			},
 			func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
+				//検証前にデータ取得
+				getConditionFromChan(ctx, targetIsu, nil) //TODO: userConditionBuffer
 				//TODO: conditionの検証
 				return []error{}
 			},
@@ -176,6 +178,8 @@ scenarioLoop:
 					Limit:            nil,
 				},
 				func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
+					//検証前にデータ取得
+					getConditionFromChan(ctx, targetIsu, nil) //TODO: userConditionBuffer
 					//conditionの検証
 					err := verifyIsuConditions(res, &targetIsu.Conditions, model.ConditionLevelInfo|model.ConditionLevelWarning|model.ConditionLevelCritical,
 						model.IsuConditionCursor{TimestampUnix: virtualNow.Unix(), OwnerID: targetIsu.JIAIsuUUID}, targetIsu.Owner.IsuListByID,
@@ -214,6 +218,7 @@ scenarioLoop:
 					break
 				}
 				//検証
+				//ここは、古いデータのはずなのでconditionのchanからの再取得は要らない
 				err = verifyIsuConditions(res, &targetIsu.Conditions, model.ConditionLevelInfo|model.ConditionLevelWarning|model.ConditionLevelCritical,
 					model.IsuConditionCursor{TimestampUnix: CursorEndTime, OwnerID: targetIsu.JIAIsuUUID}, targetIsu.Owner.IsuListByID,
 					conditions, s.ToVirtualTime(realNow.Add(-1*time.Second)).Unix(),
@@ -254,7 +259,9 @@ scenarioLoop:
 			virtualToday := time.Date(virtualNow.Year(), virtualNow.Month(), virtualNow.Day(), 0, 0, 0, 0, virtualNow.Location())
 			_, graphToday, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, uint64(virtualToday.Unix()),
 				func(res *http.Response, graph []*service.GraphResponse) []error {
-					return []error{} //TODO: 検証
+					//検証前にデータ取得
+					getConditionFromChan(ctx, targetIsu, nil) //TODO: userConditionBuffer
+					return []error{}                          //TODO: 検証
 				},
 			)
 			for _, err := range errs {
@@ -299,6 +306,8 @@ scenarioLoop:
 						Limit:            nil,
 					},
 					func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
+						//検証
+						//ここは、古いデータのはずなのでconditionのchanからの再取得は要らない
 						err := verifyIsuConditions(res, &targetIsu.Conditions, model.ConditionLevelWarning|model.ConditionLevelCritical,
 							model.IsuConditionCursor{TimestampUnix: errorEndAtUnix, OwnerID: targetIsu.JIAIsuUUID}, targetIsu.Owner.IsuListByID,
 							conditions, s.ToVirtualTime(realNow.Add(-1*time.Second)).Unix(),
