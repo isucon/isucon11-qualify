@@ -41,6 +41,7 @@ var (
 	promOut            string
 	showVersion        bool
 
+	initializeTimeout time.Duration
 	// TODO: isucon11-portal に差し替え
 	//reporter benchrun.Reporter
 )
@@ -78,7 +79,9 @@ func init() {
 	flag.BoolVar(&showVersion, "version", false, "show version and exit 1")
 
 	timeoutDuration := ""
+	initializeTimeoutDuration := ""
 	flag.StringVar(&timeoutDuration, "timeout", "10s", "request timeout duration")
+	flag.StringVar(&initializeTimeoutDuration, "initialize-timeout", "20s", "request timeout duration of POST /initialize")
 
 	flag.Parse()
 
@@ -87,6 +90,12 @@ func init() {
 		panic(err)
 	}
 	agent.DefaultRequestTimeout = timeout
+
+	initializeTimeout, err = time.ParseDuration(initializeTimeoutDuration)
+	if err != nil {
+		panic(err)
+	}
+
 }
 
 func checkError(err error) (critical bool, timeout bool, deduction bool) {
@@ -216,6 +225,10 @@ func main() {
 	defer cancel()
 
 	s, err := scenario.NewScenario(jiaServiceURL)
+	if err != nil {
+		panic(err)
+	}
+	s = s.WithInitilizeTimeout(initializeTimeout)
 	scheme := "http"
 	if useTLS {
 		scheme = "https"
