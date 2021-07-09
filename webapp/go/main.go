@@ -34,7 +34,7 @@ const (
 	searchLimit               = 20
 	conditionLimit            = 20
 	isuListLimit              = 200 // TODO 修正が必要なら変更
-	frontendContentsPath      = "../frontend/dist"
+	frontendContentsPath      = "../public"
 	jwtVerificationKeyPath    = "../ec256-public.pem"
 	defaultIconFilePath       = "../NoImage.png"
 	defaultJIAServiceURL      = "http://localhost:5000"
