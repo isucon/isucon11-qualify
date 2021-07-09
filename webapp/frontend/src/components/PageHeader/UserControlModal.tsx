@@ -2,6 +2,7 @@ import Modal from 'react-modal'
 import { IoMdLogOut } from 'react-icons/io'
 import { Link } from 'react-router-dom'
 import { useDispatchContext } from '../../context/state'
+import apis from '../../lib/apis'
 
 interface Props {
   isOpen: boolean
@@ -10,7 +11,8 @@ interface Props {
 
 const UserControlModal = (props: Props) => {
   const dispatch = useDispatchContext()
-  const logout = () => {
+  const logout = async () => {
+    await apis.postSignout()
     dispatch({ type: 'logout' })
   }
 
