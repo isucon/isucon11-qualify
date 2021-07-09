@@ -102,12 +102,3 @@ jobs:
         run: |
           export PATH=${HOME}/work/_tool/isucon11-qualify:${PATH}
           make build-bench
-
-      - uses: actions/upload-artifact@v2
-        with:
-          name: manifest-amd64-contestant.json
-          path: provisioning/packer/output/manifest-amd64-contestant.json
-      - uses: actions/upload-artifact@v2
-        with:
-          name: manifest-amd64-bench.json
-          path: provisioning/packer/output/manifest-amd64-bench.json
