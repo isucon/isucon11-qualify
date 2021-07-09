@@ -145,8 +145,13 @@ func verifyIsuConditions(res *http.Response,
 			filter |= model.ConditionLevelCritical
 		}
 	}
-	targetIsu := targetUser.IsuListByID[targetIsuUUID]
-	targetConditions := &targetIsu.Conditions
+	var targetConditions *model.IsuConditionArray
+	if targetIsuUUID != "" {
+		targetIsu := targetUser.IsuListByID[targetIsuUUID]
+		targetConditions = &targetIsu.Conditions
+	} else {
+		targetConditions = &targetUser.Conditions
+	}
 	baseIter := targetConditions.End(filter)
 	baseIter.LowerBoundIsuConditionIndex(int64(request.CursorEndTime), request.CursorJIAIsuUUID)
 
@@ -206,7 +211,7 @@ func verifyIsuConditions(res *http.Response,
 			c.IsSitting != expected.IsSitting ||
 			c.JIAIsuUUID != expected.OwnerID ||
 			c.Message != expected.Message ||
-			c.IsuName != targetIsu.Name {
+			c.IsuName != targetUser.IsuListByID[c.JIAIsuUUID].Name {
 			return errorMissmatch(res, "データが正しくありません")
 		}
 
