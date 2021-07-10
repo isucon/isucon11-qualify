@@ -124,6 +124,7 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 		case isCritical:
 			passed = false
 			reason = "Critical error"
+			logger.AdminLogger.Println(err) //Contestantでも良いかも
 		case isTimeout:
 			timeoutCount++
 		case isDeduction:
