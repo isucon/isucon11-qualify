@@ -123,7 +123,7 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 		case isCritical:
 			passed = false
 			reason = "Critical error"
-			logger.AdminLogger.Println(err) //TODO: Contestantでも良いかも
+			logger.AdminLogger.Printf("Critical error because: %+v\n", err) //TODO: Contestantでも良いかも
 		case isTimeout:
 			timeoutCount++
 		case isDeduction:

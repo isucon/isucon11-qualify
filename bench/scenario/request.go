@@ -228,7 +228,10 @@ func checkContentTypeAndGetBody(httpres *http.Response, contentType string) ([]b
 
 	resBody, err := ioutil.ReadAll(httpres.Body)
 	if err != nil {
-		return nil, failure.NewError(ErrCritical, err)
+		if !isTimeout(err) {
+			return nil, failure.NewError(ErrCritical, err)
+		}
+		return nil, failure.NewError(ErrHTTP, err)
 	}
 
 	return resBody, nil
