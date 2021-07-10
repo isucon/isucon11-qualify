@@ -40,6 +40,43 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	//企業ユーザー
 	s.AddCompanyUser(ctx, step, 1)
 
+	//ユーザーを増やす
+	s.loadWaitGroup.Add(1)
+	go func() {
+		for {
+			timer := time.After(3 * time.Second)
+			scoreRaw := step.Result().Score.Sum()
+
+			var normalUserLen int
+			func() {
+				s.normalUsersMtx.Lock()
+				defer s.normalUsersMtx.Unlock()
+				normalUserLen = len(s.normalUsers)
+			}()
+			normalUserAdd := int(scoreRaw/100) - normalUserLen
+			if 0 < normalUserAdd {
+				s.AddNormalUser(ctx, step, normalUserAdd)
+			}
+
+			var companyUserLen int
+			func() {
+				s.companyUsersMtx.Lock()
+				defer s.companyUsersMtx.Unlock()
+				companyUserLen = len(s.companyUsers)
+			}()
+			companyUserAdd := int(scoreRaw/2000) - companyUserLen
+			if 0 < companyUserAdd {
+				s.AddCompanyUser(ctx, step, companyUserAdd)
+			}
+
+			select {
+			case <-timer:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
 	<-ctx.Done()
 	s.jiaChancel()
 	s.loadWaitGroup.Wait()
@@ -507,7 +544,7 @@ scenarioLoop:
 				}
 				//検証
 				//ここは、古いデータのはずなのでconditionのchanからの再取得は要らない
-				err = verifyIsuConditions(res, user, "", &request, conditionsTmp, mustExistUntil)
+				err = verifyIsuConditions(res, user, "", &request, conditions, mustExistUntil)
 				if err != nil {
 					scenarioSuccess = false
 					step.AddError(err)
