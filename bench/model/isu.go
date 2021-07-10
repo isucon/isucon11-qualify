@@ -107,14 +107,12 @@ func (isu *Isu) getConditionFromChan(ctx context.Context, userConditionBuffer *I
 			if !ok {
 				return
 			}
-			for _, c := range conditions {
-				isu.Conditions.Add(&c)
+			for i := range conditions {
+				isu.Conditions.Add(&conditions[i]) //copyなので問題ない
 			}
 			if userConditionBuffer != nil {
-				for _, c := range conditions {
-					tmp := &IsuCondition{}
-					*tmp = c
-					userConditionBuffer.Add(tmp)
+				for i := range conditions {
+					userConditionBuffer.Add(&conditions[i])
 				}
 			}
 		default:

@@ -507,7 +507,7 @@ scenarioLoop:
 				}
 				//検証
 				//ここは、古いデータのはずなのでconditionのchanからの再取得は要らない
-				err = verifyIsuConditions(res, user, "", &request, conditions, mustExistUntil)
+				err = verifyIsuConditions(res, user, "", &request, conditionsTmp, mustExistUntil)
 				if err != nil {
 					scenarioSuccess = false
 					step.AddError(err)
