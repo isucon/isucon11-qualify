@@ -485,6 +485,13 @@ func postIsu(c echo.Context) error {
 	}
 
 	// 新しいisuのデータをinsert
+	tx, err := db.Beginx()
+	if err != nil {
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	defer tx.Rollback()
+
 	_, err = db.Exec("INSERT INTO `isu`"+
 		"	(`jia_isu_uuid`, `name`, `image`, `character`, `jia_user_id`) VALUES (?, ?, ?, ?, ?, ?)",
 		jiaIsuUUID, isuName, image, character, jiaUserID)
@@ -498,6 +505,12 @@ func postIsu(c echo.Context) error {
 		&isu,
 		"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
 		jiaUserID, jiaIsuUUID)
+	if err != nil {
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	err = tx.Commit()
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
