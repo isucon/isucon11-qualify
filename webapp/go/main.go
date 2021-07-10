@@ -492,7 +492,7 @@ func postIsu(c echo.Context) error {
 	}
 	defer tx.Rollback()
 
-	_, err = db.Exec("INSERT INTO `isu`"+
+	_, err = tx.Exec("INSERT INTO `isu`"+
 		"	(`jia_isu_uuid`, `name`, `image`, `character`, `jia_user_id`) VALUES (?, ?, ?, ?, ?, ?)",
 		jiaIsuUUID, isuName, image, character, jiaUserID)
 	if err != nil {
@@ -501,7 +501,7 @@ func postIsu(c echo.Context) error {
 	}
 
 	var isu Isu
-	err = db.Get(
+	err = tx.Get(
 		&isu,
 		"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
 		jiaUserID, jiaIsuUUID)
