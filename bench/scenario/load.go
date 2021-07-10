@@ -95,8 +95,8 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 		return
 	default:
 	}
-	logger.AdminLogger.Println("Normal User start")
-	defer logger.AdminLogger.Println("Normal User END")
+	// logger.AdminLogger.Println("Normal User start")
+	// defer logger.AdminLogger.Println("Normal User END")
 
 	//ユーザー作成
 	userAgent, err := s.NewAgent()
