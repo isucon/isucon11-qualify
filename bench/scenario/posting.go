@@ -52,6 +52,14 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 	httpClient := http.Client{}
 	httpClient.Timeout = 1 * time.Second
 
+	//post isuの待ち
+	{
+		state := <-scenarioChan.StateChan
+		if state == model.IsuStateChangeDelete {
+			return
+		}
+	}
+
 	//TODO: 頻度はちゃんと検討して変える
 	timer := time.NewTicker(PostInterval * PostContentNum / s.virtualTimeMulti)
 	defer timer.Stop()
