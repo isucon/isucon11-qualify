@@ -107,12 +107,6 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 	reason := "pass"
 	errors := result.Errors.All()
 
-	//TODO: 得点調整
-	result.Score.Set(scenario.ScoreNormalUserInitialize, 10)
-	result.Score.Set(scenario.ScoreNormalUserLoop, 10)
-	result.Score.Set(scenario.ScorePostConditionInfo, 2)
-	result.Score.Set(scenario.ScorePostConditionWarning, 1)
-	result.Score.Set(scenario.ScorePostConditionCritical, 0)
 	//TODO: 他の得点源
 
 	scoreRaw := result.Score.Sum()
