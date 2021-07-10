@@ -130,6 +130,7 @@ type GetMeResponse struct {
 type PostIsuRequest struct {
 	JIAIsuUUID string `json:"jia_isu_uuid"`
 	IsuName    string `json:"isu_name"`
+	Character  string `json:"character"`
 }
 
 type PutIsuRequest struct {
@@ -474,20 +475,32 @@ func postIsu(c echo.Context) error {
 
 	jiaIsuUUID := req.JIAIsuUUID
 	isuName := req.IsuName
+	character := req.Character // TODO 必要ならcharacterのvalidation
 
-	// 既に登録されたisuでないか確認
-	var count int
-	// TODO 再activate時もエラー起こすため、 `is_deleted` は見ない
-	err = db.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
-		jiaUserID, jiaIsuUUID)
+	// デフォルト画像を準備
+	image, err := ioutil.ReadFile(defaultIconFilePath)
+	if err != nil {
+		c.Logger().Errorf("failed to read default icon: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	// 新しいisuのデータをinsert
+	_, err = db.Exec("INSERT INTO `isu`"+
+		"	(`jia_isu_uuid`, `name`, `image`, `character`, `jia_user_id`) VALUES (?, ?, ?, ?, ?, ?)",
+		jiaIsuUUID, isuName, image, character, jiaUserID)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
-	if count != 0 {
-		// TODO 再activate時もここでエラー; day2で再検討
-		c.Logger().Errorf("duplicated isu: %v", err)
-		return c.String(http.StatusConflict, "duplicated isu")
+
+	var isu Isu
+	err = db.Get(
+		&isu,
+		"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
+		jiaUserID, jiaIsuUUID)
+	if err != nil {
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	// JIAにisuのactivateをリクエスト
@@ -521,45 +534,6 @@ func postIsu(c echo.Context) error {
 	if res.StatusCode != http.StatusAccepted {
 		c.Logger().Errorf("JIAService returned error: status code %v", res.StatusCode)
 		return c.String(res.StatusCode, "JIAService returned error")
-	}
-
-	resBody, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		c.Logger().Errorf("error occured while reading JIA response: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	var isuFromJIA IsuFromJIA
-	err = json.Unmarshal(resBody, &isuFromJIA)
-	if err != nil {
-		c.Logger().Errorf("cannot unmarshal JIA response: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	// デフォルト画像を準備
-	image, err := ioutil.ReadFile(defaultIconFilePath)
-	if err != nil {
-		c.Logger().Errorf("failed to read default icon: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	// 新しいisuのデータをinsert
-	_, err = db.Exec("INSERT INTO `isu`"+
-		"	(`jia_isu_uuid`, `name`, `image`, `character`, `jia_user_id`) VALUES (?, ?, ?, ?, ?, ?)",
-		jiaIsuUUID, isuName, image, isuFromJIA.Character, jiaUserID)
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	var isu Isu
-	err = db.Get(
-		&isu,
-		"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
-		jiaUserID, jiaIsuUUID)
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	return c.JSON(http.StatusOK, isu)
