@@ -322,16 +322,28 @@ func (ia *IsuConditionTreeSet) LowerBound(filter ConditionLevel, targetTimestamp
 	iter := ia.End(filter)
 	cursor := &IsuCondition{TimestampUnix: targetTimestamp, OwnerID: targetIsuUUID}
 	if (filter & ConditionLevelInfo) != 0 {
-		node, _ := ia.Info.Ceiling(cursor)
-		iter.info = eiya_redblacktree.NewIteratorWithNode(ia.Info, node)
+		node, found := ia.Info.Ceiling(cursor)
+		if found {
+			iter.info = eiya_redblacktree.NewIteratorWithNode(ia.Info, node)
+		} else {
+			iter.info.End()
+		}
 	}
 	if (filter & ConditionLevelWarning) != 0 {
-		node, _ := ia.Warning.Ceiling(cursor)
-		iter.warning = eiya_redblacktree.NewIteratorWithNode(ia.Warning, node)
+		node, found := ia.Warning.Ceiling(cursor)
+		if found {
+			iter.warning = eiya_redblacktree.NewIteratorWithNode(ia.Warning, node)
+		} else {
+			iter.warning.End()
+		}
 	}
 	if (filter & ConditionLevelCritical) != 0 {
-		node, _ := ia.Critical.Ceiling(cursor)
-		iter.critical = eiya_redblacktree.NewIteratorWithNode(ia.Critical, node)
+		node, found := ia.Critical.Ceiling(cursor)
+		if found {
+			iter.critical = eiya_redblacktree.NewIteratorWithNode(ia.Critical, node)
+		} else {
+			iter.critical.End()
+		}
 	}
 	return iter
 }
