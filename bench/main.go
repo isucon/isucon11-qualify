@@ -251,7 +251,7 @@ func main() {
 			return
 		}
 
-		critical, _, deduction := checkError(err)
+		//critical, _, deduction := checkError(err)
 
 		//TODO: 暫定対処として、failが確定しても負荷をかけ続ける
 		//if critical || (deduction && atomic.AddInt64(&errorCount, 1) > FAIL_ERROR_COUNT) {
