@@ -24,7 +24,7 @@ import (
 
 const (
 	// FAIL になるエラー回数
-	FAIL_ERROR_COUNT int64 = 100
+	FAIL_ERROR_COUNT int64 = 500 //TODO:ちゃんと決める
 )
 
 var (
@@ -124,7 +124,7 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 		case isCritical:
 			passed = false
 			reason = "Critical error"
-			logger.AdminLogger.Println(err) //Contestantでも良いかも
+			logger.AdminLogger.Println(err) //TODO: Contestantでも良いかも
 		case isTimeout:
 			timeoutCount++
 		case isDeduction:
