@@ -500,9 +500,9 @@ func postIsu(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	var isu Isu
+	var resIsu Isu
 	err = tx.Get(
-		&isu,
+		&resIsu,
 		"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
 		jiaUserID, jiaIsuUUID)
 	if err != nil {
@@ -536,7 +536,7 @@ func postIsu(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	reqJIA.Header.Set("Content-Type", "application/json")
+	reqJIA.Header.Set("Content-Type", "application/json") // FIXME
 	res, err := http.DefaultClient.Do(reqJIA)
 	if err != nil {
 		c.Logger().Errorf("failed to request to JIAService: %v", err)
@@ -549,7 +549,7 @@ func postIsu(c echo.Context) error {
 		return c.String(res.StatusCode, "JIAService returned error")
 	}
 
-	return c.JSON(http.StatusOK, isu)
+	return c.JSON(http.StatusOK, resIsu)
 }
 
 //  GET /api/isu/{jia_isu_uuid}
