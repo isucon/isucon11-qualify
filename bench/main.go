@@ -253,9 +253,10 @@ func main() {
 
 		critical, _, deduction := checkError(err)
 
-		if critical || (deduction && atomic.AddInt64(&errorCount, 1) > FAIL_ERROR_COUNT) {
-			step.Cancel()
-		}
+		//TODO: 暫定対処として、failが確定しても負荷をかけ続ける
+		//if critical || (deduction && atomic.AddInt64(&errorCount, 1) > FAIL_ERROR_COUNT) {
+		//	step.Cancel()
+		//}
 
 		logger.ContestantLogger.Printf("ERR: %v", err)
 	})
