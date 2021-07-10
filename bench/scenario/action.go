@@ -392,9 +392,13 @@ func deleteIsuErrorAction(ctx context.Context, a *agent.Agent, id string) (strin
 	return text, res, nil
 }
 
-func getIsuIconAction(ctx context.Context, a *agent.Agent, id string) ([]byte, *http.Response, error) {
+func getIsuIconAction(ctx context.Context, a *agent.Agent, id string, allowNotModified bool) ([]byte, *http.Response, error) {
 	reqUrl := fmt.Sprintf("/api/isu/%s/icon", id)
-	res, image, err := reqNoContentResPng(ctx, a, http.MethodGet, reqUrl, []int{http.StatusOK})
+	allowedStatusCodes := []int{http.StatusOK}
+	if allowNotModified {
+		allowedStatusCodes = append(allowedStatusCodes, http.StatusNotModified)
+	}
+	res, image, err := reqNoContentResPng(ctx, a, http.MethodGet, reqUrl, allowedStatusCodes)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -608,6 +612,7 @@ func getIsuGraphErrorAction(ctx context.Context, a *agent.Agent, id string, date
 
 func browserGetHomeAction(ctx context.Context, a *agent.Agent,
 	virtualNowUnix int64,
+	allowNotModified bool,
 	validateIsu func(*http.Response, []*service.Isu) []error,
 	validateCondition func(*http.Response, []*service.GetIsuConditionResponse) []error,
 ) ([]*service.Isu, []*service.GetIsuConditionResponse, []error) {
@@ -622,7 +627,7 @@ func browserGetHomeAction(ctx context.Context, a *agent.Agent,
 	if isuList != nil {
 		// TODO: ここ以下は多分並列
 		for _, isu := range isuList {
-			icon, _, err := getIsuIconAction(ctx, a, isu.JIAIsuUUID)
+			icon, _, err := getIsuIconAction(ctx, a, isu.JIAIsuUUID, allowNotModified)
 			if err != nil {
 				errors = append(errors, err)
 			}
@@ -640,7 +645,7 @@ func browserGetHomeAction(ctx context.Context, a *agent.Agent,
 	return isuList, conditions, errors
 }
 
-func browserGetSearchAction(ctx context.Context, a *agent.Agent, req service.GetIsuSearchRequest) ([]*service.Isu, []error) {
+func browserGetSearchAction(ctx context.Context, a *agent.Agent, req service.GetIsuSearchRequest, allowNotModified bool) ([]*service.Isu, []error) {
 	// TODO: 静的ファイルのGET
 
 	errors := []error{}
@@ -651,7 +656,7 @@ func browserGetSearchAction(ctx context.Context, a *agent.Agent, req service.Get
 	if isuList != nil {
 		// TODO: ここ以下は多分並列
 		for _, isu := range isuList {
-			icon, _, err := getIsuIconAction(ctx, a, isu.JIAIsuUUID)
+			icon, _, err := getIsuIconAction(ctx, a, isu.JIAIsuUUID, allowNotModified)
 			if err != nil {
 				errors = append(errors, err)
 			}
@@ -692,6 +697,7 @@ func browserGetAuthAction(ctx context.Context, a *agent.Agent) []error {
 }
 
 func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string,
+	allowNotModified bool,
 	validateCatalog func(*http.Response, *service.Catalog) []error,
 ) (*service.Isu, *service.Catalog, []error) {
 	// TODO: 静的ファイルのGET
@@ -704,7 +710,7 @@ func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string,
 	}
 	if isu != nil {
 		// TODO: ここ以下は多分並列
-		icon, _, err := getIsuIconAction(ctx, a, id)
+		icon, _, err := getIsuIconAction(ctx, a, id, allowNotModified)
 		if err != nil {
 			errors = append(errors, err)
 		}
