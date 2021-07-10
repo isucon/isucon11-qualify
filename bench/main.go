@@ -11,7 +11,6 @@ import (
 	"runtime/pprof"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/isucon/isucandar"
@@ -244,7 +243,7 @@ func main() {
 		}
 	*/
 
-	errorCount := int64(0)
+	//errorCount := int64(0)
 	b.OnError(func(err error, step *isucandar.BenchmarkStep) {
 		// Load 中の timeout のみログから除外
 		if failure.IsCode(err, failure.TimeoutErrorCode) && failure.IsCode(err, isucandar.ErrLoad) {
