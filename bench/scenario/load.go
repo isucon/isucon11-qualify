@@ -43,6 +43,7 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	//ユーザーを増やす
 	s.loadWaitGroup.Add(1)
 	go func() {
+		//TODO: パラメーター調整
 		for {
 			timer := time.After(3 * time.Second)
 			scoreRaw := step.Result().Score.Sum()
@@ -57,6 +58,8 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 			if 0 < normalUserAdd {
 				s.AddNormalUser(ctx, step, normalUserAdd)
 			}
+
+			//TODO: マニアユーザー
 
 			var companyUserLen int
 			func() {
