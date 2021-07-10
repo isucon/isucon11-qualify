@@ -240,10 +240,9 @@ scenarioLoop:
 			//スクロール
 			for i := 0; i < 2 && len(conditions) == 20*(i+1); i++ {
 				var conditionsTmp []*service.GetIsuConditionResponse
-				CursorEndTime := conditions[len(conditions)-1].Timestamp
 				request = service.GetIsuConditionRequest{
 					StartTime:        nil,
-					CursorEndTime:    uint64(CursorEndTime),
+					CursorEndTime:    uint64(conditions[len(conditions)-1].Timestamp),
 					CursorJIAIsuUUID: "",
 					ConditionLevel:   "info,warning,critical",
 					Limit:            nil,
@@ -331,6 +330,7 @@ scenarioLoop:
 			//悪いものがあれば、そのconditionを取る
 			if errorEndAtUnix != 0 {
 				startTime := uint64(errorEndAtUnix - 60*60)
+				//MEMO: 本来は必ず1時間幅だが、検証のためにdataExistTimestampで抑える
 				cursorEndTime := errorEndAtUnix
 				if dataExistTimestamp < cursorEndTime {
 					cursorEndTime = dataExistTimestamp
