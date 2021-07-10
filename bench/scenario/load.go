@@ -134,14 +134,16 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 	for _, isu := range user.IsuListOrderByCreatedAt {
 		lastSolvedTime[isu.JIAIsuUUID] = s.virtualTimeStart
 	}
+	scenarioLoopStopper := time.After(1 * time.Millisecond)
 scenarioLoop:
 	for {
+		<-scenarioLoopStopper
+		scenarioLoopStopper = time.After(50 * time.Millisecond) //TODO: 頻度調整
 		select {
 		case <-ctx.Done():
 			return
 		default:
 		}
-		time.Sleep(500 * time.Millisecond) //TODO: 頻度調整
 		if scenarioSuccess {
 			scenarioDoneCount++
 			step.AddScore(ScoreNormalUserLoop) //TODO: 得点条件の修正
@@ -447,8 +449,11 @@ func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.Benchmar
 	for _, isu := range user.IsuListOrderByCreatedAt {
 		lastSolvedTime[isu.JIAIsuUUID] = s.virtualTimeStart
 	}
+	scenarioLoopStopper := time.After(1 * time.Millisecond)
 scenarioLoop:
 	for {
+		<-scenarioLoopStopper
+		scenarioLoopStopper = time.After(50 * time.Millisecond) //TODO: 頻度調整
 		//TODO: 今はnormal userそのままになっているので、ちゃんと企業ユーザー用に書き直す
 
 		select {
@@ -456,7 +461,7 @@ scenarioLoop:
 			return
 		default:
 		}
-		time.Sleep(500 * time.Millisecond) //TODO: 頻度調整
+
 		if scenarioSuccess {
 			scenarioDoneCount++
 			step.AddScore(ScoreCompanyUserLoop) //TODO: 得点条件の修正
