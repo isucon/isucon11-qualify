@@ -331,9 +331,13 @@ scenarioLoop:
 			//悪いものがあれば、そのconditionを取る
 			if errorEndAtUnix != 0 {
 				startTime := uint64(errorEndAtUnix - 60*60)
+				cursorEndTime := errorEndAtUnix
+				if dataExistTimestamp < cursorEndTime {
+					cursorEndTime = dataExistTimestamp
+				}
 				request := service.GetIsuConditionRequest{
 					StartTime:        &startTime,
-					CursorEndTime:    uint64(errorEndAtUnix),
+					CursorEndTime:    uint64(cursorEndTime),
 					CursorJIAIsuUUID: "",
 					ConditionLevel:   "warning,critical",
 					Limit:            nil,
