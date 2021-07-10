@@ -1,12 +1,12 @@
 [Unit]
-Description=jiaapi-standalone
+Description=jiaapi-mock
 
 [Service]
-PIDFile=/var/run/jiaapi-standalone
+PIDFile=/var/run/jiaapi-mock
 
 User=isucon
 Group=isucon
-ExecStart=/usr/local/bin/jiaapi-standalone
+ExecStart=/usr/local/bin/jiaapi-mock
 ExecStop=/bin/kill -s QUIT $MAINPID
 
 Restart   = always

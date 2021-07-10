@@ -29,16 +29,11 @@
 - name: "roles.contestant.tasks.isucondition: Deploy isucon11 initial-data"
   copy:
     src: "initial-data.sql"
-    dest: "/tmp/initial-data.sql"
+    dest: "/home/isucon/webapp/sql/1_InitData.sql"
 
 - name: "roles.contestant.tasks.isucondition: Initialize isucondition Database"
   become_user: isucon
   shell: |
-    mysql -uisucon -pisucon < /tmp/initial-data.sql
+    mysql -uisucon -pisucon -e 'CREATE DATABASE isucondition'
     # TODO
-    #curl -X POST http://localhost/initialize -f
-
-- name: "roles.contestant.tasks.isucondition: Remove isucon11 initial-data"
-  file:
-    path: /tmp/initial-data.sql
-    state: absent
+    #curl -f http://localhost/initialize -X POST -d '{"jia_service_url":"http://localhost:5000"}'

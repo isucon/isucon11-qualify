@@ -24,7 +24,7 @@ type User struct {
 	Type                    UserType
 	IsuListOrderByCreatedAt []*Isu          //CreatedAtは厳密にはわからないので、postした後にgetをした順番を正とする
 	IsuListByID             map[string]*Isu //IDをkeyにアクセス
-	Conditions              IsuConditionArray
+	Conditions              IsuConditionTreeSet
 
 	Agent *agent.Agent
 }
@@ -36,6 +36,7 @@ func NewRandomUserRaw(userType UserType) (*User, error) {
 		IsuListOrderByCreatedAt: []*Isu{},
 		IsuListByID:             map[string]*Isu{},
 		Agent:                   nil,
+		Conditions:              NewIsuConditionTreeSet(),
 	}, nil
 }
 

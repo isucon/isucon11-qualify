@@ -19,7 +19,7 @@ const Controls = () => {
   }
 
   return (
-    <div className="flex items-center ml-auto">
+    <div className="w-110 flex items-center justify-between ml-auto">
       <ControlLinkItem to="/register" label="ISUの登録" icon={<TiPlus />} />
       <ControlLinkItem
         to="/condition"
@@ -27,12 +27,17 @@ const Controls = () => {
         icon={<IoIosNotifications />}
       />
       <ControlLinkItem to="/search" label="ISUの検索" icon={<IoMdSearch />} />
-      <ControlItem>
-        <div className="flex items-center cursor-pointer" onClick={toggleModal}>
-          <MdAccountCircle />
-          <div className="ml-1">{me.jia_user_id}</div>
-        </div>
-      </ControlItem>
+      <div className="border-l-1 pl-4 border-white">
+        <ControlItem>
+          <div
+            className="flex items-center cursor-pointer"
+            onClick={toggleModal}
+          >
+            <MdAccountCircle />
+            <div className="ml-1">{me.jia_user_id}</div>
+          </div>
+        </ControlItem>
+      </div>
       <UserControlModal isOpen={isOpenModal} toggle={toggleModal} />
     </div>
   )

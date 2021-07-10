@@ -658,14 +658,18 @@ func browserGetSearchAction(ctx context.Context, a *agent.Agent, req service.Get
 	return isuList, errors
 }
 
-func browserGetConditionsAction(ctx context.Context, a *agent.Agent, req service.GetIsuConditionRequest) ([]*service.GetIsuConditionResponse, []error) {
+func browserGetConditionsAction(ctx context.Context, a *agent.Agent, req service.GetIsuConditionRequest,
+	validateCondition func(*http.Response, []*service.GetIsuConditionResponse) []error,
+) ([]*service.GetIsuConditionResponse, []error) {
 	// TODO: 静的ファイルのGET
 
 	errors := []error{}
 	// TODO: ここ以下は多分並列
-	conditions, _, err := getConditionAction(ctx, a, req)
+	conditions, hres, err := getConditionAction(ctx, a, req)
 	if err != nil {
 		errors = append(errors, err)
+	} else {
+		errors = append(errors, validateCondition(hres, conditions)...)
 	}
 	return conditions, errors
 }

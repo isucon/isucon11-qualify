@@ -30,4 +30,4 @@ COPY webapp/go/go.sum .
 
 RUN go mod download
 
-COPY --from=frontend /app /webapp/frontend
+COPY --from=frontend /public /webapp/public

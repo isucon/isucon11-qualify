@@ -6,7 +6,7 @@ const HomeCondition = () => {
   const { conditions } = usePaging(apis.getConditions)
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-8">
       <h2 className="text-xl font-bold">Condition</h2>
       <div className="flex flex-col gap-4 items-center">
         <Conditions conditions={conditions} />

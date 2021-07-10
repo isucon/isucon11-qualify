@@ -18,14 +18,11 @@ const Isus = () => {
 
   return (
     <div>
-      <h2 className="text-xl font-bold">ISU</h2>
+      <h2 className="mb-6 text-xl font-bold">ISU</h2>
       <IsuList isus={isus} />
       <div className="flex gap-12 items-center justify-center mt-8">
         <Link to="/search">
           <Button label="もっと見る" />
-        </Link>
-        <Link to="/register">
-          <Button label="ISUを登録" />
         </Link>
       </div>
     </div>
