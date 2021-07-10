@@ -43,6 +43,7 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	//ユーザーを増やす
 	s.loadWaitGroup.Add(1)
 	go func() {
+		defer s.loadWaitGroup.Done()
 		//TODO: パラメーター調整
 		for {
 			timer := time.After(3 * time.Second)
