@@ -72,7 +72,9 @@ func (s *Scenario) JiaAPIThread(ctx context.Context, step *isucandar.BenchmarkSt
 
 	// Start
 	serverPort := s.jiaServiceURL[strings.LastIndexAny(s.jiaServiceURL, ":"):] //":80"
+	s.loadWaitGroup.Add(1)
 	go func() {
+		defer s.loadWaitGroup.Done()
 		err := e.Start(serverPort)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			panic(fmt.Errorf("ISU協会サービスが異常終了しました: %v", err))
@@ -140,7 +142,11 @@ func (s *Scenario) postActivate(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	go s.keepPosting(posterContext, jiaAPIStep, targetBaseURL, state.IsuUUID, scenarioChan)
+	s.loadWaitGroup.Add(1)
+	go func() {
+		defer s.loadWaitGroup.Done()
+		s.keepPosting(posterContext, jiaAPIStep, targetBaseURL, state.IsuUUID, scenarioChan)
+	}()
 
 	return c.JSON(http.StatusAccepted, isuDetail)
 }
