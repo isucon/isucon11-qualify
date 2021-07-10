@@ -152,6 +152,7 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 	isuResponse, res, err := postIsuAction(ctx, owner.Agent, req)
 	if err != nil {
 		step.AddError(err)
+		isu.StreamsForScenario.StateChan <- model.IsuStateChangeDelete
 		return nil
 	}
 	if isuResponse.JIAIsuUUID != isu.JIAIsuUUID ||
@@ -160,6 +161,7 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 		isuResponse.Character != isu.Character {
 		step.AddError(errorMissmatch(res, "レスポンスBodyが正しくありません"))
 	}
+	isu.StreamsForScenario.StateChan <- model.IsuStateChangeNone
 
 	//並列に生成する場合は後でgetにより正しい順番を得て、その順序でaddする
 	//その場合はaddToUser==falseになる
