@@ -112,6 +112,10 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 			conditions = conditions[len(conditions)-10:]
 			conditionsReq = conditionsReq[len(conditionsReq)-10:]
 		}
+		if len(conditions) == 0 {
+			//TODO: ここに入ること自体が謎
+			continue
+		}
 
 		conditionByte, err := json.Marshal(conditionsReq)
 		if err != nil {
@@ -141,9 +145,9 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 			} else {
 				step.AddScore(ScorePostConditionCritical)
 			}
-			go func() {
-				scenarioChan.ConditionChan <- conditions
-			}()
+
+			//TODO: ユーザースレッドが詰まると詰まるのでいや
+			scenarioChan.ConditionChan <- conditions
 		}()
 	}
 }
