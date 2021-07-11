@@ -222,7 +222,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	s = s.WithInitilizeTimeout(initializeTimeout)
+	s = s.WithInitializeTimeout(initializeTimeout)
 	scheme := "http"
 	if useTLS {
 		scheme = "https"
