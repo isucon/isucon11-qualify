@@ -287,7 +287,12 @@ scenarioLoop:
 
 				//状態改善
 				lastSolvedTime[targetIsu.JIAIsuUUID] = time.Unix(findTimestamp, 0)
-				targetIsu.StreamsForScenario.StateChan <- solvedCondition //バッファがあるのでブロック率は低い読みで直列に投げる
+				//バッファがあるのでブロック率は低い読みで直列に投げる
+				select {
+				case <-ctx.Done():
+					return
+				case targetIsu.StreamsForScenario.StateChan <- solvedCondition:
+				}
 			}
 		} else {
 
@@ -372,7 +377,11 @@ scenarioLoop:
 				solvedCondition, findTimestamp := findBadIsuState(conditions)
 				if solvedCondition != model.IsuStateChangeNone && lastSolvedTime[targetIsu.JIAIsuUUID].Before(time.Unix(findTimestamp, 0)) {
 					lastSolvedTime[targetIsu.JIAIsuUUID] = time.Unix(findTimestamp, 0)
-					targetIsu.StreamsForScenario.StateChan <- solvedCondition //バッファがあるのでブロック率は低い読みで直列に投げる
+					select {
+					case <-ctx.Done():
+						return
+					case targetIsu.StreamsForScenario.StateChan <- solvedCondition: //バッファがあるのでブロック率は低い読みで直列に投げる
+					}
 				}
 			}
 		}
@@ -589,7 +598,11 @@ scenarioLoop:
 
 					//状態改善
 					lastSolvedTime[targetIsuID] = time.Unix(timestamp, 0)
-					user.IsuListByID[targetIsuID].StreamsForScenario.StateChan <- solvedConditions[targetIsuID] //バッファがあるのでブロック率は低い読みで直列に投げる
+					select {
+					case <-ctx.Done():
+						return
+					case user.IsuListByID[targetIsuID].StreamsForScenario.StateChan <- solvedConditions[targetIsuID]: //バッファがあるのでブロック率は低い読みで直列に投げる
+					}
 				}
 			}
 		} else {
