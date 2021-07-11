@@ -57,7 +57,7 @@ type Isu struct {
 //戻り値をISU協会にIsu*を登録する必要あり
 //戻り値をownerに追加する必要あり
 func NewRandomIsuRaw(owner *User) (*Isu, *StreamsForPoster, error) {
-	activeChan := make(chan bool)
+	activeChan := make(chan bool, 1) //容量1以上ないとposterがブロックするので、必ず1以上
 	stateChan := make(chan IsuStateChange, 1)
 	conditionChan := make(chan []IsuCondition, 10)
 

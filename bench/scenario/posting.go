@@ -31,7 +31,7 @@ type posterState struct {
 
 //POST /api/isu/{jia_isu_id}/conditionをたたくスレッド
 func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseURL string, jiaIsuUUID string, scenarioChan *model.StreamsForPoster) {
-	defer func() { scenarioChan.ActiveChan <- false }() //deactivate
+	defer func() { scenarioChan.ActiveChan <- false }() //deactivate 容量1で、ここでしか使わないのでブロックしない
 
 	nowTimeStamp := s.ToVirtualTime(time.Now())
 	state := posterState{
@@ -147,7 +147,11 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 			}
 
 			//TODO: ユーザースレッドが詰まると詰まるのでいや
-			scenarioChan.ConditionChan <- conditions
+			select {
+			case <-ctx.Done():
+				return
+			case scenarioChan.ConditionChan <- conditions:
+			}
 		}()
 	}
 }
