@@ -5,3 +5,19 @@ up-go:
 .PHONY: down-go
 down-go:
 	docker-compose -f docker-compose-dev.yml down
+
+.PHONY: up-bench
+up-bench:
+	target=go docker compose -f docker-compose-bench.yml up --build
+
+.PHONY: run-bench
+up-bench:
+	target=go docker compose -f docker-compose-bench.yml exec apitest go run ./main.go
+
+.PHONY: run-bench-race
+up-bench:
+	target=go docker compose -f docker-compose-bench.yml exec apitest go run -race ./main.go
+
+.PHONY: down-bench
+down-bench:
+	target=go docker compose -f docker-compose-bench.yml down
