@@ -11,11 +11,11 @@ up-bench:
 	target=go docker compose -f docker-compose-bench.yml up --build
 
 .PHONY: run-bench
-up-bench:
+run-bench:
 	target=go docker compose -f docker-compose-bench.yml exec apitest go run ./main.go
 
 .PHONY: run-bench-race
-up-bench:
+run-bench-race:
 	target=go docker compose -f docker-compose-bench.yml exec apitest go run -race ./main.go
 
 .PHONY: down-bench
