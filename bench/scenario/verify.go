@@ -170,7 +170,7 @@ func verifyIsuConditions(res *http.Response,
 				return errorMissmatch(res, "存在しないはずのデータが返されました")
 			}
 
-			if expected.TimestampUnix == c.Timestamp {
+			if expected.TimestampUnix == c.Timestamp && expected.OwnerID == c.JIAIsuUUID {
 				break //ok
 			}
 
