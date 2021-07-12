@@ -39,8 +39,8 @@ type IsuConditionPosterRequest struct {
 
 //ISU協会 Goroutineとposterの通信
 type JiaAPI2PosterData struct {
-	activated   bool
-	chancelFunc context.CancelFunc
+	activated  bool
+	cancelFunc context.CancelFunc
 }
 
 //シナリオ Goroutineからの呼び出し
@@ -120,7 +120,7 @@ func (s *Scenario) postActivate(c echo.Context) error {
 	//poster Goroutineの起動
 	var isuDetail *IsuDetailInfomation
 	var scenarioChan *model.StreamsForPoster
-	posterContext, chancelFunc := context.WithCancel(jiaAPIContext)
+	posterContext, cancelFunc := context.WithCancel(jiaAPIContext)
 	err = func() error {
 		var ok bool
 		streamsForPosterMutex.Lock()
@@ -134,8 +134,8 @@ func (s *Scenario) postActivate(c echo.Context) error {
 			return echo.NewHTTPError(http.StatusForbidden)
 		}
 		isuIsActivated[state.IsuUUID] = JiaAPI2PosterData{
-			activated:   true,
-			chancelFunc: chancelFunc,
+			activated:  true,
+			cancelFunc: cancelFunc,
 		}
 		isuDetail = isuDetailInfomation[state.IsuUUID]
 
@@ -169,7 +169,7 @@ func postDeactivate(c echo.Context) error {
 	if !(ok && v.activated) {
 		return echo.NewHTTPError(http.StatusNotFound)
 	}
-	v.chancelFunc()
+	v.cancelFunc()
 	v.activated = false
 
 	return c.NoContent(http.StatusNoContent)

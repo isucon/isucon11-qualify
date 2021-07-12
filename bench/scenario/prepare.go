@@ -33,8 +33,8 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 
 	//jiaの起動
 	s.loadWaitGroup.Add(1)
-	ctxJIA, jiaChancelFunc := context.WithCancel(context.Background())
-	s.jiaChancel = jiaChancelFunc
+	ctxJIA, jiaCancelFunc := context.WithCancel(context.Background())
+	s.jiaCancel = jiaCancelFunc
 	go func() {
 		defer s.loadWaitGroup.Done()
 		s.JiaAPIService(ctxJIA, step)

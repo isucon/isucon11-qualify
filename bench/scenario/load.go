@@ -17,7 +17,7 @@ import (
 )
 
 func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) error {
-	defer s.jiaChancel()
+	defer s.jiaCancel()
 	step.Result().Score.Reset()
 	if s.NoLoad {
 		return nil
@@ -49,7 +49,7 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	}()
 
 	<-ctx.Done()
-	s.jiaChancel()
+	s.jiaCancel()
 	logger.AdminLogger.Println("LOAD WAIT")
 	s.loadWaitGroup.Wait()
 
