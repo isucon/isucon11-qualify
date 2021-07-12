@@ -2,20 +2,22 @@
 <html>
 
 <body style="padding: 3.5rem;display: flex;justify-content: center;">
-  <div
-    style="display: flex;flex-direction: column;padding: 4rem;max-width: 56rem;gap: 0.5rem;border: 1px solid;border-color: dimgray;border-radius: 0.5rem;align-items: center;">
-    <h2 style="align-self: flex-start;">Sign in with JIA</h2>
-    <label>
-      ユーザー名
-      <input id="user">
-    </label>
-    <label>
-      パスワード
-      <input id="password" type="password">
-    </label>
-    <button id="login"
-      style="margin-top: 1.5rem;background-color: transparent;border-color: dimgray;cursor: pointer;outline: none;padding: 0.1rem;width: 5rem;appearance: none;border-radius: 8px;">login</button>
-  </div>
+  <form>
+    <div
+      style="display: flex;flex-direction: column;padding: 4rem;max-width: 56rem;gap: 0.5rem;border: 1px solid;border-color: dimgray;border-radius: 0.5rem;align-items: center;">
+      <h2 style="align-self: flex-start;">Sign in with JIA</h2>
+      <label>
+        ユーザー名
+        <input id="user">
+      </label>
+      <label>
+        パスワード
+        <input id="password" type="password">
+      </label>
+      <button id="login"
+        style="margin-top: 1.5rem;background-color: transparent;border-color: dimgray;cursor: pointer;outline: none;padding: 0.1rem;width: 5rem;appearance: none;border-radius: 8px;">login</button>
+    </div>
+  </form>
 </body>
 <script>
   const userEl = document.getElementById('user')
