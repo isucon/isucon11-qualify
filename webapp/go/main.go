@@ -1013,8 +1013,7 @@ func getIsuIcon(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	// TODO: putIsuIconでjpgも受け付けるなら対応が必要
-	return c.Blob(http.StatusOK, "image/png", image)
+	return c.Blob(http.StatusOK, "", image)
 }
 
 //  GET /api/isu/{jia_isu_uuid}/graph
