@@ -188,6 +188,12 @@ type JIAServiceRequest struct {
 	IsuUUID    string `json:"isu_uuid"`
 }
 
+type GetRankingResponse struct {
+	JIAIsuUUID string `json:"jia_isu_uuid"`
+	IsuName    string `json:"isu_name"`
+	Score      int    `json:"score"`
+}
+
 func getEnv(key string, defaultValue string) string {
 	val := os.Getenv(key)
 	if val != "" {
@@ -257,6 +263,7 @@ func main() {
 	e.GET("/api/isu/:jia_isu_uuid/graph", getIsuGraph)
 	e.GET("/api/condition", getAllIsuConditions)
 	e.GET("/api/condition/:jia_isu_uuid", getIsuConditions)
+	e.GET("/api/ranking", getRanking)
 	// API for Isu
 	e.POST("/api/isu/:jia_isu_uuid/condition", postIsuCondition)
 	// Frontend
@@ -1416,6 +1423,96 @@ func getIsuConditionsFromDB(jiaIsuUUID string, cursorEndTime time.Time, conditio
 	}
 
 	return conditionsResponse, nil
+}
+
+// GET /api/ranking
+// ユーザーが所持しているISUでのdailyのランキングを取得する
+func getRanking(c echo.Context) error {
+	jiaUserID, err := getUserIDFromSession(c.Request())
+	if err != nil {
+		c.Logger().Errorf("you are not signed in: %v", err)
+		return c.String(http.StatusUnauthorized, "you are not signed in")
+	}
+
+	dateStr := c.QueryParam("date")
+	if dateStr == "" {
+		c.Logger().Errorf("date is required")
+		return c.String(http.StatusBadRequest, "date is required")
+	}
+	dateInt64, err := strconv.ParseInt(dateStr, 10, 64)
+	if err != nil {
+		c.Logger().Errorf("date is invalid format")
+		return c.String(http.StatusBadRequest, "date is invalid format")
+	}
+
+	tx, err := db.Beginx()
+	if err != nil {
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	defer tx.Rollback()
+
+	isuList := []Isu{}
+	err = db.Select(&isuList,
+		"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = false",
+		jiaUserID,
+	)
+	if err != nil {
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	ranking := []*GetRankingResponse{}
+	for _, isu := range isuList {
+		graphDataList, err := getGraphDataList(tx, isu.JIAIsuUUID, dateInt64)
+		if err != nil {
+			c.Logger().Errorf("failed to getGraphDataList: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+
+		score := calcScore(graphDataList)
+		rankingData := &GetRankingResponse{
+			JIAIsuUUID: isu.JIAIsuUUID,
+			IsuName:    isu.Name,
+			Score:      score,
+		}
+
+		ranking = append(ranking, rankingData)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	// scoreに応じて降順ソート
+	sort.Slice(ranking, func(i, j int) bool { return rankingGreaterThan(ranking[i], ranking[j]) })
+
+	return c.JSON(http.StatusOK, ranking)
+}
+
+func calcScore(graphDataList []GraphResponse) int {
+	score := 0
+	for _, graphData := range graphDataList {
+		data := graphData.Data
+		if data == nil {
+			continue
+		}
+
+		score += data.Score
+	}
+	return score
+}
+
+func rankingGreaterThan(left *GetRankingResponse, right *GetRankingResponse) bool {
+	if left.Score > right.Score {
+		return true
+	}
+	if left.Score == right.Score {
+		return left.JIAIsuUUID > right.JIAIsuUUID
+	}
+	return false
 }
 
 // POST /api/isu/{jia_isu_uuid}/condition
