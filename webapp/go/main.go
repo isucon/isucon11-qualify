@@ -556,8 +556,19 @@ func postIsu(c echo.Context) error {
 		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 
+	useDefaultImage := false
+
 	jiaIsuUUID := c.FormValue("jia_isu_uuid")
 	isuName := c.FormValue("isu_name")
+	fh, err := c.FormFile("image")
+	if err != nil {
+		if errors.Is(err, http.ErrMissingFile) {
+			useDefaultImage = true
+		} else {
+			c.Logger().Errorf("failed to get icon: %v", err)
+			return c.String(http.StatusBadRequest, "failed to get icon")
+		}
+	}
 
 	// 既に登録されたisuでないか確認
 	var count int
@@ -620,11 +631,28 @@ func postIsu(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	// デフォルト画像を準備
-	image, err := ioutil.ReadFile(defaultIconFilePath)
-	if err != nil {
-		c.Logger().Errorf("failed to read default icon: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
+	var image []byte
+
+	if useDefaultImage {
+		// デフォルト画像を準備
+		image, err = ioutil.ReadFile(defaultIconFilePath)
+		if err != nil {
+			c.Logger().Errorf("failed to read default icon: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+	} else {
+		file, err := fh.Open()
+		if err != nil {
+			c.Logger().Errorf("failed to open fh: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+		defer file.Close()
+
+		image, err = ioutil.ReadAll(file)
+		if err != nil {
+			c.Logger().Errorf("failed to read file: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
 	}
 
 	// 新しいisuのデータをinsert
