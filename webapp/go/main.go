@@ -150,11 +150,6 @@ type GetMeResponse struct {
 	JIAUserID string `json:"jia_user_id"`
 }
 
-type PostIsuRequest struct {
-	JIAIsuUUID string `json:"jia_isu_uuid"`
-	IsuName    string `json:"isu_name"`
-}
-
 type PutIsuRequest struct {
 	Name string `json:"name"`
 }
@@ -561,15 +556,8 @@ func postIsu(c echo.Context) error {
 		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 
-	var req PostIsuRequest
-	err = c.Bind(&req)
-	if err != nil {
-		c.Logger().Errorf("bad request body: %v", err)
-		return c.String(http.StatusBadRequest, "bad request body")
-	}
-
-	jiaIsuUUID := req.JIAIsuUUID
-	isuName := req.IsuName
+	jiaIsuUUID := c.FormValue("jia_isu_uuid")
+	isuName := c.FormValue("isu_name")
 
 	// 既に登録されたisuでないか確認
 	var count int
@@ -1592,7 +1580,7 @@ func getGraphDataList(tx *sqlx.Tx, jiaIsuUUID string, date time.Time) ([]Graph, 
 		return []Graph{}, nil
 	}
 
-	return graphDatas[startIndex : endNextIndex], nil
+	return graphDatas[startIndex:endNextIndex], nil
 }
 
 //分以下を切り捨て、一時間単位にする関数
