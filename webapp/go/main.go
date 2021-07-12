@@ -1100,7 +1100,6 @@ func getIsuGraph(c echo.Context) error {
 		c.Logger().Errorf("date is invalid format")
 		return c.String(http.StatusBadRequest, "date is invalid format")
 	}
-	date := truncateAfterHours(time.Unix(dateInt64, 0))
 
 	tx, err := db.Beginx()
 	if err != nil {
@@ -1121,41 +1120,10 @@ func getIsuGraph(c echo.Context) error {
 		return c.String(http.StatusNotFound, "isu not found")
 	}
 
-	graphList, err := getBaseGraphDataList(tx, jiaIsuUUID, date)
+	res, err := getGraphDataList(tx, jiaIsuUUID, dateInt64)
 	if err != nil {
-		c.Logger().Errorf("cannot get graph: %v", err)
+		c.Logger().Errorf("failed to getGraphDataList: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	res := []GraphResponse{}
-	index := 0
-	tmpTime := date
-	var tmpGraph Graph
-
-	// dateから24時間分のグラフ用データを1時間単位で作成
-	for tmpTime.Before(date.Add(time.Hour * 24)) {
-		inRange := index < len(graphList)
-		if inRange {
-			tmpGraph = graphList[index]
-		}
-
-		var data *GraphData
-		if inRange && tmpGraph.StartAt.Equal(tmpTime) {
-			err = json.Unmarshal([]byte(tmpGraph.Data), &data)
-			if err != nil {
-				c.Logger().Errorf("failed to unmarshal json: %v", err)
-				return c.NoContent(http.StatusInternalServerError)
-			}
-			index++
-		}
-
-		graphResponse := GraphResponse{
-			StartAt: tmpTime.Unix(),
-			EndAt:   tmpTime.Add(time.Hour).Unix(),
-			Data:    data,
-		}
-		res = append(res, graphResponse)
-		tmpTime = tmpTime.Add(time.Hour)
 	}
 
 	// TODO: 必要以上に長めにトランザクションを取っているので後で検討
@@ -1532,6 +1500,46 @@ func postIsuCondition(c echo.Context) error {
 	}
 
 	return c.NoContent(http.StatusCreated)
+}
+
+func getGraphDataList(tx *sqlx.Tx, jiaIsuUUID string, unixTime int64) ([]GraphResponse, error) {
+	date := truncateAfterHours(time.Unix(unixTime, 0))
+	graphList, err := getBaseGraphDataList(tx, jiaIsuUUID, date)
+	if err != nil {
+		return nil, fmt.Errorf("db error: %v", err)
+	}
+
+	graphResponses := []GraphResponse{}
+	index := 0
+	tmpTime := date
+	var tmpGraph Graph
+
+	// dateから24時間分のグラフ用データを1時間単位で作成
+	for tmpTime.Before(date.Add(time.Hour * 24)) {
+		inRange := index < len(graphList)
+		if inRange {
+			tmpGraph = graphList[index]
+		}
+
+		var data *GraphData
+		if inRange && tmpGraph.StartAt.Equal(tmpTime) {
+			err = json.Unmarshal([]byte(tmpGraph.Data), &data)
+			if err != nil {
+				return nil, fmt.Errorf("failed to unmarshal json: %v", err)
+			}
+			index++
+		}
+
+		graphResponse := GraphResponse{
+			StartAt: tmpTime.Unix(),
+			EndAt:   tmpTime.Add(time.Hour).Unix(),
+			Data:    data,
+		}
+		graphResponses = append(graphResponses, graphResponse)
+		tmpTime = tmpTime.Add(time.Hour)
+	}
+
+	return graphResponses, nil
 }
 
 func getBaseGraphDataList(tx *sqlx.Tx, jiaIsuUUID string, date time.Time) ([]Graph, error) {
