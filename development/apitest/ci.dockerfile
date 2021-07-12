@@ -21,6 +21,3 @@ WORKDIR /
 ARG app app
 COPY --from=builder01 /workdir/bench/bench ./
 COPY --from=builder02 /usr/local/bin/dockerize /usr/local/bin/
-WORKDIR /images
-COPY bench/images .
-ENTRYPOINT ["./bench", "--no-load"]
