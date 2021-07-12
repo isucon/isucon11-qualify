@@ -107,8 +107,6 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 	reason := "pass"
 	errors := result.Errors.All()
 
-	//TODO: 他の得点源
-
 	scoreRaw := result.Score.Sum()
 	deduction := int64(0)
 	timeoutCount := int64(0)

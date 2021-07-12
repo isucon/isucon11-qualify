@@ -19,6 +19,7 @@ import (
 func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) error {
 	logger.ContestantLogger.Printf("===> PREPARE")
 
+	//TODO: 他の得点源
 	//TODO: 得点調整
 	step.Result().Score.Set(ScoreNormalUserInitialize, 10)
 	step.Result().Score.Set(ScoreNormalUserLoop, 10)

@@ -22,7 +22,7 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	if s.NoLoad {
 		return nil
 	}
-	// ctx, cancel := context.WithTimeout(parent, 60*time.Second) //mainで指定している方を見るべき
+	// ctx, cancel := context.WithTimeout(parent, 60*time.Second) //要修正
 	// defer cancel()
 	ctx := parent
 
@@ -245,7 +245,6 @@ scenarioLoop:
 					break
 				}
 				//検証
-				//ここは、古いデータのはずなのでconditionのchanからの再取得は要らない
 				err = verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request,
 					conditionsTmp, mustExistUntil,
 				)
@@ -342,8 +341,6 @@ scenarioLoop:
 					request,
 					func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
 						//検証
-						//ここは、古いデータのはずなのでconditionのchanからの再取得は要らない
-						//TODO: starttimeの検証
 						err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request,
 							conditions, mustExistUntil,
 						)
@@ -377,8 +374,6 @@ scenarioLoop:
 }
 
 func findBadIsuState(conditions []*service.GetIsuConditionResponse) (model.IsuStateChange, int64) {
-	//TODO: すでに改善済みのものを弾く
-
 	var virtualTimestamp int64
 	solvedCondition := model.IsuStateChangeNone
 	for _, c := range conditions {
@@ -458,7 +453,6 @@ scenarioLoop:
 	for {
 		<-scenarioLoopStopper
 		scenarioLoopStopper = time.After(50 * time.Millisecond) //TODO: 頻度調整
-		//TODO: 今はnormal userそのままになっているので、ちゃんと企業ユーザー用に書き直す
 
 		select {
 		case <-ctx.Done():
@@ -557,7 +551,6 @@ scenarioLoop:
 					break
 				}
 				//検証
-				//ここは、古いデータのはずなのでconditionのchanからの再取得は要らない
 				err = verifyIsuConditions(res, user, "", &request, conditionsTmp, mustExistUntil)
 				if err != nil {
 					scenarioSuccess = false

@@ -113,7 +113,6 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 			conditionsReq = conditionsReq[len(conditionsReq)-10:]
 		}
 		if len(conditions) == 0 {
-			//TODO: ここに入ること自体が謎
 			continue
 		}
 

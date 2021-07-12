@@ -22,7 +22,7 @@ const (
 type User struct {
 	UserID                  string `json:"jia_user_id"`
 	Type                    UserType
-	IsuListOrderByCreatedAt []*Isu          //CreatedAtは厳密にはわからないので、postした後にgetをした順番を正とする
+	IsuListOrderByCreatedAt []*Isu          //CreatedAtは厳密にはわからないので、並列postの場合はpostした後にgetをした順番を正とする
 	IsuListByID             map[string]*Isu //IDをkeyにアクセス
 	Conditions              IsuConditionTreeSet
 
