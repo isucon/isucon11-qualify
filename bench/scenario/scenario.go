@@ -73,7 +73,7 @@ func (s *Scenario) ToVirtualTime(realTime time.Time) time.Time {
 }
 
 //load用
-//通常ユーザーのシナリオスレッドを追加する
+//通常ユーザーのシナリオ Goroutineを追加する
 func (s *Scenario) AddNormalUser(ctx context.Context, step *isucandar.BenchmarkStep, count int) {
 	if count <= 0 {
 		return
@@ -88,7 +88,7 @@ func (s *Scenario) AddNormalUser(ctx context.Context, step *isucandar.BenchmarkS
 }
 
 //load用
-//マニアユーザーのシナリオスレッドを追加する
+//マニアユーザーのシナリオ Goroutineを追加する
 func (s *Scenario) AddManiacUser(ctx context.Context, step *isucandar.BenchmarkStep, count int) {
 	if count <= 0 {
 		return
@@ -103,7 +103,7 @@ func (s *Scenario) AddManiacUser(ctx context.Context, step *isucandar.BenchmarkS
 }
 
 //load用
-//企業ユーザーのシナリオスレッドを追加する
+//企業ユーザーのシナリオ Goroutineを追加する
 func (s *Scenario) AddCompanyUser(ctx context.Context, step *isucandar.BenchmarkStep, count int) {
 	if count <= 0 {
 		return

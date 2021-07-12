@@ -36,7 +36,7 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 	s.jiaChancel = jiaChancelFunc
 	go func() {
 		defer s.loadWaitGroup.Done()
-		s.JiaAPIThread(ctxJIA, step)
+		s.JiaAPIService(ctxJIA, step)
 	}()
 	jiaWait := time.After(10 * time.Second)
 

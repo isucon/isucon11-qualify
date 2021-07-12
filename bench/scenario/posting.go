@@ -29,7 +29,7 @@ type posterState struct {
 	isuStateDelete       bool //椅子を削除する(正の点数が出るpostを行わない)
 }
 
-//POST /api/isu/{jia_isu_id}/conditionをたたくスレッド
+//POST /api/isu/{jia_isu_id}/conditionをたたく Goroutine
 func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseURL string, jiaIsuUUID string, scenarioChan *model.StreamsForPoster) {
 	defer func() { scenarioChan.ActiveChan <- false }() //deactivate 容量1で、ここでしか使わないのでブロックしない
 
@@ -146,7 +146,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 				step.AddScore(ScorePostConditionCritical)
 			}
 
-			//TODO: ユーザースレッドが詰まると詰まるのでいや
+			//TODO: ユーザー Goroutineが詰まると詰まるのでいや
 			select {
 			case <-ctx.Done():
 				return
