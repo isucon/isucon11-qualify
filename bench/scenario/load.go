@@ -107,7 +107,7 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 
 	//椅子作成
 	const isuCountMax = 4 //ルートページに表示する最大数
-	isuCount := 1
+	isuCount := rand.Intn(isuCountMax) + 1
 	for i := 0; i < isuCount; i++ {
 		isu := s.NewIsu(ctx, step, user, true)
 		if isu == nil {
@@ -140,15 +140,15 @@ scenarioLoop:
 			step.AddScore(ScoreNormalUserLoop) //TODO: 得点条件の修正
 
 			//シナリオに成功している場合は椅子追加
-			if isuCount < scenarioDoneCount/30 && isuCount < isuCountMax {
-				isu := s.NewIsu(ctx, step, user, true)
-				if isu == nil {
-					logger.AdminLogger.Println("Normal User fail: NewIsu")
-				} else {
-					isuCount++
-				}
-				//logger.AdminLogger.Printf("Normal User Isu: %d\n", isuCount)
-			}
+			// if isuCount < scenarioDoneCount/30 && isuCount < isuCountMax {
+			// 	isu := s.NewIsu(ctx, step, user, true)
+			// 	if isu == nil {
+			// 		logger.AdminLogger.Println("Normal User fail: NewIsu")
+			// 	} else {
+			// 		isuCount++
+			// 	}
+			// 	//logger.AdminLogger.Printf("Normal User Isu: %d\n", isuCount)
+			// }
 		}
 		scenarioSuccess = true
 
@@ -435,8 +435,8 @@ func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.Benchmar
 	}()
 
 	//椅子作成
-	const isuCountMax = 1000
-	isuCount := 50
+	//const isuCountMax = 1000
+	isuCount := rand.Intn(10) + 500
 	for i := 0; i < isuCount; i++ {
 		isu := s.NewIsu(ctx, step, user, true)
 		if isu == nil {
@@ -472,15 +472,15 @@ scenarioLoop:
 
 			//シナリオに成功している場合は椅子追加
 			//TODO: 係数調整
-			for isuCount < (scenarioDoneCount/30)*50 && isuCount < isuCountMax {
-				isu := s.NewIsu(ctx, step, user, true)
-				if isu == nil {
-					logger.AdminLogger.Println("Company User fail: NewIsu")
-				} else {
-					isuCount++
-				}
-				//logger.AdminLogger.Printf("Company User Isu: %d\n", isuCount)
-			}
+			// for isuCount < (scenarioDoneCount/30)*50 && isuCount < isuCountMax {
+			// 	isu := s.NewIsu(ctx, step, user, true)
+			// 	if isu == nil {
+			// 		logger.AdminLogger.Println("Company User fail: NewIsu")
+			// 	} else {
+			// 		isuCount++
+			// 	}
+			// 	//logger.AdminLogger.Printf("Company User Isu: %d\n", isuCount)
+			// }
 		}
 		scenarioSuccess = true
 
