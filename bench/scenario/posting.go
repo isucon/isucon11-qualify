@@ -53,9 +53,11 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 	httpClient.Timeout = 10 * time.Second //MEMO: post conditionがtimeoutすると付随してたくさんエラーが出るので、timeoutしにくいようにする
 
 	//post isuの待ち
-	{
-		state := <-scenarioChan.StateChan
-		if state == model.IsuStateChangeDelete {
+	select {
+	case <-ctx.Done():
+		return
+	case stateChange := <-scenarioChan.StateChan:
+		if stateChange == model.IsuStateChangeDelete {
 			return
 		}
 	}
