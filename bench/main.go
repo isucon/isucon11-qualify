@@ -24,7 +24,7 @@ import (
 
 const (
 	// FAIL になるエラー回数
-	FAIL_ERROR_COUNT int64 = 500 //TODO:ちゃんと決める
+	FAIL_ERROR_COUNT int64 = 100 //TODO:ちゃんと決める
 )
 
 var (
