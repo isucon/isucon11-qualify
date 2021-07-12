@@ -78,7 +78,7 @@ func (s *Scenario) AddNormalUser(ctx context.Context, step *isucandar.BenchmarkS
 	if count <= 0 {
 		return
 	}
-	s.loadWaitGroup.Add(int(count))
+	s.loadWaitGroup.Add(count)
 	for i := 0; i < count; i++ {
 		go func(ctx context.Context, step *isucandar.BenchmarkStep) {
 			defer s.loadWaitGroup.Done()
@@ -93,7 +93,7 @@ func (s *Scenario) AddManiacUser(ctx context.Context, step *isucandar.BenchmarkS
 	if count <= 0 {
 		return
 	}
-	s.loadWaitGroup.Add(int(count))
+	s.loadWaitGroup.Add(count)
 	for i := 0; i < count; i++ {
 		go func(ctx context.Context, step *isucandar.BenchmarkStep) {
 			defer s.loadWaitGroup.Done()
@@ -108,7 +108,7 @@ func (s *Scenario) AddCompanyUser(ctx context.Context, step *isucandar.Benchmark
 	if count <= 0 {
 		return
 	}
-	s.loadWaitGroup.Add(int(count))
+	s.loadWaitGroup.Add(count)
 	for i := 0; i < count; i++ {
 		go func(ctx context.Context, step *isucandar.BenchmarkStep) {
 			defer s.loadWaitGroup.Done()
