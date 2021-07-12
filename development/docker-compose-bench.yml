@@ -1,0 +1,62 @@
+version: "3.8"
+services:
+
+  backend:
+    build:
+      context: ..
+      dockerfile: development/backend-${target}/dev.dockerfile
+    environment:
+      MYSQL_HOST: mysql-backend
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: isucondition
+      MYSQL_USER: isucon
+      MYSQL_PASSWORD: isucon
+      ISU_CONDITION_IP: backend
+    entrypoint: dockerize -wait tcp://mysql-backend:3306 -timeout 60s
+    command: air -c /development/air.toml
+    ports:
+      - "3000:3000"
+    volumes:
+      - "../webapp/go:/webapp/go"
+      - "../webapp/ec256-public.pem:/webapp/ec256-public.pem"
+      - "../webapp/NoImage.png:/webapp/NoImage.png"
+      # SQLs
+      - "../webapp/sql/init.sh:/webapp/sql/init.sh"
+      - "../webapp/sql/0_Schema.sql:/webapp/sql/0_Schema.sql"
+      - "../development/mysql-backend/2_Init.sql:/webapp/sql/1_InitData.sql" #localに1_InitData.sqlがあるなら不要
+    depends_on:
+      - mysql-backend
+
+  mysql-backend:
+    image: mariadb:10.6.2-focal
+    restart: always
+    environment:
+      MYSQL_DATABASE: isucondition
+      MYSQL_USER: isucon
+      MYSQL_PASSWORD: isucon
+      MYSQL_ROOT_PASSWORD: root
+    volumes:
+      - "../development/mysql-backend/mysql.cnf:/etc/mysql/conf.d/mysql.cnf"
+      # 開発環境用のものを使って初期化
+      - "../webapp/sql/0_Schema.sql:/docker-entrypoint-initdb.d/0_Schema.sql"
+      - "../development/mysql-backend/1_Constraint.sql:/docker-entrypoint-initdb.d/1_Constraint.sql"
+      - "../development/mysql-backend/2_Init.sql:/docker-entrypoint-initdb.d/2_Init.sql"
+    expose:
+      - "3306"
+    ports:
+      - "3306:3306"
+
+  apitest:
+    build:
+      context: ..
+      dockerfile: development/apitest/dev.dockerfile
+    environment:
+      TARGET_ADDRESS: backend:3000
+    working_dir:  /bench_dir
+    entrypoint: bash
+    tty: true
+    volumes:
+      - "../bench:/bench_dir"
+    depends_on:
+      - mysql-backend
+      - backend

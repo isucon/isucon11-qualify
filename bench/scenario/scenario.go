@@ -58,7 +58,7 @@ func NewScenario(jiaServiceURL string) (*Scenario, error) {
 	}, nil
 }
 
-func (s *Scenario) WithInitilizeTimeout(t time.Duration) *Scenario {
+func (s *Scenario) WithInitializeTimeout(t time.Duration) *Scenario {
 	s.initializeTimeout = t
 	return s
 }
