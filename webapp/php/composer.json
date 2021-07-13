@@ -1,0 +1,9 @@
+{
+    "name": "isucon/isucon11-qualify",
+    "description": "ISUCON 11 qualify",
+    "homepage": "https://isucon.net/",
+    "license": "MIT",
+    "require": {
+        "php": "^8.0"
+    }
+}

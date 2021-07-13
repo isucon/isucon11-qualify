@@ -31,6 +31,32 @@ services:
   # backend-python:
   # ...
 
+  backend-php:
+    build:
+      context: ..
+      dockerfile: development/backend-php/dev.dockerfile
+    environment:
+      MYSQL_HOST: mysql-backend
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: isucondition
+      MYSQL_USER: isucon
+      MYSQL_PASSWORD: isucon
+      ISU_CONDITION_IP: backend-php
+    entrypoint: dockerize -wait tcp://mysql-backend:3306 -timeout 60s
+    command: php -S 0.0.0.0:3000 -t public public/index.php
+    ports:
+      - "3000:3000"
+    volumes:
+      - "../webapp/php:/webapp/php"
+      - "../webapp/ec256-public.pem:/webapp/ec256-public.pem"
+      - "../webapp/NoImage.png:/webapp/NoImage.png"
+      # SQLs
+      - "../webapp/sql/init.sh:/webapp/sql/init.sh"
+      - "../webapp/sql/0_Schema.sql:/webapp/sql/0_Schema.sql"
+      - "../development/mysql-backend/2_Init.sql:/webapp/sql/1_InitData.sql"
+    depends_on:
+      - mysql-backend
+
   mysql-backend:
     build:
       context: .
