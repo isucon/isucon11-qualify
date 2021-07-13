@@ -537,16 +537,16 @@ func postIsu(c echo.Context) error {
 	}
 
 	reqJIA.Header.Set("Content-Type", "application/json") // FIXME
-	res, err := http.DefaultClient.Do(reqJIA)
+	resJIA, err := http.DefaultClient.Do(reqJIA)
 	if err != nil {
 		c.Logger().Errorf("failed to request to JIAService: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
-	defer res.Body.Close()
+	defer resJIA.Body.Close()
 
-	if res.StatusCode != http.StatusAccepted {
-		c.Logger().Errorf("JIAService returned error: status code %v", res.StatusCode)
-		return c.String(res.StatusCode, "JIAService returned error")
+	if resJIA.StatusCode != http.StatusAccepted {
+		c.Logger().Errorf("JIAService returned error: status code %v", resJIA.StatusCode)
+		return c.String(resJIA.StatusCode, "JIAService returned error")
 	}
 
 	return c.JSON(http.StatusOK, resIsu)
