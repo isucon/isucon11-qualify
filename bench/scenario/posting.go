@@ -18,7 +18,7 @@ import (
 
 const (
 	PostInterval   = 5 * time.Minute //Virtual Timeでのpost間隔
-	PostContentNum = 10              //一回のpostで何要素postするか
+	PostContentNum = 100             //一回のpostで何要素postするか
 )
 
 type posterState struct {

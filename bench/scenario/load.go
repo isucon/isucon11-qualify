@@ -39,7 +39,7 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	//マニアユーザー
 	//s.AddManiacUser(ctx, step, 2)
 	//企業ユーザー
-	s.AddCompanyUser(ctx, step, 10)
+	s.AddCompanyUser(ctx, step, 5)
 
 	//ユーザーを増やす
 	s.loadWaitGroup.Add(1)
@@ -71,7 +71,7 @@ func (s *Scenario) userAdder(ctx context.Context, step *isucandar.BenchmarkStep)
 		if !ok || timeoutCount == 0 {
 			logger.ContestantLogger.Println("エラーが無かったため負荷レベルを上昇させます")
 			s.AddNormalUser(ctx, step, 20)
-			s.AddCompanyUser(ctx, step, 2)
+			s.AddCompanyUser(ctx, step, 1)
 		} else if ok && timeoutCount > 0 {
 			logger.ContestantLogger.Println("エラーが発生したため負荷レベルは上昇しません")
 			return
@@ -259,7 +259,7 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 	}
 	user := s.NewUser(ctx, step, userAgent, model.UserTypeNormal)
 	if user == nil {
-		logger.AdminLogger.Println("Normal User fail: NewUser")
+		//logger.AdminLogger.Println("Normal User fail: NewUser")
 		return nil //致命的でないエラー
 	}
 	func() {
@@ -278,7 +278,7 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 			//TODO: DELETE isuを叩く
 			//（ここ直さないと、正の得点が生めてしまうので絶対直す）
 
-			logger.AdminLogger.Println("Normal User fail: NewIsu(initialize)")
+			//logger.AdminLogger.Println("Normal User fail: NewIsu(initialize)")
 			return nil //致命的でないエラー
 		}
 	}
