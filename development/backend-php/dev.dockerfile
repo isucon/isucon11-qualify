@@ -33,7 +33,7 @@ RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSI
     && rm dockerize-alpine-linux-amd64-$DOCKERIZE_VERSION.tar.gz
 
 COPY webapp/php/composer.json .
-# COPY webapp/php/composer.lock .
+COPY webapp/php/composer.lock .
 
 RUN composer install
 
