@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	jst, _   = time.LoadLocation("Asia/Tokyo")
+	jst      = time.FixedZone("Asia/Tokyo", 9*60*60)
 	baseTime = time.Date(2021, 7, 1, 0, 0, 0, 0, jst)
 )
 
