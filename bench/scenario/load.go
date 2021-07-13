@@ -260,24 +260,8 @@ scenarioLoop:
 					ConditionLevel:   "warning,critical",
 					Limit:            nil,
 				}
-				_, conditions, errs := browserGetIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
-					request,
-					func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
-						//検証
-						err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request,
-							conditions, mustExistUntil,
-						)
-						if err != nil {
-							return []error{err}
-						}
-						return []error{}
-					},
-				)
-				for _, err := range errs {
-					scenarioSuccess = false
-					step.AddError(err)
-				}
-				if len(errs) > 0 {
+				conditions := s.getIsuConditionWithScroll(ctx, step, user, targetIsu, request, 0)
+				if conditions == nil {
 					continue scenarioLoop
 				}
 
