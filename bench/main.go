@@ -11,7 +11,6 @@ import (
 	"runtime/pprof"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/isucon/isucandar"
@@ -24,7 +23,7 @@ import (
 
 const (
 	// FAIL になるエラー回数
-	FAIL_ERROR_COUNT int64 = 100
+	FAIL_ERROR_COUNT int64 = 500 //TODO:ちゃんと決める
 )
 
 var (
@@ -107,12 +106,6 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 	reason := "pass"
 	errors := result.Errors.All()
 
-	//TODO: 得点調整
-	result.Score.Set(scenario.ScoreNormalUserInitialize, 10)
-	result.Score.Set(scenario.ScoreNormalUserLoop, 10)
-	result.Score.Set(scenario.ScorePostConditionInfo, 2)
-	result.Score.Set(scenario.ScorePostConditionWarning, 1)
-	result.Score.Set(scenario.ScorePostConditionCritical, 0)
 	//TODO: 他の得点源
 
 	scoreRaw := result.Score.Sum()
@@ -130,6 +123,7 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 		case isCritical:
 			passed = false
 			reason = "Critical error"
+			logger.AdminLogger.Printf("Critical error because: %+v\n", err) //TODO: Contestantでも良いかも
 		case isTimeout:
 			timeoutCount++
 		case isDeduction:
@@ -228,7 +222,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	s = s.WithInitilizeTimeout(initializeTimeout)
+	s = s.WithInitializeTimeout(initializeTimeout)
 	scheme := "http"
 	if useTLS {
 		scheme = "https"
@@ -249,18 +243,19 @@ func main() {
 		}
 	*/
 
-	errorCount := int64(0)
+	//errorCount := int64(0)
 	b.OnError(func(err error, step *isucandar.BenchmarkStep) {
 		// Load 中の timeout のみログから除外
 		if failure.IsCode(err, failure.TimeoutErrorCode) && failure.IsCode(err, isucandar.ErrLoad) {
 			return
 		}
 
-		critical, _, deduction := checkError(err)
+		//critical, _, deduction := checkError(err)
 
-		if critical || (deduction && atomic.AddInt64(&errorCount, 1) > FAIL_ERROR_COUNT) {
-			step.Cancel()
-		}
+		//TODO: 暫定対処として、failが確定しても負荷をかけ続ける
+		//if critical || (deduction && atomic.AddInt64(&errorCount, 1) > FAIL_ERROR_COUNT) {
+		//	step.Cancel()
+		//}
 
 		logger.ContestantLogger.Printf("ERR: %v", err)
 	})
