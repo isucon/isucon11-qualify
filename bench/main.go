@@ -24,7 +24,9 @@ import (
 
 const (
 	// FAIL になるエラー回数
-	FAIL_ERROR_COUNT int64 = 500 //TODO:ちゃんと決める
+	FAIL_ERROR_COUNT int64 = 100 //TODO:ちゃんと決める
+	//load context
+	LOAD_TIMEOUT time.Duration = 70 * time.Second
 )
 
 var (
@@ -217,7 +219,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	s, err := scenario.NewScenario(jiaServiceURL)
+	s, err := scenario.NewScenario(jiaServiceURL, LOAD_TIMEOUT)
 	if err != nil {
 		panic(err)
 	}
@@ -229,7 +231,7 @@ func main() {
 	s.BaseURL = fmt.Sprintf("%s://%s/", scheme, targetAddress)
 	s.NoLoad = noLoad
 
-	b, err := isucandar.NewBenchmark(isucandar.WithLoadTimeout(60*time.Second), isucandar.WithoutPanicRecover())
+	b, err := isucandar.NewBenchmark(isucandar.WithLoadTimeout(LOAD_TIMEOUT), isucandar.WithoutPanicRecover())
 	if err != nil {
 		panic(err)
 	}

@@ -34,6 +34,9 @@ type posterState struct {
 func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseURL string, jiaIsuUUID string, scenarioChan *model.StreamsForPoster) {
 	defer func() { scenarioChan.ActiveChan <- false }() //deactivate 容量1で、ここでしか使わないのでブロックしない
 
+	userTimer, userTimerCancel := context.WithDeadline(ctx, s.realTimeLoadFinishedAt.Add(-agent.DefaultRequestTimeout-1*time.Second))
+	defer userTimerCancel()
+
 	nowTimeStamp := s.ToVirtualTime(time.Now())
 	state := posterState{
 		lastCondition: model.IsuCondition{
@@ -57,6 +60,8 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 	select {
 	case <-ctx.Done():
 		return
+	case <-userTimer.Done():
+		return
 	case stateChange := <-scenarioChan.StateChan:
 		if stateChange == model.IsuStateChangeDelete {
 			return
@@ -69,6 +74,8 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 	for {
 		select {
 		case <-ctx.Done():
+			return
+		case <-userTimer.Done():
 			return
 		case <-timer.C:
 		}
