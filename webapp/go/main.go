@@ -259,7 +259,6 @@ func main() {
 	// Frontend
 	e.GET("/", getIndex)
 	e.GET("/condition", getIndex)
-	e.GET("/search", getIndex)
 	e.GET("/isu/:jia_isu_uuid", getIndex)
 	e.GET("/register", getIndex)
 	e.GET("/login", getIndex)
