@@ -40,6 +40,47 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	//企業ユーザー
 	s.AddCompanyUser(ctx, step, 1)
 
+	//ユーザーを増やす
+	s.loadWaitGroup.Add(1)
+	go func() {
+		defer s.loadWaitGroup.Done()
+		//TODO: パラメーター調整
+		for {
+			timer := time.After(3 * time.Second)
+			scoreRaw := step.Result().Score.Sum()
+
+			var normalUserLen int
+			func() {
+				s.normalUsersMtx.Lock()
+				defer s.normalUsersMtx.Unlock()
+				normalUserLen = len(s.normalUsers)
+			}()
+			normalUserAdd := int(scoreRaw/100) - normalUserLen
+			if 0 < normalUserAdd {
+				s.AddNormalUser(ctx, step, normalUserAdd)
+			}
+
+			//TODO: マニアユーザー
+
+			var companyUserLen int
+			func() {
+				s.companyUsersMtx.Lock()
+				defer s.companyUsersMtx.Unlock()
+				companyUserLen = len(s.companyUsers)
+			}()
+			companyUserAdd := int(scoreRaw/2000) - companyUserLen
+			if 0 < companyUserAdd {
+				s.AddCompanyUser(ctx, step, companyUserAdd)
+			}
+
+			select {
+			case <-timer:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
 	<-ctx.Done()
 	s.jiaChancel()
 	s.loadWaitGroup.Wait()
@@ -54,8 +95,8 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 		return
 	default:
 	}
-	logger.AdminLogger.Println("Normal User start")
-	defer logger.AdminLogger.Println("Normal User END")
+	// logger.AdminLogger.Println("Normal User start")
+	// defer logger.AdminLogger.Println("Normal User END")
 
 	//ユーザー作成
 	userAgent, err := s.NewAgent()
@@ -93,14 +134,16 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 	for _, isu := range user.IsuListOrderByCreatedAt {
 		lastSolvedTime[isu.JIAIsuUUID] = s.virtualTimeStart
 	}
+	scenarioLoopStopper := time.After(1 * time.Millisecond)
 scenarioLoop:
 	for {
+		<-scenarioLoopStopper
+		scenarioLoopStopper = time.After(50 * time.Millisecond) //TODO: 頻度調整
 		select {
 		case <-ctx.Done():
 			return
 		default:
 		}
-		time.Sleep(500 * time.Millisecond) //TODO: 頻度調整
 		if scenarioSuccess {
 			scenarioDoneCount++
 			step.AddScore(ScoreNormalUserLoop) //TODO: 得点条件の修正
@@ -134,7 +177,7 @@ scenarioLoop:
 
 		//GET /
 		dataExistTimestamp := GetConditionDataExistTimestamp(s, user)
-		_, _, errs := browserGetHomeAction(ctx, user.Agent, dataExistTimestamp,
+		_, _, errs := browserGetHomeAction(ctx, user.Agent, dataExistTimestamp, true,
 			func(res *http.Response, isuList []*service.Isu) []error {
 				return verifyIsuOrderByCreatedAt(res, user.IsuListOrderByCreatedAt, isuList)
 			},
@@ -149,7 +192,7 @@ scenarioLoop:
 		}
 
 		//GET /isu/{jia_isu_uuid}
-		_, _, errs = browserGetIsuDetailAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
+		_, _, errs = browserGetIsuDetailAction(ctx, user.Agent, targetIsu.JIAIsuUUID, true,
 			func(res *http.Response, catalog *service.Catalog) []error {
 				//TODO: catalogの検証
 				//targetIsu.JIACatalogID
@@ -197,10 +240,9 @@ scenarioLoop:
 			//スクロール
 			for i := 0; i < 2 && len(conditions) == 20*(i+1); i++ {
 				var conditionsTmp []*service.GetIsuConditionResponse
-				CursorEndTime := conditions[len(conditions)-1].Timestamp
 				request = service.GetIsuConditionRequest{
 					StartTime:        nil,
-					CursorEndTime:    uint64(CursorEndTime),
+					CursorEndTime:    uint64(conditions[len(conditions)-1].Timestamp),
 					CursorJIAIsuUUID: "",
 					ConditionLevel:   "info,warning,critical",
 					Limit:            nil,
@@ -288,9 +330,14 @@ scenarioLoop:
 			//悪いものがあれば、そのconditionを取る
 			if errorEndAtUnix != 0 {
 				startTime := uint64(errorEndAtUnix - 60*60)
+				//MEMO: 本来は必ず1時間幅だが、検証のためにdataExistTimestampで抑える
+				cursorEndTime := errorEndAtUnix
+				if dataExistTimestamp < cursorEndTime {
+					cursorEndTime = dataExistTimestamp
+				}
 				request := service.GetIsuConditionRequest{
 					StartTime:        &startTime,
-					CursorEndTime:    uint64(errorEndAtUnix),
+					CursorEndTime:    uint64(cursorEndTime),
 					CursorJIAIsuUUID: "",
 					ConditionLevel:   "warning,critical",
 					Limit:            nil,
@@ -406,8 +453,11 @@ func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.Benchmar
 	for _, isu := range user.IsuListOrderByCreatedAt {
 		lastSolvedTime[isu.JIAIsuUUID] = s.virtualTimeStart
 	}
+	scenarioLoopStopper := time.After(1 * time.Millisecond)
 scenarioLoop:
 	for {
+		<-scenarioLoopStopper
+		scenarioLoopStopper = time.After(50 * time.Millisecond) //TODO: 頻度調整
 		//TODO: 今はnormal userそのままになっているので、ちゃんと企業ユーザー用に書き直す
 
 		select {
@@ -415,7 +465,7 @@ scenarioLoop:
 			return
 		default:
 		}
-		time.Sleep(500 * time.Millisecond) //TODO: 頻度調整
+
 		if scenarioSuccess {
 			scenarioDoneCount++
 			step.AddScore(ScoreCompanyUserLoop) //TODO: 得点条件の修正
@@ -444,8 +494,9 @@ scenarioLoop:
 		mustExistUntil := s.ToVirtualTime(time.Now().Add(-1 * time.Second)).Unix()
 
 		//GET /
+		//TODO: ベンチはPUT isu/iconが来ないとして、304を常に許すようにします。
 		dataExistTimestamp := GetConditionDataExistTimestamp(s, user)
-		_, _, errs := browserGetHomeAction(ctx, user.Agent, dataExistTimestamp,
+		_, _, errs := browserGetHomeAction(ctx, user.Agent, dataExistTimestamp, true,
 			func(res *http.Response, isuList []*service.Isu) []error {
 				return verifyIsuOrderByCreatedAt(res, user.IsuListOrderByCreatedAt, isuList)
 			},

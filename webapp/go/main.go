@@ -29,7 +29,6 @@ import (
 
 const (
 	sessionName               = "isucondition"
-	searchLimit               = 20
 	conditionLimit            = 20
 	isuListLimit              = 200 // TODO 修正が必要なら変更
 	frontendContentsPath      = "../public"
@@ -237,7 +236,6 @@ func main() {
 	// Frontend
 	e.GET("/", getIndex)
 	e.GET("/condition", getIndex)
-	e.GET("/search", getIndex)
 	e.GET("/isu/:jia_isu_uuid", getIndex)
 	e.GET("/register", getIndex)
 	e.GET("/login", getIndex)

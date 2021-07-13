@@ -12,12 +12,19 @@ import (
 	"github.com/isucon/isucandar/failure"
 	"github.com/isucon/isucandar/worker"
 	"github.com/isucon/isucon11-qualify/bench/logger"
-	"github.com/isucon/isucon11-qualify/bench/model"
 	"github.com/isucon/isucon11-qualify/bench/service"
+	"github.com/isucon/isucon11-qualify/extra/initial-data/random"
 )
 
 func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) error {
 	logger.ContestantLogger.Printf("===> PREPARE")
+
+	//TODO: 得点調整
+	step.Result().Score.Set(ScoreNormalUserInitialize, 10)
+	step.Result().Score.Set(ScoreNormalUserLoop, 10)
+	step.Result().Score.Set(ScorePostConditionInfo, 2)
+	step.Result().Score.Set(ScorePostConditionWarning, 1)
+	step.Result().Score.Set(ScorePostConditionCritical, 0)
 
 	//初期データの生成
 	s.InitializeData()
@@ -84,11 +91,7 @@ func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.Benchma
 			step.AddError(failure.NewError(ErrCritical, err))
 			return
 		}
-		userID, err := model.MakeRandomUserID()
-		if err != nil {
-			step.AddError(failure.NewError(ErrCritical, err))
-			return
-		}
+		userID := random.UserName()
 		if (index % 10) < authActionErrorNum {
 			//各種ログイン失敗ケース
 			errs := authActionError(ctx, agt, userID, index%10)
@@ -117,11 +120,7 @@ func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.Benchma
 		step.AddError(failure.NewError(ErrCritical, err))
 		return nil
 	}
-	userID, err := model.MakeRandomUserID()
-	if err != nil {
-		step.AddError(failure.NewError(ErrCritical, err))
-		return nil
-	}
+	userID := random.UserName()
 
 	_, errs := authAction(ctx, agt, userID)
 	for _, err := range errs {
