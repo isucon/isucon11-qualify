@@ -588,7 +588,7 @@ func getIsuConditionRequestParams(base string, req service.GetIsuConditionReques
 	return targetURL.String()
 }
 
-func getIsuGraphAction(ctx context.Context, a *agent.Agent, id string, date uint64) ([]*service.GraphResponse, *http.Response, error) {
+func getIsuGraphAction(ctx context.Context, a *agent.Agent, id string, date int64) ([]*service.GraphResponse, *http.Response, error) {
 	graph := []*service.GraphResponse{}
 	reqUrl := fmt.Sprintf("/api/isu/%s/graph?date=%d", id, date)
 	res, err := reqJSONResJSON(ctx, a, http.MethodGet, reqUrl, nil, &graph, []int{http.StatusOK})
@@ -601,7 +601,7 @@ func getIsuGraphAction(ctx context.Context, a *agent.Agent, id string, date uint
 	return graph, res, nil
 }
 
-func getIsuGraphErrorAction(ctx context.Context, a *agent.Agent, id string, date uint64) (string, *http.Response, error) {
+func getIsuGraphErrorAction(ctx context.Context, a *agent.Agent, id string, date int64) (string, *http.Response, error) {
 	reqUrl := fmt.Sprintf("/api/isu/%s/graph?date=%d", id, date)
 	res, text, err := reqNoContentResError(ctx, a, http.MethodGet, reqUrl, []int{http.StatusUnauthorized, http.StatusNotFound, http.StatusBadRequest})
 	if err != nil {
@@ -636,7 +636,7 @@ func browserGetHomeAction(ctx context.Context, a *agent.Agent,
 		errors = append(errors, validateIsu(hres, isuList)...)
 	}
 
-	conditions, hres, err := getConditionAction(ctx, a, service.GetIsuConditionRequest{CursorEndTime: uint64(virtualNowUnix), CursorJIAIsuUUID: "z", ConditionLevel: "critical,warning,info"})
+	conditions, hres, err := getConditionAction(ctx, a, service.GetIsuConditionRequest{CursorEndTime: virtualNowUnix, CursorJIAIsuUUID: "z", ConditionLevel: "critical,warning,info"})
 	if err != nil {
 		errors = append(errors, err)
 	} else {
@@ -747,7 +747,7 @@ func browserGetIsuConditionAction(ctx context.Context, a *agent.Agent, id string
 	return isu, conditions, errors
 }
 
-func browserGetIsuGraphAction(ctx context.Context, a *agent.Agent, id string, date uint64,
+func browserGetIsuGraphAction(ctx context.Context, a *agent.Agent, id string, date int64,
 	validateGraph func(*http.Response, []*service.GraphResponse) []error,
 ) (*service.Isu, []*service.GraphResponse, []error) {
 	// TODO: 静的ファイルのGET

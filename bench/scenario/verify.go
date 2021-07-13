@@ -129,7 +129,7 @@ func verifyIsuConditions(res *http.Response,
 		return errorInvalid(res, "要素数が正しくありません")
 	}
 	//レスポンス側のstartTimeのチェック
-	if request.StartTime != nil && len(backendData) != 0 && backendData[len(backendData)-1].Timestamp < int64(*request.StartTime) {
+	if request.StartTime != nil && len(backendData) != 0 && backendData[len(backendData)-1].Timestamp < *request.StartTime {
 		return errorInvalid(res, "データが正しくありません")
 	}
 
@@ -148,10 +148,10 @@ func verifyIsuConditions(res *http.Response,
 	var baseIter model.IsuConditionIterator
 	if targetIsuUUID != "" {
 		targetIsu := targetUser.IsuListByID[targetIsuUUID]
-		iterTmp := targetIsu.Conditions.LowerBound(filter, int64(request.CursorEndTime), request.CursorJIAIsuUUID)
+		iterTmp := targetIsu.Conditions.LowerBound(filter, request.CursorEndTime, request.CursorJIAIsuUUID)
 		baseIter = &iterTmp
 	} else {
-		iterTmp := targetUser.Conditions.LowerBound(filter, int64(request.CursorEndTime), request.CursorJIAIsuUUID)
+		iterTmp := targetUser.Conditions.LowerBound(filter, request.CursorEndTime, request.CursorJIAIsuUUID)
 		baseIter = &iterTmp
 	}
 
@@ -221,7 +221,7 @@ func verifyIsuConditions(res *http.Response,
 	//limitの検証
 	if len(backendData) < limit && baseIter.Prev() != nil {
 		prev := baseIter.Prev()
-		if prev != nil && request.StartTime != nil && int64(*request.StartTime) <= prev.TimestampUnix {
+		if prev != nil && request.StartTime != nil && *request.StartTime <= prev.TimestampUnix {
 			return errorInvalid(res, "要素数が正しくありません")
 		}
 	}

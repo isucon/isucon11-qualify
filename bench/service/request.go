@@ -30,16 +30,16 @@ type GetIsuSearchRequest struct {
 	Name           *string
 	Character      *string
 	CatalogName    *string
-	MinLimitWeight *uint
-	MaxLimitWeight *uint
+	MinLimitWeight *int
+	MaxLimitWeight *int
 	CatalogTags    *string
-	Page           *uint
+	Page           *int
 }
 
 type GetIsuConditionRequest struct {
-	StartTime        *uint64
-	CursorEndTime    uint64
+	StartTime        *int64
+	CursorEndTime    int64
 	CursorJIAIsuUUID string
 	ConditionLevel   string
-	Limit            *uint
+	Limit            *int
 }
