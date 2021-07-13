@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"html/template"
 	"io/ioutil"
-	"math"
 	"net/http"
 	"os"
 	"os/exec"
@@ -30,7 +29,6 @@ import (
 
 const (
 	sessionName               = "isucondition"
-	searchLimit               = 20
 	conditionLimit            = 20
 	isuListLimit              = 200 // TODO 修正が必要なら変更
 	frontendContentsPath      = "../public"
@@ -248,7 +246,6 @@ func main() {
 	e.GET("/api/catalog/:jia_catalog_id", getCatalog)
 	e.GET("/api/isu", getIsuList)
 	e.POST("/api/isu", postIsu)
-	e.GET("/api/isu/search", getIsuSearch)
 	e.GET("/api/isu/:jia_isu_uuid", getIsu)
 	e.PUT("/api/isu/:jia_isu_uuid", putIsu)
 	e.DELETE("/api/isu/:jia_isu_uuid", deleteIsu)
@@ -262,7 +259,6 @@ func main() {
 	// Frontend
 	e.GET("/", getIndex)
 	e.GET("/condition", getIndex)
-	e.GET("/search", getIndex)
 	e.GET("/isu/:jia_isu_uuid", getIndex)
 	e.GET("/register", getIndex)
 	e.GET("/login", getIndex)
@@ -659,147 +655,6 @@ func postIsu(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, isu)
-}
-
-// GET /api/isu/search
-// 自分の ISU 一覧から検索
-func getIsuSearch(c echo.Context) error {
-	// input (query_param)
-	//  * name
-	//  * character
-	//	* catalog_name
-	//	* min_limit_weight
-	//	* max_limit_weight
-	//	* catalog_tags (ジェイウォーク)
-	//  * page: （default = 1)
-	//	* TODO: day2 二つのカラムを併せて計算した値での検索（x*yの面積での検索とか）
-
-	jiaUserID, err := getUserIDFromSession(c.Request())
-	if err != nil {
-		c.Logger().Errorf("you are not signed in: %v", err)
-		return c.String(http.StatusUnauthorized, "you are not signed in")
-	}
-	//optional query param
-	name := c.QueryParam("name")
-	character := c.QueryParam("character")
-	catalogName := c.QueryParam("catalog_name")
-	minLimitWeightStr := c.QueryParam("min_limit_weight")
-	maxLimitWeightStr := c.QueryParam("max_limit_weight")
-	catalogTagsStr := c.QueryParam("catalog_tags")
-	pageStr := c.QueryParam("page")
-	//parse
-	minLimitWeight := math.MinInt32
-	maxLimitWeight := math.MaxInt32
-	page := 1
-	var requiredCatalogTags []string
-	if minLimitWeightStr != "" {
-		minLimitWeight, err = strconv.Atoi(minLimitWeightStr)
-		if err != nil {
-			c.Logger().Errorf("bad format: min_limit_weight: %v", err)
-			return c.String(http.StatusBadRequest, "bad format: min_limit_weight")
-		}
-	}
-	if maxLimitWeightStr != "" {
-		maxLimitWeight, err = strconv.Atoi(maxLimitWeightStr)
-		if err != nil {
-			c.Logger().Errorf("bad format: max_limit_weight: %v", err)
-			return c.String(http.StatusBadRequest, "bad format: max_limit_weight")
-		}
-	}
-	if pageStr != "" {
-		page, err = strconv.Atoi(pageStr)
-		if err != nil || page <= 0 {
-			c.Logger().Errorf("bad format: page : page = %v,  %v", page, err)
-			return c.String(http.StatusBadRequest, "bad format: page")
-		}
-	}
-	if catalogTagsStr != "" {
-		requiredCatalogTags = strings.Split(catalogTagsStr, ",")
-	}
-
-	// DBからISU一覧を取得
-	query := "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = false"
-	queryParam := []interface{}{jiaUserID}
-	if name != "" {
-		query += " AND `name` LIKE ? "
-		queryParam = append(queryParam, name)
-	}
-	if character != "" {
-		query += " AND `character` = ? "
-		queryParam = append(queryParam, character)
-	}
-	query += " ORDER BY `created_at` DESC "
-	isuList := []*Isu{}
-	err = db.Select(&isuList,
-		query,
-		queryParam...,
-	)
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	isuListResponse := []*Isu{}
-	//残りのフィルター処理
-	for _, isu := range isuList {
-		// ISU協会に問い合わせ(http request)
-		catalogFromJIA, statusCode, err := fetchCatalogFromJIA(isu.JIACatalogID)
-		if err != nil {
-			c.Logger().Errorf("failed to fetch catalog from JIA: %v", err)
-			return c.NoContent(http.StatusInternalServerError)
-		}
-		if statusCode == http.StatusNotFound {
-			c.Logger().Errorf("catalog not found: %s", isu.JIACatalogID)
-			return c.NoContent(http.StatusInternalServerError)
-		}
-		catalog, err := castCatalogFromJIA(catalogFromJIA)
-		if err != nil {
-			c.Logger().Errorf("failed to cast catalog: %v", err)
-			return c.NoContent(http.StatusInternalServerError)
-		}
-		//catalog.Tagsをmapに変換
-		catalogTags := map[string]interface{}{}
-		for _, tag := range strings.Split(catalog.Tags, ",") {
-			catalogTags[tag] = struct{}{}
-		}
-
-		// isu_catalog情報を使ってフィルター
-		if !(minLimitWeight <= catalog.LimitWeight && catalog.LimitWeight <= maxLimitWeight) {
-			continue
-		}
-		if catalogName != "" && catalogName != catalog.Name {
-			continue
-		}
-		if requiredCatalogTags != nil {
-			containsAll := true
-			for _, tag := range requiredCatalogTags {
-				if _, ok := catalogTags[tag]; !ok {
-					containsAll = false
-					break
-				}
-			}
-			if !containsAll {
-				continue
-			}
-		}
-
-		//条件一致したのでレスポンスに追加
-		isuListResponse = append(isuListResponse, isu)
-	}
-
-	//offset
-	if pageStr != "" {
-		offset := searchLimit * (page - 1)
-		if len(isuListResponse) < offset {
-			offset = len(isuListResponse)
-		}
-		isuListResponse = isuListResponse[offset:]
-	}
-	//limit
-	if searchLimit < len(isuListResponse) {
-		isuListResponse = isuListResponse[:searchLimit]
-	}
-	return c.JSON(http.StatusOK, isuListResponse)
 }
 
 //  GET /api/isu/{jia_isu_uuid}
