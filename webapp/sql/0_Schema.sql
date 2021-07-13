@@ -1,7 +1,6 @@
 -- TODO: 各カラムの varchar の大きさを調整する (#51)
 
 DROP TABLE IF EXISTS `isu_association_config`;
-DROP TABLE IF EXISTS `graph`;
 DROP TABLE IF EXISTS `isu_condition`;
 DROP TABLE IF EXISTS `isu`;
 DROP TABLE IF EXISTS `user`;
