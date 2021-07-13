@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/isucon/isucandar"
+	"github.com/isucon/isucandar/agent"
 	"github.com/isucon/isucandar/failure"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
@@ -50,7 +51,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 	randEngine := rand.New(rand.NewSource(0))
 	targetURL := fmt.Sprintf("%s/api/isu/%s/condition", targetBaseURL, jiaIsuUUID)
 	httpClient := http.Client{}
-	httpClient.Timeout = 10 * time.Second //MEMO: post conditionがtimeoutすると付随してたくさんエラーが出るので、timeoutしにくいようにする
+	httpClient.Timeout = agent.DefaultRequestTimeout + 5*time.Second //MEMO: post conditionがtimeoutすると付随してたくさんエラーが出るので、timeoutしにくいようにする
 
 	//post isuの待ち
 	select {
