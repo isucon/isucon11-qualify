@@ -6,6 +6,14 @@ up-go:
 down-go:
 	docker-compose -f docker-compose-dev.yml down
 
+.PHONY: up-php
+up-php:
+	docker-compose -f docker-compose-dev.yml up -d --build -- backend-php mysql-backend jiaapi-mock
+
+.PHONY: down-php
+down-php:
+	docker-compose -f docker-compose-dev.yml down
+
 .PHONY: up-bench
 up-bench:
 	target=go docker compose -f docker-compose-bench.yml up --build
