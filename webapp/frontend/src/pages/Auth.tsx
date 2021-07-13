@@ -1,35 +1,7 @@
-import { useHistory } from 'react-router-dom'
 import Card from '../components/UI/Card'
-import apis from '../lib/apis'
-import { useEffect } from 'react'
-import { useDispatchContext } from '../context/state'
-import { useCallback } from 'react'
 import logo_orange from '/@/assets/logo_orange.svg'
 
 const Auth = () => {
-  const dispatch = useDispatchContext()
-  const history = useHistory()
-
-  const login = useCallback(async () => {
-    try {
-      const me = await apis.getUserMe()
-      dispatch({ type: 'login', user: me })
-      history.push('/')
-    } catch {
-      const url = new URL(location.href)
-      const jwt = url.searchParams.get('jwt')
-      if (jwt) {
-        await apis.postAuth(jwt)
-        const me = await apis.getUserMe()
-        dispatch({ type: 'login', user: me })
-        history.push('/')
-      }
-    }
-  }, [history, dispatch])
-
-  useEffect(() => {
-    login()
-  }, [login])
   const click = async () => {
     // TODO: 本番どうするか考える
     location.href = `http://localhost:5000`
