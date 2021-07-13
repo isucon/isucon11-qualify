@@ -231,7 +231,7 @@ func main() {
 	s.BaseURL = fmt.Sprintf("%s://%s/", scheme, targetAddress)
 	s.NoLoad = noLoad
 
-	b, err := isucandar.NewBenchmark(isucandar.WithLoadTimeout(LOAD_TIMEOUT), isucandar.WithoutPanicRecover())
+	b, err := isucandar.NewBenchmark(isucandar.WithoutPanicRecover())
 	if err != nil {
 		panic(err)
 	}
@@ -264,11 +264,13 @@ func main() {
 
 	wg := sync.WaitGroup{}
 	wg.Add(1)
-	b.Load(func(ctx context.Context, step *isucandar.BenchmarkStep) error {
+	b.Load(func(parent context.Context, step *isucandar.BenchmarkStep) error {
 		defer wg.Done()
 		if s.NoLoad {
 			return nil
 		}
+		ctx, cancel := context.WithTimeout(parent, s.LoadTimeout)
+		defer cancel()
 
 		for {
 			// 途中経過を3秒毎に送信

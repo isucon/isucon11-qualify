@@ -23,9 +23,8 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	if s.NoLoad {
 		return nil
 	}
-	// ctx, cancel := context.WithTimeout(parent, 60*time.Second) //要修正
-	// defer cancel()
-	ctx := parent
+	ctx, cancel := context.WithTimeout(parent, s.LoadTimeout)
+	defer cancel()
 
 	logger.ContestantLogger.Printf("===> LOAD")
 	logger.AdminLogger.Printf("LOAD INFO\n  Language: %s\n  Campaign: None\n", s.Language)
