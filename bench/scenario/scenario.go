@@ -58,7 +58,7 @@ func NewScenario(jiaServiceURL string) (*Scenario, error) {
 	}, nil
 }
 
-func (s *Scenario) WithInitilizeTimeout(t time.Duration) *Scenario {
+func (s *Scenario) WithInitializeTimeout(t time.Duration) *Scenario {
 	s.initializeTimeout = t
 	return s
 }
@@ -75,6 +75,9 @@ func (s *Scenario) ToVirtualTime(realTime time.Time) time.Time {
 //load用
 //通常ユーザーのシナリオスレッドを追加する
 func (s *Scenario) AddNormalUser(ctx context.Context, step *isucandar.BenchmarkStep, count int) {
+	if count <= 0 {
+		return
+	}
 	s.loadWaitGroup.Add(int(count))
 	for i := 0; i < count; i++ {
 		go func(ctx context.Context, step *isucandar.BenchmarkStep) {
@@ -87,6 +90,9 @@ func (s *Scenario) AddNormalUser(ctx context.Context, step *isucandar.BenchmarkS
 //load用
 //マニアユーザーのシナリオスレッドを追加する
 func (s *Scenario) AddManiacUser(ctx context.Context, step *isucandar.BenchmarkStep, count int) {
+	if count <= 0 {
+		return
+	}
 	s.loadWaitGroup.Add(int(count))
 	for i := 0; i < count; i++ {
 		go func(ctx context.Context, step *isucandar.BenchmarkStep) {
@@ -99,6 +105,9 @@ func (s *Scenario) AddManiacUser(ctx context.Context, step *isucandar.BenchmarkS
 //load用
 //企業ユーザーのシナリオスレッドを追加する
 func (s *Scenario) AddCompanyUser(ctx context.Context, step *isucandar.BenchmarkStep, count int) {
+	if count <= 0 {
+		return
+	}
 	s.loadWaitGroup.Add(int(count))
 	for i := 0; i < count; i++ {
 		go func(ctx context.Context, step *isucandar.BenchmarkStep) {
