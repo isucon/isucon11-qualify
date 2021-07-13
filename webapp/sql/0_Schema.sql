@@ -28,15 +28,6 @@ CREATE TABLE `isu_condition` (
   PRIMARY KEY(`jia_isu_uuid`,`timestamp`)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
 
-CREATE TABLE `graph` (
-  `jia_isu_uuid` CHAR(36),
-  `start_at` DATETIME,
-  `data` JSON NOT NULL,
-  `created_at` DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
-  `updated_at` DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
-  PRIMARY KEY(`jia_isu_uuid`,`start_at`)
-) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
-
 CREATE TABLE `user` (
   `jia_user_id` VARCHAR(255) PRIMARY KEY,
   `created_at` DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6)
