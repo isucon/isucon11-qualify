@@ -160,7 +160,7 @@ scenarioLoop:
 			step.AddError(err)
 		}
 
-		if randEngine.Intn(3) < 2 {
+		if randEngine.Intn(2) < 1 {
 			//TODO: リロード
 
 			//定期的にconditionを見に行くシナリオ
@@ -184,12 +184,9 @@ scenarioLoop:
 			solvedCondition, findTimestamp := findBadIsuState(conditions)
 			if solvedCondition != model.IsuStateChangeNone && lastSolvedTime[targetIsu.JIAIsuUUID].Before(time.Unix(findTimestamp, 0)) {
 				//graphを見る
+				//TODO: これたぶん最新のconditionを見ているので検証コケる
 				virtualDay := (findTimestamp / (24 * 60 * 60)) * (24 * 60 * 60)
-				_, _, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, virtualDay,
-					func(res *http.Response, graph []*service.GraphResponse) []error {
-						return []error{} //TODO: 検証
-					},
-				)
+				_ = getIsuGraphWithPaging(ctx, step, user, targetIsu, virtualDay, 10)
 				for _, err := range errs {
 					scenarioSuccess = false
 					step.AddError(err)
@@ -206,40 +203,13 @@ scenarioLoop:
 			}
 		} else {
 
-			//TODO: graphを見に行くシナリオ
 			virtualToday := (dataExistTimestamp / (24 * 60 * 60)) * (24 * 60 * 60)
-			_, graphToday, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, virtualToday,
-				func(res *http.Response, graph []*service.GraphResponse) []error {
-					//検証前にデータ取得
-					user.GetConditionFromChan(ctx)
-					return []error{} //TODO: 検証
-				},
-			)
-			for _, err := range errs {
-				scenarioSuccess = false
-				step.AddError(err)
-			}
-			if len(errs) > 0 {
-				continue scenarioLoop
-			}
-
-			//前日のグラフ
-			_, _, errs = browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, virtualToday-60*60,
-				func(res *http.Response, graph []*service.GraphResponse) []error {
-					return []error{} //TODO: 検証
-				},
-			)
-			for _, err := range errs {
-				scenarioSuccess = false
-				step.AddError(err)
-			}
-			if len(errs) > 0 {
-				continue scenarioLoop
-			}
+			virtualToday -= 24 * 60 * 60
+			graph := getIsuGraphWithPaging(ctx, step, user, targetIsu, virtualToday, 10)
 
 			//悪いものを探す
 			var errorEndAtUnix int64 = 0
-			for _, g := range graphToday {
+			for _, g := range graph {
 				if g.Data != nil && g.Data.Score < 100 {
 					errorEndAtUnix = g.StartAt
 				}
@@ -379,6 +349,49 @@ func (s *Scenario) getIsuConditionWithScroll(
 	}
 
 	return conditions
+}
+
+func getIsuGraphWithPaging(
+	ctx context.Context,
+	step *isucandar.BenchmarkStep,
+	user *model.User,
+	targetIsu *model.Isu,
+	virtualDay int64,
+	scrollCount int,
+) []*service.GraphResponse {
+	//graphを見に行くシナリオ
+	_, graph, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, virtualDay,
+		func(res *http.Response, graph []*service.GraphResponse) []error {
+			//検証前にデータ取得
+			user.GetConditionFromChan(ctx)
+			return []error{} //TODO: 検証
+		},
+	)
+	for _, err := range errs {
+		step.AddError(err)
+	}
+	if len(errs) > 0 {
+		return nil
+	}
+
+	//前日,... のグラフ
+	for i := 0; i < scrollCount; i++ {
+		virtualDay -= 24 * 60 * 60
+		_, graphTmp, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, virtualDay,
+			func(res *http.Response, graph []*service.GraphResponse) []error {
+				return []error{} //TODO: 検証
+			},
+		)
+		for _, err := range errs {
+			step.AddError(err)
+		}
+		if len(errs) > 0 {
+			return nil
+		}
+		graph = append(graph, graphTmp...)
+	}
+
+	return graph
 }
 
 func findBadIsuState(conditions []*service.GetIsuConditionResponse) (model.IsuStateChange, int64) {
