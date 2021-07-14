@@ -18,8 +18,9 @@ import (
 )
 
 const (
-	PostInterval   = 5 * time.Minute //Virtual Timeでのpost間隔
-	PostContentNum = 100             //一回のpostで何要素postするか
+	PostInterval      = 5 * time.Minute //Virtual Timeでのpost間隔
+	PostContentNum    = 100             //一回のpostで何要素postするか
+	ConditionTagCount = 100             //condition 100件ごとに1タグ
 )
 
 type posterState struct {
@@ -55,6 +56,10 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 	targetURL := fmt.Sprintf("%s/api/isu/%s/condition", targetBaseURL, jiaIsuUUID)
 	httpClient := http.Client{}
 	httpClient.Timeout = agent.DefaultRequestTimeout + 5*time.Second //MEMO: post conditionがtimeoutすると付随してたくさんエラーが出るので、timeoutしにくいようにする
+
+	conditionInfoCount := 0
+	conditionWarningCount := 0
+	conditionCriticalCount := 0
 
 	//post isuの待ち
 	select {
@@ -95,14 +100,10 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		//TODO: stateの適用タイミングをちゃんと考える
 		conditions := []model.IsuCondition{}
 		conditionsReq := []service.PostIsuConditionRequest{}
-		conditionLevelWorst := model.ConditionLevelInfo
 		for state.NextConditionTimestamp().Before(nowTimeStamp) {
 			//次のstateを生成
 			condition := state.GenerateNextCondition(randEngine, stateChange, jiaIsuUUID) //TODO: stateの適用タイミングをちゃんと考える
 			stateChange = model.IsuStateChangeNone                                        //TODO: stateの適用タイミングをちゃんと考える
-			if conditionLevelWorst < condition.ConditionLevel {
-				conditionLevelWorst = condition.ConditionLevel
-			}
 
 			//リクエスト
 			conditions = append(conditions, condition)
@@ -147,12 +148,15 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 				return // goto next loop
 			}
 
-			if conditionLevelWorst == model.ConditionLevelInfo {
-				step.AddScore(ScorePostConditionInfo)
-			} else if conditionLevelWorst == model.ConditionLevelWarning {
-				step.AddScore(ScorePostConditionWarning)
-			} else {
-				step.AddScore(ScorePostConditionCritical)
+			for _, condition := range conditions {
+				switch condition.ConditionLevel {
+				case model.ConditionLevelInfo:
+					conditionInfoCount++
+				case model.ConditionLevelWarning:
+					conditionWarningCount++
+				case model.ConditionLevelCritical:
+					conditionCriticalCount++
+				}
 			}
 
 			//TODO: ユーザー Goroutineが詰まると詰まるのでいや
@@ -160,6 +164,20 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 			case <-ctx.Done():
 				return
 			case scenarioChan.ConditionChan <- conditions:
+			}
+
+			//TODO: スレッドを終了する際に、端数をグローバル変数に逃がして、後で集計できるようにする
+			for conditionInfoCount >= ConditionTagCount {
+				step.AddScore(ScorePostConditionInfo)
+				conditionInfoCount -= ConditionTagCount
+			}
+			for conditionWarningCount >= ConditionTagCount {
+				step.AddScore(ScorePostConditionWarning)
+				conditionWarningCount -= ConditionTagCount
+			}
+			for conditionCriticalCount >= ConditionTagCount {
+				step.AddScore(ScorePostConditionCritical)
+				conditionCriticalCount -= ConditionTagCount
 			}
 		}()
 	}
