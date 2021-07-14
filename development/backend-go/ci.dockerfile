@@ -10,9 +10,6 @@ RUN npm run build
 
 FROM golang:1.16.5-buster
 
-WORKDIR /webapp/sql
-COPY webapp/sql/ .
-
 WORKDIR /webapp/go
 
 #install mariadb-client
