@@ -1,2 +1,2 @@
-jiaapi-mock:
-	go build -o jiaapi-mock ./cmd/standalone
+jiaapi-standalone:
+	go build -o jiaapi-mock .
