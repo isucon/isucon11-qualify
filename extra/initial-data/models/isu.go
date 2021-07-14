@@ -72,7 +72,7 @@ func (i Isu) Create() error {
 		i.JIAIsuUUID, i.Name, i.Image, i.Character, i.JIACatalogID, i.User.JIAUserID,
 		i.IsDeleted, i.CreatedAt, i.UpdatedAt,
 	); err != nil {
-		return fmt.Errorf("insert user: %w", err)
+		return fmt.Errorf("insert isu: %w", err)
 	}
 	return nil
 }

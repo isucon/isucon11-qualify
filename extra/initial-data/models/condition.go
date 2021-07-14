@@ -47,10 +47,10 @@ func NewConditionFromLastCondition(c Condition, durationMinute int) Condition {
 func (c Condition) Create() error {
 	// INSERT INTO isu_condition
 	condition := fmt.Sprintf("is_dirty=%v,is_overweight=%v,is_broken=%v", c.IsDirty, c.IsOverweight, c.IsBroken)
-	if _, err := db.Exec("INSERT INTO isu_condition VALUES (?,?,?,?,?,?)",
+	if _, err := db.Exec("INSERT INTO isu_condition(`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`, `created_at`) VALUES (?,?,?,?,?,?)",
 		c.Isu.JIAIsuUUID, c.Timestamp, c.IsSitting, condition, c.Message, c.CreatedAt,
 	); err != nil {
-		return fmt.Errorf("insert user: %w", err)
+		return fmt.Errorf("insert isu_condition: %w", err)
 	}
 
 	return nil
