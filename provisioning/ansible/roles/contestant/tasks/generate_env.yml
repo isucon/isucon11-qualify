@@ -6,4 +6,6 @@
   copy:
     src: "var/lib/cloud/scripts/per-instance/generate-env_aws.sh"
     dest: "/var/lib/cloud/scripts/per-instance/generate-env.sh"
+    owner: "root"
+    group: "root"
     mode: "0755"
