@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"runtime/pprof"
 	"strings"
@@ -34,7 +35,7 @@ var (
 	targetAddress      string
 	profileFile        string
 	hostAdvertise      string
-	jiaServiceURL      string
+	jiaServiceURL      *url.URL
 	tlsCertificatePath string
 	tlsKeyPath         string
 	useTLS             bool
@@ -71,33 +72,35 @@ func init() {
 	//flag.StringVar(&targetAddress, "target", benchrun.GetTargetAddress(), "ex: localhost:9292")
 	flag.StringVar(&targetAddress, "target", getEnv("TARGET_ADDRESS", "localhost:9292"), "ex: localhost:9292")
 	flag.StringVar(&profileFile, "profile", "", "ex: cpu.out")
-	flag.StringVar(&hostAdvertise, "host-advertise", "local.t.isucon.dev", "hostname to advertise against target")
-	flag.StringVar(&jiaServiceURL, "jia-service-url", "http://apitest:80", "jia service url")
-	flag.StringVar(&tlsCertificatePath, "tls-cert", "../secrets/cert.pem", "path to TLS certificate for a push service")
-	flag.StringVar(&tlsKeyPath, "tls-key", "../secrets/key.pem", "path to private key of TLS certificate for a push service")
 	flag.BoolVar(&exitStatusOnFail, "exit-status", false, "set exit status non-zero when a benchmark result is failing")
 	flag.BoolVar(&noLoad, "no-load", false, "exit on finished prepare")
 	flag.StringVar(&promOut, "prom-out", "", "Prometheus textfile output path")
 	flag.BoolVar(&showVersion, "version", false, "show version and exit 1")
 
-	timeoutDuration := ""
-	initializeTimeoutDuration := ""
+	var jiaServiceURLStr, timeoutDuration, initializeTimeoutDuration string
+	flag.StringVar(&jiaServiceURLStr, "jia-service-url", "http://apitest:5000", "jia service url")
 	flag.StringVar(&timeoutDuration, "timeout", "10s", "request timeout duration")
 	flag.StringVar(&initializeTimeoutDuration, "initialize-timeout", "20s", "request timeout duration of POST /initialize")
 
 	flag.Parse()
 
+	// validate jia-service-url
+	jiaServiceURL, err = url.Parse(jiaServiceURLStr)
+	if err != nil {
+		panic(err)
+	}
+	// validate timeout
 	timeout, err := time.ParseDuration(timeoutDuration)
 	if err != nil {
 		panic(err)
 	}
 	agent.DefaultRequestTimeout = timeout
 
+	// validate initialize-timeout
 	initializeTimeout, err = time.ParseDuration(initializeTimeoutDuration)
 	if err != nil {
 		panic(err)
 	}
-
 }
 
 func checkError(err error) (critical bool, timeout bool, deduction bool) {

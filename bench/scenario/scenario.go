@@ -3,6 +3,7 @@ package scenario
 import (
 	"context"
 	"math"
+	"net/url"
 	"sync"
 	"time"
 
@@ -28,7 +29,7 @@ type Scenario struct {
 	realTimePrepareStartedAt time.Time     //Prepareの開始時間
 	virtualTimeStart         time.Time
 	virtualTimeMulti         time.Duration //時間が何倍速になっているか
-	jiaServiceURL            string
+	jiaServiceURL            *url.URL
 
 	// POST /initialize の猶予時間
 	initializeTimeout time.Duration
@@ -47,7 +48,7 @@ type Scenario struct {
 	Catalogs        map[string]*model.IsuCatalog
 }
 
-func NewScenario(jiaServiceURL string, loadTimeout time.Duration) (*Scenario, error) {
+func NewScenario(jiaServiceURL *url.URL, loadTimeout time.Duration) (*Scenario, error) {
 	return &Scenario{
 		// TODO: シナリオを初期化する
 		//realTimeStart: time.Now()
