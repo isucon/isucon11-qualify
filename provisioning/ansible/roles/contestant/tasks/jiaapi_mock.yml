@@ -33,6 +33,5 @@
   systemd:
     daemon_reload: "yes"
     name: "jiaapi-mock.service"
-    state: "stopped"
-    enabled: "no"
+    enabled: "yes"
 
