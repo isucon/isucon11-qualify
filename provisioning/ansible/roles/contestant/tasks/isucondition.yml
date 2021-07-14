@@ -30,6 +30,9 @@
   copy:
     src: "initial-data.sql"
     dest: "/home/isucon/webapp/sql/1_InitData.sql"
+    owner: isucon
+    group: isucon
+    mode: "0644"
 
 - name: "roles.contestant.tasks.isucondition: Initialize isucondition Database"
   become_user: isucon
