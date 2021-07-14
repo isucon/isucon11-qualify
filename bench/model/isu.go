@@ -2,7 +2,9 @@ package model
 
 import (
 	"context"
-	"fmt"
+
+	"github.com/google/uuid"
+	"github.com/isucon/isucon11-qualify/extra/initial-data/random"
 )
 
 //enum
@@ -61,15 +63,17 @@ func NewRandomIsuRaw(owner *User) (*Isu, *StreamsForPoster, error) {
 	stateChan := make(chan IsuStateChange, 1)
 	conditionChan := make(chan []IsuCondition, 10)
 
-	id := fmt.Sprintf("randomid-%s-%d", owner.UserID, len(owner.IsuListOrderByCreatedAt))     //TODO: ちゃんと生成する
-	name := fmt.Sprintf("randomname-%s-%d", owner.UserID, len(owner.IsuListOrderByCreatedAt)) //TODO: ちゃんと生成する
+	id, err := uuid.NewRandom()
+	if err != nil {
+		return nil, nil, err
+	}
 	isu := &Isu{
 		Owner:             owner,
-		JIAIsuUUID:        id,
-		Name:              name,
-		ImageName:         "default-image",                        //TODO: ちゃんとデータに合わせる
+		JIAIsuUUID:        id.String(),
+		Name:              random.IsuName(),
+		ImageName:         "NoImage.png",                          //TODO: ちゃんとデータに合わせる
 		JIACatalogID:      "550e8400-e29b-41d4-a716-446655440000", //TODO:
-		Character:         "",                                     //TODO:
+		Character:         random.Character(),
 		IsWantDeactivated: false,
 		isDeactivated:     true,
 		StreamsForScenario: &StreamsForScenario{

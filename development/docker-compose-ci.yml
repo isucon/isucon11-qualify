@@ -16,6 +16,7 @@ services:
     volumes:
       - "../webapp/ec256-public.pem:/webapp/ec256-public.pem"
       - "../webapp/NoImage.png:/webapp/NoImage.png"
+      - "../webapp/sql:/webapp/sql"
     depends_on:
       - mysql-backend
 
@@ -41,10 +42,10 @@ services:
     environment:
       TARGET_ADDRESS: backend:3000
     entrypoint: dockerize -wait http://backend:3000 -timeout 60s
-    working_dir:  /bench_dir
     command: ["/bench", "--no-load", "--exit-status"]
     volumes:
-      - "../bench:/bench_dir"
+      - "../bench/images:/images"
+      - "../bench/key:/key"
     depends_on:
       - mysql-backend
       - backend
