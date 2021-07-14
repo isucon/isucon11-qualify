@@ -110,9 +110,9 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 			})
 		}
 		//postし損ねたconditionの数を制限
-		if len(conditions) > 10 {
-			conditions = conditions[len(conditions)-10:]
-			conditionsReq = conditionsReq[len(conditionsReq)-10:]
+		if len(conditions) > PostContentNum {
+			conditions = conditions[len(conditions)-PostContentNum:]
+			conditionsReq = conditionsReq[len(conditionsReq)-PostContentNum:]
 		}
 		if len(conditions) == 0 {
 			continue
