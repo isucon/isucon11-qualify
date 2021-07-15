@@ -18,13 +18,14 @@ CREATE TABLE `isu` (
 ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
 
 CREATE TABLE `isu_condition` (
-  `jia_isu_uuid` CHAR(36),
-  `timestamp` DATETIME,
+  `id` bigint AUTO_INCREMENT,
+  `jia_isu_uuid` CHAR(36) NOT NULL,
+  `timestamp` DATETIME NOT NULL,
   `is_sitting` TINYINT(1) NOT NULL,
   `condition` VARCHAR(255) NOT NULL,
   `message` VARCHAR(255) NOT NULL,
   `created_at` DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
-  PRIMARY KEY(`jia_isu_uuid`,`timestamp`)
+  PRIMARY KEY(`id`)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
 
 CREATE TABLE `user` (
