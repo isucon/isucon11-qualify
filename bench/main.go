@@ -11,6 +11,7 @@ import (
 	"runtime/pprof"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/isucon/isucandar"
@@ -23,7 +24,7 @@ import (
 
 const (
 	// FAIL になるエラー回数
-	FAIL_ERROR_COUNT int64 = 500 //TODO:ちゃんと決める
+	FAIL_ERROR_COUNT int64 = 100 //TODO:ちゃんと決める
 )
 
 var (
@@ -243,19 +244,18 @@ func main() {
 		}
 	*/
 
-	//errorCount := int64(0)
+	errorCount := int64(0)
 	b.OnError(func(err error, step *isucandar.BenchmarkStep) {
 		// Load 中の timeout のみログから除外
 		if failure.IsCode(err, failure.TimeoutErrorCode) && failure.IsCode(err, isucandar.ErrLoad) {
 			return
 		}
 
-		//critical, _, deduction := checkError(err)
+		critical, _, deduction := checkError(err)
 
-		//TODO: 暫定対処として、failが確定しても負荷をかけ続ける
-		//if critical || (deduction && atomic.AddInt64(&errorCount, 1) > FAIL_ERROR_COUNT) {
-		//	step.Cancel()
-		//}
+		if critical || (deduction && atomic.AddInt64(&errorCount, 1) > FAIL_ERROR_COUNT) {
+			step.Cancel()
+		}
 
 		logger.ContestantLogger.Printf("ERR: %v", err)
 	})

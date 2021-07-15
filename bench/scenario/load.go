@@ -35,52 +35,17 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	*/
 
 	//通常ユーザー
-	s.AddNormalUser(ctx, step, 10)
+	s.AddNormalUser(ctx, step, 100)
 	//マニアユーザー
-	s.AddManiacUser(ctx, step, 2)
+	//s.AddManiacUser(ctx, step, 2)
 	//企業ユーザー
-	s.AddCompanyUser(ctx, step, 1)
+	s.AddCompanyUser(ctx, step, 10)
 
 	//ユーザーを増やす
 	s.loadWaitGroup.Add(1)
 	go func() {
 		defer s.loadWaitGroup.Done()
-		defer logger.AdminLogger.Println("--- User Adder Thread END")
-		//TODO: パラメーター調整
-		for {
-			timer := time.After(3 * time.Second)
-			scoreRaw := step.Result().Score.Sum()
-
-			var normalUserLen int
-			func() {
-				s.normalUsersMtx.Lock()
-				defer s.normalUsersMtx.Unlock()
-				normalUserLen = len(s.normalUsers)
-			}()
-			normalUserAdd := int(scoreRaw/100) - normalUserLen
-			if 0 < normalUserAdd {
-				s.AddNormalUser(ctx, step, normalUserAdd)
-			}
-
-			//TODO: マニアユーザー
-
-			var companyUserLen int
-			func() {
-				s.companyUsersMtx.Lock()
-				defer s.companyUsersMtx.Unlock()
-				companyUserLen = len(s.companyUsers)
-			}()
-			companyUserAdd := int(scoreRaw/2000) - companyUserLen
-			if 0 < companyUserAdd {
-				s.AddCompanyUser(ctx, step, companyUserAdd)
-			}
-
-			select {
-			case <-timer:
-			case <-ctx.Done():
-				return
-			}
-		}
+		s.userAdder(ctx, step)
 	}()
 
 	<-ctx.Done()
@@ -89,6 +54,29 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	s.loadWaitGroup.Wait()
 
 	return nil
+}
+
+func (s *Scenario) userAdder(ctx context.Context, step *isucandar.BenchmarkStep) {
+	defer logger.AdminLogger.Println("--- userAdder END")
+	//TODO: パラメーター調整
+	for {
+		select {
+		case <-time.After(5000 * time.Millisecond):
+		case <-ctx.Done():
+			return
+		}
+
+		errCount := step.Result().Errors.Count()
+		timeoutCount, ok := errCount["timeout"]
+		if !ok || timeoutCount == 0 {
+			logger.ContestantLogger.Println("エラーが無かったため負荷レベルを上昇させます")
+			s.AddNormalUser(ctx, step, 20)
+			s.AddCompanyUser(ctx, step, 2)
+		} else if ok && timeoutCount > 0 {
+			logger.ContestantLogger.Println("エラーが発生したため負荷レベルは上昇しません")
+			return
+		}
+	}
 }
 
 func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.BenchmarkStep) {
@@ -119,7 +107,7 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 
 	//椅子作成
 	const isuCountMax = 4 //ルートページに表示する最大数
-	isuCount := 1
+	isuCount := rand.Intn(isuCountMax) + 1
 	for i := 0; i < isuCount; i++ {
 		isu := s.NewIsu(ctx, step, user, true)
 		if isu == nil {
@@ -152,15 +140,15 @@ scenarioLoop:
 			step.AddScore(ScoreNormalUserLoop) //TODO: 得点条件の修正
 
 			//シナリオに成功している場合は椅子追加
-			if isuCount < scenarioDoneCount/30 && isuCount < isuCountMax {
-				isu := s.NewIsu(ctx, step, user, true)
-				if isu == nil {
-					logger.AdminLogger.Println("Normal User fail: NewIsu")
-				} else {
-					isuCount++
-				}
-				//logger.AdminLogger.Printf("Normal User Isu: %d\n", isuCount)
-			}
+			// if isuCount < scenarioDoneCount/30 && isuCount < isuCountMax {
+			// 	isu := s.NewIsu(ctx, step, user, true)
+			// 	if isu == nil {
+			// 		logger.AdminLogger.Println("Normal User fail: NewIsu")
+			// 	} else {
+			// 		isuCount++
+			// 	}
+			// 	//logger.AdminLogger.Printf("Normal User Isu: %d\n", isuCount)
+			// }
 		}
 		scenarioSuccess = true
 
@@ -447,8 +435,8 @@ func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.Benchmar
 	}()
 
 	//椅子作成
-	const isuCountMax = 1000
-	isuCount := 50
+	//const isuCountMax = 1000
+	isuCount := rand.Intn(10) + 500
 	for i := 0; i < isuCount; i++ {
 		isu := s.NewIsu(ctx, step, user, true)
 		if isu == nil {
@@ -484,15 +472,15 @@ scenarioLoop:
 
 			//シナリオに成功している場合は椅子追加
 			//TODO: 係数調整
-			for isuCount < (scenarioDoneCount/30)*50 && isuCount < isuCountMax {
-				isu := s.NewIsu(ctx, step, user, true)
-				if isu == nil {
-					logger.AdminLogger.Println("Company User fail: NewIsu")
-				} else {
-					isuCount++
-				}
-				//logger.AdminLogger.Printf("Company User Isu: %d\n", isuCount)
-			}
+			// for isuCount < (scenarioDoneCount/30)*50 && isuCount < isuCountMax {
+			// 	isu := s.NewIsu(ctx, step, user, true)
+			// 	if isu == nil {
+			// 		logger.AdminLogger.Println("Company User fail: NewIsu")
+			// 	} else {
+			// 		isuCount++
+			// 	}
+			// 	//logger.AdminLogger.Printf("Company User Isu: %d\n", isuCount)
+			// }
 		}
 		scenarioSuccess = true
 

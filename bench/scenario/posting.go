@@ -50,7 +50,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 	randEngine := rand.New(rand.NewSource(0))
 	targetURL := fmt.Sprintf("%s/api/isu/%s/condition", targetBaseURL, jiaIsuUUID)
 	httpClient := http.Client{}
-	httpClient.Timeout = 1 * time.Second
+	httpClient.Timeout = 10 * time.Second //MEMO: post conditionがtimeoutすると付随してたくさんエラーが出るので、timeoutしにくいようにする
 
 	//post isuの待ち
 	{
