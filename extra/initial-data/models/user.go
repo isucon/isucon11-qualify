@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/isucon/isucon11-qualify/extra/initial-data/random"
+	"github.com/isucon/isucon11-qualify/bench/random"
 )
 
 type User struct {
