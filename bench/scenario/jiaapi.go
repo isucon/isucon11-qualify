@@ -52,6 +52,7 @@ func RegisterToJiaAPI(jiaIsuUUID string, detail *IsuDetailInfomation, streams *m
 }
 
 func (s *Scenario) JiaAPIThread(ctx context.Context, step *isucandar.BenchmarkStep) {
+	defer logger.AdminLogger.Println("--- JiaAPIThread END")
 
 	jiaAPIContext = ctx
 	jiaAPIStep = step
@@ -74,6 +75,7 @@ func (s *Scenario) JiaAPIThread(ctx context.Context, step *isucandar.BenchmarkSt
 	serverPort := s.jiaServiceURL[strings.LastIndexAny(s.jiaServiceURL, ":"):] //":80"
 	s.loadWaitGroup.Add(1)
 	go func() {
+		defer logger.AdminLogger.Println("--- ISU協会サービス END")
 		defer s.loadWaitGroup.Done()
 		err := e.Start(serverPort)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {

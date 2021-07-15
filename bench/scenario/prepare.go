@@ -112,7 +112,8 @@ func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.Benchma
 	}
 
 	w.Process(ctx)
-	//w.Wait() //念のためもう一度止まってるか確認
+	//w.Wait()
+	//MEMO: ctx.Done()の場合は、プロセスが終了していない可能性がある。
 
 	//作成済みユーザーへのログイン確認
 	agt, err := s.NewAgent()
