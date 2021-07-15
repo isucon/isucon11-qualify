@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/isucon/isucon11-qualify/extra/initial-data/random"
+	"github.com/isucon/isucon11-qualify/bench/random"
 )
 
 //enum

@@ -13,7 +13,7 @@ import (
 	"github.com/isucon/isucandar/worker"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/service"
-	"github.com/isucon/isucon11-qualify/extra/initial-data/random"
+	"github.com/isucon/isucon11-qualify/bench/random"
 )
 
 func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) error {
