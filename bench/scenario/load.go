@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/isucon/isucandar"
+	"github.com/isucon/isucandar/agent"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
 	"github.com/isucon/isucon11-qualify/bench/service"
@@ -22,9 +23,8 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	if s.NoLoad {
 		return nil
 	}
-	// ctx, cancel := context.WithTimeout(parent, 60*time.Second) //要修正
-	// defer cancel()
-	ctx := parent
+	ctx, cancel := context.WithTimeout(parent, s.LoadTimeout)
+	defer cancel()
 
 	logger.ContestantLogger.Printf("===> LOAD")
 	logger.AdminLogger.Printf("LOAD INFO\n  Language: %s\n  Campaign: None\n", s.Language)
@@ -81,8 +81,12 @@ func (s *Scenario) userAdder(ctx context.Context, step *isucandar.BenchmarkStep)
 
 func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.BenchmarkStep) {
 
+	userTimer, userTimerCancel := context.WithDeadline(ctx, s.realTimeLoadFinishedAt.Add(-agent.DefaultRequestTimeout))
+	defer userTimerCancel()
 	select {
 	case <-ctx.Done():
+		return
+	case <-userTimer.Done():
 		return
 	default:
 	}
@@ -108,6 +112,8 @@ scenarioLoop:
 		scenarioLoopStopper = time.After(50 * time.Millisecond) //TODO: 頻度調整
 		select {
 		case <-ctx.Done():
+			return
+		case <-userTimer.Done(): //TODO: GETリクエスト系も早めに終わるかは要検討
 			return
 		default:
 		}
@@ -426,8 +432,12 @@ func findBadIsuState(conditions []*service.GetIsuConditionResponse) (model.IsuSt
 
 func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.BenchmarkStep) {
 
+	userTimer, userTimerCancel := context.WithDeadline(ctx, s.realTimeLoadFinishedAt.Add(-agent.DefaultRequestTimeout))
+	defer userTimerCancel()
 	select {
 	case <-ctx.Done():
+		return
+	case <-userTimer.Done():
 		return
 	default:
 	}
@@ -477,6 +487,8 @@ scenarioLoop:
 
 		select {
 		case <-ctx.Done():
+			return
+		case <-userTimer.Done(): //TODO: GET系リクエストも早めに止めるかは要検討
 			return
 		default:
 		}

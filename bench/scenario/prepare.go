@@ -29,7 +29,7 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 
 	//初期データの生成
 	s.InitializeData()
-	s.realTimeStart = time.Now()
+	s.realTimePrepareStartedAt = time.Now()
 
 	//jiaの起動
 	s.loadWaitGroup.Add(1)
@@ -75,6 +75,8 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 		//return ErrScenarioCancel
 		return ErrCritical
 	}
+
+	s.realTimeLoadFinishedAt = time.Now().Add(s.LoadTimeout)
 	return nil
 }
 

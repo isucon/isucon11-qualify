@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/isucon/isucandar"
+	"github.com/isucon/isucandar/agent"
 	"github.com/isucon/isucandar/failure"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
@@ -34,6 +35,9 @@ type posterState struct {
 func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseURL string, jiaIsuUUID string, scenarioChan *model.StreamsForPoster) {
 	defer func() { scenarioChan.ActiveChan <- false }() //deactivate 容量1で、ここでしか使わないのでブロックしない
 
+	userTimer, userTimerCancel := context.WithDeadline(ctx, s.realTimeLoadFinishedAt.Add(-agent.DefaultRequestTimeout-1*time.Second))
+	defer userTimerCancel()
+
 	nowTimeStamp := s.ToVirtualTime(time.Now())
 	state := posterState{
 		lastCondition: model.IsuCondition{
@@ -51,7 +55,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 	randEngine := rand.New(rand.NewSource(0))
 	targetURL := fmt.Sprintf("%s/api/isu/%s/condition", targetBaseURL, jiaIsuUUID)
 	httpClient := http.Client{}
-	httpClient.Timeout = 10 * time.Second //MEMO: post conditionがtimeoutすると付随してたくさんエラーが出るので、timeoutしにくいようにする
+	httpClient.Timeout = agent.DefaultRequestTimeout + 5*time.Second //MEMO: post conditionがtimeoutすると付随してたくさんエラーが出るので、timeoutしにくいようにする
 
 	conditionInfoCount := 0
 	conditionWarningCount := 0
@@ -60,6 +64,8 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 	//post isuの待ち
 	select {
 	case <-ctx.Done():
+		return
+	case <-userTimer.Done():
 		return
 	case stateChange := <-scenarioChan.StateChan:
 		if stateChange == model.IsuStateChangeDelete {
@@ -73,6 +79,8 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 	for {
 		select {
 		case <-ctx.Done():
+			return
+		case <-userTimer.Done():
 			return
 		case <-timer.C:
 		}

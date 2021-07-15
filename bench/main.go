@@ -25,6 +25,8 @@ import (
 const (
 	// FAIL になるエラー回数
 	FAIL_ERROR_COUNT int64 = 100 //TODO:ちゃんと決める
+	//load context
+	LOAD_TIMEOUT time.Duration = 70 * time.Second
 )
 
 var (
@@ -217,7 +219,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	s, err := scenario.NewScenario(jiaServiceURL)
+	s, err := scenario.NewScenario(jiaServiceURL, LOAD_TIMEOUT)
 	if err != nil {
 		panic(err)
 	}
@@ -229,7 +231,7 @@ func main() {
 	s.BaseURL = fmt.Sprintf("%s://%s/", scheme, targetAddress)
 	s.NoLoad = noLoad
 
-	b, err := isucandar.NewBenchmark(isucandar.WithLoadTimeout(60*time.Second), isucandar.WithoutPanicRecover())
+	b, err := isucandar.NewBenchmark(isucandar.WithoutPanicRecover())
 	if err != nil {
 		panic(err)
 	}
@@ -262,11 +264,13 @@ func main() {
 
 	wg := sync.WaitGroup{}
 	wg.Add(1)
-	b.Load(func(ctx context.Context, step *isucandar.BenchmarkStep) error {
+	b.Load(func(parent context.Context, step *isucandar.BenchmarkStep) error {
 		defer wg.Done()
 		if s.NoLoad {
 			return nil
 		}
+		ctx, cancel := context.WithTimeout(parent, s.LoadTimeout)
+		defer cancel()
 
 		for {
 			// 途中経過を3秒毎に送信
