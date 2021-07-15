@@ -19,6 +19,7 @@ import (
 func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) error {
 	logger.ContestantLogger.Printf("===> PREPARE")
 
+	//TODO: 他の得点源
 	//TODO: 得点調整
 	step.Result().Score.Set(ScoreNormalUserInitialize, 10)
 	step.Result().Score.Set(ScoreNormalUserLoop, 10)
@@ -32,11 +33,11 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 
 	//jiaの起動
 	s.loadWaitGroup.Add(1)
-	ctxJIA, jiaChancelFunc := context.WithCancel(context.Background())
-	s.jiaChancel = jiaChancelFunc
+	ctxJIA, jiaCancelFunc := context.WithCancel(context.Background())
+	s.jiaCancel = jiaCancelFunc
 	go func() {
 		defer s.loadWaitGroup.Done()
-		s.JiaAPIThread(ctxJIA, step)
+		s.JiaAPIService(ctxJIA, step)
 	}()
 	jiaWait := time.After(10 * time.Second)
 

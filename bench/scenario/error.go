@@ -54,11 +54,10 @@ var (
 	ErrInvalidContentType failure.StringCode = "content type"
 	ErrInvalidJSON        failure.StringCode = "json"
 	ErrInvalidAsset       failure.StringCode = "asset"
-	ErrMissmatch          failure.StringCode = "missmatch"         //データはあるが、間違っている（名前が違う等）
-	ErrInvalid            failure.StringCode = "invalid"           //ロジック的に誤り（存在しないはずのものが有る等）
-	ErrBadResponse        failure.StringCode = "bad-response"      //不正な書式のレスポンス
-	ErrHTTP               failure.StringCode = "http"              //http通信回りのエラー（timeout含む）
-	ErrX5XX               failure.StringCode = "http-server-error" //500系のエラー
+	ErrMissmatch          failure.StringCode = "missmatch"    //データはあるが、間違っている（名前が違う等）
+	ErrInvalid            failure.StringCode = "invalid"      //ロジック的に誤り（存在しないはずのものが有る等）
+	ErrBadResponse        failure.StringCode = "bad-response" //不正な書式のレスポンス
+	ErrHTTP               failure.StringCode = "http"         //http通信回りのエラー（timeout含む）
 )
 
 func isDeduction(err error) bool {

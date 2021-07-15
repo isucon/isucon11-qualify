@@ -107,8 +107,6 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 	reason := "pass"
 	errors := result.Errors.All()
 
-	//TODO: 他の得点源
-
 	scoreRaw := result.Score.Sum()
 	deduction := int64(0)
 	timeoutCount := int64(0)
@@ -263,13 +261,12 @@ func main() {
 	b.AddScenario(s)
 
 	wg := sync.WaitGroup{}
+	wg.Add(1)
 	b.Load(func(ctx context.Context, step *isucandar.BenchmarkStep) error {
+		defer wg.Done()
 		if s.NoLoad {
 			return nil
 		}
-
-		wg.Add(1)
-		defer wg.Done()
 
 		for {
 			// 途中経過を3秒毎に送信

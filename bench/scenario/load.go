@@ -17,12 +17,12 @@ import (
 )
 
 func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) error {
-	defer s.jiaChancel()
+	defer s.jiaCancel()
 	step.Result().Score.Reset()
 	if s.NoLoad {
 		return nil
 	}
-	// ctx, cancel := context.WithTimeout(parent, 60*time.Second) //mainで指定している方を見るべき
+	// ctx, cancel := context.WithTimeout(parent, 60*time.Second) //要修正
 	// defer cancel()
 	ctx := parent
 
@@ -49,7 +49,7 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	}()
 
 	<-ctx.Done()
-	s.jiaChancel()
+	s.jiaCancel()
 	logger.AdminLogger.Println("LOAD WAIT")
 	s.loadWaitGroup.Wait()
 
@@ -202,7 +202,7 @@ scenarioLoop:
 			//定期的にconditionを見に行くシナリオ
 			request := service.GetIsuConditionRequest{
 				StartTime:        nil,
-				CursorEndTime:    uint64(dataExistTimestamp),
+				CursorEndTime:    dataExistTimestamp,
 				CursorJIAIsuUUID: "",
 				ConditionLevel:   "info,warning,critical",
 				Limit:            nil,
@@ -233,7 +233,7 @@ scenarioLoop:
 				var conditionsTmp []*service.GetIsuConditionResponse
 				request = service.GetIsuConditionRequest{
 					StartTime:        nil,
-					CursorEndTime:    uint64(conditions[len(conditions)-1].Timestamp),
+					CursorEndTime:    conditions[len(conditions)-1].Timestamp,
 					CursorJIAIsuUUID: "",
 					ConditionLevel:   "info,warning,critical",
 					Limit:            nil,
@@ -245,7 +245,6 @@ scenarioLoop:
 					break
 				}
 				//検証
-				//ここは、古いデータのはずなのでconditionのchanからの再取得は要らない
 				err = verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request,
 					conditionsTmp, mustExistUntil,
 				)
@@ -263,7 +262,7 @@ scenarioLoop:
 			if solvedCondition != model.IsuStateChangeNone && lastSolvedTime[targetIsu.JIAIsuUUID].Before(time.Unix(findTimestamp, 0)) {
 				//graphを見る
 				virtualDay := (findTimestamp / (24 * 60 * 60)) * (24 * 60 * 60)
-				_, _, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, uint64(virtualDay),
+				_, _, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, virtualDay,
 					func(res *http.Response, graph []*service.GraphResponse) []error {
 						return []error{} //TODO: 検証
 					},
@@ -286,7 +285,7 @@ scenarioLoop:
 
 			//TODO: graphを見に行くシナリオ
 			virtualToday := (dataExistTimestamp / (24 * 60 * 60)) * (24 * 60 * 60)
-			_, graphToday, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, uint64(virtualToday),
+			_, graphToday, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, virtualToday,
 				func(res *http.Response, graph []*service.GraphResponse) []error {
 					//検証前にデータ取得
 					user.GetConditionFromChan(ctx)
@@ -302,7 +301,7 @@ scenarioLoop:
 			}
 
 			//前日のグラフ
-			_, _, errs = browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, uint64(virtualToday-60*60),
+			_, _, errs = browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, virtualToday-60*60,
 				func(res *http.Response, graph []*service.GraphResponse) []error {
 					return []error{} //TODO: 検証
 				},
@@ -325,7 +324,7 @@ scenarioLoop:
 
 			//悪いものがあれば、そのconditionを取る
 			if errorEndAtUnix != 0 {
-				startTime := uint64(errorEndAtUnix - 60*60)
+				startTime := errorEndAtUnix - 60*60
 				//MEMO: 本来は必ず1時間幅だが、検証のためにdataExistTimestampで抑える
 				cursorEndTime := errorEndAtUnix
 				if dataExistTimestamp < cursorEndTime {
@@ -333,7 +332,7 @@ scenarioLoop:
 				}
 				request := service.GetIsuConditionRequest{
 					StartTime:        &startTime,
-					CursorEndTime:    uint64(cursorEndTime),
+					CursorEndTime:    cursorEndTime,
 					CursorJIAIsuUUID: "",
 					ConditionLevel:   "warning,critical",
 					Limit:            nil,
@@ -342,8 +341,6 @@ scenarioLoop:
 					request,
 					func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
 						//検証
-						//ここは、古いデータのはずなのでconditionのchanからの再取得は要らない
-						//TODO: starttimeの検証
 						err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request,
 							conditions, mustExistUntil,
 						)
@@ -377,8 +374,6 @@ scenarioLoop:
 }
 
 func findBadIsuState(conditions []*service.GetIsuConditionResponse) (model.IsuStateChange, int64) {
-	//TODO: すでに改善済みのものを弾く
-
 	var virtualTimestamp int64
 	solvedCondition := model.IsuStateChangeNone
 	for _, c := range conditions {
@@ -458,7 +453,6 @@ scenarioLoop:
 	for {
 		<-scenarioLoopStopper
 		scenarioLoopStopper = time.After(50 * time.Millisecond) //TODO: 頻度調整
-		//TODO: 今はnormal userそのままになっているので、ちゃんと企業ユーザー用に書き直す
 
 		select {
 		case <-ctx.Done():
@@ -514,7 +508,7 @@ scenarioLoop:
 			//定期的にconditionを見に行くシナリオ
 			request := service.GetIsuConditionRequest{
 				StartTime:        nil,
-				CursorEndTime:    uint64(dataExistTimestamp),
+				CursorEndTime:    dataExistTimestamp,
 				CursorJIAIsuUUID: "z",
 				ConditionLevel:   "warning,critical",
 				Limit:            nil,
@@ -545,7 +539,7 @@ scenarioLoop:
 				var conditionsTmp []*service.GetIsuConditionResponse
 				request = service.GetIsuConditionRequest{
 					StartTime:        nil,
-					CursorEndTime:    uint64(conditions[len(conditions)-1].Timestamp),
+					CursorEndTime:    conditions[len(conditions)-1].Timestamp,
 					CursorJIAIsuUUID: conditions[len(conditions)-1].JIAIsuUUID,
 					ConditionLevel:   "warning,critical",
 					Limit:            nil,
@@ -557,7 +551,6 @@ scenarioLoop:
 					break
 				}
 				//検証
-				//ここは、古いデータのはずなのでconditionのchanからの再取得は要らない
 				err = verifyIsuConditions(res, user, "", &request, conditionsTmp, mustExistUntil)
 				if err != nil {
 					scenarioSuccess = false
@@ -574,7 +567,7 @@ scenarioLoop:
 				if solvedConditions[targetIsuID] != model.IsuStateChangeNone && lastSolvedTime[targetIsuID].Before(time.Unix(timestamp, 0)) {
 					//graphを見る
 					virtualDay := (timestamp / (24 * 60 * 60)) * (24 * 60 * 60)
-					_, _, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsuID, uint64(virtualDay),
+					_, _, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsuID, virtualDay,
 						func(res *http.Response, graph []*service.GraphResponse) []error {
 							return []error{} //TODO: 検証
 						},

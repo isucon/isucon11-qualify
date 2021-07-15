@@ -19,9 +19,9 @@ const (
 	IsuStateChangeRepair           = 1 << 5
 )
 
-//posterスレッドとシナリオスレッドとの通信に必要な情報
-//ISU協会はこれを使ってposterスレッドを起動、posterスレッドはこれを使って通信
-//複数回posterスレッドが起動するかもしれないのでcloseしない
+//poster Goroutineとシナリオ Goroutineとの通信に必要な情報
+//ISU協会はこれを使ってposter Goroutineを起動、poster Goroutineはこれを使って通信
+//複数回poster Goroutineが起動するかもしれないのでcloseしない
 //当然リソースリークするがベンチマーカーは毎回落とすので問題ない
 type StreamsForPoster struct {
 	ActiveChan    chan<- bool
@@ -29,8 +29,8 @@ type StreamsForPoster struct {
 	ConditionChan chan<- []IsuCondition
 }
 
-//posterスレッドとシナリオスレッドとの通信に必要な情報
-//複数回posterスレッドが起動するかもしれないのでcloseしない
+//poster Goroutineとシナリオ Goroutineとの通信に必要な情報
+//複数回poster Goroutineが起動するかもしれないのでcloseしない
 //当然リソースリークするがベンチマーカーは毎回落とすので問題ない
 type StreamsForScenario struct {
 	activeChan    <-chan bool
@@ -38,8 +38,8 @@ type StreamsForScenario struct {
 	ConditionChan <-chan []IsuCondition
 }
 
-//一つのIsuにつき、一つの送信用スレッドがある
-//IsuはISU協会スレッドからも読み込まれる
+//一つのIsuにつき、一つの送信用 Goroutineがある
+//IsuはISU協会 Goroutineからも読み込まれる
 type Isu struct {
 	Owner              *User
 	JIAIsuUUID         string
@@ -49,8 +49,8 @@ type Isu struct {
 	Character          string
 	IsWantDeactivated  bool                //シナリオ上でDeleteリクエストを送ったかどうか
 	isDeactivated      bool                //実際にdeactivateされているか
-	StreamsForScenario *StreamsForScenario //posterスレッドとの通信
-	Conditions         IsuConditionArray   //シナリオスレッドからのみ参照
+	StreamsForScenario *StreamsForScenario //poster Goroutineとの通信
+	Conditions         IsuConditionArray   //シナリオ Goroutineからのみ参照
 }
 
 //新しいISUの生成
@@ -92,11 +92,11 @@ func NewRandomIsuRaw(owner *User) (*Isu, *StreamsForPoster, error) {
 	return isu, streamsForPoster, nil
 }
 
-//シナリオスレッドからのみ参照
+//シナリオ Goroutineからのみ参照
 func (isu *Isu) IsDeactivated() bool {
 	select {
 	case v, ok := <-isu.StreamsForScenario.activeChan:
-		isu.isDeactivated = !ok || !v //Isu協会スレッドの終了 || deactivateされた
+		isu.isDeactivated = !ok || !v //Isu協会 Goroutineの終了 || deactivateされた
 	default:
 	}
 	return isu.isDeactivated

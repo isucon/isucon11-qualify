@@ -16,13 +16,13 @@ const (
 	UserTypeCompany
 )
 
-//基本的には一つのシナリオスレッドが一つのユーザーを占有する
+//基本的には一つのシナリオ Goroutineが一つのユーザーを占有する
 //=>Isuの追加操作と、参照操作が同時に必要になる場面は無いはずなので、
 //  IsuListのソートは追加が終わってからソートすれば良い
 type User struct {
 	UserID                  string `json:"jia_user_id"`
 	Type                    UserType
-	IsuListOrderByCreatedAt []*Isu          //CreatedAtは厳密にはわからないので、postした後にgetをした順番を正とする
+	IsuListOrderByCreatedAt []*Isu          //CreatedAtは厳密にはわからないので、並列postの場合はpostした後にgetをした順番を正とする
 	IsuListByID             map[string]*Isu //IDをkeyにアクセス
 	Conditions              IsuConditionTreeSet
 
