@@ -12,7 +12,7 @@ var (
 
 func Time() time.Time {
 	subFrom := baseTime.Unix()
-	subValue := rand.Int63n(60 * 60 * 24 * 365 * 10) // now ~ 10年
+	subValue := rand.Int63n(60 * 60 * 24 * 365 / 2) // 0 ~ 半年
 	return time.Unix(subFrom-subValue, 0)
 }
 

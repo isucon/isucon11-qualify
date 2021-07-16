@@ -27,7 +27,6 @@ func NewIsu(user User) Isu {
 	u, _ := uuid.NewRandom()
 	createdAt := random.Time()
 
-	updatedAt := createdAt
 	image := defaultImage()
 
 	return Isu{
@@ -39,7 +38,7 @@ func NewIsu(user User) Isu {
 		random.Character(),
 		false,
 		createdAt,
-		updatedAt,
+		createdAt,
 	}
 }
 
