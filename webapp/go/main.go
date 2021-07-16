@@ -1355,7 +1355,7 @@ func postIsuCondition(c echo.Context) error {
 		// parse
 		timestamp := time.Unix(cond.Timestamp, 0)
 
-		if !conditionFormat.Match([]byte(cond.Condition)) {
+		if !conditionFormat.MatchString(cond.Condition) {
 			c.Logger().Errorf("bad request body")
 			return c.String(http.StatusBadRequest, "bad request body")
 		}
