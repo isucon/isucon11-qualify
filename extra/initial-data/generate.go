@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/isucon/isucon11-qualify/bench/random"
 	"github.com/isucon/isucon11-qualify/extra/initial-data/models"
 )
 
@@ -21,6 +22,63 @@ func init() {
 }
 
 func main() {
+	{ // insert data for isucon user
+		data := []struct {
+			user                     models.User
+			isuNum                   int
+			conditionDurationMinutes int
+			conditionNum             int
+		}{
+			{
+				models.User{JIAUserID: "isucon", CreatedAt: random.Time()},
+				2,   // ISU の個数は 2
+				3,   // condition を 3 分おきに送信
+				240, // condition の総数は 12 時間分
+			},
+			{
+				models.User{JIAUserID: "isucon1", CreatedAt: random.Time()},
+				2,   // ISU の個数は 2
+				3,   // condition を 3 分おきに送信
+				240, // condition の総数は 12 時間分
+			},
+			{
+				models.User{JIAUserID: "isucon2", CreatedAt: random.Time()},
+				2,   // ISU の個数は 2
+				3,   // condition を 3 分おきに送信
+				240, // condition の総数は 12 時間分
+			},
+		}
+		for _, d := range data {
+			if err := d.user.Create(); err != nil {
+				log.Fatal(err)
+			}
+			for j := 0; j < d.isuNum; j++ {
+				isu := models.NewIsu(d.user)
+				// 確率で Isu を更新
+				isu = isu.WithUpdateName()
+				isu = isu.WithUpdateImage()
+				// INSERT isu
+				if err := isu.Create(); err != nil {
+					log.Fatal(err)
+				}
+
+				// Isu の Condition 分だけ loop
+				var condition models.Condition
+				for k := 0; k < d.conditionNum; k++ {
+					if k == 0 {
+						condition = models.NewCondition(isu)
+					} else {
+						condition = models.NewConditionFromLastCondition(condition, d.conditionDurationMinutes)
+					}
+					// INSERT condition
+					if err := condition.Create(); err != nil {
+						log.Fatal(err)
+					}
+				}
+			}
+		}
+	}
+
 	{ // insert data for random-generated user
 		for i := 0; i < userNum; i++ {
 			user := models.NewUser()
