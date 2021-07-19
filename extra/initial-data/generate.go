@@ -33,19 +33,19 @@ func main() {
 				models.User{JIAUserID: "isucon", CreatedAt: random.Time()},
 				2,   // ISU の個数は 2
 				3,   // condition を 3 分おきに送信
-				240, // condition の総数は 12 時間分
+				480, // condition の総数は 24 時間分
 			},
 			{
 				models.User{JIAUserID: "isucon1", CreatedAt: random.Time()},
 				2,   // ISU の個数は 2
 				3,   // condition を 3 分おきに送信
-				240, // condition の総数は 12 時間分
+				480, // condition の総数は 24 時間分
 			},
 			{
 				models.User{JIAUserID: "isucon2", CreatedAt: random.Time()},
 				2,   // ISU の個数は 2
 				3,   // condition を 3 分おきに送信
-				240, // condition の総数は 12 時間分
+				480, // condition の総数は 24 時間分
 			},
 		}
 		for _, d := range data {
@@ -54,7 +54,7 @@ func main() {
 			}
 			for j := 0; j < d.isuNum; j++ {
 				isu := models.NewIsu(d.user)
-				// 確率で Isu を更新
+				isu.CreatedAt = d.user.CreatedAt.Add(time.Minute) // ISU は User 作成の1分後に作成される
 				isu = isu.WithUpdateName()
 				isu = isu.WithUpdateImage()
 				// INSERT isu
@@ -62,7 +62,7 @@ func main() {
 					log.Fatal(err)
 				}
 
-				// Isu の Condition 分だけ loop
+				// ISU の Condition 分だけ loop
 				var condition models.Condition
 				for k := 0; k < d.conditionNum; k++ {
 					if k == 0 {
@@ -104,10 +104,10 @@ func main() {
 				conditionNum = 36 + rand.Intn(12) // condition 総数は 3 ~ 4 時間分
 			}
 
-			// User の所持する Isu 分だけ loop
+			// User の所持する ISU 分だけ loop
 			for j := 0; j < isuNum; j++ {
 				isu := models.NewIsu(user)
-				// 確率で Isu を更新
+				// 確率で ISU を更新
 				if rand.Intn(4) < 1 { // 1/4
 					isu = isu.WithUpdateName()
 				}
@@ -122,7 +122,7 @@ func main() {
 					log.Fatal(err)
 				}
 
-				// Isu の Condition 分だけ loop
+				// ISU の Condition 分だけ loop
 				var condition models.Condition
 				for k := 0; k < conditionNum; k++ {
 					if k == 0 {

@@ -7,7 +7,7 @@ import (
 
 var (
 	jst      = time.FixedZone("Asia/Tokyo", 9*60*60)
-	baseTime = time.Date(2021, 7, 1, 0, 0, 0, 0, jst)
+	baseTime = time.Date(2021, 8, 21, 0, 0, 0, 0, jst)
 )
 
 func Time() time.Time {
