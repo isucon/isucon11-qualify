@@ -11,7 +11,7 @@ services:
       MYSQL_DATABASE: isucondition
       MYSQL_USER: isucon
       MYSQL_PASSWORD: isucon
-      ISU_CONDITION_IP: backend
+      SERVER_PUBLIC_ADDRESS: backend
     entrypoint: dockerize -wait tcp://mysql-backend:3306 -timeout 60s
     command: air -c /development/air.toml
     ports:
