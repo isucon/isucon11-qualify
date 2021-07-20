@@ -16,7 +16,7 @@
 * bench/key/ec256-private.pem
 * bench/key/ec256-public.pem
 * webapp/ec256-public.pem (bench/key/ec256-public.pemのコピー)
-* webapp/jiaapi_mock/cmd/standalone/ec256-private.pem (bench/key/ec256-private.pemのコピー)
+* extra/jiaapi-mock/ec256-private.pem (bench/key/ec256-private.pemのコピー)
 
 となっています。
 

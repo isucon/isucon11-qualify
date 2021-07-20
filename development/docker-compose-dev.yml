@@ -57,4 +57,4 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      - "../webapp/jiaapi_mock:/jiaapi"
+      - "../extra/jiaapi-mock:/jiaapi"

@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/isucon/isucon11-qualify/jiaapi_mock/controller"
+	"github.com/isucon/isucon11-qualify/jiaapi-mock/controller"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/labstack/gommon/log"

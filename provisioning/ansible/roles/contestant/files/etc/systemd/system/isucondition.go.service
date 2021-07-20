@@ -1,5 +1,7 @@
 [Unit]
 Description=isucondition.go
+After=cloud-config.service
+Wants=cloud-config.service
 
 [Service]
 WorkingDirectory=/home/isucon/webapp/go
