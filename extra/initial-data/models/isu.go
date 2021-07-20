@@ -12,15 +12,14 @@ import (
 )
 
 type Isu struct {
-	User         User
-	JIAIsuUUID   string
-	Name         string
-	Image        []byte
-	JIACatalogID string
-	Character    string
-	IsDeleted    bool
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	User       User
+	JIAIsuUUID string
+	Name       string
+	Image      []byte
+	Character  string
+	IsDeleted  bool
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
 }
 
 func NewIsu(user User) Isu {
@@ -35,7 +34,6 @@ func NewIsu(user User) Isu {
 		u.String(),
 		random.IsuName(),
 		image,
-		random.CatalogID(),
 		random.Character(),
 		false,
 		createdAt,
@@ -69,7 +67,7 @@ func (i Isu) WithDelete() Isu {
 
 func (i Isu) Create() error {
 	if _, err := db.Exec("INSERT INTO isu VALUES (?,?,?,?,?,?,?,?,?)",
-		i.JIAIsuUUID, i.Name, i.Image, i.Character, i.JIACatalogID, i.User.JIAUserID,
+		i.JIAIsuUUID, i.Name, i.Image, i.Character, i.User.JIAUserID,
 		i.IsDeleted, i.CreatedAt, i.UpdatedAt,
 	); err != nil {
 		return fmt.Errorf("insert user: %w", err)
