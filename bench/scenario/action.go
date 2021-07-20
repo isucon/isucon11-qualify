@@ -25,8 +25,8 @@ import (
 	"github.com/isucon/isucandar/agent"
 	"github.com/isucon/isucandar/failure"
 	"github.com/isucon/isucon11-qualify/bench/logger"
-	"github.com/isucon/isucon11-qualify/bench/service"
 	"github.com/isucon/isucon11-qualify/bench/random"
+	"github.com/isucon/isucon11-qualify/bench/service"
 )
 
 const (
@@ -258,12 +258,15 @@ func signoutAction(ctx context.Context, a *agent.Agent) (*http.Response, error) 
 	return res, err
 }
 
-func signoutErrorAction(ctx context.Context, a *agent.Agent) (string, *http.Response, error) {
-	res, text, err := reqNoContentResError(ctx, a, http.MethodPost, "/api/signout", []int{http.StatusUnauthorized})
+func signoutActionWithoutAuth(ctx context.Context, a *agent.Agent) (*http.Response, error) {
+	res, resBody, err := reqNoContentResError(ctx, a, http.MethodPost, "/api/signout", []int{http.StatusUnauthorized})
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
-	return text, res, err
+	if err := verifyNotSignedIn(res, resBody); err != nil {
+		return nil, err
+	}
+	return res, err
 }
 
 func getMeAction(ctx context.Context, a *agent.Agent) (*service.GetMeResponse, *http.Response, error) {
@@ -278,28 +281,41 @@ func getMeAction(ctx context.Context, a *agent.Agent) (*service.GetMeResponse, *
 func getMeErrorAction(ctx context.Context, a *agent.Agent) (string, *http.Response, error) {
 	res, resBody, err := reqJSONResError(ctx, a, http.MethodGet, "/api/user/me", nil, []int{http.StatusUnauthorized})
 	if err != nil {
-		return "", nil, err
+		return resBody, nil, err
 	}
+
 	return resBody, res, nil
 }
 
-func getIsuAction(ctx context.Context, a *agent.Agent) ([]*service.Isu, *http.Response, error) {
+func getIsuAction(ctx context.Context, a *agent.Agent, query url.Values) ([]*service.Isu, *http.Response, error) {
 	var isuList []*service.Isu
-	res, err := reqJSONResJSON(ctx, a, http.MethodGet, "/api/isu", nil, &isuList, []int{http.StatusOK})
+	rpath := getIsuRequestParams(query)
+	res, err := reqJSONResJSON(ctx, a, http.MethodGet, rpath, nil, &isuList, []int{http.StatusOK})
+
 	if err != nil {
 		return nil, nil, err
 	}
 	return isuList, res, nil
 }
 
-func getIsuErrorAction(ctx context.Context, a *agent.Agent) (string, *http.Response, error) {
-	res, resBody, err := reqJSONResError(ctx, a, http.MethodGet, "/api/isu", nil, []int{http.StatusUnauthorized})
+func getIsuErrorAction(ctx context.Context, a *agent.Agent, query url.Values) (string, *http.Response, error) {
+	rpath := getIsuRequestParams(query)
+	res, resBody, err := reqJSONResError(ctx, a, http.MethodGet, rpath, nil, []int{http.StatusUnauthorized, http.StatusBadRequest})
 	if err != nil {
 		return "", nil, err
 	}
 	return resBody, res, nil
 }
 
+func getIsuRequestParams(query url.Values) string {
+	path, err := url.Parse("/api/isu")
+	if err != nil {
+		logger.AdminLogger.Panicln(err)
+	}
+
+	path.RawQuery = query.Encode()
+	return path.String()
+}
 func postIsuAction(ctx context.Context, a *agent.Agent, req service.PostIsuRequest) (*service.Isu, *http.Response, error) {
 	body, err := json.Marshal(req)
 	if err != nil {
@@ -617,7 +633,7 @@ func browserGetHomeAction(ctx context.Context, a *agent.Agent,
 
 	errors := []error{}
 	// TODO: ここ以下は多分並列
-	isuList, hres, err := getIsuAction(ctx, a)
+	isuList, hres, err := getIsuAction(ctx, a, url.Values{})
 	if err != nil {
 		errors = append(errors, err)
 	}
@@ -762,4 +778,37 @@ func browserGetIsuGraphAction(ctx context.Context, a *agent.Agent, id string, da
 		errors = append(errors, validateGraph(res, graph)...)
 	}
 	return isu, graph, errors
+}
+
+func BrowserAccess(ctx context.Context, a *agent.Agent, rpath string) error {
+	req, err := a.GET(rpath)
+	if err != nil {
+		logger.AdminLogger.Panic(err)
+	}
+
+	res, err := a.Do(ctx, req)
+	if err != nil {
+		return failure.NewError(ErrHTTP, err)
+	}
+
+	if err := verifyStatusCode(res, http.StatusOK); err != nil {
+		if err := verifyStatusCode(res, http.StatusNotModified); err != nil {
+			return failure.NewError(ErrInvalidStatusCode, err)
+		}
+	}
+
+	resources, err := a.ProcessHTML(ctx, res, res.Body)
+	if err != nil {
+		return failure.NewError(ErrCritical, err)
+	}
+	// resourceの検証
+	errs := verifyResources(rpath, res, resources)
+	for _, err := range errs {
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+
 }

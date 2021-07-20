@@ -21,3 +21,14 @@ run-bench-race:
 .PHONY: down-bench
 down-bench:
 	target=go docker compose -f docker-compose-bench.yml down
+
+# TODO: 後で消す
+.PHONY: run-bench-noload
+run-bench-noload:
+	target=go docker compose -f docker-compose-bench.yml exec apitest go run ./main.go --no-load=true
+
+# TODO: 後で消す
+.PHONY: copy-public
+copy-public:
+	rm -rf ../webapp/public
+	docker cp development_backend_1:/webapp/public ../webapp/public

@@ -6,9 +6,16 @@ package scenario
 // シナリオのstructがあれば文脈無しで検証できるもの
 
 import (
+	"crypto/md5"
 	"encoding/json"
 	"fmt"
+	"github.com/isucon/isucandar/agent"
+	"github.com/isucon/isucandar/failure"
+	"github.com/isucon/isucon11-qualify/bench/logger"
+	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/isucon/isucon11-qualify/bench/model"
@@ -50,7 +57,7 @@ func verify4xxError(res *http.Response, text string, expectedText string, expect
 		return errorInvalidStatusCode(res, expectedCode)
 	}
 	if text != expectedText {
-		return errorMissmatch(res, "エラーメッセージが不正確です: `%s` (expected: `%s`)", text, expectedCode)
+		return errorMissmatch(res, "エラーメッセージが不正確です: `%s` (expected: `%s`)", text, expectedText)
 	}
 	return nil
 }
@@ -226,5 +233,121 @@ func verifyIsuConditions(res *http.Response,
 		}
 	}
 
+	return nil
+}
+
+func joinURL(base *url.URL, target string) string {
+	b := *base
+	t, _ := url.Parse(target)
+	u := b.ResolveReference(t).String()
+	return u
+}
+
+// TODO: vendor.****.jsがlink rel="modulepreload"なのでProcessHTMLの現在の実装では取得できない（isucandarにプルリク出す）
+// TODO: vendor.****.jsで取得処理が記述されているlogo_white, logo_orangeも取得できてない
+func verifyResources(page string, res *http.Response, resources agent.Resources) []error {
+	base := res.Request.URL.String()
+
+	faviconSvg := "/favicon.d0f5f504.svg"
+	indexCss := "/index.5a0b7572.css"
+	indexJs := "/index.9f824aae.js"
+	//logoOrange := "/logo_orange.974bf3e6.svg"
+	//logoWhite := "/logo_white.98008342.svg"
+	//vendorJs := "/vendor.b2764262.js"
+	var checks []error
+	switch page {
+	case "/signup":
+		checks = []error{
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+faviconSvg)], faviconSvg),
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexCss)], indexCss),
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexJs)], indexJs),
+			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+logoWhite)], logoWhite),
+			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+vendorJs)], vendorJs),
+		}
+	case "/condition":
+		checks = []error{
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+faviconSvg)], faviconSvg),
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexCss)], indexCss),
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexJs)], indexJs),
+			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+logoWhite)], logoWhite),
+			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+vendorJs)], vendorJs),
+		}
+	case "/isu":
+		checks = []error{
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+faviconSvg)], faviconSvg),
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexCss)], indexCss),
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexJs)], indexJs),
+			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+logoWhite)], logoWhite),
+			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+vendorJs)], vendorJs),
+		}
+	case "/register":
+		checks = []error{
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+faviconSvg)], faviconSvg),
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexCss)], indexCss),
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexJs)], indexJs),
+			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+logoWhite)], logoWhite),
+			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+vendorJs)], vendorJs),
+		}
+	case "/login":
+		checks = []error{
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+faviconSvg)], faviconSvg),
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexCss)], indexCss),
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexJs)], indexJs),
+			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+logoOrange)], logoOrange),
+			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+logoWhite)], logoWhite),
+			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+vendorJs)], vendorJs),
+		}
+	}
+	errs := []error{}
+	for _, err := range checks {
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	return errs
+}
+
+func errorChecksum(base string, resource *agent.Resource, name string) error {
+	if resource == nil {
+		logger.AdminLogger.Printf("resource not found: %s on %s\n", name, base)
+		return failure.NewError(ErrChecksum, errorInvalidResponse("期待するリソースが読み込まれませんでした: %s", name))
+	}
+
+	if resource.Error != nil {
+		var nerr net.Error
+		if failure.As(resource.Error, &nerr) {
+			if nerr.Timeout() || nerr.Temporary() {
+				return nerr
+			}
+		}
+		return failure.NewError(ErrChecksum, errorInvalidResponse("リソースの取得に失敗しました: %s: %v", name, resource.Error))
+	}
+
+	res := resource.Response
+	defer res.Body.Close()
+	if res.StatusCode == 304 {
+		return nil
+	}
+
+	if err := verifyStatusCode(res, http.StatusOK); err != nil {
+		return err
+	}
+
+	// md5でリソースの比較
+	path := res.Request.URL.Path
+	expected := resoucesHash[path]
+	if expected == "" {
+		return nil
+	}
+	hash := md5.New()
+	if _, err := io.Copy(hash, res.Body); err != nil {
+		logger.AdminLogger.Printf("resource checksum: %v", err)
+		return failure.NewError(ErrChecksum, errorInvalidResponse("リソースの取得に失敗しました: %s", path))
+	}
+	actual := fmt.Sprintf("%x", hash.Sum(nil))
+	if expected != actual {
+		return failure.NewError(ErrChecksum, errorInvalidResponse("期待するチェックサムと一致しません: %s", path))
+	}
 	return nil
 }

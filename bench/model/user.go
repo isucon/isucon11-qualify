@@ -46,6 +46,10 @@ func (u *User) AddIsu(isu *Isu) {
 	u.IsuListByID[isu.JIAIsuUUID] = isu
 }
 
+func (u *User) RemoveIsu(isu *Isu) {
+	delete(u.IsuListByID, isu.JIACatalogID)
+}
+
 func (user *User) GetConditionFromChan(ctx context.Context) {
 	for _, isu := range user.IsuListOrderByCreatedAt {
 		isu.getConditionFromChan(ctx, &user.Conditions)
