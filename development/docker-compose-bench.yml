@@ -51,7 +51,7 @@ services:
       context: ..
       dockerfile: development/apitest/dev.dockerfile
     environment:
-      ISUXBENCH_TARGET: backend:3000
+      TARGET_ADDRESS: backend:3000
     working_dir:  /bench_dir
     entrypoint: bash
     tty: true

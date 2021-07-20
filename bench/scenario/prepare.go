@@ -13,13 +13,12 @@ import (
 	"github.com/isucon/isucandar/worker"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/service"
-	"github.com/isucon/isucon11-qualify/bench/random"
+	"github.com/isucon/isucon11-qualify/extra/initial-data/random"
 )
 
 func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) error {
 	logger.ContestantLogger.Printf("===> PREPARE")
 
-	//TODO: 他の得点源
 	//TODO: 得点調整
 	step.Result().Score.Set(ScoreNormalUserInitialize, 10)
 	step.Result().Score.Set(ScoreNormalUserLoop, 10)
@@ -29,15 +28,15 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 
 	//初期データの生成
 	s.InitializeData()
-	s.realTimePrepareStartedAt = time.Now()
+	s.realTimeStart = time.Now()
 
 	//jiaの起動
 	s.loadWaitGroup.Add(1)
-	ctxJIA, jiaCancelFunc := context.WithCancel(context.Background())
-	s.jiaCancel = jiaCancelFunc
+	ctxJIA, jiaChancelFunc := context.WithCancel(context.Background())
+	s.jiaChancel = jiaChancelFunc
 	go func() {
 		defer s.loadWaitGroup.Done()
-		s.JiaAPIService(ctxJIA, step)
+		s.JiaAPIThread(ctxJIA, step)
 	}()
 	jiaWait := time.After(10 * time.Second)
 
@@ -75,8 +74,6 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 		//return ErrScenarioCancel
 		return ErrCritical
 	}
-
-	s.realTimeLoadFinishedAt = time.Now().Add(s.LoadTimeout)
 	return nil
 }
 
@@ -115,8 +112,7 @@ func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.Benchma
 	}
 
 	w.Process(ctx)
-	//w.Wait()
-	//MEMO: ctx.Done()の場合は、プロセスが終了していない可能性がある。
+	//w.Wait() //念のためもう一度止まってるか確認
 
 	//作成済みユーザーへのログイン確認
 	agt, err := s.NewAgent()

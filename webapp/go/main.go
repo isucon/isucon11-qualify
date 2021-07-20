@@ -79,7 +79,6 @@ type IsuFromJIA struct {
 }
 
 type IsuCondition struct {
-	ID         int       `db:"id"`
 	JIAIsuUUID string    `db:"jia_isu_uuid"`
 	Timestamp  time.Time `db:"timestamp"`
 	IsSitting  bool      `db:"is_sitting"`
@@ -1354,7 +1353,7 @@ func getGraphDataList(tx *sqlx.Tx, jiaIsuUUID string, date time.Time) ([]Graph, 
 		return []Graph{}, nil
 	}
 
-	return graphDatas[startIndex:endNextIndex], nil
+	return graphDatas[startIndex : endNextIndex], nil
 }
 
 //分以下を切り捨て、一時間単位にする関数

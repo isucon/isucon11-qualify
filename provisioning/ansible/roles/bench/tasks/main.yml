@@ -4,10 +4,6 @@
   include: kernel.yml
   become_user: root
 
-- name: "roles/bench/tasks/main: Include nofile.yml"
-  include: nofile.yml
-  become_user: root
-
 - name: "roles/bench/tasks/main: Include bench.yml"
   include: bench.yml
   become_user: root

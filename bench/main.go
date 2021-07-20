@@ -11,16 +11,11 @@ import (
 	"runtime/pprof"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/isucon/isucandar"
 	"github.com/isucon/isucandar/agent"
 	"github.com/isucon/isucandar/failure"
-
-	// TODO: isucon11-portal に差し替え
-	"github.com/isucon/isucon10-portal/bench-tool.go/benchrun"
-	isuxportalResources "github.com/isucon/isucon10-portal/proto.go/isuxportal/resources"
 
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/scenario"
@@ -28,9 +23,7 @@ import (
 
 const (
 	// FAIL になるエラー回数
-	FAIL_ERROR_COUNT int64 = 100 //TODO:ちゃんと決める
-	//load context
-	LOAD_TIMEOUT time.Duration = 70 * time.Second
+	FAIL_ERROR_COUNT int64 = 500 //TODO:ちゃんと決める
 )
 
 var (
@@ -49,7 +42,7 @@ var (
 
 	initializeTimeout time.Duration
 	// TODO: isucon11-portal に差し替え
-	reporter benchrun.Reporter
+	//reporter benchrun.Reporter
 )
 
 func getEnv(key, defaultValue string) string {
@@ -71,7 +64,9 @@ func init() {
 	agent.DefaultTLSConfig.MinVersion = tls.VersionTLS12
 	agent.DefaultTLSConfig.InsecureSkipVerify = false
 
-	flag.StringVar(&targetAddress, "target", benchrun.GetTargetAddress(), "ex: localhost:9292")
+	// TODO: isucon11-portal に差し替え
+	//flag.StringVar(&targetAddress, "target", benchrun.GetTargetAddress(), "ex: localhost:9292")
+	flag.StringVar(&targetAddress, "target", getEnv("TARGET_ADDRESS", "localhost:9292"), "ex: localhost:9292")
 	flag.StringVar(&profileFile, "profile", "", "ex: cpu.out")
 	flag.StringVar(&hostAdvertise, "host-advertise", "local.t.isucon.dev", "hostname to advertise against target")
 	flag.StringVar(&jiaServiceURL, "jia-service-url", "http://apitest:80", "jia service url")
@@ -110,6 +105,8 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 	passed := true
 	reason := "pass"
 	errors := result.Errors.All()
+
+	//TODO: 他の得点源
 
 	scoreRaw := result.Score.Sum()
 	deduction := int64(0)
@@ -153,24 +150,29 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 	logger.ContestantLogger.Printf("score: %d(%d - %d) : %s", score, scoreRaw, deductionTotal, reason)
 	logger.ContestantLogger.Printf("deduction: %d / timeout: %d", deduction, timeoutCount)
 
-	err := reporter.Report(&isuxportalResources.BenchmarkResult{
-		SurveyResponse: &isuxportalResources.SurveyResponse{
-			Language: s.Language,
-		},
-		Finished: finish,
-		Passed:   passed,
-		Score:    score,
-		ScoreBreakdown: &isuxportalResources.BenchmarkResult_ScoreBreakdown{
-			Raw:       scoreRaw,
-			Deduction: deductionTotal,
-		},
-		Execution: &isuxportalResources.BenchmarkResult_Execution{
-			Reason: reason,
-		},
-	})
-	if err != nil {
-		panic(err)
-	}
+	// TODO: isucon11-portal に差し替え
+	/*
+		err := reporter.Report(&isuxportalResources.BenchmarkResult{
+			SurveyResponse: &isuxportalResources.SurveyResponse{
+				Language: s.Language,
+			},
+			Finished: finish,
+			Passed:   passed,
+			Score:    0, // TODO: 加点 - 減点
+			ScoreBreakdown: &isuxportalResources.BenchmarkResult_ScoreBreakdown{
+				Raw:       0, // TODO: 加点
+				Deduction: 0, // TODO: 減点
+			},
+			Execution: &isuxportalResources.BenchmarkResult_Execution{
+				Reason: reason,
+			},
+		})
+		if err != nil {
+			panic(err)
+		}
+	*/
+	// TODO: 以下は消す
+	fmt.Println(reason)
 
 	return passed
 }
@@ -216,7 +218,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	s, err := scenario.NewScenario(jiaServiceURL, LOAD_TIMEOUT)
+	s, err := scenario.NewScenario(jiaServiceURL)
 	if err != nil {
 		panic(err)
 	}
@@ -228,28 +230,32 @@ func main() {
 	s.BaseURL = fmt.Sprintf("%s://%s/", scheme, targetAddress)
 	s.NoLoad = noLoad
 
-	b, err := isucandar.NewBenchmark(isucandar.WithoutPanicRecover())
+	b, err := isucandar.NewBenchmark(isucandar.WithLoadTimeout(60*time.Second), isucandar.WithoutPanicRecover())
 	if err != nil {
 		panic(err)
 	}
 
-	reporter, err = benchrun.NewReporter(false)
-	if err != nil {
-		panic(err)
-	}
+	// TODO: isucon11-portal に差し替え
+	/*
+		reporter, err = benchrun.NewReporter(false)
+		if err != nil {
+			panic(err)
+		}
+	*/
 
-	errorCount := int64(0)
+	//errorCount := int64(0)
 	b.OnError(func(err error, step *isucandar.BenchmarkStep) {
 		// Load 中の timeout のみログから除外
 		if failure.IsCode(err, failure.TimeoutErrorCode) && failure.IsCode(err, isucandar.ErrLoad) {
 			return
 		}
 
-		critical, _, deduction := checkError(err)
+		//critical, _, deduction := checkError(err)
 
-		if critical || (deduction && atomic.AddInt64(&errorCount, 1) > FAIL_ERROR_COUNT) {
-			step.Cancel()
-		}
+		//TODO: 暫定対処として、failが確定しても負荷をかけ続ける
+		//if critical || (deduction && atomic.AddInt64(&errorCount, 1) > FAIL_ERROR_COUNT) {
+		//	step.Cancel()
+		//}
 
 		logger.ContestantLogger.Printf("ERR: %v", err)
 	})
@@ -257,14 +263,13 @@ func main() {
 	b.AddScenario(s)
 
 	wg := sync.WaitGroup{}
-	wg.Add(1)
-	b.Load(func(parent context.Context, step *isucandar.BenchmarkStep) error {
-		defer wg.Done()
+	b.Load(func(ctx context.Context, step *isucandar.BenchmarkStep) error {
 		if s.NoLoad {
 			return nil
 		}
-		ctx, cancel := context.WithTimeout(parent, s.LoadTimeout)
-		defer cancel()
+
+		wg.Add(1)
+		defer wg.Done()
 
 		for {
 			// 途中経過を3秒毎に送信
