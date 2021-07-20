@@ -66,7 +66,6 @@ func (s *Scenario) JiaAPIService(ctx context.Context, step *isucandar.BenchmarkS
 	e.Use(middleware.Recover())
 
 	// Initialize
-	e.GET("/api/catalog/:catalog_id", func(c echo.Context) error { return s.getCatalog(c) })
 	e.POST("/api/activate", func(c echo.Context) error { return s.postActivate(c) })
 	e.POST("/api/deactivate", postDeactivate)
 
@@ -96,15 +95,6 @@ func (s *Scenario) JiaAPIService(ctx context.Context, step *isucandar.BenchmarkS
 		//有効なエラー処理は出来ないのでエラーは握り潰し
 		logger.AdminLogger.Printf("Failed to shutdown jia service: %s", err)
 	}
-}
-
-func (s *Scenario) getCatalog(c echo.Context) error {
-	catalogID := c.Param("catalog_id")
-	catalog, ok := s.Catalogs[catalogID]
-	if !ok {
-		return echo.NewHTTPError(http.StatusNotFound)
-	}
-	return c.JSON(http.StatusOK, catalog)
 }
 
 func (s *Scenario) postActivate(c echo.Context) error {
