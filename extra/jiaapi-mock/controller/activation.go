@@ -5,7 +5,7 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/isucon/isucon11-qualify/jiaapi_mock/model"
+	"github.com/isucon/isucon11-qualify/jiaapi-mock/model"
 	"github.com/labstack/echo/v4"
 )
 

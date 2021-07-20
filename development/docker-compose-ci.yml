@@ -40,7 +40,7 @@ services:
       context: ..
       dockerfile: development/apitest/ci.dockerfile
     environment:
-      TARGET_ADDRESS: backend:3000
+      ISUXBENCH_TARGET: backend:3000
     entrypoint: dockerize -wait http://backend:3000 -timeout 60s
     command: ["/bench", "--no-load", "--exit-status"]
     volumes:

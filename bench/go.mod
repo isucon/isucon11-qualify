@@ -8,5 +8,6 @@ require (
 	github.com/emirpasic/gods v1.12.0
 	github.com/google/uuid v1.2.0
 	github.com/isucon/isucandar v0.0.0-20210706075559-501b2c3ed1da
+	github.com/isucon/isucon10-portal v0.0.0-20201008112716-8c0b637e1bd8
 	github.com/labstack/echo/v4 v4.4.0
 )
