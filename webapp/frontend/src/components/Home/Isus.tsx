@@ -1,8 +1,6 @@
 import { useEffect } from 'react'
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import apis, { Isu } from '../../lib/apis'
-import Button from '../UI/Button'
 import IsuList from '../UI/IsuList'
 
 const LIMIT = 4
