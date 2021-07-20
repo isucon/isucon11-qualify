@@ -470,27 +470,59 @@ func postIsu(c echo.Context) error {
 	isuName := c.FormValue("isu_name")
 	fh, err := c.FormFile("image")
 	if err != nil {
-		if errors.Is(err, http.ErrMissingFile) {
-			useDefaultImage = true
-		} else {
+		if !errors.Is(err, http.ErrMissingFile) {
 			c.Logger().Errorf("failed to get icon: %v", err)
 			return c.String(http.StatusBadRequest, "failed to get icon")
 		}
+		useDefaultImage = true
 	}
 
-	// 既に登録されたisuでないか確認
-	var count int
-	// TODO 再activate時もエラー起こすため、 `is_deleted` は見ない
-	err = db.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
-		jiaUserID, jiaIsuUUID)
+	var image []byte
+
+	if useDefaultImage {
+		// デフォルト画像を準備
+		image, err = ioutil.ReadFile(defaultIconFilePath)
+		if err != nil {
+			c.Logger().Errorf("failed to read default icon: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+	} else {
+		file, err := fh.Open()
+		if err != nil {
+			c.Logger().Errorf("failed to open fh: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+		defer file.Close()
+
+		image, err = ioutil.ReadAll(file)
+		if err != nil {
+			c.Logger().Errorf("failed to read file: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+	}
+
+	// トランザクション開始
+	tx, err := db.Beginx()
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
-	if count != 0 {
-		// TODO 再activate時もここでエラー; day2で再検討
-		c.Logger().Errorf("duplicated isu: %v", err)
-		return c.String(http.StatusConflict, "duplicated isu")
+	defer tx.Rollback()
+
+	// 新しいisuのデータをinsert
+	_, err = tx.Exec("INSERT INTO `isu`"+
+		"	(`jia_isu_uuid`, `name`, `image`, `jia_user_id`) VALUES (?, ?, ?, ?)",
+		jiaIsuUUID, isuName, image, jiaUserID)
+	if err != nil {
+		mysqlErr, ok := err.(*mysql.MySQLError)
+
+		if ok && mysqlErr.Number == uint16(mysqlErrNumDuplicateEntry) {
+			c.Logger().Errorf("duplicated condition: %v", err)
+			return c.String(http.StatusConflict, "duplicated condition")
+		}
+
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	// JIAにisuのactivateをリクエスト
@@ -534,44 +566,25 @@ func postIsu(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	var image []byte
-
-	if useDefaultImage {
-		// デフォルト画像を準備
-		image, err = ioutil.ReadFile(defaultIconFilePath)
-		if err != nil {
-			c.Logger().Errorf("failed to read default icon: %v", err)
-			return c.NoContent(http.StatusInternalServerError)
-		}
-	} else {
-		file, err := fh.Open()
-		if err != nil {
-			c.Logger().Errorf("failed to open fh: %v", err)
-			return c.NoContent(http.StatusInternalServerError)
-		}
-		defer file.Close()
-
-		image, err = ioutil.ReadAll(file)
-		if err != nil {
-			c.Logger().Errorf("failed to read file: %v", err)
-			return c.NoContent(http.StatusInternalServerError)
-		}
-	}
-
-	// 新しいisuのデータをinsert
-	_, err = db.Exec("INSERT INTO `isu`"+
-		"	(`jia_isu_uuid`, `name`, `image`, `character`, `jia_user_id`) VALUES (?, ?, ?, ?, ?)",
-		jiaIsuUUID, isuName, image, isuFromJIA.Character, jiaUserID)
+	// TODO: isuのデータをupdate
+	_, err = tx.Exec("UPDATE `isu` SET `character` = ? WHERE  `jia_isu_uuid` = ?", isuFromJIA.Character, jiaIsuUUID)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	var isu Isu
-	err = db.Get(
+	err = tx.Get(
 		&isu,
 		"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
 		jiaUserID, jiaIsuUUID)
+	if err != nil {
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	// トランザクション終了
+	err = tx.Commit()
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
