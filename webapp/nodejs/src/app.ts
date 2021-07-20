@@ -31,13 +31,13 @@ app.use(
 );
 app.set("cert", fs.readFileSync("../ec256-public.pem"));
 
-"/ /condition /isu/:jia_isu_uuid /register /login"
-  .split(" ")
-  .forEach((frontendPath) => {
+["/", "/condition", "/isu/:jia_isu_uuid", "/register", "/login"].forEach(
+  (frontendPath) => {
     app.get(frontendPath, (_req, res) => {
       res.sendFile(path.resolve("../public", "index.html"));
     });
-  });
+  }
+);
 
 // POST /initialize
 app.post("/initialize", async (_req, res) => {
