@@ -20,13 +20,15 @@ import (
 type Scenario struct {
 	// TODO: シナリオ実行に必要なフィールドを書く
 
-	BaseURL          string // ベンチ対象 Web アプリの URL
-	UseTLS           bool   // https で接続するかどうか
-	NoLoad           bool   // Load(ベンチ負荷)を強要しない
-	realTimeStart    time.Time
-	virtualTimeStart time.Time
-	virtualTimeMulti time.Duration //時間が何倍速になっているか
-	jiaServiceURL    string
+	BaseURL                  string        // ベンチ対象 Web アプリの URL
+	UseTLS                   bool          // https で接続するかどうか
+	NoLoad                   bool          // Load(ベンチ負荷)を強要しない
+	LoadTimeout              time.Duration //Loadのcontextの時間
+	realTimeLoadFinishedAt   time.Time     //Loadのcontext終了時間
+	realTimePrepareStartedAt time.Time     //Prepareの開始時間
+	virtualTimeStart         time.Time
+	virtualTimeMulti         time.Duration //時間が何倍速になっているか
+	jiaServiceURL            string
 
 	// POST /initialize の猶予時間
 	initializeTimeout time.Duration
@@ -35,7 +37,7 @@ type Scenario struct {
 	Language string
 
 	loadWaitGroup sync.WaitGroup
-	jiaChancel    context.CancelFunc
+	jiaCancel     context.CancelFunc
 
 	//内部状態
 	normalUsersMtx  sync.Mutex
@@ -45,12 +47,13 @@ type Scenario struct {
 	Catalogs        map[string]*model.IsuCatalog
 }
 
-func NewScenario(jiaServiceURL string) (*Scenario, error) {
+func NewScenario(jiaServiceURL string, loadTimeout time.Duration) (*Scenario, error) {
 	return &Scenario{
 		// TODO: シナリオを初期化する
 		//realTimeStart: time.Now()
+		LoadTimeout:       loadTimeout,
 		virtualTimeStart:  time.Date(2020, 7, 1, 0, 0, 0, 0, time.Local), //TODO: ちゃんと決める
-		virtualTimeMulti:  3000,                                          //5分=300秒に一回 => 1秒に10回
+		virtualTimeMulti:  30000,                                         //5分=300秒に一回 => 1秒に100回
 		jiaServiceURL:     jiaServiceURL,
 		initializeTimeout: 20 * time.Second,
 		normalUsers:       []*model.User{},
@@ -69,16 +72,16 @@ func (s *Scenario) NewAgent(opts ...agent.AgentOption) (*agent.Agent, error) {
 }
 
 func (s *Scenario) ToVirtualTime(realTime time.Time) time.Time {
-	return s.virtualTimeStart.Add(realTime.Sub(s.realTimeStart) * s.virtualTimeMulti)
+	return s.virtualTimeStart.Add(realTime.Sub(s.realTimePrepareStartedAt) * s.virtualTimeMulti)
 }
 
 //load用
-//通常ユーザーのシナリオスレッドを追加する
+//通常ユーザーのシナリオ Goroutineを追加する
 func (s *Scenario) AddNormalUser(ctx context.Context, step *isucandar.BenchmarkStep, count int) {
 	if count <= 0 {
 		return
 	}
-	s.loadWaitGroup.Add(int(count))
+	s.loadWaitGroup.Add(count)
 	for i := 0; i < count; i++ {
 		go func(ctx context.Context, step *isucandar.BenchmarkStep) {
 			defer s.loadWaitGroup.Done()
@@ -88,12 +91,12 @@ func (s *Scenario) AddNormalUser(ctx context.Context, step *isucandar.BenchmarkS
 }
 
 //load用
-//マニアユーザーのシナリオスレッドを追加する
+//マニアユーザーのシナリオ Goroutineを追加する
 func (s *Scenario) AddManiacUser(ctx context.Context, step *isucandar.BenchmarkStep, count int) {
 	if count <= 0 {
 		return
 	}
-	s.loadWaitGroup.Add(int(count))
+	s.loadWaitGroup.Add(count)
 	for i := 0; i < count; i++ {
 		go func(ctx context.Context, step *isucandar.BenchmarkStep) {
 			defer s.loadWaitGroup.Done()
@@ -103,12 +106,12 @@ func (s *Scenario) AddManiacUser(ctx context.Context, step *isucandar.BenchmarkS
 }
 
 //load用
-//企業ユーザーのシナリオスレッドを追加する
+//企業ユーザーのシナリオ Goroutineを追加する
 func (s *Scenario) AddCompanyUser(ctx context.Context, step *isucandar.BenchmarkStep, count int) {
 	if count <= 0 {
 		return
 	}
-	s.loadWaitGroup.Add(int(count))
+	s.loadWaitGroup.Add(count)
 	for i := 0; i < count; i++ {
 		go func(ctx context.Context, step *isucandar.BenchmarkStep) {
 			defer s.loadWaitGroup.Done()

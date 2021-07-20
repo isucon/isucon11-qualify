@@ -37,13 +37,13 @@ type IsuConditionPosterRequest struct {
 	IsuUUID    string `json:"isu_uuid"`
 }
 
-//ISU協会スレッドとposterの通信
+//ISU協会 Goroutineとposterの通信
 type JiaAPI2PosterData struct {
-	activated   bool
-	chancelFunc context.CancelFunc
+	activated  bool
+	cancelFunc context.CancelFunc
 }
 
-//シナリオスレッドからの呼び出し
+//シナリオ Goroutineからの呼び出し
 func RegisterToJiaAPI(jiaIsuUUID string, detail *IsuDetailInfomation, streams *model.StreamsForPoster) {
 	streamsForPosterMutex.Lock()
 	defer streamsForPosterMutex.Unlock()
@@ -51,7 +51,8 @@ func RegisterToJiaAPI(jiaIsuUUID string, detail *IsuDetailInfomation, streams *m
 	streamsForPoster[jiaIsuUUID] = streams
 }
 
-func (s *Scenario) JiaAPIThread(ctx context.Context, step *isucandar.BenchmarkStep) {
+func (s *Scenario) JiaAPIService(ctx context.Context, step *isucandar.BenchmarkStep) {
+	defer logger.AdminLogger.Println("--- JiaAPIService END")
 
 	jiaAPIContext = ctx
 	jiaAPIStep = step
@@ -74,6 +75,7 @@ func (s *Scenario) JiaAPIThread(ctx context.Context, step *isucandar.BenchmarkSt
 	serverPort := s.jiaServiceURL[strings.LastIndexAny(s.jiaServiceURL, ":"):] //":80"
 	s.loadWaitGroup.Add(1)
 	go func() {
+		defer logger.AdminLogger.Println("--- ISU協会サービス END")
 		defer s.loadWaitGroup.Done()
 		err := e.Start(serverPort)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -115,10 +117,10 @@ func (s *Scenario) postActivate(c echo.Context) error {
 		state.TargetIP, state.TargetPort,
 	)
 
-	//posterスレッドの起動
+	//poster Goroutineの起動
 	var isuDetail *IsuDetailInfomation
 	var scenarioChan *model.StreamsForPoster
-	posterContext, chancelFunc := context.WithCancel(jiaAPIContext)
+	posterContext, cancelFunc := context.WithCancel(jiaAPIContext)
 	err = func() error {
 		var ok bool
 		streamsForPosterMutex.Lock()
@@ -132,8 +134,8 @@ func (s *Scenario) postActivate(c echo.Context) error {
 			return echo.NewHTTPError(http.StatusForbidden)
 		}
 		isuIsActivated[state.IsuUUID] = JiaAPI2PosterData{
-			activated:   true,
-			chancelFunc: chancelFunc,
+			activated:  true,
+			cancelFunc: cancelFunc,
 		}
 		isuDetail = isuDetailInfomation[state.IsuUUID]
 
@@ -167,7 +169,7 @@ func postDeactivate(c echo.Context) error {
 	if !(ok && v.activated) {
 		return echo.NewHTTPError(http.StatusNotFound)
 	}
-	v.chancelFunc()
+	v.cancelFunc()
 	v.activated = false
 
 	return c.NoContent(http.StatusNoContent)

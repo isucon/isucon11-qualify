@@ -1,4 +1,4 @@
-module github.com/isucon/isucon11-qualify/jiaapi_mock
+module github.com/isucon/isucon11-qualify/jiaapi-mock
 
 go 1.16
 

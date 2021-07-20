@@ -1,7 +1,7 @@
 import { createContext, Dispatch, useContext, useReducer } from 'react'
 import { User } from '../lib/apis'
 
-interface State {
+export interface State {
   me: User | null
 }
 type Action = { type: 'login'; user: User } | { type: 'logout' }

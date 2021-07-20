@@ -97,7 +97,7 @@ const usePaging = (
     const start_time = times[0] ? new Date(times[0] + 'Z') : new Date(0)
     const cursor_end_time = times[1]
       ? new Date(times[1] + 'Z')
-      : new Date(conditions[DEFAULT_CONDITION_LIMIT - 1].timestamp)
+      : new Date(conditions[DEFAULT_CONDITION_LIMIT - 1].timestamp * 1000)
 
     return {
       cursor_end_time: Math.floor(cursor_end_time.getTime() / 1000),
