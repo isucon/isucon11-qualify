@@ -25,12 +25,12 @@ import (
 	"github.com/isucon/isucandar/agent"
 	"github.com/isucon/isucandar/failure"
 	"github.com/isucon/isucon11-qualify/bench/logger"
-	"github.com/isucon/isucon11-qualify/bench/service"
 	"github.com/isucon/isucon11-qualify/bench/random"
+	"github.com/isucon/isucon11-qualify/bench/service"
 )
 
 const (
-	searchLimit    = 20
+	homeIsuLimit   = 4
 	conditionLimit = 20
 	isuListLimit   = 200 // TODO 修正が必要なら変更
 )
