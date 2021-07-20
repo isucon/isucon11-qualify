@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/isucon/isucandar/agent"
@@ -283,9 +284,19 @@ func getMeErrorAction(ctx context.Context, a *agent.Agent) (string, *http.Respon
 	return resBody, res, nil
 }
 
-func getIsuAction(ctx context.Context, a *agent.Agent) ([]*service.Isu, *http.Response, error) {
+func getIsuAction(ctx context.Context, a *agent.Agent, limit int) ([]*service.Isu, *http.Response, error) {
+	targetURL, err := url.Parse("/api/isu")
+	if err != nil {
+		logger.AdminLogger.Panicln(err)
+	}
+	q := url.Values{}
+	if limit != 0 {
+		q.Set("limit", strconv.Itoa(limit))
+	}
+	targetURL.RawQuery = q.Encode()
+
 	var isuList []*service.Isu
-	res, err := reqJSONResJSON(ctx, a, http.MethodGet, "/api/isu", nil, &isuList, []int{http.StatusOK})
+	res, err := reqJSONResJSON(ctx, a, http.MethodGet, targetURL.String(), nil, &isuList, []int{http.StatusOK})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -617,7 +628,7 @@ func browserGetHomeAction(ctx context.Context, a *agent.Agent,
 
 	errors := []error{}
 	// TODO: ここ以下は多分並列
-	isuList, hres, err := getIsuAction(ctx, a)
+	isuList, hres, err := getIsuAction(ctx, a, homeIsuLimit)
 	if err != nil {
 		errors = append(errors, err)
 	}
