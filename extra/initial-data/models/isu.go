@@ -8,7 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/isucon/isucon11-qualify/extra/initial-data/random"
+	"github.com/isucon/isucon11-qualify/bench/random"
 )
 
 type Isu struct {
@@ -70,7 +70,7 @@ func (i Isu) Create() error {
 		i.JIAIsuUUID, i.Name, i.Image, i.Character, i.User.JIAUserID,
 		i.IsDeleted, i.CreatedAt, i.UpdatedAt,
 	); err != nil {
-		return fmt.Errorf("insert user: %w", err)
+		return fmt.Errorf("insert isu: %w", err)
 	}
 	return nil
 }
