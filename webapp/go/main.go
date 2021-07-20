@@ -1328,6 +1328,9 @@ func postIsuCondition(c echo.Context) error {
 	if err != nil {
 		c.Logger().Errorf("bad request body: %v", err)
 		return c.String(http.StatusBadRequest, "bad request body")
+	} else if len(req) == 0 {
+		c.Logger().Errorf("bad request body: array length is 0")
+		return c.String(http.StatusBadRequest, "bad request body")
 	}
 
 	// トランザクション開始
