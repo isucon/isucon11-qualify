@@ -269,12 +269,6 @@ func (s *Scenario) prepareCheckGetIsuList(ctx context.Context, loginUser *model.
 	sIsu2 := m2s(isu2)
 	sIsu3 := m2s(isu3)
 	expected := []*service.Isu{&sIsu3, &sIsu2}
-	for _, ex := range expected {
-		logger.AdminLogger.Printf("expected: %v", *ex)
-	}
-	for _, act := range isuList {
-		logger.AdminLogger.Printf("actual: %v", *act)
-	}
 	if !reflect.DeepEqual(isuList, expected) {
 		step.AddError(failure.NewError(ErrInvalidResponse, fmt.Errorf("ユーザの所持する椅子や順番が一致しません。")))
 		return
@@ -296,12 +290,6 @@ func (s *Scenario) prepareCheckGetIsuList(ctx context.Context, loginUser *model.
 	}
 	//expected
 	expected = []*service.Isu{&sIsu2, &sIsu1}
-	for _, ex := range expected {
-		logger.AdminLogger.Printf("expected: %v", *ex)
-	}
-	for _, act := range isuList {
-		logger.AdminLogger.Printf("actual: %v", *act)
-	}
 	if !reflect.DeepEqual(isuList, expected) {
 		step.AddError(failure.NewError(ErrInvalidResponse, fmt.Errorf("ユーザの所持する椅子や順番が一致しません。")))
 		return
