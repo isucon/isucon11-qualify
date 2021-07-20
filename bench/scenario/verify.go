@@ -243,7 +243,6 @@ func joinURL(base *url.URL, target string) string {
 	return u
 }
 
-// TODO: vendor.****.jsがlink rel="modulepreload"なのでProcessHTMLの現在の実装では取得できない（isucandarにプルリク出す）
 // TODO: vendor.****.jsで取得処理が記述されているlogo_white, logo_orangeも取得できてない
 func verifyResources(page string, res *http.Response, resources agent.Resources) []error {
 	base := res.Request.URL.String()
@@ -253,7 +252,7 @@ func verifyResources(page string, res *http.Response, resources agent.Resources)
 	indexJs := "/index.9f824aae.js"
 	//logoOrange := "/logo_orange.974bf3e6.svg"
 	//logoWhite := "/logo_white.98008342.svg"
-	//vendorJs := "/vendor.b2764262.js"
+	vendorJs := "/vendor.b2764262.js"
 	var checks []error
 	switch page {
 	case "/signup":
@@ -262,7 +261,7 @@ func verifyResources(page string, res *http.Response, resources agent.Resources)
 			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexCss)], indexCss),
 			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexJs)], indexJs),
 			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+logoWhite)], logoWhite),
-			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+vendorJs)], vendorJs),
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+vendorJs)], vendorJs),
 		}
 	case "/condition":
 		checks = []error{
@@ -270,7 +269,7 @@ func verifyResources(page string, res *http.Response, resources agent.Resources)
 			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexCss)], indexCss),
 			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexJs)], indexJs),
 			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+logoWhite)], logoWhite),
-			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+vendorJs)], vendorJs),
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+vendorJs)], vendorJs),
 		}
 	case "/isu":
 		checks = []error{
@@ -278,7 +277,7 @@ func verifyResources(page string, res *http.Response, resources agent.Resources)
 			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexCss)], indexCss),
 			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexJs)], indexJs),
 			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+logoWhite)], logoWhite),
-			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+vendorJs)], vendorJs),
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+vendorJs)], vendorJs),
 		}
 	case "/register":
 		checks = []error{
@@ -286,7 +285,7 @@ func verifyResources(page string, res *http.Response, resources agent.Resources)
 			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexCss)], indexCss),
 			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexJs)], indexJs),
 			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+logoWhite)], logoWhite),
-			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+vendorJs)], vendorJs),
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+vendorJs)], vendorJs),
 		}
 	case "/login":
 		checks = []error{
@@ -295,7 +294,7 @@ func verifyResources(page string, res *http.Response, resources agent.Resources)
 			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexJs)], indexJs),
 			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+logoOrange)], logoOrange),
 			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+logoWhite)], logoWhite),
-			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+vendorJs)], vendorJs),
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+vendorJs)], vendorJs),
 		}
 	}
 	errs := []error{}
