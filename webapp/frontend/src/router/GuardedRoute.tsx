@@ -1,3 +1,4 @@
+import axios from 'axios'
 import { useEffect } from 'react'
 import { Route, Redirect } from 'react-router-dom'
 import NowLoading from '../components/UI/NowLoading'
@@ -8,7 +9,10 @@ const GuardedRoute = <T extends { path: string; children?: JSX.Element }>(
 ) => {
   const { isTryLogin, login, state } = useLogin()
   useEffect(() => {
-    login()
+    const cancelToken = axios.CancelToken
+    const source = cancelToken.source()
+    login(source.token)
+    return () => source.cancel()
   }, [login])
 
   if (isTryLogin) {
