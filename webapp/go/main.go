@@ -290,7 +290,7 @@ func main() {
 	}
 
 	// Start server
-	serverPort := fmt.Sprintf(":%v", getEnv("SERVER_BIND_PORT", "3000"))
+	serverPort := fmt.Sprintf(":%v", getEnv("SERVER_APP_PORT", "3000"))
 	e.Logger.Fatal(e.Start(serverPort))
 }
 
