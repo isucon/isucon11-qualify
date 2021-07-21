@@ -1,30 +1,36 @@
-import { useCallback } from 'react'
-import { useDispatchContext, State } from '../context/state'
+import { useCallback, useState } from 'react'
+import { useDispatchContext, useStateContext } from '../context/state'
 import apis from './apis'
 
-const useLogin = (state: State) => {
+const useLogin = () => {
+  const state = useStateContext()
   const dispatch = useDispatchContext()
+  const [isTryLogin, setTryLogin] = useState(true)
 
   const login = useCallback(async () => {
-    if (!state.me) {
-      try {
-        const me = await apis.getUserMe()
-        dispatch({ type: 'login', user: me })
-      } catch {
-        const url = new URL(location.href)
-        const jwt = url.searchParams.get('jwt')
-        if (jwt) {
-          await apis.postAuth(jwt)
+    setTryLogin(true)
+    try {
+      if (!state.me) {
+        try {
           const me = await apis.getUserMe()
           dispatch({ type: 'login', user: me })
-        } else {
-          throw 'has no jwt'
+        } catch {
+          // cookieがついてないとき
+          const url = new URL(location.href)
+          const jwt = url.searchParams.get('jwt')
+          if (jwt) {
+            await apis.postAuth(jwt)
+            const me = await apis.getUserMe()
+            dispatch({ type: 'login', user: me })
+          }
         }
       }
+    } finally {
+      setTryLogin(false)
     }
-  }, [state, dispatch])
+  }, [state.me, dispatch])
 
-  return login
+  return { isTryLogin, login, state }
 }
 
 export default useLogin
