@@ -30,11 +30,13 @@ const useLogin = () => {
           // cookieがついてないとき
           const url = new URL(location.href)
           const jwt = url.searchParams.get('jwt')
-          if (jwt) {
-            await apis.postAuth(jwt, { cancelToken })
-            const me = await apis.getUserMe({ cancelToken })
-            setMe(me)
+          if (!jwt) {
+            setTryLogin(false)
+            return
           }
+          await apis.postAuth(jwt, { cancelToken })
+          const me = await apis.getUserMe({ cancelToken })
+          setMe(me)
         }
       } catch {
         setTryLogin(false)
