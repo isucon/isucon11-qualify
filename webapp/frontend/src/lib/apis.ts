@@ -1,89 +1,123 @@
-import axios from 'axios'
+import axios, { AxiosRequestConfig } from 'axios'
 
 class Apis {
-  async postAuth(jwt: string) {
+  async postAuth(jwt: string, axiosConfig?: AxiosRequestConfig) {
     await axios.post<void>(
       '/api/auth',
       {},
       {
-        headers: { Authorization: `Bearer ${jwt}` }
+        headers: { Authorization: `Bearer ${jwt}` },
+        ...axiosConfig
       }
     )
   }
 
-  async postSignout() {
-    await axios.post<void>('/api/signout')
+  async postSignout(axiosConfig?: AxiosRequestConfig) {
+    await axios.post<void>('/api/signout', axiosConfig)
   }
 
-  async getUserMe() {
-    const { data } = await axios.get<User>('/api/user/me')
+  async getUserMe(axiosConfig?: AxiosRequestConfig) {
+    const { data } = await axios.get<User>('/api/user/me', axiosConfig)
     return data
   }
 
-  async getCatalog(catalogId: string) {
-    const { data } = await axios.get<Catalog>(`/api/catalog/${catalogId}`)
-    return data
-  }
-
-  async getIsus(options?: { limit: number }) {
-    const { data } = await axios.get<Isu[]>(`/api/isu`, { params: options })
-    return data
-  }
-
-  async postIsu(isu: { jia_isu_uuid: string; isu_name: string }) {
-    await axios.post<void>(`/api/isu`, isu)
-  }
-
-  async getIsuSearch(option?: IsuSearchRequest) {
-    const { data } = await axios.get<Isu[]>(`/api/isu/search`, {
-      params: option
-    })
-    return data
-  }
-
-  async getIsu(jiaIsuUuid: string) {
-    const { data } = await axios.get<Isu>(`/api/isu/${jiaIsuUuid}`)
-    return data
-  }
-
-  async putIsu(jiaIsuUuid: string, putIsuRequest: PutIsuRequest) {
-    const { data } = await axios.put<Isu>(
-      `/api/isu/${jiaIsuUuid}`,
-      putIsuRequest
+  async getCatalog(catalogId: string, axiosConfig?: AxiosRequestConfig) {
+    const { data } = await axios.get<Catalog>(
+      `/api/catalog/${catalogId}`,
+      axiosConfig
     )
     return data
   }
 
-  async deleteIsu(jiaIsuUuid: string) {
-    await axios.delete<Isu>(`/api/isu/${jiaIsuUuid}`)
+  async getIsus(options?: { limit: number }, axiosConfig?: AxiosRequestConfig) {
+    const { data } = await axios.get<Isu[]>(`/api/isu`, {
+      params: options,
+      ...axiosConfig
+    })
+    return data
   }
 
-  async putIsuIcon(jiaIsuUuid: string, file: File) {
+  async postIsu(
+    isu: { jia_isu_uuid: string; isu_name: string },
+    axiosConfig?: AxiosRequestConfig
+  ) {
+    await axios.post<void>(`/api/isu`, isu, axiosConfig)
+  }
+
+  async getIsuSearch(
+    option?: IsuSearchRequest,
+    axiosConfig?: AxiosRequestConfig
+  ) {
+    const { data } = await axios.get<Isu[]>(`/api/isu/search`, {
+      params: option,
+      ...axiosConfig
+    })
+    return data
+  }
+
+  async getIsu(jiaIsuUuid: string, axiosConfig?: AxiosRequestConfig) {
+    const { data } = await axios.get<Isu>(`/api/isu/${jiaIsuUuid}`, axiosConfig)
+    return data
+  }
+
+  async putIsu(
+    jiaIsuUuid: string,
+    putIsuRequest: PutIsuRequest,
+    axiosConfig?: AxiosRequestConfig
+  ) {
+    const { data } = await axios.put<Isu>(
+      `/api/isu/${jiaIsuUuid}`,
+      putIsuRequest,
+      axiosConfig
+    )
+    return data
+  }
+
+  async deleteIsu(jiaIsuUuid: string, axiosConfig?: AxiosRequestConfig) {
+    await axios.delete<Isu>(`/api/isu/${jiaIsuUuid}`, axiosConfig)
+  }
+
+  async putIsuIcon(
+    jiaIsuUuid: string,
+    file: File,
+    axiosConfig?: AxiosRequestConfig
+  ) {
     const data = new FormData()
     data.append('image', file, file.name)
     await axios.put<void>(`/api/isu/${jiaIsuUuid}/icon`, data, {
-      headers: { 'content-type': 'multipart/form-data' }
+      headers: { 'content-type': 'multipart/form-data' },
+      ...axiosConfig
     })
   }
 
-  async getIsuGraphs(jiaIsuUuid: string, params: GraphRequest) {
+  async getIsuGraphs(
+    jiaIsuUuid: string,
+    params: GraphRequest,
+    axiosConfig?: AxiosRequestConfig
+  ) {
     const { data } = await axios.get<Graph[]>(`/api/isu/${jiaIsuUuid}/graph`, {
-      params
+      params,
+      ...axiosConfig
     })
     return data
   }
 
-  async getConditions(req: ConditionRequest) {
+  async getConditions(req: ConditionRequest, axiosConfig?: AxiosRequestConfig) {
     const { data } = await axios.get<Condition[]>(`/api/condition`, {
-      params: req
+      params: req,
+      ...axiosConfig
     })
     return data
   }
 
-  async getIsuConditions(jiaIsuUuid: string, params: ConditionRequest) {
+  async getIsuConditions(
+    jiaIsuUuid: string,
+    params: ConditionRequest,
+    axiosConfig?: AxiosRequestConfig
+  ) {
     const { data } = await axios.get<Condition[]>(
       `/api/condition/${jiaIsuUuid}`,
-      { params }
+      { params, ...axiosConfig }
     )
     return data
   }
