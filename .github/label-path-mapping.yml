@@ -8,3 +8,11 @@ infrastructure:
   - provisioning/**/*
 documentation:
   - development/doc/**/*
+transplant:
+  - webapp/nodejs/**/*
+  - webapp/perl/**/*
+  - webapp/php/**/*
+  - webapp/python/**/*
+  - webapp/ruby/**/*
+  - webapp/rust/**/*
+
