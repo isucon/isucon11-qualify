@@ -4,8 +4,8 @@
   include: nginx.yml
   become_user: root
 
-- name: "roles/contestant/tasks/main: Include mysql.yml"
-  include: mysql.yml
+- name: "roles/contestant/tasks/main: Include mariadb.yml"
+  include: mariadb.yml
   become_user: root
 
 - name: "roles/contestant/tasks/main: Include isucondition.yml"
