@@ -259,15 +259,21 @@ func main() {
 
 	b.AddScenario(s)
 
-	wg := sync.WaitGroup{}
-	wg.Add(1)
+	var sendResultMutex sync.Mutex
 	b.Load(func(parent context.Context, step *isucandar.BenchmarkStep) error {
-		defer wg.Done()
 		if s.NoLoad {
 			return nil
 		}
+		sendResultMutex.Lock()
+		defer sendResultMutex.Unlock()
+
 		ctx, cancel := context.WithTimeout(parent, s.LoadTimeout)
 		defer cancel()
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+		}
 
 		for {
 			// 途中経過を3秒毎に送信
@@ -284,8 +290,8 @@ func main() {
 
 	result := b.Start(ctx)
 
-	wg.Wait()
-
+	sendResultMutex.Lock()
+	defer sendResultMutex.Unlock()
 	if !sendResult(s, result, true) && exitStatusOnFail {
 		os.Exit(1)
 	}
