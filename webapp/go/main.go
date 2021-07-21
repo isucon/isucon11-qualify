@@ -531,8 +531,8 @@ func getIsuList(c echo.Context) error {
 	if limitStr != "" {
 		limit, err = strconv.Atoi(limitStr)
 		if err != nil || limit <= 0 {
-			c.Logger().Errorf("invalid value: limit: (limit = %v) %v", limit, err)
-			return c.String(http.StatusBadRequest, "invalid value: limit")
+			c.Logger().Errorf("bad format: limit: limit = %v, %v", limit, err)
+			return c.String(http.StatusBadRequest, "bad format: limit")
 		}
 	}
 
