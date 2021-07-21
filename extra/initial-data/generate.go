@@ -29,24 +29,31 @@ func main() {
 			conditionDurationMinutes int
 			conditionNum             int
 		}{
+			// isucon ユーザは個人ユーザ相当
 			{
 				models.User{JIAUserID: "isucon", CreatedAt: random.Time()},
 				2,   // ISU の個数は 2
 				3,   // condition を 3 分おきに送信
 				480, // condition の総数は 24 時間分
 			},
+			// isucon1 ユーザは個人ユーザ相当
 			{
 				models.User{JIAUserID: "isucon1", CreatedAt: random.Time()},
 				2,   // ISU の個数は 2
 				3,   // condition を 3 分おきに送信
 				480, // condition の総数は 24 時間分
 			},
+			// isucon2 ユーザは企業ユーザ相当
 			{
 				models.User{JIAUserID: "isucon2", CreatedAt: random.Time()},
-				2,   // ISU の個数は 2
-				3,   // condition を 3 分おきに送信
-				480, // condition の総数は 24 時間分
+				50,  // ISU の個数は 50
+				5,   // condition を 5 分おきに送信
+				288, // condition の総数は 24 時間分
 			},
+			// isucon3 ユーザには isu を作成しない
+			// {
+			// 	models.User{JIAUserID: "isucon3", CreatedAt: random.Time()},
+			// },
 		}
 		for _, d := range data {
 			if err := d.user.Create(); err != nil {

@@ -1,14 +1,9 @@
 package random
 
 import (
-	"log"
 	"sync"
 
 	"github.com/docker/docker/pkg/namesgenerator"
-)
-
-const (
-	retry = 10
 )
 
 var (
@@ -22,13 +17,10 @@ func init() {
 
 func UserName() string {
 	var username string
-	for i := 0; i < retry; i++ { // 10 回連続で名前が被ったら exit 1 する
+	for { // bench内から呼び出す処理で log.Fatalf して欲しくないので、無限ループする
 		username = namesgenerator.GetRandomName(0)
 		if !hasAlreadyGenerated(username) {
 			break
-		}
-		if i+1 == retry {
-			log.Fatalf("username already exists (retry count: %d)", retry)
 		}
 	}
 	setGeneratedUser(username)
