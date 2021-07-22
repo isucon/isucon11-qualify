@@ -12,6 +12,7 @@ import (
 
 	"github.com/isucon/isucandar"
 	"github.com/isucon/isucandar/agent"
+	"github.com/isucon/isucandar/worker"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
 	"github.com/isucon/isucon11-qualify/bench/service"
@@ -280,9 +281,15 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 	for i := 0; i < isuCount; i++ {
 		isu := s.NewIsu(ctx, step, user, true)
 		if isu == nil {
-
-			//TODO: DELETE isuを叩く
-			//（ここ直さないと、正の得点が生めてしまうので絶対直す）
+			//deactivate
+			for _, isu := range user.IsuListOrderByCreatedAt {
+				res, err := deleteIsuAction(ctx, user.Agent, isu.JIAIsuUUID)
+				if err != nil {
+					step.AddError(err)
+				} else if !isu.IsDeactivated() {
+					step.AddError(errorInvalid(res, "deactivateが完了していません"))
+				}
+			}
 
 			//logger.AdminLogger.Println("Normal User fail: NewIsu(initialize)")
 			return nil //致命的でないエラー
@@ -445,11 +452,15 @@ func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.Benchmar
 	defer logger.AdminLogger.Println("Company User END")
 
 	//ユーザー作成
-	userAgent, err := s.NewAgent()
-	if err != nil {
-		logger.AdminLogger.Panicln(err)
+	userAgents := make([]*agent.Agent, 10)
+	for i := range userAgents {
+		var err error
+		userAgents[i], err = s.NewAgent()
+		if err != nil {
+			logger.AdminLogger.Panicln(err)
+		}
 	}
-	user := s.NewUser(ctx, step, userAgent, model.UserTypeCompany)
+	user := s.NewUser(ctx, step, userAgents[0], model.UserTypeCompany)
 	if user == nil {
 		logger.AdminLogger.Println("Company User fail: NewUser")
 		return //致命的でないエラー
@@ -463,13 +474,53 @@ func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.Benchmar
 	//椅子作成
 	//const isuCountMax = 1000
 	isuCount := rand.Intn(10) + 500
+	newIsuOK := true
 	for i := 0; i < isuCount; i++ {
 		isu := s.NewIsu(ctx, step, user, true)
 		if isu == nil {
-			logger.AdminLogger.Println("Company User fail: NewIsu(initialize)")
-			return //致命的でないエラー
+			newIsuOK = false
+			break
 		}
 	}
+	if !newIsuOK {
+		//並列にdeactivate
+		isuChan := make(chan *model.Isu, len(user.IsuListOrderByCreatedAt))
+		for _, isu := range user.IsuListOrderByCreatedAt {
+			isuChan <- isu
+		}
+		close(isuChan)
+		w, err := worker.NewWorker(func(ctx context.Context, index int) {
+			agent := userAgents[index]
+			_, errs := authAction(ctx, agent, user.UserID)
+			for _, err := range errs {
+				step.AddError(err)
+				return
+			}
+			for isu := range isuChan {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+				res, err := deleteIsuAction(ctx, agent, isu.JIAIsuUUID)
+				if err != nil {
+					step.AddError(err)
+				} else if !isu.IsDeactivated() {
+					step.AddError(errorInvalid(res, "deactivateが完了していません"))
+				}
+			}
+		}, worker.WithLoopCount(int32(len(userAgents))))
+		if err != nil {
+			logger.AdminLogger.Panicln(err)
+		}
+		w.Process(ctx)
+		//w.Wait()
+		//MEMO: ctx.Done()の場合は、プロセスが終了していない可能性がある。
+
+		logger.AdminLogger.Println("Company User fail: NewIsu(initialize)")
+		return //致命的でないエラー
+	}
+
 	step.AddScore(ScoreCompanyUserInitialize)
 
 	randEngine := rand.New(rand.NewSource(5498513))
