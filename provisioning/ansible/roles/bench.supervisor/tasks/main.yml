@@ -1,9 +1,10 @@
 ---
 
+# TODO: s/isucon10/isucon11/g
 - name: "roles/bench.supervisor/tasks/main: Clone isucon/isucon11-portal"
   become: no
   git:
-    repo: git@github.com:isucon/isucon11-portal
+    repo: git@github.com:isucon/isucon10-portal
     dest: /tmp/isucon11-portal
 
 - name: "roles/bench.supervisor/tasks/main: Build isuxportal-supervisor"
