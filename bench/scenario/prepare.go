@@ -171,7 +171,6 @@ func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.Benchma
 
 func (s *Scenario) prepareCheckPostSignout(ctx context.Context, step *isucandar.BenchmarkStep) {
 	// 正常にサインアウト実行
-	logger.AdminLogger.Printf("正常にサインアウト実行")
 	agt, err := s.NewAgent()
 	if err != nil {
 		step.AddError(err)
@@ -195,7 +194,6 @@ func (s *Scenario) prepareCheckPostSignout(ctx context.Context, step *isucandar.
 	}
 
 	// サインインしてない状態でサインアウト実行
-	logger.AdminLogger.Printf("未ログイン状態でサインアウト実行")
 	_, err = signoutActionWithoutAuth(ctx, agt)
 	if err != nil {
 		step.AddError(err)
