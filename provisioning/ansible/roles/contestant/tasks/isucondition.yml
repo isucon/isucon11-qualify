@@ -38,4 +38,3 @@
   become_user: isucon
   shell: |
     mysql -uisucon -pisucon -e 'CREATE DATABASE isucondition'
-    curl -f http://localhost/initialize -X POST -d '{"jia_service_url":"http://localhost:5000"}'
