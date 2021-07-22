@@ -283,6 +283,9 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 		if isu == nil {
 			//deactivate
 			for _, isu := range user.IsuListOrderByCreatedAt {
+				go func(isu *model.Isu) { isu.StreamsForScenario.StateChan <- model.IsuStateChangeDelete }(isu)
+			}
+			for _, isu := range user.IsuListOrderByCreatedAt {
 				res, err := deleteIsuAction(ctx, user.Agent, isu.JIAIsuUUID)
 				if err != nil {
 					step.AddError(err)
@@ -486,6 +489,7 @@ func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.Benchmar
 		//並列にdeactivate
 		isuChan := make(chan *model.Isu, len(user.IsuListOrderByCreatedAt))
 		for _, isu := range user.IsuListOrderByCreatedAt {
+			go func() { isu.StreamsForScenario.StateChan <- model.IsuStateChangeDelete }()
 			isuChan <- isu
 		}
 		close(isuChan)
