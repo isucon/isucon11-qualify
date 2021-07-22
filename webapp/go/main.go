@@ -437,8 +437,8 @@ func getIsuList(c echo.Context) error {
 	if limitStr != "" {
 		limit, err = strconv.Atoi(limitStr)
 		if err != nil || limit <= 0 {
-			c.Logger().Errorf("invalid value: limit: (limit = %v) %v", limit, err)
-			return c.String(http.StatusBadRequest, "invalid value: limit")
+			c.Logger().Errorf("bad format: limit: limit = %v, %v", limit, err)
+			return c.String(http.StatusBadRequest, "bad format: limit")
 		}
 	}
 
@@ -1233,6 +1233,9 @@ func postIsuCondition(c echo.Context) error {
 	err := c.Bind(&req)
 	if err != nil {
 		c.Logger().Errorf("bad request body: %v", err)
+		return c.String(http.StatusBadRequest, "bad request body")
+	} else if len(req) == 0 {
+		c.Logger().Errorf("bad request body: array length is 0")
 		return c.String(http.StatusBadRequest, "bad request body")
 	}
 

@@ -28,6 +28,7 @@
     - bench
   roles:
     - langs.go
+    - langs.rust
     - bench
     - bench.supervisor
 

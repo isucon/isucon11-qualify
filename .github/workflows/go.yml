@@ -5,13 +5,19 @@ on:
     paths:
       - bench/**/*
       - webapp/go/**/*
-      - development/**/*
+      - development/backend-go/**/*
+      - development/docker-compose-ci.yml
+      - development/docker-compose-dev.yml
+      - development/Makefile
       - .github/workflows/go.yml
   pull_request:
     paths:
       - bench/**/*
       - webapp/go/**/*
-      - development/**/*
+      - development/backend-go/**/*
+      - development/docker-compose-ci.yml
+      - development/docker-compose-dev.yml
+      - development/Makefile
       - .github/workflows/go.yml
 
 jobs:
