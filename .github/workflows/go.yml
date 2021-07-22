@@ -24,6 +24,7 @@ jobs:
   lint:
     name: Lint
     runs-on: self-hosted
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v2
       - name: golangci-lint
@@ -35,6 +36,7 @@ jobs:
   test:
     name: Integration Test
     runs-on: self-hosted
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: development
