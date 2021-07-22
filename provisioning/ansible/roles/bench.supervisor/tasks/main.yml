@@ -12,6 +12,8 @@
   become_user: isucon
   args:
     chdir: /tmp/isucon11-portal/supervisor
+  environment:
+    PATH: "/home/isucon/.cargo/bin:{{ ansible_env.PATH }}"
   shell: cargo build --release --bin isuxportal-supervisor
 
 - name: "roles/bench.supervisor/tasks/main: Deploy isuxportal-supervisor"
