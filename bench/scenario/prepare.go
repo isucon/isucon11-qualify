@@ -200,8 +200,12 @@ func (s *Scenario) prepareCheckPostSignout(ctx context.Context, step *isucandar.
 	}
 
 	// サインインしてない状態でサインアウト実行
-	_, err = signoutActionWithoutAuth(ctx, agt)
+	resBody, res, err := signoutErrorAction(ctx, agt)
 	if err != nil {
+		step.AddError(err)
+		return
+	}
+	if err := verifyNotSignedIn(res, resBody); err != nil {
 		step.AddError(err)
 		return
 	}

@@ -255,18 +255,15 @@ func signoutAction(ctx context.Context, a *agent.Agent) (*http.Response, error) 
 	if err != nil {
 		return nil, err
 	}
-	return res, err
+	return res, nil
 }
 
-func signoutActionWithoutAuth(ctx context.Context, a *agent.Agent) (*http.Response, error) {
+func signoutErrorAction(ctx context.Context, a *agent.Agent) (string, *http.Response, error) {
 	res, resBody, err := reqNoContentResError(ctx, a, http.MethodPost, "/api/signout", []int{http.StatusUnauthorized})
 	if err != nil {
-		return nil, err
+		return resBody, nil, err
 	}
-	if err := verifyNotSignedIn(res, resBody); err != nil {
-		return nil, err
-	}
-	return res, err
+	return resBody, res, nil
 }
 
 func getMeAction(ctx context.Context, a *agent.Agent) (*service.GetMeResponse, *http.Response, error) {
