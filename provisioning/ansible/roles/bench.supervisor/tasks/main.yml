@@ -6,6 +6,7 @@
     #repo: git@github.com:isucon/isucon11-portal  # TODO: isucon11-portal リポジトリに鍵を登録して pull できるようにする
     repo: https://github.com/isucon/isucon10-portal
     dest: /tmp/isucon11-portal
+    recursive: no
 
 - name: "roles/bench.supervisor/tasks/main: Build isuxportal-supervisor"
   become_user: isucon
