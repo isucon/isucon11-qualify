@@ -489,7 +489,7 @@ func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.Benchmar
 		//並列にdeactivate
 		isuChan := make(chan *model.Isu, len(user.IsuListOrderByCreatedAt))
 		for _, isu := range user.IsuListOrderByCreatedAt {
-			go func() { isu.StreamsForScenario.StateChan <- model.IsuStateChangeDelete }()
+			go func(isu *model.Isu) { isu.StreamsForScenario.StateChan <- model.IsuStateChangeDelete }(isu)
 			isuChan <- isu
 		}
 		close(isuChan)
