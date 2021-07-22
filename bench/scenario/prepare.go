@@ -74,11 +74,17 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 	if err != nil {
 		return err
 	}
+
 	if err := s.prepareCheck(ctx, step); err != nil {
 		return failure.NewError(ErrCritical, err)
 	}
+	errors := step.Result().Errors
+	hasErrors := func() bool {
+		errors.Wait()
+		return len(errors.All()) > 0
+	}
 	// Prepare step でのエラーはすべて Critical の扱い
-	if len(step.Result().Errors.All()) > 0 {
+	if hasErrors() {
 		//return ErrScenarioCancel
 		return ErrCritical
 	}

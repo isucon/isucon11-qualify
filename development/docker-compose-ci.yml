@@ -21,7 +21,7 @@ services:
       - mysql-backend
 
   mysql-backend:
-    image: mariadb:10.6.2-focal
+    image: mariadb:10.3.29-focal
     restart: always
     environment:
       MYSQL_DATABASE: isucondition
