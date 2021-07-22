@@ -32,8 +32,11 @@ type posterState struct {
 }
 
 //POST /api/isu/{jia_isu_id}/conditionをたたく Goroutine
-func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseURL string, jiaIsuUUID string, scenarioChan *model.StreamsForPoster) {
-	defer func() { scenarioChan.ActiveChan <- false }() //deactivate 容量1で、ここでしか使わないのでブロックしない
+func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseURL string, jiaIsuUUID string, scenarioChan *model.StreamsForPoster, closeWait chan<- struct{}) {
+	defer func() {
+		close(closeWait)
+		scenarioChan.ActiveChan <- false //deactivate 容量1で、ここでしか使わないのでブロックしない
+	}()
 
 	userTimer, userTimerCancel := context.WithDeadline(ctx, s.realTimeLoadFinishedAt.Add(-agent.DefaultRequestTimeout-1*time.Second))
 	defer userTimerCancel()
