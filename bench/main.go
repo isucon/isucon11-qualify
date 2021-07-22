@@ -290,6 +290,12 @@ func main() {
 
 	result := b.Start(ctx)
 
+	//sendResult(,,ture)が呼ばれた後、sendResult(,,false)が呼ばれない説明
+	//prepareで失敗した場合 => b.Loadで登録した関数(途中経過送信関数)は呼ばれない
+	//loadに入った場合 => b.Startが終了しsendResult(,,ture)が呼ばれるのは、Loadが終了した後 or contextが終了した後
+	//    ・contextの終了の場合：途中経過送信関数が先にsendResultMutexを取って先に終了している or
+	//                           途中経過送信関数が後の場合はcontextチェックで終了するのでsendResult(,,false)は実行されない
+	//    ・contextの終了せず、Loadの終了の場合：b.Loadが先に終了しているのでsendResult(,,false)は実行されない
 	sendResultMutex.Lock()
 	defer sendResultMutex.Unlock()
 	if !sendResult(s, result, true) && exitStatusOnFail {
