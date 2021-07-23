@@ -343,33 +343,6 @@ func getIsuIdErrorAction(ctx context.Context, a *agent.Agent, id string) (string
 	return text, res, nil
 }
 
-// func putIsuAction(ctx context.Context, a *agent.Agent, id string, req service.PutIsuRequest) (*service.Isu, *http.Response, error) {
-// 	isu := &service.Isu{}
-// 	body, err := json.Marshal(req)
-// 	if err != nil {
-// 		logger.AdminLogger.Panic(err)
-// 	}
-// 	reqUrl := fmt.Sprintf("/api/isu/%s", id)
-// 	res, err := reqJSONResJSON(ctx, a, http.MethodPut, reqUrl, bytes.NewReader(body), &isu, []int{http.StatusOK})
-// 	if err != nil {
-// 		return nil, nil, err
-// 	}
-// 	return isu, res, nil
-// }
-
-// func putIsuErrorAction(ctx context.Context, a *agent.Agent, id string, req service.PutIsuRequest) (string, *http.Response, error) {
-// 	body, err := json.Marshal(req)
-// 	if err != nil {
-// 		logger.AdminLogger.Panic(err)
-// 	}
-// 	reqUrl := fmt.Sprintf("/api/isu/%s", id)
-// 	res, text, err := reqJSONResError(ctx, a, http.MethodPut, reqUrl, bytes.NewReader(body), []int{http.StatusUnauthorized, http.StatusNotFound, http.StatusBadRequest})
-// 	if err != nil {
-// 		return "", nil, err
-// 	}
-// 	return text, res, nil
-// }
-
 func deleteIsuAction(ctx context.Context, a *agent.Agent, id string) (*http.Response, error) {
 	reqUrl := fmt.Sprintf("/api/isu/%s", id)
 	res, err := reqNoContentResNoContent(ctx, a, http.MethodDelete, reqUrl, []int{http.StatusNoContent})
