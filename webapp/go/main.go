@@ -64,40 +64,18 @@ type Config struct {
 }
 
 type Isu struct {
-	JIAIsuUUID   string    `db:"jia_isu_uuid" json:"jia_isu_uuid"`
-	Name         string    `db:"name" json:"name"`
-	Image        []byte    `db:"image" json:"-"`
-	JIACatalogID string    `db:"jia_catalog_id" json:"jia_catalog_id"`
-	Character    string    `db:"character" json:"character"`
-	JIAUserID    string    `db:"jia_user_id" json:"-"`
-	IsDeleted    bool      `db:"is_deleted" json:"-"`
-	CreatedAt    time.Time `db:"created_at" json:"-"`
-	UpdatedAt    time.Time `db:"updated_at" json:"-"`
+	JIAIsuUUID string    `db:"jia_isu_uuid" json:"jia_isu_uuid"`
+	Name       string    `db:"name" json:"name"`
+	Image      []byte    `db:"image" json:"-"`
+	Character  string    `db:"character" json:"character"`
+	JIAUserID  string    `db:"jia_user_id" json:"-"`
+	IsDeleted  bool      `db:"is_deleted" json:"-"`
+	CreatedAt  time.Time `db:"created_at" json:"-"`
+	UpdatedAt  time.Time `db:"updated_at" json:"-"`
 }
 
 type IsuFromJIA struct {
-	JIACatalogID string `json:"catalog_id"`
-	Character    string `json:"character"`
-}
-
-type CatalogFromJIA struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	LimitWeight int    `json:"limit_weight"`
-	Weight      int    `json:"weight"`
-	Size        string `json:"size"`
-	Maker       string `json:"maker"`
-	Features    string `json:"features"`
-}
-
-type Catalog struct {
-	JIACatalogID string `json:"jia_catalog_id"`
-	Name         string `json:"name"`
-	LimitWeight  int    `json:"limit_weight"`
-	Weight       int    `json:"weight"`
-	Size         string `json:"size"`
-	Maker        string `json:"maker"`
-	Tags         string `json:"tags"`
+	Character string `json:"character"`
 }
 
 type IsuCondition struct {
@@ -239,7 +217,6 @@ func main() {
 	e.POST("/api/auth", postAuthentication)
 	e.POST("/api/signout", postSignout)
 	e.GET("/api/user/me", getMe)
-	e.GET("/api/catalog/:jia_catalog_id", getCatalog)
 	e.GET("/api/isu", getIsuList)
 	e.POST("/api/isu", postIsu)
 	e.GET("/api/isu/:jia_isu_uuid", getIsu)
@@ -442,77 +419,6 @@ func getMe(c echo.Context) error {
 	return c.JSON(http.StatusOK, res)
 }
 
-// GET /api/catalog/{jia_catalog_id}
-// カタログ情報を取得
-func getCatalog(c echo.Context) error {
-	// ログインチェック
-	_, err := getUserIDFromSession(c.Request())
-	if err != nil {
-		c.Logger().Errorf("you are not signed in: %v", err)
-		return c.String(http.StatusUnauthorized, "you are not signed in")
-	}
-
-	jiaCatalogID := c.Param("jia_catalog_id")
-	if jiaCatalogID == "" {
-		c.Logger().Errorf("jia_catalog_id is missing")
-		return c.String(http.StatusBadRequest, "jia_catalog_id is missing")
-	}
-
-	// 日本ISU協会に問い合わせる(http request)
-	catalogFromJIA, statusCode, err := fetchCatalogFromJIA(jiaCatalogID)
-	if err != nil {
-		c.Logger().Errorf("failed to get catalog from JIA: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	if statusCode == http.StatusNotFound {
-		c.Logger().Errorf("invalid jia_catalog_id")
-		return c.String(http.StatusNotFound, "invalid jia_catalog_id")
-	}
-
-	catalog, err := castCatalogFromJIA(catalogFromJIA)
-	if err != nil {
-		c.Logger().Errorf("failed to cast catalog: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	return c.JSON(http.StatusOK, catalog)
-}
-
-// 日本ISU協会にカタログ情報を問い合わせる
-// 日本ISU協会のAPIについては資料を参照
-func fetchCatalogFromJIA(catalogID string) (*CatalogFromJIA, int, error) {
-	targetURLStr := getJIAServiceURL() + "/api/catalog/" + catalogID
-	res, err := http.Get(targetURLStr)
-	if err != nil {
-		return nil, http.StatusInternalServerError, err
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode != http.StatusOK {
-		return nil, res.StatusCode, nil
-	}
-
-	catalog := &CatalogFromJIA{}
-	err = json.NewDecoder(res.Body).Decode(&catalog)
-	if err != nil {
-		return nil, http.StatusOK, err
-	}
-	return catalog, http.StatusOK, nil
-}
-
-//CatalogFromJIAからCatalogへのキャスト
-func castCatalogFromJIA(catalogFromJIA *CatalogFromJIA) (*Catalog, error) {
-	//TODO: バリデーション
-	catalog := &Catalog{}
-	catalog.JIACatalogID = catalogFromJIA.ID
-	catalog.Name = catalogFromJIA.Name
-	catalog.LimitWeight = catalogFromJIA.LimitWeight
-	catalog.Weight = catalogFromJIA.Weight
-	catalog.Size = catalogFromJIA.Size
-	catalog.Maker = catalogFromJIA.Maker
-	catalog.Tags = catalogFromJIA.Features
-	return catalog, nil
-}
-
 func getIsuList(c echo.Context) error {
 	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
@@ -653,8 +559,8 @@ func postIsu(c echo.Context) error {
 
 	// 新しいisuのデータをinsert
 	_, err = db.Exec("INSERT INTO `isu`"+
-		"	(`jia_isu_uuid`, `name`, `image`, `character`, `jia_catalog_id`, `jia_user_id`) VALUES (?, ?, ?, ?, ?, ?)",
-		jiaIsuUUID, isuName, image, isuFromJIA.Character, isuFromJIA.JIACatalogID, jiaUserID)
+		"	(`jia_isu_uuid`, `name`, `image`, `character`, `jia_user_id`) VALUES (?, ?, ?, ?, ?, ?)",
+		jiaIsuUUID, isuName, image, isuFromJIA.Character, jiaUserID)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
