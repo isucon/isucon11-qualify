@@ -962,7 +962,7 @@ func getAllIsuConditions(c echo.Context) error {
 		conditionsTmp, err := getIsuConditionsFromDB(isu.JIAIsuUUID, cursorEndTime.Add(1*time.Second),
 			conditionLevel, startTime, limit+1, isu.Name)
 		if err != nil {
-			c.Logger().Errorf("failed to http request: %v", err)
+			c.Logger().Errorf("db error: %v", err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
 
