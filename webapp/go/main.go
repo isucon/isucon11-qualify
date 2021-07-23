@@ -149,11 +149,6 @@ type GetMeResponse struct {
 	JIAUserID string `json:"jia_user_id"`
 }
 
-type PostIsuRequest struct {
-	JIAIsuUUID string `json:"jia_isu_uuid"`
-	IsuName    string `json:"isu_name"`
-}
-
 type PutIsuRequest struct {
 	Name string `json:"name"`
 }
@@ -251,7 +246,6 @@ func main() {
 	e.PUT("/api/isu/:jia_isu_uuid", putIsu)
 	e.DELETE("/api/isu/:jia_isu_uuid", deleteIsu)
 	e.GET("/api/isu/:jia_isu_uuid/icon", getIsuIcon)
-	e.PUT("/api/isu/:jia_isu_uuid/icon", putIsuIcon)
 	e.GET("/api/isu/:jia_isu_uuid/graph", getIsuGraph)
 	e.GET("/api/condition", getAllIsuConditions)
 	e.GET("/api/condition/:jia_isu_uuid", getIsuConditions)
@@ -558,15 +552,19 @@ func postIsu(c echo.Context) error {
 		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 
-	var req PostIsuRequest
-	err = c.Bind(&req)
-	if err != nil {
-		c.Logger().Errorf("bad request body: %v", err)
-		return c.String(http.StatusBadRequest, "bad request body")
-	}
+	useDefaultImage := false
 
-	jiaIsuUUID := req.JIAIsuUUID
-	isuName := req.IsuName
+	jiaIsuUUID := c.FormValue("jia_isu_uuid")
+	isuName := c.FormValue("isu_name")
+	fh, err := c.FormFile("image")
+	if err != nil {
+		if errors.Is(err, http.ErrMissingFile) {
+			useDefaultImage = true
+		} else {
+			c.Logger().Errorf("failed to get icon: %v", err)
+			return c.String(http.StatusBadRequest, "failed to get icon")
+		}
+	}
 
 	// 既に登録されたisuでないか確認
 	var count int
@@ -629,11 +627,28 @@ func postIsu(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	// デフォルト画像を準備
-	image, err := ioutil.ReadFile(defaultIconFilePath)
-	if err != nil {
-		c.Logger().Errorf("failed to read default icon: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
+	var image []byte
+
+	if useDefaultImage {
+		// デフォルト画像を準備
+		image, err = ioutil.ReadFile(defaultIconFilePath)
+		if err != nil {
+			c.Logger().Errorf("failed to read default icon: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+	} else {
+		file, err := fh.Open()
+		if err != nil {
+			c.Logger().Errorf("failed to open fh: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+		defer file.Close()
+
+		image, err = ioutil.ReadAll(file)
+		if err != nil {
+			c.Logger().Errorf("failed to read file: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
 	}
 
 	// 新しいisuのデータをinsert
@@ -854,81 +869,7 @@ func getIsuIcon(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	// TODO: putIsuIconでjpgも受け付けるなら対応が必要
-	return c.Blob(http.StatusOK, "image/png", image)
-}
-
-//  PUT /api/isu/{jia_isu_uuid}/icon
-// ISUのアイコンを登録する
-// multipart/form-data
-// MEMO: DB 内の image は longblob
-func putIsuIcon(c echo.Context) error {
-	jiaUserID, err := getUserIDFromSession(c.Request())
-	if err != nil {
-		c.Logger().Errorf("you are not signed in: %v", err)
-		return c.String(http.StatusUnauthorized, "you are not signed in")
-	}
-
-	jiaIsuUUID := c.Param("jia_isu_uuid")
-	fh, err := c.FormFile("image")
-	if err != nil {
-		c.Logger().Errorf("jia_isu_uuid is invalid: %v", err)
-		return c.String(http.StatusBadRequest, "jia_isu_uuid is invalid")
-	}
-
-	contentType := fh.Header.Get("Content-Type")
-	// TODO: jpeg画像も受け付けるなら対応必要
-	if contentType != "image/png" {
-		c.Logger().Errorf("invalid image format: %v", contentType)
-		return c.String(http.StatusBadRequest, "invalid image format")
-	}
-
-	file, err := fh.Open()
-	if err != nil {
-		c.Logger().Errorf("failed to open fh: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	defer file.Close()
-
-	image, err := ioutil.ReadAll(file)
-	if err != nil {
-		c.Logger().Errorf("failed to read file: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	tx, err := db.Beginx()
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	defer tx.Rollback()
-
-	var count int
-	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false FOR UPDATE",
-		jiaUserID, jiaIsuUUID)
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	if count == 0 {
-		c.Logger().Errorf("isu not found")
-		return c.String(http.StatusNotFound, "isu not found")
-	}
-
-	_, err = tx.Exec("UPDATE `isu` SET `image` = ? WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
-		image, jiaUserID, jiaIsuUUID)
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	return c.NoContent(http.StatusOK)
+	return c.Blob(http.StatusOK, "", image)
 }
 
 //  GET /api/isu/{jia_isu_uuid}/graph
