@@ -951,12 +951,12 @@ func getAllIsuConditions(c echo.Context) error {
 		return c.JSON(http.StatusOK, isuList)
 	}
 
-	// ユーザの所持椅子毎に /api/condition/{jia_isu_uuid} を叩く
+	// ユーザの所持椅子毎に DB から引く
 	conditionsResponse := []*GetIsuConditionResponse{}
 	for _, isu := range isuList {
 		//cursorのjia_isu_uuidで決まる部分は、とりあえず全部取得しておく
 		//  cursorEndTime >= timestampを取りたいので、
-		//  cursorEndTime + 1sec > timestampとしてリクエストを送る
+		//  cursorEndTime + 1sec > timestampとしてクエリを送る
 		//この一要素はフィルターにかかるかどうか分からないので、limitも+1しておく
 
 		conditionsTmp, err := getIsuConditionsFromDB(isu.JIAIsuUUID, cursorEndTime.Add(1*time.Second),
