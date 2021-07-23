@@ -286,7 +286,7 @@ func getMeErrorAction(ctx context.Context, a *agent.Agent) (string, *http.Respon
 
 func getIsuAction(ctx context.Context, a *agent.Agent, query url.Values) ([]*service.Isu, *http.Response, error) {
 	var isuList []*service.Isu
-	rpath := getIsuRequestParams(query)
+	rpath := getPathWithParams("/api/isu", query)
 	res, err := reqJSONResJSON(ctx, a, http.MethodGet, rpath, nil, &isuList, []int{http.StatusOK})
 
 	if err != nil {
@@ -296,7 +296,7 @@ func getIsuAction(ctx context.Context, a *agent.Agent, query url.Values) ([]*ser
 }
 
 func getIsuErrorAction(ctx context.Context, a *agent.Agent, query url.Values) (string, *http.Response, error) {
-	rpath := getIsuRequestParams(query)
+	rpath := getPathWithParams("/api/isu", query)
 	res, resBody, err := reqJSONResError(ctx, a, http.MethodGet, rpath, nil, []int{http.StatusUnauthorized, http.StatusBadRequest})
 	if err != nil {
 		return "", nil, err
@@ -304,8 +304,8 @@ func getIsuErrorAction(ctx context.Context, a *agent.Agent, query url.Values) (s
 	return resBody, res, nil
 }
 
-func getIsuRequestParams(query url.Values) string {
-	path, err := url.Parse("/api/isu")
+func getPathWithParams(pathStr string, query url.Values) string {
+	path, err := url.Parse(pathStr)
 	if err != nil {
 		logger.AdminLogger.Panicln(err)
 	}
@@ -331,7 +331,7 @@ func postIsuErrorAction(ctx context.Context, a *agent.Agent, req interface{}) (s
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 	}
-	res, text, err := reqJSONResError(ctx, a, http.MethodPost, "/api/isu", bytes.NewReader(body), []int{http.StatusBadRequest, http.StatusConflict, http.StatusUnauthorized, http.StatusNotFound})
+	res, text, err := reqJSONResError(ctx, a, http.MethodPost, "/api/isu", bytes.NewReader(body), []int{http.StatusBadRequest, http.StatusConflict, http.StatusUnauthorized, http.StatusNotFound, http.StatusForbidden})
 	if err != nil {
 		return "", nil, err
 	}
@@ -548,9 +548,10 @@ func getIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req s
 	return conditions, res, nil
 }
 
-func getIsuConditionErrorAction(ctx context.Context, a *agent.Agent, id string, req service.GetIsuConditionRequest) (string, *http.Response, error) {
-	reqUrl := getIsuConditionRequestParams(fmt.Sprintf("/api/condition/%s", id), req)
-	res, text, err := reqNoContentResError(ctx, a, http.MethodGet, reqUrl, []int{http.StatusNotFound, http.StatusUnauthorized})
+func getIsuConditionErrorAction(ctx context.Context, a *agent.Agent, id string, query url.Values) (string, *http.Response, error) {
+	path := fmt.Sprintf("/api/condition/%s", id)
+	rpath := getPathWithParams(path, query)
+	res, text, err := reqNoContentResError(ctx, a, http.MethodGet, rpath, []int{http.StatusNotFound, http.StatusUnauthorized, http.StatusBadRequest})
 	if err != nil {
 		return "", nil, err
 	}
@@ -611,9 +612,10 @@ func getIsuGraphAction(ctx context.Context, a *agent.Agent, id string, date int6
 	return graph, res, nil
 }
 
-func getIsuGraphErrorAction(ctx context.Context, a *agent.Agent, id string, date int64) (string, *http.Response, error) {
-	reqUrl := fmt.Sprintf("/api/isu/%s/graph?date=%d", id, date)
-	res, text, err := reqNoContentResError(ctx, a, http.MethodGet, reqUrl, []int{http.StatusUnauthorized, http.StatusNotFound, http.StatusBadRequest})
+func getIsuGraphErrorAction(ctx context.Context, a *agent.Agent, id string, query url.Values) (string, *http.Response, error) {
+	path := fmt.Sprintf("/api/isu/%s/graph", id)
+	rpath := getPathWithParams(path, query)
+	res, text, err := reqNoContentResError(ctx, a, http.MethodGet, rpath, []int{http.StatusUnauthorized, http.StatusNotFound, http.StatusBadRequest})
 	if err != nil {
 		return "", nil, err
 	}

@@ -191,7 +191,8 @@ func GetConditionDataExistTimestamp(s *Scenario, user *model.User) int64 {
 		return s.virtualTimeStart.Unix()
 	}
 	var timestamp int64 = math.MaxInt64
-	for _, isu := range user.IsuListOrderByCreatedAt {
+	// TODO: とりあえずprepareでは行けるように修正したけど、非同期処理部分のことは考えてないので要検討
+	for _, isu := range user.IsuListByID {
 		cond := isu.Conditions.Back()
 		if cond == nil {
 			return s.virtualTimeStart.Unix()

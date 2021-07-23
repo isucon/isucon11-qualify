@@ -47,7 +47,7 @@ func (u *User) AddIsu(isu *Isu) {
 }
 
 func (u *User) RemoveIsu(isu *Isu) {
-	delete(u.IsuListByID, isu.JIACatalogID)
+	delete(u.IsuListByID, isu.JIAIsuUUID)
 }
 
 func (user *User) GetConditionFromChan(ctx context.Context) {
