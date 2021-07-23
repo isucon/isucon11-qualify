@@ -454,6 +454,87 @@ func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.Benchmar
 	logger.AdminLogger.Println("Company User start")
 	defer logger.AdminLogger.Println("Company User END")
 
+	//user, userAgents := s.initCompanyUser(ctx, step)
+	user, _ := s.initCompanyUser(ctx, step)
+	if user == nil {
+		return //致命的でないエラー
+	}
+
+	randEngine := rand.New(rand.NewSource(5498513))
+	scenarioDoneCount := 0
+	scenarioSuccess := false
+	lastSolvedTime := make(map[string]time.Time)
+	for _, isu := range user.IsuListOrderByCreatedAt {
+		lastSolvedTime[isu.JIAIsuUUID] = s.virtualTimeStart
+	}
+	scenarioLoopStopper := time.After(1 * time.Millisecond)
+	for {
+		<-scenarioLoopStopper
+		scenarioLoopStopper = time.After(50 * time.Millisecond) //TODO: 頻度調整
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-userTimer.Done(): //TODO: GET系リクエストも早めに止めるかは要検討
+			return
+		default:
+		}
+
+		if scenarioSuccess {
+			scenarioDoneCount++
+			step.AddScore(ScoreCompanyUserLoop) //TODO: 得点条件の修正
+
+			//シナリオに成功している場合は椅子追加
+			//TODO: 係数調整
+			// for isuCount < (scenarioDoneCount/30)*50 && isuCount < isuCountMax {
+			// 	isu := s.NewIsu(ctx, step, user, true)
+			// 	if isu == nil {
+			// 		logger.AdminLogger.Println("Company User fail: NewIsu")
+			// 	} else {
+			// 		isuCount++
+			// 	}
+			// 	//logger.AdminLogger.Printf("Company User Isu: %d\n", isuCount)
+			// }
+		}
+		scenarioSuccess = true
+
+		//posterからconditionの取得
+		user.GetConditionFromChan(ctx)
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		//GET /
+		//TODO: ベンチはPUT isu/iconが来ないとして、304を常に許すようにします。
+		dataExistTimestamp := GetConditionDataExistTimestamp(s, user)
+		_, _, errs := browserGetHomeAction(ctx, user.Agent, dataExistTimestamp, true,
+			func(res *http.Response, isuList []*service.Isu) []error {
+				return verifyIsuOrderByCreatedAt(res, user.IsuListOrderByCreatedAt, isuList)
+			},
+			func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
+				//TODO: conditionの検証
+				return []error{}
+			},
+		)
+		for _, err := range errs {
+			scenarioSuccess = false
+			step.AddError(err)
+		}
+		if !scenarioSuccess {
+			continue
+		}
+
+		if randEngine.Intn(100) < 80 {
+			scenarioSuccess = s.checkCompanyConditionScenario(ctx, step, user, lastSolvedTime)
+		} else {
+			//TODO:
+		}
+	}
+}
+
+func (s *Scenario) initCompanyUser(ctx context.Context, step *isucandar.BenchmarkStep) (*model.User, []*agent.Agent) {
 	//ユーザー作成
 	userAgents := make([]*agent.Agent, 10)
 	for i := range userAgents {
@@ -466,7 +547,7 @@ func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.Benchmar
 	user := s.NewUser(ctx, step, userAgents[0], model.UserTypeCompany)
 	if user == nil {
 		logger.AdminLogger.Println("Company User fail: NewUser")
-		return //致命的でないエラー
+		return nil, nil
 	}
 	func() {
 		s.companyUsersMtx.Lock()
@@ -522,162 +603,100 @@ func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.Benchmar
 		//MEMO: ctx.Done()の場合は、プロセスが終了していない可能性がある。
 
 		logger.AdminLogger.Println("Company User fail: NewIsu(initialize)")
-		return //致命的でないエラー
+		return nil, nil
 	}
 
 	step.AddScore(ScoreCompanyUserInitialize)
+	return user, userAgents
+}
 
-	randEngine := rand.New(rand.NewSource(5498513))
-	scenarioDoneCount := 0
-	scenarioSuccess := false
-	lastSolvedTime := make(map[string]time.Time)
-	for _, isu := range user.IsuListOrderByCreatedAt {
-		lastSolvedTime[isu.JIAIsuUUID] = s.virtualTimeStart
+func (s *Scenario) checkCompanyConditionScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User, lastSolvedTime map[string]time.Time) bool {
+	//定期的にconditionを見に行くシナリオ
+	scenarioSuccess := true
+	mustExistUntil := s.ToVirtualTime(time.Now().Add(-1 * time.Second)).Unix()
+	dataExistTimestamp := GetConditionDataExistTimestamp(s, user)
+	request := service.GetIsuConditionRequest{
+		StartTime:        nil,
+		CursorEndTime:    dataExistTimestamp,
+		CursorJIAIsuUUID: "z",
+		ConditionLevel:   "warning,critical",
+		Limit:            nil,
 	}
-	scenarioLoopStopper := time.After(1 * time.Millisecond)
-scenarioLoop:
-	for {
-		<-scenarioLoopStopper
-		scenarioLoopStopper = time.After(50 * time.Millisecond) //TODO: 頻度調整
+	conditions, errs := browserGetConditionsAction(ctx, user.Agent,
+		request,
+		func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
+			//conditionの検証
+			err := verifyIsuConditions(res, user, "", &request,
+				conditions, mustExistUntil,
+			)
+			if err != nil {
+				return []error{err}
+			}
+			return []error{}
+		},
+	)
+	for _, err := range errs {
+		scenarioSuccess = false
+		step.AddError(err)
+	}
+	if len(errs) > 0 || len(conditions) == 0 {
+		return scenarioSuccess
+	}
 
-		select {
-		case <-ctx.Done():
-			return
-		case <-userTimer.Done(): //TODO: GET系リクエストも早めに止めるかは要検討
-			return
-		default:
+	//スクロール
+	for i := 0; i < 2 && len(conditions) == 20*(i+1); i++ {
+		var conditionsTmp []*service.GetIsuConditionResponse
+		request = service.GetIsuConditionRequest{
+			StartTime:        nil,
+			CursorEndTime:    conditions[len(conditions)-1].Timestamp,
+			CursorJIAIsuUUID: conditions[len(conditions)-1].JIAIsuUUID,
+			ConditionLevel:   "warning,critical",
+			Limit:            nil,
 		}
-
-		if scenarioSuccess {
-			scenarioDoneCount++
-			step.AddScore(ScoreCompanyUserLoop) //TODO: 得点条件の修正
-
-			//シナリオに成功している場合は椅子追加
-			//TODO: 係数調整
-			// for isuCount < (scenarioDoneCount/30)*50 && isuCount < isuCountMax {
-			// 	isu := s.NewIsu(ctx, step, user, true)
-			// 	if isu == nil {
-			// 		logger.AdminLogger.Println("Company User fail: NewIsu")
-			// 	} else {
-			// 		isuCount++
-			// 	}
-			// 	//logger.AdminLogger.Printf("Company User Isu: %d\n", isuCount)
-			// }
-		}
-		scenarioSuccess = true
-
-		//posterからconditionの取得
-		user.GetConditionFromChan(ctx)
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
-		mustExistUntil := s.ToVirtualTime(time.Now().Add(-1 * time.Second)).Unix()
-
-		//GET /
-		//TODO: ベンチはPUT isu/iconが来ないとして、304を常に許すようにします。
-		dataExistTimestamp := GetConditionDataExistTimestamp(s, user)
-		_, _, errs := browserGetHomeAction(ctx, user.Agent, dataExistTimestamp, true,
-			func(res *http.Response, isuList []*service.Isu) []error {
-				return verifyIsuOrderByCreatedAt(res, user.IsuListOrderByCreatedAt, isuList)
-			},
-			func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
-				//TODO: conditionの検証
-				return []error{}
-			},
-		)
-		for _, err := range errs {
+		conditionsTmp, res, err := getConditionAction(ctx, user.Agent, request)
+		if err != nil {
 			scenarioSuccess = false
 			step.AddError(err)
+			break
+		}
+		//検証
+		err = verifyIsuConditions(res, user, "", &request, conditionsTmp, mustExistUntil)
+		if err != nil {
+			scenarioSuccess = false
+			step.AddError(err)
+			break
 		}
 
-		if randEngine.Intn(100) < 80 {
-			//定期的にconditionを見に行くシナリオ
-			request := service.GetIsuConditionRequest{
-				StartTime:        nil,
-				CursorEndTime:    dataExistTimestamp,
-				CursorJIAIsuUUID: "z",
-				ConditionLevel:   "warning,critical",
-				Limit:            nil,
-			}
-			conditions, errs := browserGetConditionsAction(ctx, user.Agent,
-				request,
-				func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
-					//conditionの検証
-					err := verifyIsuConditions(res, user, "", &request,
-						conditions, mustExistUntil,
-					)
-					if err != nil {
-						return []error{err}
-					}
-					return []error{}
+		conditions = append(conditions, conditionsTmp...)
+	}
+
+	//conditionを確認して、椅子状態を改善
+	solvedConditions, findTimestamps := findBadIsuStateWithID(conditions)
+	for targetIsuID, timestamp := range findTimestamps {
+		if solvedConditions[targetIsuID] != model.IsuStateChangeNone && lastSolvedTime[targetIsuID].Before(time.Unix(timestamp, 0)) {
+			//graphを見る
+			virtualDay := (timestamp / (24 * 60 * 60)) * (24 * 60 * 60)
+			_, _, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsuID, virtualDay,
+				func(res *http.Response, graph []*service.GraphResponse) []error {
+					return []error{} //TODO: 検証
 				},
 			)
 			for _, err := range errs {
 				scenarioSuccess = false
 				step.AddError(err)
 			}
-			if len(errs) > 0 || len(conditions) == 0 {
-				continue scenarioLoop
+
+			//状態改善
+			lastSolvedTime[targetIsuID] = time.Unix(timestamp, 0)
+			select {
+			case <-ctx.Done():
+				return false
+			case user.IsuListByID[targetIsuID].StreamsForScenario.StateChan <- solvedConditions[targetIsuID]: //バッファがあるのでブロック率は低い読みで直列に投げる
 			}
-
-			//スクロール
-			for i := 0; i < 2 && len(conditions) == 20*(i+1); i++ {
-				var conditionsTmp []*service.GetIsuConditionResponse
-				request = service.GetIsuConditionRequest{
-					StartTime:        nil,
-					CursorEndTime:    conditions[len(conditions)-1].Timestamp,
-					CursorJIAIsuUUID: conditions[len(conditions)-1].JIAIsuUUID,
-					ConditionLevel:   "warning,critical",
-					Limit:            nil,
-				}
-				conditionsTmp, res, err := getConditionAction(ctx, user.Agent, request)
-				if err != nil {
-					scenarioSuccess = false
-					step.AddError(err)
-					break
-				}
-				//検証
-				err = verifyIsuConditions(res, user, "", &request, conditionsTmp, mustExistUntil)
-				if err != nil {
-					scenarioSuccess = false
-					step.AddError(err)
-					break
-				}
-
-				conditions = append(conditions, conditionsTmp...)
-			}
-
-			//conditionを確認して、椅子状態を改善
-			solvedConditions, findTimestamps := findBadIsuStateWithID(conditions)
-			for targetIsuID, timestamp := range findTimestamps {
-				if solvedConditions[targetIsuID] != model.IsuStateChangeNone && lastSolvedTime[targetIsuID].Before(time.Unix(timestamp, 0)) {
-					//graphを見る
-					virtualDay := (timestamp / (24 * 60 * 60)) * (24 * 60 * 60)
-					_, _, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsuID, virtualDay,
-						func(res *http.Response, graph []*service.GraphResponse) []error {
-							return []error{} //TODO: 検証
-						},
-					)
-					for _, err := range errs {
-						scenarioSuccess = false
-						step.AddError(err)
-					}
-
-					//状態改善
-					lastSolvedTime[targetIsuID] = time.Unix(timestamp, 0)
-					select {
-					case <-ctx.Done():
-						return
-					case user.IsuListByID[targetIsuID].StreamsForScenario.StateChan <- solvedConditions[targetIsuID]: //バッファがあるのでブロック率は低い読みで直列に投げる
-					}
-				}
-			}
-		} else {
-			//TODO:
 		}
 	}
+
+	return scenarioSuccess
 }
 
 func findBadIsuStateWithID(conditions []*service.GetIsuConditionResponse) (map[string]model.IsuStateChange, map[string]int64) {
