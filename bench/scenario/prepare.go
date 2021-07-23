@@ -12,8 +12,8 @@ import (
 	"github.com/isucon/isucandar/failure"
 	"github.com/isucon/isucandar/worker"
 	"github.com/isucon/isucon11-qualify/bench/logger"
-	"github.com/isucon/isucon11-qualify/bench/service"
 	"github.com/isucon/isucon11-qualify/bench/random"
+	"github.com/isucon/isucon11-qualify/bench/service"
 )
 
 func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) error {
@@ -70,8 +70,13 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 		return err
 	}
 
+	errors := step.Result().Errors
+	hasErrors := func() bool {
+		errors.Wait()
+		return len(errors.All()) > 0
+	}
 	// Prepare step でのエラーはすべて Critical の扱い
-	if len(step.Result().Errors.All()) > 0 {
+	if hasErrors() {
 		//return ErrScenarioCancel
 		return ErrCritical
 	}
