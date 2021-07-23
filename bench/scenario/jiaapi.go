@@ -5,15 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/isucon/isucandar"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
-	"github.com/labstack/echo"
-	"github.com/labstack/echo/middleware"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 )
 
 var (
@@ -67,17 +66,21 @@ func (s *Scenario) JiaAPIService(ctx context.Context, step *isucandar.BenchmarkS
 	e.Use(middleware.Recover())
 
 	// Initialize
-	e.GET("/api/catalog/:catalog_id", func(c echo.Context) error { return s.getCatalog(c) })
 	e.POST("/api/activate", func(c echo.Context) error { return s.postActivate(c) })
 	e.POST("/api/deactivate", postDeactivate)
 
 	// Start
-	serverPort := s.jiaServiceURL[strings.LastIndexAny(s.jiaServiceURL, ":"):] //":80"
+	var bindPort string
+	if s.jiaServiceURL.Port() != "" {
+		bindPort = fmt.Sprintf("0.0.0.0:%s", s.jiaServiceURL.Port())
+	} else {
+		bindPort = "0.0.0.0:80"
+	}
 	s.loadWaitGroup.Add(1)
 	go func() {
 		defer logger.AdminLogger.Println("--- ISU協会サービス END")
 		defer s.loadWaitGroup.Done()
-		err := e.Start(serverPort)
+		err := e.Start(bindPort)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			panic(fmt.Errorf("ISU協会サービスが異常終了しました: %v", err))
 		}
@@ -92,15 +95,6 @@ func (s *Scenario) JiaAPIService(ctx context.Context, step *isucandar.BenchmarkS
 		//有効なエラー処理は出来ないのでエラーは握り潰し
 		logger.AdminLogger.Printf("Failed to shutdown jia service: %s", err)
 	}
-}
-
-func (s *Scenario) getCatalog(c echo.Context) error {
-	catalogID := c.Param("catalog_id")
-	catalog, ok := s.Catalogs[catalogID]
-	if !ok {
-		return echo.NewHTTPError(http.StatusNotFound)
-	}
-	return c.JSON(http.StatusOK, catalog)
 }
 
 func (s *Scenario) postActivate(c echo.Context) error {

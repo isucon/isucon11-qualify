@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/isucon/isucon11-qualify/jiaapi_mock/controller"
+	"github.com/isucon/isucon11-qualify/jiaapi-mock/controller"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/labstack/gommon/log"
@@ -14,6 +14,9 @@ import (
 
 //go:embed ec256-private.pem
 var privateKey []byte
+
+//go:embed index.html
+var htmlTopPage []byte
 
 func main() {
 	// Controllers
@@ -34,7 +37,7 @@ func main() {
 	e.Use(middleware.Recover())
 
 	// 動作確認用のログインページ
-	e.Static("/", "./index.html")
+	e.GET("/", func(ctx echo.Context) error { return ctx.Blob(200, "text/html; charset=utf-8", htmlTopPage) })
 	// APIs
 	e.POST("/api/auth", authController.PostAuth)
 	e.GET("/api/catalog/:catalog_id", catalogController.GetCatalog)
