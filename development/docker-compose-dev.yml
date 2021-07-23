@@ -12,6 +12,7 @@ services:
       MYSQL_USER: isucon
       MYSQL_PASSWORD: isucon
       SERVER_PUBLIC_ADDRESS: backend-go
+      SERVER_PUBLIC_PORT: 3000
     entrypoint: dockerize -wait tcp://mysql-backend:3306 -timeout 60s
     command: air -c /development/air.toml
     ports:

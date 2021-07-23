@@ -11,6 +11,7 @@ services:
       MYSQL_USER: isucon
       MYSQL_PASSWORD: isucon
       SERVER_PUBLIC_ADDRESS: backend
+      SERVER_PUBLIC_PORT: 3000
     ports:
       - "3000:3000"
     volumes:
