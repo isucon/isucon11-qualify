@@ -154,14 +154,7 @@ scenarioLoop:
 		}
 
 		//GET /isu/{jia_isu_uuid}
-		_, _, errs = browserGetIsuDetailAction(ctx, user.Agent, targetIsu.JIAIsuUUID, true,
-			func(res *http.Response, catalog *service.Catalog) []error {
-				//TODO: catalogの検証
-				//targetIsu.JIACatalogID
-				//return verifyCatalog(res, , catalog)
-				return []error{}
-			},
-		)
+		_, errs = browserGetIsuDetailAction(ctx, user.Agent, targetIsu.JIAIsuUUID, true)
 		for _, err := range errs {
 			scenarioSuccess = false
 			step.AddError(err)

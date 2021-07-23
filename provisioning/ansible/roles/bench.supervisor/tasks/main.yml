@@ -6,14 +6,18 @@
     #repo: git@github.com:isucon/isucon11-portal  # TODO: isucon11-portal リポジトリに鍵を登録して pull できるようにする
     repo: https://github.com/isucon/isucon10-portal
     dest: /tmp/isucon11-portal
+    recursive: no
 
 - name: "roles/bench.supervisor/tasks/main: Build isuxportal-supervisor"
-  become_user: isucon
+  become_user: root
   args:
     chdir: /tmp/isucon11-portal/supervisor
+  environment:
+    PATH: "/home/isucon/.cargo/bin:{{ ansible_env.PATH }}"
   shell: cargo build --release --bin isuxportal-supervisor
 
 - name: "roles/bench.supervisor/tasks/main: Deploy isuxportal-supervisor"
+  become_user: root
   copy:
     remote_src: yes
     src: /tmp/isucon11-portal/supervisor/target/release/isuxportal-supervisor
