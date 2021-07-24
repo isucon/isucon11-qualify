@@ -290,6 +290,9 @@ func getIsuAction(ctx context.Context, a *agent.Agent, limit int) ([]*service.Is
 		logger.AdminLogger.Panicln(err)
 	}
 	q := url.Values{}
+	if limit < 0 {
+		logger.AdminLogger.Panicf("internal error: limit is minus: %v\n", limit)
+	}
 	if limit != 0 {
 		q.Set("limit", strconv.Itoa(limit))
 	}
