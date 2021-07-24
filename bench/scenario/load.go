@@ -149,14 +149,14 @@ scenarioLoop:
 		)
 		for _, err := range errs {
 			scenarioSuccess = false
-			step.AddError(err)
+			addErrorWithContext(ctx, step, err)
 		}
 
 		//GET /isu/{jia_isu_uuid}
 		_, errs = browserGetIsuDetailAction(ctx, user.Agent, targetIsu.JIAIsuUUID, true)
 		for _, err := range errs {
 			scenarioSuccess = false
-			step.AddError(err)
+			addErrorWithContext(ctx, step, err)
 		}
 
 		if randEngine.Intn(2) < 1 {
@@ -188,7 +188,7 @@ scenarioLoop:
 				_ = getIsuGraphWithPaging(ctx, step, user, targetIsu, virtualDay, 10)
 				for _, err := range errs {
 					scenarioSuccess = false
-					step.AddError(err)
+					addErrorWithContext(ctx, step, err)
 				}
 
 				//状態改善
@@ -311,7 +311,7 @@ func (s *Scenario) getIsuConditionWithScroll(
 	)
 	if len(errs) > 0 {
 		for _, err := range errs {
-			step.AddError(err)
+			addErrorWithContext(ctx, step, err)
 		}
 		return nil
 	}
@@ -332,7 +332,7 @@ func (s *Scenario) getIsuConditionWithScroll(
 		}
 		conditionsTmp, res, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
 		if err != nil {
-			step.AddError(err)
+			addErrorWithContext(ctx, step, err)
 			return nil
 		}
 		//検証
@@ -340,7 +340,7 @@ func (s *Scenario) getIsuConditionWithScroll(
 			conditionsTmp, mustExistUntil,
 		)
 		if err != nil {
-			step.AddError(err)
+			addErrorWithContext(ctx, step, err)
 			return nil
 		}
 
@@ -367,7 +367,7 @@ func getIsuGraphWithPaging(
 		},
 	)
 	for _, err := range errs {
-		step.AddError(err)
+		addErrorWithContext(ctx, step, err)
 	}
 	if len(errs) > 0 {
 		return nil
@@ -382,7 +382,7 @@ func getIsuGraphWithPaging(
 			},
 		)
 		for _, err := range errs {
-			step.AddError(err)
+			addErrorWithContext(ctx, step, err)
 		}
 		if len(errs) > 0 {
 			return nil
@@ -527,7 +527,7 @@ scenarioLoop:
 		)
 		for _, err := range errs {
 			scenarioSuccess = false
-			step.AddError(err)
+			addErrorWithContext(ctx, step, err)
 		}
 
 		if randEngine.Intn(100) < 80 {
@@ -554,7 +554,7 @@ scenarioLoop:
 			)
 			for _, err := range errs {
 				scenarioSuccess = false
-				step.AddError(err)
+				addErrorWithContext(ctx, step, err)
 			}
 			if len(errs) > 0 || len(conditions) == 0 {
 				continue scenarioLoop
@@ -573,14 +573,14 @@ scenarioLoop:
 				conditionsTmp, res, err := getConditionAction(ctx, user.Agent, request)
 				if err != nil {
 					scenarioSuccess = false
-					step.AddError(err)
+					addErrorWithContext(ctx, step, err)
 					break
 				}
 				//検証
 				err = verifyIsuConditions(res, user, "", &request, conditionsTmp, mustExistUntil)
 				if err != nil {
 					scenarioSuccess = false
-					step.AddError(err)
+					addErrorWithContext(ctx, step, err)
 					break
 				}
 
@@ -600,7 +600,7 @@ scenarioLoop:
 					)
 					for _, err := range errs {
 						scenarioSuccess = false
-						step.AddError(err)
+						addErrorWithContext(ctx, step, err)
 					}
 
 					//状態改善

@@ -2,6 +2,7 @@ package scenario
 
 import (
 	"context"
+	"errors"
 	"math"
 	"net/url"
 	"sync"
@@ -134,7 +135,7 @@ func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a
 	//TODO: 確率で失敗してリトライする
 	_, errs := authAction(ctx, a, user.UserID)
 	for _, err := range errs {
-		step.AddError(err)
+		addErrorWithContext(ctx, step, err)
 	}
 	if len(errs) > 0 {
 		return nil
@@ -164,7 +165,7 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 	}
 	isuResponse, res, err := postIsuAction(ctx, owner.Agent, req)
 	if err != nil {
-		step.AddError(err)
+		addErrorWithContext(ctx, step, err)
 		isu.StreamsForScenario.StateChan <- model.IsuStateChangeDelete
 		return nil
 	}
@@ -200,4 +201,15 @@ func GetConditionDataExistTimestamp(s *Scenario, user *model.User) int64 {
 		}
 	}
 	return timestamp
+}
+
+func addErrorWithContext(ctx context.Context, step *isucandar.BenchmarkStep, err error) {
+	select {
+	case <-ctx.Done():
+		if !errors.Is(err, ErrHTTP) {
+			step.AddError(err)
+		}
+	default:
+		step.AddError(err)
+	}
 }

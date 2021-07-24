@@ -144,7 +144,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 
 			err = verifyStatusCode(res, http.StatusCreated)
 			if err != nil {
-				step.AddError(err)
+				addErrorWithContext(ctx, step, err)
 				return // goto next loop
 			}
 
