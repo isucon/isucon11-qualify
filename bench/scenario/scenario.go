@@ -2,7 +2,6 @@ package scenario
 
 import (
 	"context"
-	"errors"
 	"math"
 	"net/url"
 	"sync"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/isucon/isucandar"
 	"github.com/isucon/isucandar/agent"
+	"github.com/isucon/isucandar/failure"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
 	"github.com/isucon/isucon11-qualify/bench/service"
@@ -206,7 +206,7 @@ func GetConditionDataExistTimestamp(s *Scenario, user *model.User) int64 {
 func addErrorWithContext(ctx context.Context, step *isucandar.BenchmarkStep, err error) {
 	select {
 	case <-ctx.Done():
-		if !errors.Is(err, ErrHTTP) {
+		if !failure.Is(err, ErrHTTP) {
 			step.AddError(err)
 		}
 	default:
