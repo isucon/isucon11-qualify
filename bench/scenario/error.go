@@ -78,7 +78,8 @@ func isTimeout(err error) bool {
 			return true
 		}
 	}
-	if failure.Is(err, context.DeadlineExceeded) {
+	if failure.Is(err, context.DeadlineExceeded) ||
+		failure.Is(err, context.Canceled) {
 		return true
 	}
 	return failure.IsCode(err, failure.TimeoutErrorCode)
