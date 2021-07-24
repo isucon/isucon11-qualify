@@ -244,11 +244,12 @@ func verifyResources(page string, res *http.Response, resources agent.Resources)
 	base := res.Request.URL.String()
 
 	faviconSvg := "/favicon.d0f5f504.svg"
-	indexCss := "/index.5a0b7572.css"
-	indexJs := "/index.9f824aae.js"
+	indexCss := "/index.0bf61ac6.js"
+	indexJs := "/index.b2dd4fac.css"
 	//logoOrange := "/logo_orange.974bf3e6.svg"
 	//logoWhite := "/logo_white.98008342.svg"
-	vendorJs := "/vendor.b2764262.js"
+	vendorJs := "/vendor.e16f2a0d.js"
+
 	var checks []error
 	switch page {
 	case "/signup":
