@@ -260,14 +260,32 @@ func main() {
 	b.AddScenario(s)
 
 	wg := sync.WaitGroup{}
-	wg.Add(1)
 	b.Load(func(parent context.Context, step *isucandar.BenchmarkStep) error {
+		//このWaitGroupで、sendResult(,,true)が呼ばれた後sendResult(,,false)が呼ばれないことを保証する
+		//isucandarのparallelはcontextが終了した場合に、スレッドの終了を待たずにWaitを終了する
+		//そこで、wg.Done()が呼ばれsendResult(,,false)の送信を終了した後に、sendResult(,,true)の処理に移る
+		//
+		//コーナーケースとして、wg.Add(1)する前にb.Start(ctx)が終了しwg.Wait()を突破する可能性がある（loadの開始直後にCriticalErrorの場合など）
+		//その場合でも、この関数はctx.Done()を検出して早期returnすることでsendResult(,,false)を実行しないため、保証できている
+		//
+		//補足：
+		//　wg.Addをgoroutine内で呼ぶとこのコーナーケースを引き起こすので一般にはgoroutine生成直前にAddするべき
+		//　今回は生成直前がisucandar内にあり、そのタイミングでのAddが出来ないためここに記述
+		//　b.Startの前にAddする実装も考えたが、Prepareフェーズでstep.Cancel()された場合に、
+		//　Load自体がスキップされwg.Doneが実行されずにデッドロックを起こしたためボツ
+		wg.Add(1)
 		defer wg.Done()
 		if s.NoLoad {
 			return nil
 		}
+
 		ctx, cancel := context.WithTimeout(parent, s.LoadTimeout)
 		defer cancel()
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+		}
 
 		for {
 			// 途中経過を3秒毎に送信

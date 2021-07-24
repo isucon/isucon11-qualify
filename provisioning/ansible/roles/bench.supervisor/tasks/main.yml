@@ -8,8 +8,16 @@
     dest: /tmp/isucon11-portal
     recursive: no
 
-- name: "roles/bench.supervisor/tasks/main: Build isuxportal-supervisor"
+- name: "roles/bench.supervisor/tasks/main: Change Owner of isucon/isucon11-portal"
   become_user: root
+  file:
+    path: /tmp/isucon11-portal
+    owner: isucon
+    group: isucon
+    recurse: true
+
+- name: "roles/bench.supervisor/tasks/main: Build isuxportal-supervisor"
+  become_user: isucon
   args:
     chdir: /tmp/isucon11-portal/supervisor
   environment:
