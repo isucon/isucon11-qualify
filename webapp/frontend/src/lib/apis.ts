@@ -83,19 +83,6 @@ class Apis {
     await axios.delete<Isu>(`/api/isu/${jiaIsuUuid}`, axiosConfig)
   }
 
-  async putIsuIcon(
-    jiaIsuUuid: string,
-    file: File,
-    axiosConfig?: AxiosRequestConfig
-  ) {
-    const data = new FormData()
-    data.append('image', file, file.name)
-    await axios.put<void>(`/api/isu/${jiaIsuUuid}/icon`, data, {
-      headers: { 'content-type': 'multipart/form-data' },
-      ...axiosConfig
-    })
-  }
-
   async getIsuGraphs(
     jiaIsuUuid: string,
     params: GraphRequest,
