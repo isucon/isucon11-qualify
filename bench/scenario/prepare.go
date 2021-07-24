@@ -121,16 +121,27 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 
 	// サインアウトの確認
 	s.prepareCheckPostSignout(ctx, step)
+	logger.AdminLogger.Printf("s.prepareCheckPostSignout(ctx, step)")
 	s.prepareCheckGetMe(ctx, loginUser, noIsuUser, guestAgent, step)
+	logger.AdminLogger.Printf("s.prepareCheckGetMe(ctx, loginUser, noIsuUser, guestAgent, step)")
 	s.prepareCheckGetIsuList(ctx, loginUser, noIsuUser, guestAgent, step)
+	logger.AdminLogger.Printf("s.prepareCheckGetIsuList(ctx, loginUser, noIsuUser, guestAgent, step)")
 	s.prepareCheckPostIsu(ctx, loginUser, noIsuUser, guestAgent, step)
+	logger.AdminLogger.Printf("s.prepareCheckPostIsu(ctx, loginUser, noIsuUser, guestAgent, step)")
 	s.prepareCheckGetIsu(ctx, loginUser, noIsuUser, guestAgent, step)
+	logger.AdminLogger.Printf("s.prepareCheckGetIsu(ctx, loginUser, noIsuUser, guestAgent, step)")
 	s.prepareCheckDeleteIsu(ctx, loginUser, noIsuUser, guestAgent, step)
+	logger.AdminLogger.Printf("s.prepareCheckDeleteIsu(ctx, loginUser, noIsuUser, guestAgent, step)")
 	s.prepareCheckGetIsuIcon(ctx, loginUser, noIsuUser, guestAgent, step)
+	logger.AdminLogger.Printf("s.prepareCheckGetIsuIcon(ctx, loginUser, noIsuUser, guestAgent, step)")
 	s.prepareCheckGetIsuGraph(ctx, loginUser, noIsuUser, guestAgent, step)
+	logger.AdminLogger.Printf("s.prepareCheckGetIsuGraph(ctx, loginUser, noIsuUser, guestAgent, step)")
 	s.prepareCheckGetAllIsuConditions(ctx, loginUser, noIsuUser, guestAgent, step)
+	logger.AdminLogger.Printf("s.prepareCheckGetAllIsuConditions(ctx, loginUser, noIsuUser, guestAgent, step)")
 	s.prepareCheckGetIsuConditions(ctx, loginUser, noIsuUser, guestAgent, step)
+	logger.AdminLogger.Printf("s.prepareCheckGetIsuConditions(ctx, loginUser, noIsuUser, guestAgent, step)")
 	s.prepareCheckPostIsuCondition(ctx, loginUser, noIsuUser, guestAgent, step)
+	logger.AdminLogger.Printf("s.prepareCheckPostIsuCondition(ctx, loginUser, noIsuUser, guestAgent, step)")
 
 	return nil
 }
@@ -284,10 +295,9 @@ func (s *Scenario) prepareCheckGetIsuList(ctx context.Context, loginUser *model.
 	}
 	m2s := func(m *model.Isu) service.Isu {
 		return service.Isu{
-			JIAIsuUUID:   m.JIAIsuUUID,
-			Name:         m.Name,
-			JIACatalogID: m.JIACatalogID,
-			Character:    m.Character,
+			JIAIsuUUID: m.JIAIsuUUID,
+			Name:       m.Name,
+			Character:  m.Character,
 		}
 	}
 	//expected
@@ -345,7 +355,7 @@ func (s *Scenario) prepareCheckGetIsuList(ctx context.Context, loginUser *model.
 		step.AddError(err)
 		return
 	}
-	if err := verifyText(res, resBody, "invalid value: limit"); err != nil {
+	if err := verifyText(res, resBody, "bad format: limit"); err != nil {
 		step.AddError(err)
 		return
 	}
@@ -362,7 +372,7 @@ func (s *Scenario) prepareCheckGetIsuList(ctx context.Context, loginUser *model.
 		step.AddError(err)
 		return
 	}
-	if err := verifyText(res, resBody, "invalid value: limit"); err != nil {
+	if err := verifyText(res, resBody, "bad format: limit"); err != nil {
 		step.AddError(err)
 		return
 	}
@@ -374,10 +384,9 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 	isu := s.NewIsu(ctx, step, loginUser, true)
 	m2s := func(m *model.Isu) service.Isu {
 		return service.Isu{
-			JIAIsuUUID:   m.JIAIsuUUID,
-			Name:         m.Name,
-			JIACatalogID: m.JIACatalogID,
-			Character:    m.Character,
+			JIAIsuUUID: m.JIAIsuUUID,
+			Name:       m.Name,
+			Character:  m.Character,
 		}
 	}
 	sIsu := m2s(isu)
@@ -480,10 +489,9 @@ func (s *Scenario) prepareCheckGetIsu(ctx context.Context, loginUser *model.User
 	isu := s.NewIsu(ctx, step, loginUser, true)
 	m2s := func(m *model.Isu) service.Isu {
 		return service.Isu{
-			JIAIsuUUID:   m.JIAIsuUUID,
-			Name:         m.Name,
-			JIACatalogID: m.JIACatalogID,
-			Character:    m.Character,
+			JIAIsuUUID: m.JIAIsuUUID,
+			Name:       m.Name,
+			Character:  m.Character,
 		}
 	}
 	expected := m2s(isu)

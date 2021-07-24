@@ -170,7 +170,6 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 	}
 	if isuResponse.JIAIsuUUID != isu.JIAIsuUUID ||
 		isuResponse.Name != isu.Name ||
-		isuResponse.JIACatalogID != isu.JIACatalogID ||
 		isuResponse.Character != isu.Character {
 		step.AddError(errorMissmatch(res, "レスポンスBodyが正しくありません"))
 	}
