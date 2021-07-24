@@ -341,7 +341,6 @@ func postIsuAction(ctx context.Context, a *agent.Agent, req service.PostIsuReque
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 	}
-
 	isu := &service.Isu{}
 	res, err := reqMultipartResJSON(ctx, a, http.MethodPost, "/api/isu", buf, writer, isu, []int{http.StatusOK})
 	if err != nil {
@@ -372,6 +371,7 @@ func postIsuErrorAction(ctx context.Context, a *agent.Agent, req service.PostIsu
 		logger.AdminLogger.Panic(err)
 	}
 	// TODO: 画像も追加する
+	// TODO: file.Nameを正しく渡すと不正出来そうなので、拡張子残すくらいにしておきたい
 	//part, err := writer.CreateFormFile("image", filepath.Base(file.Name()))
 	//io.Copy(part, file)
 	err = writer.Close()

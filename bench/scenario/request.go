@@ -225,6 +225,7 @@ func reqMultipartResJSON(ctx context.Context, agent *agent.Agent, method string,
 
 	return httpres, nil
 }
+
 func reqMultipartResError(ctx context.Context, agent *agent.Agent, method string, rpath string, body io.Reader, writer *multipart.Writer, allowedStatusCodes []int) (*http.Response, string, error) {
 	httpreq, err := agent.NewRequest(method, rpath, body)
 	if err != nil {

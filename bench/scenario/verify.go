@@ -96,13 +96,16 @@ func verifyIsuOrderByCreatedAt(res *http.Response, expectedReverse []*model.Isu,
 	}
 	for i, isu := range isuList {
 		exp := expectedReverse[length-1-i]
-		if exp.Character == isu.Character &&
-			exp.JIAIsuUUID == isu.JIAIsuUUID &&
-			exp.Name == isu.Name {
-			//TODO: iconの検証
+		if exp.JIAIsuUUID == isu.JIAIsuUUID {
+			if exp.Character == isu.Character &&
+				exp.Name == isu.Name {
+				//TODO: iconの検証
 
+			} else {
+				errs = append(errs, errorMissmatch(res, "%d番目の椅子の情報が異なります: ID=%s", i+1, isu.JIAIsuUUID))
+			}
 		} else {
-			errs = append(errs, errorMissmatch(res, "%d番目の椅子の情報が異なります: ID=%s", i+1, isu.JIAIsuUUID))
+			errs = append(errs, errorMissmatch(res, "%d番目の椅子が異なります: ID=%s (expected=%s)", i+1, isu.JIAIsuUUID, exp.JIAIsuUUID))
 		}
 	}
 
