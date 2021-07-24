@@ -453,13 +453,16 @@ func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.Benchmar
 		return //致命的でないエラー
 	}
 
-	randEngine := rand.New(rand.NewSource(5498513))
+	//randEngine := rand.New(rand.NewSource(5498513))
 	scenarioDoneCount := 0
 	scenarioSuccess := false
 	lastSolvedTime := make(map[string]time.Time)
 	for _, isu := range user.IsuListOrderByCreatedAt {
 		lastSolvedTime[isu.JIAIsuUUID] = s.virtualTimeStart
 	}
+	const breakNum = 100                          //一度に壊れるISUの数
+	breakTime := time.Now().Add(20 * time.Second) //大量のISUの状態が悪化するタイミング
+	breakDelete := false                          //大量修理シナリオか、大量交換シナリオか
 	scenarioLoopStopper := time.After(1 * time.Millisecond)
 	for {
 		<-scenarioLoopStopper
@@ -519,10 +522,16 @@ func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.Benchmar
 			continue
 		}
 
-		if randEngine.Intn(100) < 80 {
-			scenarioSuccess = s.checkCompanyConditionScenario(ctx, step, user, lastSolvedTime)
+		if breakTime.Before(time.Now()) {
+			if breakDelete {
+				scenarioSuccess = s.exchangeCompanyIsu()
+			} else {
+				scenarioSuccess = s.repairCompanyIsu()
+			}
+			breakDelete = !breakDelete
+			breakTime = time.Now().Add(20 * time.Second)
 		} else {
-			//TODO:
+			scenarioSuccess = s.checkCompanyConditionScenario(ctx, step, user, lastSolvedTime)
 		}
 	}
 }
@@ -601,6 +610,14 @@ func (s *Scenario) initCompanyUser(ctx context.Context, step *isucandar.Benchmar
 
 	step.AddScore(ScoreCompanyUserInitialize)
 	return user, userAgents
+}
+
+func (s *Scenario) exchangeCompanyIsu(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User, lastSolvedTime map[string]time.Time) bool {
+	return false //TODO:
+}
+
+func (s *Scenario) repairCompanyIsu(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User, lastSolvedTime map[string]time.Time) bool {
+	return false //TODO:
 }
 
 func (s *Scenario) checkCompanyConditionScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User, lastSolvedTime map[string]time.Time) bool {
