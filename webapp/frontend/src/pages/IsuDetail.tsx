@@ -1,4 +1,3 @@
-import CatalogInfo from '../components/IsuDetail/Catalog'
 import MainInfo from '../components/IsuDetail/MainInfo'
 import Card from '../components/UI/Card'
 import NowLoading from '../components/UI/NowLoading'
@@ -17,9 +16,6 @@ const IsuDetail = ({ isu, setIsu }: Props) => {
     <div className="flex flex-col gap-10 items-center">
       <Card>
         <MainInfo isu={isu} setIsu={setIsu} />
-      </Card>
-      <Card>
-        <CatalogInfo isu={isu} />
       </Card>
     </div>
   )

@@ -21,14 +21,6 @@ class Apis {
     return data
   }
 
-  async getCatalog(catalogId: string, axiosConfig?: AxiosRequestConfig) {
-    const { data } = await axios.get<Catalog>(
-      `/api/catalog/${catalogId}`,
-      axiosConfig
-    )
-    return data
-  }
-
   async getIsus(options?: { limit: number }, axiosConfig?: AxiosRequestConfig) {
     const { data } = await axios.get<Isu[]>(`/api/isu`, {
       params: options,
@@ -126,18 +118,7 @@ export interface User {
 export interface Isu {
   jia_isu_uuid: string
   name: string
-  jia_catalog_id: string
   character: string
-}
-
-export interface Catalog {
-  jia_catalog_id: string
-  name: string
-  limit_weight: number
-  weight: number
-  size: string
-  maker: string
-  tags: string
 }
 
 export interface IsuLog {
