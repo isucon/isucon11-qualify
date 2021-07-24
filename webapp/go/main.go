@@ -426,6 +426,11 @@ func getIsuList(c echo.Context) error {
 		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 
+	cursorJisIsuUUID := c.QueryParam("cursor_jia_isu_uuid")
+	if cursorJisIsuUUID == "" {
+		cursorJisIsuUUID = "0"
+	}
+
 	limitStr := c.QueryParam("limit")
 	limit := isuListLimit
 	if limitStr != "" {
@@ -439,8 +444,8 @@ func getIsuList(c echo.Context) error {
 	isuList := []Isu{}
 	err = db.Select(
 		&isuList,
-		"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = false ORDER BY `created_at` DESC LIMIT ?",
-		jiaUserID, limit)
+		"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` > ? AND `is_deleted` = false ORDER BY `jia_isu_uuid` ASC LIMIT ?",
+		jiaUserID, cursorJisIsuUUID, limit)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
