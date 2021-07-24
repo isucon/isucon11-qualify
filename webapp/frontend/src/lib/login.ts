@@ -19,6 +19,7 @@ const useLogin = () => {
   const login = useCallback(
     async (cancelToken?: CancelToken) => {
       if (state.me) {
+        setTryLogin(false)
         return
       }
       try {
