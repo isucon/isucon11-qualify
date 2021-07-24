@@ -206,7 +206,7 @@ func GetConditionDataExistTimestamp(s *Scenario, user *model.User) int64 {
 func addErrorWithContext(ctx context.Context, step *isucandar.BenchmarkStep, err error) {
 	select {
 	case <-ctx.Done():
-		if !failure.Is(err, ErrHTTP) {
+		if !failure.IsCode(err, ErrHTTP) {
 			step.AddError(err)
 		}
 	default:
