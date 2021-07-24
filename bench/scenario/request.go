@@ -200,6 +200,51 @@ func reqJSONResError(ctx context.Context, agent *agent.Agent, method string, rpa
 	return httpres, string(resBody), nil
 }
 
+func reqMultipartResJSON(ctx context.Context, agent *agent.Agent, method string, rpath string, body io.Reader, writer *multipart.Writer, res interface{}, allowedStatusCodes []int) (*http.Response, error) {
+	httpreq, err := agent.NewRequest(method, rpath, body)
+	if err != nil {
+		logger.AdminLogger.Panic(err)
+	}
+	httpreq.Header.Set("Content-Type", writer.FormDataContentType())
+
+	httpres, err := doRequest(ctx, agent, httpreq, allowedStatusCodes)
+	if err != nil {
+		return nil, err
+	}
+	defer httpres.Body.Close()
+
+	resBody, err := checkContentTypeAndGetBody(httpres, "application/json")
+	if err != nil {
+		return httpres, err
+	}
+
+	if err := json.Unmarshal(resBody, res); err != nil {
+		return nil, errorInvalidJSON(httpres)
+	}
+
+	return httpres, nil
+}
+
+func reqMultipartResError(ctx context.Context, agent *agent.Agent, method string, rpath string, body io.Reader, writer *multipart.Writer, allowedStatusCodes []int) (*http.Response, string, error) {
+	httpreq, err := agent.NewRequest(method, rpath, body)
+	if err != nil {
+		logger.AdminLogger.Panic(err)
+	}
+	httpreq.Header.Set("Content-Type", writer.FormDataContentType())
+
+	httpres, err := doRequest(ctx, agent, httpreq, allowedStatusCodes)
+	if err != nil {
+		return nil, "", err
+	}
+
+	resBody, err := checkContentTypeAndGetBody(httpres, "text/plain")
+	if err != nil {
+		return httpres, "", err
+	}
+
+	return httpres, string(resBody), nil
+}
+
 func doRequest(ctx context.Context, agent *agent.Agent, httpreq *http.Request, allowedStatusCodes []int) (*http.Response, error) {
 	httpres, err := agent.Do(ctx, httpreq)
 	if err != nil {
