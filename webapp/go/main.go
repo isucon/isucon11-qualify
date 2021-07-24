@@ -55,7 +55,8 @@ var (
 
 	jwtVerificationKey *ecdsa.PublicKey
 
-	isuConditionIP string
+	isuConditionPublicAddress string
+	isuConditionPublicPort    int
 )
 
 type Config struct {
@@ -248,14 +249,19 @@ func main() {
 	db.SetMaxOpenConns(10)
 	defer db.Close()
 
-	isuConditionIP = os.Getenv("ISU_CONDITION_IP")
-	if isuConditionIP == "" {
-		e.Logger.Fatalf("env ver ISU_CONDITION_IP is missing: %v", err)
+	isuConditionPublicAddress = os.Getenv("SERVER_PUBLIC_ADDRESS")
+	if isuConditionPublicAddress == "" {
+		e.Logger.Fatalf("env ver SERVER_PUBLIC_ADDRESS is missing")
+		return
+	}
+	isuConditionPublicPort, err = strconv.Atoi(getEnv("SERVER_PUBLIC_PORT", "80"))
+	if err != nil {
+		e.Logger.Fatalf("env ver SERVER_PUBLIC_PORT is invalid: %v", err)
 		return
 	}
 
 	// Start server
-	serverPort := fmt.Sprintf(":%v", getEnv("SERVER_PORT", "3000"))
+	serverPort := fmt.Sprintf(":%v", getEnv("SERVER_APP_PORT", "3000"))
 	e.Logger.Fatal(e.Start(serverPort))
 }
 
@@ -489,12 +495,7 @@ func postIsu(c echo.Context) error {
 
 	// JIAにisuのactivateをリクエスト
 	targetURL := getJIAServiceURL() + "/api/activate"
-	port, err := strconv.Atoi(getEnv("SERVER_PORT", "3000"))
-	if err != nil {
-		c.Logger().Errorf("bad port number: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	body := JIAServiceRequest{isuConditionIP, port, jiaIsuUUID}
+	body := JIAServiceRequest{isuConditionPublicAddress, isuConditionPublicPort, jiaIsuUUID}
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
 		c.Logger().Errorf("failed to marshal data: %v", err)
@@ -707,12 +708,7 @@ func deleteIsu(c echo.Context) error {
 
 	// JIAにisuのdeactivateをリクエスト
 	targetURL := getJIAServiceURL() + "/api/deactivate"
-	port, err := strconv.Atoi(getEnv("SERVER_PORT", "3000"))
-	if err != nil {
-		c.Logger().Errorf("bad port number: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	body := JIAServiceRequest{isuConditionIP, port, jiaIsuUUID}
+	body := JIAServiceRequest{isuConditionPublicAddress, isuConditionPublicPort, jiaIsuUUID}
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
 		c.Logger().Errorf("failed to marshal data: %v", err)
