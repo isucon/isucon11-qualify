@@ -5,6 +5,7 @@ package scenario
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/isucon/isucandar"
@@ -46,7 +47,7 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 		agent.WithNoCache(), agent.WithNoCookie(), agent.WithTimeout(s.initializeTimeout),
 	)
 	if err != nil {
-		return failure.NewError(ErrCritical, err)
+		logger.AdminLogger.Panic(err)
 	}
 	initializer.Name = "benchmarker-initializer"
 
@@ -56,7 +57,8 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 	}
 	if len(errs) > 0 {
 		//return ErrScenarioCancel
-		return ErrCritical
+		step.AddError(failure.NewError(ErrCritical, fmt.Errorf("initializeに失敗しました")))
+		return nil
 	}
 
 	s.Language = initResponse.Language
@@ -78,7 +80,8 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 	// Prepare step でのエラーはすべて Critical の扱い
 	if hasErrors() {
 		//return ErrScenarioCancel
-		return ErrCritical
+		step.AddError(failure.NewError(ErrCritical, fmt.Errorf("アプリケーション互換性チェックに失敗しました")))
+		return nil
 	}
 
 	s.realTimeLoadFinishedAt = time.Now().Add(s.LoadTimeout)
@@ -96,7 +99,7 @@ func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.Benchma
 
 		agt, err := s.NewAgent()
 		if err != nil {
-			step.AddError(failure.NewError(ErrCritical, err))
+			logger.AdminLogger.Panic(err)
 			return
 		}
 		userID := random.UserName()
@@ -116,7 +119,7 @@ func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.Benchma
 	}, worker.WithLoopCount(20))
 
 	if err != nil {
-		return failure.NewError(ErrCritical, err)
+		logger.AdminLogger.Panic(err)
 	}
 
 	w.Process(ctx)
@@ -126,7 +129,7 @@ func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.Benchma
 	//作成済みユーザーへのログイン確認
 	agt, err := s.NewAgent()
 	if err != nil {
-		step.AddError(failure.NewError(ErrCritical, err))
+		logger.AdminLogger.Panic(err)
 		return nil
 	}
 	userID := random.UserName()
