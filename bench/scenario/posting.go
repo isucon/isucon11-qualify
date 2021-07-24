@@ -136,7 +136,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 			bytes.NewBuffer(conditionByte),
 		)
 		if err != nil {
-			step.AddError(failure.NewError(ErrHTTP, err))
+			addErrorWithContext(ctx, step, failure.NewError(ErrHTTP, err))
 			continue // goto next loop
 		}
 		func() {
