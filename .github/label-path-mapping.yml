@@ -8,3 +8,15 @@ infrastructure:
   - provisioning/**/*
 documentation:
   - development/doc/**/*
+transplant:
+  - webapp/nodejs/**/*
+  - webapp/perl/**/*
+  - webapp/php/**/*
+  - webapp/python/**/*
+  - webapp/ruby/**/*
+  - webapp/rust/**/*
+initial-data:
+  - extra/initial-data/**/*
+  - bench/random/**/*
+jiaapi-mock:
+  - extra/jiaapi-mock/**/*

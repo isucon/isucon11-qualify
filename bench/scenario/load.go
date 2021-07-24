@@ -69,11 +69,11 @@ func (s *Scenario) userAdder(ctx context.Context, step *isucandar.BenchmarkStep)
 		errCount := step.Result().Errors.Count()
 		timeoutCount, ok := errCount["timeout"]
 		if !ok || timeoutCount == 0 {
-			logger.ContestantLogger.Println("エラーが無かったため負荷レベルを上昇させます")
+			logger.ContestantLogger.Println("現レベルの負荷へ応答ができているため、負荷レベルを上昇させます")
 			s.AddNormalUser(ctx, step, 20)
 			s.AddCompanyUser(ctx, step, 1)
 		} else if ok && timeoutCount > 0 {
-			logger.ContestantLogger.Println("エラーが発生したため負荷レベルは上昇しません")
+			logger.ContestantLogger.Println("エラーが発生したため、負荷レベルは上昇しません")
 			return
 		}
 	}
@@ -168,14 +168,7 @@ scenarioLoop:
 		}
 
 		//GET /isu/{jia_isu_uuid}
-		_, _, errs = browserGetIsuDetailAction(ctx, user.Agent, targetIsu.JIAIsuUUID, true,
-			func(res *http.Response, catalog *service.Catalog) []error {
-				//TODO: catalogの検証
-				//targetIsu.JIACatalogID
-				//return verifyCatalog(res, , catalog)
-				return []error{}
-			},
-		)
+		_, errs = browserGetIsuDetailAction(ctx, user.Agent, targetIsu.JIAIsuUUID, true)
 		for _, err := range errs {
 			scenarioSuccess = false
 			step.AddError(err)

@@ -16,8 +16,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -312,24 +312,71 @@ func getIsuErrorAction(ctx context.Context, a *agent.Agent) (string, *http.Respo
 }
 
 func postIsuAction(ctx context.Context, a *agent.Agent, req service.PostIsuRequest) (*service.Isu, *http.Response, error) {
-	body, err := json.Marshal(req)
+	buf := &bytes.Buffer{}
+	writer := multipart.NewWriter(buf)
+
+	part, err := writer.CreateFormField("jia_isu_uuid")
+	if err != nil {
+		logger.AdminLogger.Panic(err)
+	}
+	_, err = part.Write([]byte(req.JIAIsuUUID))
+	if err != nil {
+		logger.AdminLogger.Panic(err)
+	}
+
+	part, err = writer.CreateFormField("isu_name")
+	if err != nil {
+		logger.AdminLogger.Panic(err)
+	}
+	_, err = part.Write([]byte(req.IsuName))
+	if err != nil {
+		logger.AdminLogger.Panic(err)
+	}
+	// TODO: 画像も追加する
+	//part, err := writer.CreateFormFile("image", filepath.Base(file.Name()))
+	//io.Copy(part, file)
+	err = writer.Close()
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 	}
 	isu := &service.Isu{}
-	res, err := reqJSONResJSON(ctx, a, http.MethodPost, "/api/isu", bytes.NewReader(body), isu, []int{http.StatusOK})
+	res, err := reqMultipartResJSON(ctx, a, http.MethodPost, "/api/isu", buf, writer, isu, []int{http.StatusOK})
 	if err != nil {
 		return nil, nil, err
 	}
 	return isu, res, nil
 }
 
-func postIsuErrorAction(ctx context.Context, a *agent.Agent, req interface{}) (string, *http.Response, error) {
-	body, err := json.Marshal(req)
+func postIsuErrorAction(ctx context.Context, a *agent.Agent, req service.PostIsuRequest) (string, *http.Response, error) {
+	buf := &bytes.Buffer{}
+	writer := multipart.NewWriter(buf)
+
+	part, err := writer.CreateFormField("jia_isu_uuid")
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 	}
-	res, text, err := reqJSONResError(ctx, a, http.MethodPost, "/api/isu", bytes.NewReader(body), []int{http.StatusBadRequest, http.StatusConflict, http.StatusUnauthorized, http.StatusNotFound})
+	_, err = part.Write([]byte(req.JIAIsuUUID))
+	if err != nil {
+		logger.AdminLogger.Panic(err)
+	}
+
+	part, err = writer.CreateFormField("isu_name")
+	if err != nil {
+		logger.AdminLogger.Panic(err)
+	}
+	_, err = part.Write([]byte(req.IsuName))
+	if err != nil {
+		logger.AdminLogger.Panic(err)
+	}
+	// TODO: 画像も追加する
+	// TODO: file.Nameを正しく渡すと不正出来そうなので、拡張子残すくらいにしておきたい
+	//part, err := writer.CreateFormFile("image", filepath.Base(file.Name()))
+	//io.Copy(part, file)
+	err = writer.Close()
+	if err != nil {
+		logger.AdminLogger.Panic(err)
+	}
+	res, text, err := reqMultipartResError(ctx, a, http.MethodPost, "/api/isu", buf, writer, []int{http.StatusBadRequest, http.StatusConflict, http.StatusUnauthorized, http.StatusNotFound, http.StatusForbidden})
 	if err != nil {
 		return "", nil, err
 	}
@@ -349,33 +396,6 @@ func getIsuIdAction(ctx context.Context, a *agent.Agent, id string) (*service.Is
 func getIsuIdErrorAction(ctx context.Context, a *agent.Agent, id string) (string, *http.Response, error) {
 	reqUrl := fmt.Sprintf("/api/isu/%s", id)
 	res, text, err := reqNoContentResError(ctx, a, http.MethodGet, reqUrl, []int{http.StatusUnauthorized, http.StatusNotFound})
-	if err != nil {
-		return "", nil, err
-	}
-	return text, res, nil
-}
-
-func putIsuAction(ctx context.Context, a *agent.Agent, id string, req service.PutIsuRequest) (*service.Isu, *http.Response, error) {
-	isu := &service.Isu{}
-	body, err := json.Marshal(req)
-	if err != nil {
-		logger.AdminLogger.Panic(err)
-	}
-	reqUrl := fmt.Sprintf("/api/isu/%s", id)
-	res, err := reqJSONResJSON(ctx, a, http.MethodPut, reqUrl, bytes.NewReader(body), &isu, []int{http.StatusOK})
-	if err != nil {
-		return nil, nil, err
-	}
-	return isu, res, nil
-}
-
-func putIsuErrorAction(ctx context.Context, a *agent.Agent, id string, req service.PutIsuRequest) (string, *http.Response, error) {
-	body, err := json.Marshal(req)
-	if err != nil {
-		logger.AdminLogger.Panic(err)
-	}
-	reqUrl := fmt.Sprintf("/api/isu/%s", id)
-	res, text, err := reqJSONResError(ctx, a, http.MethodPut, reqUrl, bytes.NewReader(body), []int{http.StatusUnauthorized, http.StatusNotFound, http.StatusBadRequest})
 	if err != nil {
 		return "", nil, err
 	}
@@ -416,93 +436,6 @@ func getIsuIconAction(ctx context.Context, a *agent.Agent, id string, allowNotMo
 
 func getIsuIconErrorAction(ctx context.Context, a *agent.Agent, id string) (string, *http.Response, error) {
 	reqUrl := fmt.Sprintf("/api/isu/%s/icon", id)
-	res, text, err := reqNoContentResError(ctx, a, http.MethodGet, reqUrl, []int{http.StatusUnauthorized, http.StatusNotFound})
-	if err != nil {
-		return "", nil, err
-	}
-	return text, res, nil
-}
-
-// TODO: 画像は取り扱いをどうしたらいいかわかんないからとりあえず io.Reader で
-func putIsuIconAction(ctx context.Context, a *agent.Agent, id string, image io.Reader) (*http.Response, error) {
-	reqUrl := fmt.Sprintf("/api/isu/%s/icon", id)
-	res, err := reqPngResNoContent(ctx, a, http.MethodPut, reqUrl, image, []int{http.StatusOK})
-	if err != nil {
-		return nil, err
-	}
-	return res, nil
-}
-
-func putIsuIconErrorAction(ctx context.Context, a *agent.Agent, id string, image io.Reader) (string, *http.Response, error) {
-	reqUrl := fmt.Sprintf("/api/isu/%s/icon", id)
-	res, text, err := reqPngResError(ctx, a, http.MethodPut, reqUrl, image, []int{http.StatusUnauthorized, http.StatusNotFound, http.StatusBadRequest})
-	if err != nil {
-		return "", nil, err
-	}
-	return text, res, nil
-}
-
-func getIsuSearchAction(ctx context.Context, a *agent.Agent, req service.GetIsuSearchRequest) ([]*service.Isu, *http.Response, error) {
-	reqUrl := getIsuSearchRequestParams(req)
-	var isuList []*service.Isu
-	res, err := reqJSONResJSON(ctx, a, http.MethodGet, reqUrl, nil, &isuList, []int{http.StatusOK})
-	if err != nil {
-		return nil, nil, err
-	}
-	return isuList, res, nil
-}
-
-func getIsuSearchErrorAction(ctx context.Context, a *agent.Agent, req service.GetIsuSearchRequest) (string, *http.Response, error) {
-	reqUrl := getIsuSearchRequestParams(req)
-	res, text, err := reqNoContentResError(ctx, a, http.MethodGet, reqUrl, []int{http.StatusUnauthorized, http.StatusNotFound})
-	if err != nil {
-		return "", nil, err
-	}
-	return text, res, nil
-}
-
-func getIsuSearchRequestParams(req service.GetIsuSearchRequest) string {
-	targetURLStr := "/api/isu/search"
-	targetURL, err := url.Parse(targetURLStr)
-	if err != nil {
-		logger.AdminLogger.Panicln(err)
-	}
-
-	q := url.Values{}
-	if req.Name != nil {
-		q.Set("name", *req.Name)
-	}
-	if req.CatalogName != nil {
-		q.Set("catalog_name", *req.CatalogName)
-	}
-	if req.CatalogTags != nil {
-		q.Set("catalog_tags", *req.CatalogTags)
-	}
-	if req.Character != nil {
-		q.Set("character", *req.Character)
-	}
-	if req.MinLimitWeight != nil {
-		q.Set("min_limit_weight", fmt.Sprint(*req.MinLimitWeight))
-	}
-	if req.MaxLimitWeight != nil {
-		q.Set("max_limit_weight", fmt.Sprint(*req.MaxLimitWeight))
-	}
-	targetURL.RawQuery = q.Encode()
-	return targetURL.String()
-}
-
-func getCatalogAction(ctx context.Context, a *agent.Agent, id string) (*service.Catalog, *http.Response, error) {
-	catalog := &service.Catalog{}
-	reqUrl := fmt.Sprintf("/api/catalog/%s", id)
-	res, err := reqJSONResJSON(ctx, a, http.MethodGet, reqUrl, nil, &catalog, []int{http.StatusOK})
-	if err != nil {
-		return catalog, nil, err
-	}
-	return catalog, res, nil
-}
-
-func getCatalogErrorAction(ctx context.Context, a *agent.Agent, id string) (string, *http.Response, error) {
-	reqUrl := fmt.Sprintf("/api/catalog/%s", id)
 	res, text, err := reqNoContentResError(ctx, a, http.MethodGet, reqUrl, []int{http.StatusUnauthorized, http.StatusNotFound})
 	if err != nil {
 		return "", nil, err
@@ -653,27 +586,6 @@ func browserGetHomeAction(ctx context.Context, a *agent.Agent,
 	return isuList, conditions, errors
 }
 
-func browserGetSearchAction(ctx context.Context, a *agent.Agent, req service.GetIsuSearchRequest, allowNotModified bool) ([]*service.Isu, []error) {
-	// TODO: 静的ファイルのGET
-
-	errors := []error{}
-	isuList, _, err := getIsuSearchAction(ctx, a, req)
-	if err != nil {
-		errors = append(errors, err)
-	}
-	if isuList != nil {
-		// TODO: ここ以下は多分並列
-		for _, isu := range isuList {
-			icon, _, err := getIsuIconAction(ctx, a, isu.JIAIsuUUID, allowNotModified)
-			if err != nil {
-				errors = append(errors, err)
-			}
-			isu.Icon = icon
-		}
-	}
-	return isuList, errors
-}
-
 func browserGetConditionsAction(ctx context.Context, a *agent.Agent, req service.GetIsuConditionRequest,
 	validateCondition func(*http.Response, []*service.GetIsuConditionResponse) []error,
 ) ([]*service.GetIsuConditionResponse, []error) {
@@ -706,8 +618,7 @@ func browserGetAuthAction(ctx context.Context, a *agent.Agent) []error {
 
 func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string,
 	allowNotModified bool,
-	validateCatalog func(*http.Response, *service.Catalog) []error,
-) (*service.Isu, *service.Catalog, []error) {
+) (*service.Isu, []error) {
 	// TODO: 静的ファイルのGET
 
 	errors := []error{}
@@ -724,15 +635,9 @@ func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string,
 		}
 		isu.Icon = icon
 
-		catalog, hres, err := getCatalogAction(ctx, a, isu.JIACatalogID)
-		if err != nil {
-			errors = append(errors, err)
-		} else {
-			errors = append(errors, validateCatalog(hres, catalog)...)
-		}
-		return isu, catalog, errors
+		return isu, errors
 	}
-	return nil, nil, errors
+	return nil, errors
 }
 
 func browserGetIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req service.GetIsuConditionRequest,
