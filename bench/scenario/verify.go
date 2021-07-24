@@ -91,7 +91,6 @@ func verifyIsuOrderByCreatedAt(res *http.Response, expectedReverse []*model.Isu,
 		exp := expectedReverse[length-1-i]
 		if exp.JIAIsuUUID == isu.JIAIsuUUID {
 			if exp.Character == isu.Character &&
-				exp.JIACatalogID == isu.JIACatalogID &&
 				exp.Name == isu.Name {
 				//TODO: iconの検証
 
