@@ -38,10 +38,19 @@ class Apis {
   }
 
   async postIsu(
-    isu: { jia_isu_uuid: string; isu_name: string },
+    isu: { jia_isu_uuid: string; isu_name: string; image?: File },
     axiosConfig?: AxiosRequestConfig
   ) {
-    await axios.post<void>(`/api/isu`, isu, axiosConfig)
+    const data = new FormData()
+    data.append('jia_isu_uuid', isu.jia_isu_uuid)
+    data.append('isu_name', isu.isu_name)
+    if (isu.image) {
+      data.append('image', isu.image, isu.image.name)
+    }
+    await axios.post<void>(`/api/isu`, data, {
+      headers: { 'content-type': 'multipart/form-data' },
+      ...axiosConfig
+    })
   }
 
   async getIsuSearch(
