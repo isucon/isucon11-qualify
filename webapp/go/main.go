@@ -55,7 +55,8 @@ var (
 
 	jwtVerificationKey *ecdsa.PublicKey
 
-	isuConditionIP string
+	isuConditionPublicAddress string
+	isuConditionPublicPort    int
 )
 
 type Config struct {
@@ -248,14 +249,19 @@ func main() {
 	db.SetMaxOpenConns(10)
 	defer db.Close()
 
-	isuConditionIP = os.Getenv("ISU_CONDITION_IP")
-	if isuConditionIP == "" {
-		e.Logger.Fatalf("env ver ISU_CONDITION_IP is missing: %v", err)
+	isuConditionPublicAddress = os.Getenv("SERVER_PUBLIC_ADDRESS")
+	if isuConditionPublicAddress == "" {
+		e.Logger.Fatalf("env ver SERVER_PUBLIC_ADDRESS is missing")
+		return
+	}
+	isuConditionPublicPort, err = strconv.Atoi(getEnv("SERVER_PUBLIC_PORT", "80"))
+	if err != nil {
+		e.Logger.Fatalf("env ver SERVER_PUBLIC_PORT is invalid: %v", err)
 		return
 	}
 
 	// Start server
-	serverPort := fmt.Sprintf(":%v", getEnv("SERVER_PORT", "3000"))
+	serverPort := fmt.Sprintf(":%v", getEnv("SERVER_APP_PORT", "3000"))
 	e.Logger.Fatal(e.Start(serverPort))
 }
 
@@ -464,37 +470,64 @@ func postIsu(c echo.Context) error {
 	isuName := c.FormValue("isu_name")
 	fh, err := c.FormFile("image")
 	if err != nil {
-		if errors.Is(err, http.ErrMissingFile) {
-			useDefaultImage = true
-		} else {
+		if !errors.Is(err, http.ErrMissingFile) {
 			c.Logger().Errorf("failed to get icon: %v", err)
 			return c.String(http.StatusBadRequest, "failed to get icon")
 		}
+		useDefaultImage = true
 	}
 
-	// 既に登録されたisuでないか確認
-	var count int
-	// TODO 再activate時もエラー起こすため、 `is_deleted` は見ない
-	err = db.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
-		jiaUserID, jiaIsuUUID)
+	var image []byte
+
+	if useDefaultImage {
+		// デフォルト画像を準備
+		image, err = ioutil.ReadFile(defaultIconFilePath)
+		if err != nil {
+			c.Logger().Errorf("failed to read default icon: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+	} else {
+		file, err := fh.Open()
+		if err != nil {
+			c.Logger().Errorf("failed to open fh: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+		defer file.Close()
+
+		image, err = ioutil.ReadAll(file)
+		if err != nil {
+			c.Logger().Errorf("failed to read file: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+	}
+
+	// トランザクション開始
+	tx, err := db.Beginx()
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
-	if count != 0 {
-		// TODO 再activate時もここでエラー; day2で再検討
-		c.Logger().Errorf("duplicated isu: %v", err)
-		return c.String(http.StatusConflict, "duplicated isu")
+	defer tx.Rollback()
+
+	// 新しいisuのデータをinsert
+	_, err = tx.Exec("INSERT INTO `isu`"+
+		"	(`jia_isu_uuid`, `name`, `image`, `jia_user_id`) VALUES (?, ?, ?, ?)",
+		jiaIsuUUID, isuName, image, jiaUserID)
+	if err != nil {
+		mysqlErr, ok := err.(*mysql.MySQLError)
+
+		if ok && mysqlErr.Number == uint16(mysqlErrNumDuplicateEntry) {
+			c.Logger().Errorf("duplicated condition: %v", err)
+			return c.String(http.StatusConflict, "duplicated condition")
+		}
+
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	// JIAにisuのactivateをリクエスト
 	targetURL := getJIAServiceURL() + "/api/activate"
-	port, err := strconv.Atoi(getEnv("SERVER_PORT", "3000"))
-	if err != nil {
-		c.Logger().Errorf("bad port number: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	body := JIAServiceRequest{isuConditionIP, port, jiaIsuUUID}
+	body := JIAServiceRequest{isuConditionPublicAddress, isuConditionPublicPort, jiaIsuUUID}
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
 		c.Logger().Errorf("failed to marshal data: %v", err)
@@ -533,44 +566,24 @@ func postIsu(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	var image []byte
-
-	if useDefaultImage {
-		// デフォルト画像を準備
-		image, err = ioutil.ReadFile(defaultIconFilePath)
-		if err != nil {
-			c.Logger().Errorf("failed to read default icon: %v", err)
-			return c.NoContent(http.StatusInternalServerError)
-		}
-	} else {
-		file, err := fh.Open()
-		if err != nil {
-			c.Logger().Errorf("failed to open fh: %v", err)
-			return c.NoContent(http.StatusInternalServerError)
-		}
-		defer file.Close()
-
-		image, err = ioutil.ReadAll(file)
-		if err != nil {
-			c.Logger().Errorf("failed to read file: %v", err)
-			return c.NoContent(http.StatusInternalServerError)
-		}
-	}
-
-	// 新しいisuのデータをinsert
-	_, err = db.Exec("INSERT INTO `isu`"+
-		"	(`jia_isu_uuid`, `name`, `image`, `character`, `jia_user_id`) VALUES (?, ?, ?, ?, ?)",
-		jiaIsuUUID, isuName, image, isuFromJIA.Character, jiaUserID)
+	_, err = tx.Exec("UPDATE `isu` SET `character` = ? WHERE  `jia_isu_uuid` = ?", isuFromJIA.Character, jiaIsuUUID)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	var isu Isu
-	err = db.Get(
+	err = tx.Get(
 		&isu,
 		"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
 		jiaUserID, jiaIsuUUID)
+	if err != nil {
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	// トランザクション終了
+	err = tx.Commit()
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -707,12 +720,7 @@ func deleteIsu(c echo.Context) error {
 
 	// JIAにisuのdeactivateをリクエスト
 	targetURL := getJIAServiceURL() + "/api/deactivate"
-	port, err := strconv.Atoi(getEnv("SERVER_PORT", "3000"))
-	if err != nil {
-		c.Logger().Errorf("bad port number: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	body := JIAServiceRequest{isuConditionIP, port, jiaIsuUUID}
+	body := JIAServiceRequest{isuConditionPublicAddress, isuConditionPublicPort, jiaIsuUUID}
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
 		c.Logger().Errorf("failed to marshal data: %v", err)

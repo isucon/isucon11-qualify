@@ -130,11 +130,14 @@ func reqNoContentResPng(ctx context.Context, agent *agent.Agent, method string, 
 	}
 	defer httpres.Body.Close()
 
-	// TODO: resBodyの扱いを考える(現状でここに置いてるのは Close 周りの都合)
-	// TODO: content typeなくなったので一旦空文字で
-	resBody, err := checkContentTypeAndGetBody(httpres, "")
+	//ContentTypeのチェックは行わない
+	//resBody, err := checkContentTypeAndGetBody(httpres, "image/png")
+	resBody, err := ioutil.ReadAll(httpres.Body)
 	if err != nil {
-		return httpres, nil, err
+		if !isTimeout(err) {
+			return httpres, nil, failure.NewError(ErrCritical, err)
+		}
+		return httpres, nil, failure.NewError(ErrHTTP, err)
 	}
 
 	return httpres, resBody, nil

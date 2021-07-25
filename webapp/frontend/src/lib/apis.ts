@@ -21,14 +21,6 @@ class Apis {
     return data
   }
 
-  async getCatalog(catalogId: string, axiosConfig?: AxiosRequestConfig) {
-    const { data } = await axios.get<Catalog>(
-      `/api/catalog/${catalogId}`,
-      axiosConfig
-    )
-    return data
-  }
-
   async getIsus(options?: { limit: number }, axiosConfig?: AxiosRequestConfig) {
     const { data } = await axios.get<Isu[]>(`/api/isu`, {
       params: options,
@@ -37,11 +29,17 @@ class Apis {
     return data
   }
 
-  async postIsu(
-    isu: { jia_isu_uuid: string; isu_name: string },
-    axiosConfig?: AxiosRequestConfig
-  ) {
-    await axios.post<void>(`/api/isu`, isu, axiosConfig)
+  async postIsu(req: PostIsuRequest, axiosConfig?: AxiosRequestConfig) {
+    const data = new FormData()
+    data.append('jia_isu_uuid', req.jia_isu_uuid)
+    data.append('isu_name', req.isu_name)
+    if (req.image) {
+      data.append('image', req.image, req.image.name)
+    }
+    await axios.post<void>(`/api/isu`, data, {
+      headers: { 'content-type': 'multipart/form-data' },
+      ...axiosConfig
+    })
   }
 
   async getIsuSearch(
@@ -75,19 +73,6 @@ class Apis {
 
   async deleteIsu(jiaIsuUuid: string, axiosConfig?: AxiosRequestConfig) {
     await axios.delete<Isu>(`/api/isu/${jiaIsuUuid}`, axiosConfig)
-  }
-
-  async putIsuIcon(
-    jiaIsuUuid: string,
-    file: File,
-    axiosConfig?: AxiosRequestConfig
-  ) {
-    const data = new FormData()
-    data.append('image', file, file.name)
-    await axios.put<void>(`/api/isu/${jiaIsuUuid}/icon`, data, {
-      headers: { 'content-type': 'multipart/form-data' },
-      ...axiosConfig
-    })
   }
 
   async getIsuGraphs(
@@ -133,18 +118,7 @@ export interface User {
 export interface Isu {
   jia_isu_uuid: string
   name: string
-  jia_catalog_id: string
   character: string
-}
-
-export interface Catalog {
-  jia_catalog_id: string
-  name: string
-  limit_weight: number
-  weight: number
-  size: string
-  maker: string
-  tags: string
 }
 
 export interface IsuLog {
@@ -183,6 +157,12 @@ export const DEFAULT_SEARCH_LIMIT = 20
 
 export interface PutIsuRequest {
   name: string
+}
+
+export interface PostIsuRequest {
+  jia_isu_uuid: string
+  isu_name: string
+  image?: File
 }
 
 export interface Condition {
