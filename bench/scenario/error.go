@@ -125,6 +125,12 @@ func errorInvalid(res *http.Response, message string, args ...interface{}) error
 	return failure.NewError(ErrInvalid, fmt.Errorf(message+": %d (%s: %s)", args...))
 }
 
+// TODO: errorInvalidResponseはこっちに修正する
+func errorInvalidResponse2(res *http.Response, message string, args ...interface{}) error {
+	args = append(args, res.StatusCode, res.Request.Method, res.Request.URL.Path)
+	return failure.NewError(ErrInvalidResponse, fmt.Errorf(message+": %d (%s: %s)", args...))
+}
+
 func errorInvalidResponse(message string, args ...interface{}) error {
 	return failure.NewError(ErrInvalidResponse, fmt.Errorf(message, args...))
 }

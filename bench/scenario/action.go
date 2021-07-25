@@ -715,7 +715,6 @@ func BrowserAccess(ctx context.Context, a *agent.Agent, rpath string) error {
 	if err != nil {
 		return failure.NewError(ErrHTTP, err)
 	}
-
 	if err := verifyStatusCode(res, http.StatusOK); err != nil {
 		if err := verifyStatusCode(res, http.StatusNotModified); err != nil {
 			return failure.NewError(ErrInvalidStatusCode, err)
@@ -735,5 +734,4 @@ func BrowserAccess(ctx context.Context, a *agent.Agent, rpath string) error {
 	}
 
 	return nil
-
 }
