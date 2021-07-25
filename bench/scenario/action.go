@@ -445,30 +445,49 @@ func getIsuIconErrorAction(ctx context.Context, a *agent.Agent, id string) (stri
 	return text, res, nil
 }
 
-func postIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req service.PostIsuConditionRequest) (*http.Response, error) {
-	reqUrl := fmt.Sprintf("/api/isu/%s/condition", id)
-	body, err := json.Marshal(req)
+func postIsuConditionAction(targetUrl string, req *[]service.PostIsuConditionRequest) (*http.Response, error) {
+	httpClient := http.Client{}
+	httpClient.Timeout = agent.DefaultRequestTimeout + 5*time.Second
+	conditionByte, err := json.Marshal(req)
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 	}
-	res, err := reqJSONResNoContent(ctx, a, http.MethodPost, reqUrl, bytes.NewReader(body), []int{http.StatusCreated})
+	res, err := httpClient.Post(
+		targetUrl, "application/json",
+		bytes.NewBuffer(conditionByte),
+	)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := verifyStatusCode(res, http.StatusCreated); err != nil {
 		return nil, err
 	}
 	return res, nil
 }
 
-func postIsuConditionErrorAction(ctx context.Context, a *agent.Agent, id string, req service.PostIsuConditionRequest) (string, *http.Response, error) {
-	reqUrl := fmt.Sprintf("/api/isu/%s/condition", id)
-	body, err := json.Marshal(req)
+func postIsuConditionErrorAction(targetUrl string, req []map[string]interface{}) (string, *http.Response, error) {
+	httpClient := http.Client{}
+	httpClient.Timeout = agent.DefaultRequestTimeout + 5*time.Second
+	conditionByte, err := json.Marshal(req)
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 	}
-	res, text, err := reqJSONResError(ctx, a, http.MethodPost, reqUrl, bytes.NewReader(body), []int{http.StatusNotFound, http.StatusBadRequest})
+	res, err := httpClient.Post(
+		targetUrl, "application/json",
+		bytes.NewBuffer(conditionByte),
+	)
 	if err != nil {
 		return "", nil, err
 	}
-	return text, res, nil
+	defer res.Body.Close()
+
+	resBody, err := checkContentTypeAndGetBody(res, "text/plain")
+	if err != nil {
+		return "", nil, err
+	}
+
+	return string(resBody), res, nil
 }
 
 func getIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req service.GetIsuConditionRequest) ([]*service.GetIsuConditionResponse, *http.Response, error) {
@@ -501,9 +520,11 @@ func getConditionAction(ctx context.Context, a *agent.Agent, req service.GetIsuC
 	return conditions, res, nil
 }
 
-func getConditionErrorAction(ctx context.Context, a *agent.Agent, req service.GetIsuConditionRequest) (string, *http.Response, error) {
-	reqUrl := getIsuConditionRequestParams("/api/condition", req)
-	res, text, err := reqNoContentResError(ctx, a, http.MethodGet, reqUrl, []int{http.StatusNotFound, http.StatusUnauthorized})
+func getConditionErrorAction(ctx context.Context, a *agent.Agent, query url.Values) (string, *http.Response, error) {
+	path := fmt.Sprintf("/api/condition")
+	rpath := getPathWithParams(path, query)
+
+	res, text, err := reqNoContentResError(ctx, a, http.MethodGet, rpath, []int{http.StatusBadRequest, http.StatusUnauthorized})
 	if err != nil {
 		return "", nil, err
 	}
