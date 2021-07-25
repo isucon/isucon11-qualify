@@ -10,4 +10,12 @@ var (
 		"/logo_white.98008342.svg":  "f81e35a6821af44ea5b3a77346bcf6ad",
 		"/vendor.e16f2a0d.js":       "80afebbb91dd6f3927348f684b545e11",
 	}
+	resoucesMap = map[string]string{
+		"/favicon.svg":     "/favicon.d0f5f504.svg",
+		"/index.css":       "/index.33beebb9.css",
+		"/index.js":        "/index.73610a47.js",
+		"/logo_orange.svg": "/logo_orange.974bf3e6.svg",
+		"/logo_white.svg":  "/logo_white.98008342.svg",
+		"/vendor.js":       "/vendor.e16f2a0d.js",
+	}
 )

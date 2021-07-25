@@ -252,12 +252,12 @@ func joinURL(base *url.URL, target string) string {
 func verifyResources(page string, res *http.Response, resources agent.Resources) []error {
 	base := res.Request.URL.String()
 
-	faviconSvg := "/favicon.d0f5f504.svg"
-	indexCss := "/index.33beebb9.css"
-	indexJs := "/index.73610a47.js"
-	//logoOrange := "/logo_orange.974bf3e6.svg"
-	//logoWhite := "/logo_white.98008342.svg"
-	vendorJs := "/vendor.e16f2a0d.js"
+	faviconSvg := resoucesMap["/favicon.svg"]
+	indexCss := resoucesMap["/index.css"]
+	indexJs := resoucesMap["/index.js"]
+	//logoOrange := resoucesMap["/logo_orange.svg"]
+	//logoWhite := resoucesMap["/logo_white.svg"]
+	vendorJs := resoucesMap["/vendor.js"]
 
 	var checks []error
 	switch page {

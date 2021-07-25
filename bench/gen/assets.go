@@ -18,6 +18,7 @@ var (
 
 type Variable struct {
 	Hash map[string]string
+	Map  map[string]string
 }
 
 func hash(path string) string {
@@ -53,6 +54,9 @@ func glob(v *Variable, prefix string) {
 
 		filename := strings.TrimPrefix(match, rootPrefix+"/")
 		v.Hash["/"+filename] = hash(match)
+		basename := strings.Split(filename, ".")[0]
+		ext := strings.Split(filename, ".")[2]
+		v.Map["/"+basename+"."+ext] = "/" + filename
 	}
 }
 
@@ -62,6 +66,7 @@ func main() {
 
 	v := &Variable{
 		Hash: map[string]string{},
+		Map:  map[string]string{},
 	}
 	glob(v, prefix)
 
@@ -81,6 +86,9 @@ package scenario
 
 var (
 	resoucesHash = map[string]string{ {{range $key, $value := .Hash}}
+		"{{$key}}": "{{$value}}",{{end}}
+	}
+	resoucesMap = map[string]string{ {{range $key, $value := .Map}}
 		"{{$key}}": "{{$value}}",{{end}}
 	}
 )
