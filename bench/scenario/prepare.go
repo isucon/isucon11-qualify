@@ -429,11 +429,12 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 		step.AddError(err)
 		return
 	}
-	if err := verifyStatusCode(res, http.StatusForbidden); err != nil {
+	// もともとjia serviceでforbiddenで返されてたけど、バックエンド実装変更でconflictに
+	if err := verifyStatusCode(res, http.StatusConflict); err != nil {
 		step.AddError(err)
 		return
 	}
-	if err := verifyText(res, resBody, "JIAService returned error"); err != nil {
+	if err := verifyText(res, resBody, "duplicated isu"); err != nil {
 		step.AddError(err)
 		return
 	}
