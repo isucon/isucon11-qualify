@@ -252,12 +252,12 @@ func joinURL(base *url.URL, target string) string {
 func verifyResources(page string, res *http.Response, resources agent.Resources) []error {
 	base := res.Request.URL.String()
 
-	faviconSvg := resoucesMap["/favicon.svg"]
-	indexCss := resoucesMap["/index.css"]
-	indexJs := resoucesMap["/index.js"]
-	//logoOrange := resoucesMap["/logo_orange.svg"]
-	//logoWhite := resoucesMap["/logo_white.svg"]
-	vendorJs := resoucesMap["/vendor.js"]
+	faviconSvg := resourcesMap["/favicon.svg"]
+	indexCss := resourcesMap["/index.css"]
+	indexJs := resourcesMap["/index.js"]
+	//logoOrange := resourcesMap["/logo_orange.svg"]
+	//logoWhite := resourcesMap["/logo_white.svg"]
+	vendorJs := resourcesMap["/vendor.js"]
 
 	var checks []error
 	switch page {
@@ -341,7 +341,7 @@ func errorChecksum(base string, resource *agent.Resource, name string) error {
 
 	// md5でリソースの比較
 	path := res.Request.URL.Path
-	expected := resoucesHash[path]
+	expected := resourcesHash[path]
 	if expected == "" {
 		return nil
 	}
