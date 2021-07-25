@@ -517,8 +517,8 @@ func postIsu(c echo.Context) error {
 		mysqlErr, ok := err.(*mysql.MySQLError)
 
 		if ok && mysqlErr.Number == uint16(mysqlErrNumDuplicateEntry) {
-			c.Logger().Errorf("duplicated condition: %v", err)
-			return c.String(http.StatusConflict, "duplicated condition")
+			c.Logger().Errorf("duplicated isu: %v", err)
+			return c.String(http.StatusConflict, "duplicated isu")
 		}
 
 		c.Logger().Errorf("db error: %v", err)
