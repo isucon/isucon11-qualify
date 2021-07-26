@@ -8,6 +8,7 @@ import (
 	"crypto/md5"
 	"fmt"
 	"github.com/isucon/isucon11-qualify/bench/model"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -273,9 +274,9 @@ func (s *Scenario) prepareCheckGetIsuList(ctx context.Context, loginUser *model.
 	}
 
 	// check: 登録したISUがlimit分取得できる
-	isu1 := s.NewIsu(ctx, step, loginUser, true)
-	isu2 := s.NewIsu(ctx, step, loginUser, true)
-	isu3 := s.NewIsu(ctx, step, loginUser, true)
+	isu1 := s.NewIsu(ctx, step, loginUser, true, nil)
+	isu2 := s.NewIsu(ctx, step, loginUser, true, nil)
+	isu3 := s.NewIsu(ctx, step, loginUser, true, nil)
 
 	query = url.Values{}
 	query.Set("limit", "2")
@@ -365,29 +366,76 @@ func (s *Scenario) prepareCheckGetIsuList(ctx context.Context, loginUser *model.
 func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
 	//Isuの登録 e.POST("/api/isu", postIsu)
 	// check: 椅子の登録が成功する（デフォルト画像）
-	isu := s.NewIsu(ctx, step, loginUser, true)
-	m2s := func(m *model.Isu) service.Isu {
-		return service.Isu{
-			JIAIsuUUID: m.JIAIsuUUID,
-			Name:       m.Name,
-			Character:  m.Character,
-		}
-	}
-	sIsu := m2s(isu)
+	isu := s.NewIsu(ctx, step, loginUser, true, nil)
 
-	expected := []*service.Isu{&sIsu}
-	query := url.Values{}
-	query.Set("limit", "1")
-	isuList, res, err := getIsuAction(ctx, loginUser.Agent, query)
+	expected := isu.ToService()
+	actual, res, err := getIsuIdAction(ctx, loginUser.Agent, isu.JIAIsuUUID)
 	if err != nil {
 		step.AddError(err)
 		return
 	}
-	if !reflect.DeepEqual(isuList, expected) {
-		step.AddError(errorInvalidResponse2(res, "ユーザの所持する椅子や順番が一致しません。"))
+	if !reflect.DeepEqual(*actual, *expected) {
+		step.AddError(errorInvalidResponse2(res, "ユーザが所持している椅子が取得できません。"))
 		return
 	}
-	// TODO: check: 椅子の登録が成功する（画像あり）
+
+	imgByte, res, err := getIsuIconAction(ctx, loginUser.Agent, isu.JIAIsuUUID, false)
+	if err != nil {
+		step.AddError(err)
+		return
+	}
+	if err := verifyStatusCode(res, http.StatusOK); err != nil {
+		step.AddError(err)
+		return
+	}
+	data, err := ioutil.ReadFile("./images/NoImage.png")
+	if err != nil {
+		logger.AdminLogger.Panicln(err)
+	}
+	expectedImg := md5.Sum(data)
+	actualImg := md5.Sum(imgByte)
+	if expectedImg != actualImg {
+		step.AddError(errorInvalidResponse2(res, "期待するISUアイコンと一致しません"))
+		return
+	}
+
+	// check: 椅子の登録が成功する（画像あり）
+	img, err := ioutil.ReadFile("./images/TestImage.png")
+	if err != nil {
+		logger.AdminLogger.Panicln(err)
+	}
+	isuImg := &service.IsuImg{
+		ImgName: "TestImage.png",
+		Img:     img,
+	}
+	isuWithImg := s.NewIsu(ctx, step, loginUser, true, isuImg)
+
+	expected = isuWithImg.ToService()
+	actual, res, err = getIsuIdAction(ctx, loginUser.Agent, isuWithImg.JIAIsuUUID)
+	if err != nil {
+		step.AddError(err)
+		return
+	}
+	if !reflect.DeepEqual(*actual, *expected) {
+		step.AddError(errorInvalidResponse2(res, "ユーザが所持している椅子が取得できません。"))
+		return
+	}
+
+	imgByte, res, err = getIsuIconAction(ctx, loginUser.Agent, isuWithImg.JIAIsuUUID, false)
+	if err != nil {
+		step.AddError(err)
+		return
+	}
+	if err := verifyStatusCode(res, http.StatusOK); err != nil {
+		step.AddError(err)
+		return
+	}
+	expectedImg = md5.Sum(img)
+	actualImg = md5.Sum(imgByte)
+	if expectedImg != actualImg {
+		step.AddError(errorInvalidResponse2(res, "期待するISUアイコンと一致しません"))
+		return
+	}
 
 	// check: サインインしてない状態で椅子登録
 	req := service.PostIsuRequest{
@@ -463,7 +511,7 @@ func (s *Scenario) prepareCheckGetIsu(ctx context.Context, loginUser *model.User
 
 	//Isuの詳細情報取得 e.GET("/api/isu/:jia_isu_uuid", getIsu)
 	// check: 正常系
-	isu := s.NewIsu(ctx, step, loginUser, true)
+	isu := s.NewIsu(ctx, step, loginUser, true, nil)
 	if err := BrowserAccess(ctx, loginUser.Agent, "/isu/"+isu.JIAIsuUUID); err != nil {
 		step.AddError(err)
 		return
@@ -548,7 +596,7 @@ func (s *Scenario) prepareCheckGetIsu(ctx context.Context, loginUser *model.User
 func (s *Scenario) prepareCheckDeleteIsu(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
 	//ISUの削除 e.DELETE("/api/isu/:jia_isu_uuid", deleteIsu)
 
-	isu := s.NewIsu(ctx, step, loginUser, true)
+	isu := s.NewIsu(ctx, step, loginUser, true, nil)
 	// check: 他ユーザの椅子に対するリクエスト
 	resBody, res, err := deleteIsuErrorAction(ctx, noIsuUser.Agent, isu.JIAIsuUUID)
 	if err != nil {
@@ -617,7 +665,7 @@ func (s *Scenario) prepareCheckDeleteIsu(ctx context.Context, loginUser *model.U
 func (s *Scenario) prepareCheckGetIsuIcon(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
 	// check: ISUのアイコン取得 e.GET("/api/isu/:jia_isu_uuid/icon", getIsuIcon)
 	//- 正常系（初回はnot modified許可しない）
-	isu := s.NewIsu(ctx, step, loginUser, true)
+	isu := s.NewIsu(ctx, step, loginUser, true, nil)
 
 	imgByte, res, err := getIsuIconAction(ctx, loginUser.Agent, isu.JIAIsuUUID, false)
 	if err != nil {
@@ -716,7 +764,7 @@ func (s *Scenario) prepareCheckGetIsuIcon(ctx context.Context, loginUser *model.
 func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
 	//ISUグラフの取得 e.GET("/api/isu/:jia_isu_uuid/graph", getIsuGraph)
 	// TODO: check: 正常系
-	isu := s.NewIsu(ctx, step, loginUser, true)
+	isu := s.NewIsu(ctx, step, loginUser, true, nil)
 
 	// check: 未ログイン状態
 	query := url.Values{}
@@ -1025,8 +1073,8 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 	//ISUコンディションの取得 e.GET("/api/condition/:jia_isu_uuid", getIsuConditions)
 	//- 正常系
 	//	- option無し
-	isu := s.NewIsu(ctx, step, loginUser, true)
-	deletedIsu := s.NewIsu(ctx, step, loginUser, true)
+	isu := s.NewIsu(ctx, step, loginUser, true, nil)
+	deletedIsu := s.NewIsu(ctx, step, loginUser, true, nil)
 	// ある程度conditionが溜まるまで待つが3秒は適当
 	select {
 	case <-time.After(3 * time.Second):
@@ -1253,10 +1301,11 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 func (s *Scenario) prepareCheckPostIsuCondition(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
 	// ISUからのcondition送信 e.POST("/api/isu/:jia_isu_uuid/condition", postIsuCondition)
 	// - 正常系
-	isu := s.NewIsu(ctx, step, loginUser, true)
-	deletedIsu := s.NewIsu(ctx, step, loginUser, true)
+	isu := s.NewIsu(ctx, step, loginUser, true, nil)
+	deletedIsu := s.NewIsu(ctx, step, loginUser, true, nil)
 
 	// 通常のisu condition送信とかぶらないように未来の日付にしてる
+	// TODO: ここは時間表現ではなく、prepare中はkeepPostingさせないなどして制御するか、keepPostingした上で厳し目チェックに
 	baseTime := time.Date(2022, 7, 1, 0, 0, 0, 0, time.FixedZone("Asia/Tokyo", 9*60*60))
 	var conditionsReq []service.PostIsuConditionRequest
 	var expected []*service.GetIsuConditionResponse

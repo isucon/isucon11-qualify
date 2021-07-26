@@ -20,6 +20,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"time"
 
 	"github.com/isucon/isucandar/agent"
@@ -333,9 +334,17 @@ func postIsuAction(ctx context.Context, a *agent.Agent, req service.PostIsuReque
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 	}
-	// TODO: 画像も追加する
-	//part, err := writer.CreateFormFile("image", filepath.Base(file.Name()))
-	//io.Copy(part, file)
+
+	if req.Img != nil && req.ImgName != "" {
+		part, err := writer.CreateFormFile("image", filepath.Base(req.ImgName))
+		if err != nil {
+			logger.AdminLogger.Panic(err)
+		}
+		_, err = part.Write(req.Img)
+		if err != nil {
+			logger.AdminLogger.Panic(err)
+		}
+	}
 	err = writer.Close()
 	if err != nil {
 		logger.AdminLogger.Panic(err)

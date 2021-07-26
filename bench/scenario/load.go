@@ -271,7 +271,7 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 	const isuCountMax = 4 //ルートページに表示する最大数
 	isuCount := rand.Intn(isuCountMax) + 1
 	for i := 0; i < isuCount; i++ {
-		isu := s.NewIsu(ctx, step, user, true)
+		isu := s.NewIsu(ctx, step, user, true, nil)
 		if isu == nil {
 
 			//TODO: DELETE isuを叩く
@@ -457,7 +457,7 @@ func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.Benchmar
 	//const isuCountMax = 1000
 	isuCount := rand.Intn(10) + 500
 	for i := 0; i < isuCount; i++ {
-		isu := s.NewIsu(ctx, step, user, true)
+		isu := s.NewIsu(ctx, step, user, true, nil)
 		if isu == nil {
 			logger.AdminLogger.Println("Company User fail: NewIsu(initialize)")
 			return //致命的でないエラー
