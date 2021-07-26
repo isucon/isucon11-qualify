@@ -45,7 +45,7 @@ services:
     entrypoint: dockerize -wait http://backend:3000 -timeout 60s
     command: ["/bench", "--no-load", "--exit-status"]
     volumes:
-      - "../bench/images:/workdir/bench/images"
+      - "../bench/images:/images"
       - "../bench/key:/key"
     depends_on:
       - mysql-backend
