@@ -279,9 +279,9 @@ func getUserIDFromSession(r *http.Request) (string, error) {
 	return userID.(string), nil
 }
 
-func getJIAServiceURL() string {
+func getJIAServiceURL(tx *sqlx.Tx) string {
 	config := Config{}
-	err := db.Get(&config, "SELECT * FROM `isu_association_config` WHERE `name` = ?", "jia_service_url")
+	err := tx.Get(&config, "SELECT * FROM `isu_association_config` WHERE `name` = ?", "jia_service_url")
 	if err != nil {
 		if !errors.Is(err, sql.ErrNoRows) {
 			log.Print(err)
@@ -526,7 +526,7 @@ func postIsu(c echo.Context) error {
 	}
 
 	// JIAにisuのactivateをリクエスト
-	targetURL := getJIAServiceURL() + "/api/activate"
+	targetURL := getJIAServiceURL(tx) + "/api/activate"
 	body := JIAServiceRequest{isuConditionPublicAddress, isuConditionPublicPort, jiaIsuUUID}
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
@@ -719,7 +719,7 @@ func deleteIsu(c echo.Context) error {
 	}
 
 	// JIAにisuのdeactivateをリクエスト
-	targetURL := getJIAServiceURL() + "/api/deactivate"
+	targetURL := getJIAServiceURL(nil) + "/api/deactivate"
 	body := JIAServiceRequest{isuConditionPublicAddress, isuConditionPublicPort, jiaIsuUUID}
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
