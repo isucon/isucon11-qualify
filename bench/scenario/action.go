@@ -433,7 +433,7 @@ func getIsuIconErrorAction(ctx context.Context, a *agent.Agent, id string) (stri
 }
 
 func postIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req service.PostIsuConditionRequest) (*http.Response, error) {
-	reqUrl := fmt.Sprintf("/api/isu/%s/condition", id)
+	reqUrl := fmt.Sprintf("/api/condition/%s", id)
 	body, err := json.Marshal(req)
 	if err != nil {
 		logger.AdminLogger.Panic(err)
@@ -446,7 +446,7 @@ func postIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req 
 }
 
 func postIsuConditionErrorAction(ctx context.Context, a *agent.Agent, id string, req service.PostIsuConditionRequest) (string, *http.Response, error) {
-	reqUrl := fmt.Sprintf("/api/isu/%s/condition", id)
+	reqUrl := fmt.Sprintf("/api/condition/%s", id)
 	body, err := json.Marshal(req)
 	if err != nil {
 		logger.AdminLogger.Panic(err)
