@@ -719,7 +719,7 @@ func deleteIsu(c echo.Context) error {
 	}
 
 	// JIAにisuのdeactivateをリクエスト
-	targetURL := getJIAServiceURL(nil) + "/api/deactivate"
+	targetURL := getJIAServiceURL(tx) + "/api/deactivate"
 	body := JIAServiceRequest{isuConditionPublicAddress, isuConditionPublicPort, jiaIsuUUID}
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
