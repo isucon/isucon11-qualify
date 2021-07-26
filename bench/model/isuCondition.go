@@ -1,6 +1,8 @@
 package model
 
 import (
+	"time"
+
 	"github.com/emirpasic/gods/trees/redblacktree"
 	"github.com/isucon/isucon11-qualify/bench/model/eiya_redblacktree"
 )
@@ -21,12 +23,13 @@ type IsuCondition struct {
 	TimestampUnix int64 `json:"timestamp"`
 	IsSitting     bool  `json:"is_sitting"`
 	//Condition      string         `json:"condition"`
-	IsDirty        bool
-	IsOverweight   bool
-	IsBroken       bool
+	IsDirty        bool           `json:"is_dirty"`
+	IsOverweight   bool           `json:"is_overwight"`
+	IsBroken       bool           `json:"is_broken"`
 	ConditionLevel ConditionLevel `json:"-"`
 	Message        string         `json:"message"`
-	OwnerID        string
+	OwnerID        string         `json:"-"` // JIAIsuUUID ?
+	CreatedAt      time.Time      `json:"created_at"`
 	//	Owner          *Isu
 }
 

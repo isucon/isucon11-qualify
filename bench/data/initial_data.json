@@ -1,0 +1,93 @@
+[
+  {
+    "jia_user_id": "user1",
+    "isu_list_by_id": {
+      "6C9CA860-4E7B-4F44-984C-55F8F6A2A701": {
+        "name": "ISU1",
+        "image_name": "ISU1の写真",
+        "image_file_hash": "050ca18c21d79d12f9c21e976e8c8636",
+        "character": "がんばりや",
+        "is_deleted": false,
+        "conditions": {
+          "info": [
+            {
+              "timestamp": 12345678,
+						  "is_sitting": true,
+              "is_dirty": false,
+              "is_overweight": false,
+              "is_broken": false,
+              "message": "元気だよ！",
+              "created_at": "2021-07-26T13:00:00Z"
+            }
+          ],
+          "warning": [
+            {
+              "timestamp": 12345678,
+						  "is_sitting": true,
+              "is_dirty": true,
+              "is_overweight": false,
+              "is_broken": false,
+              "message": "汚れてるよ！",
+              "created_at": "2021-07-26T13:00:00Z"
+            }
+          ],
+          "critical": [
+            {
+              "timestamp": 12345678,
+						  "is_sitting": true,
+              "is_dirty": true,
+              "is_overweight": true,
+              "is_broken": true,
+              "message": "もうだめだおしましだ・・・",
+              "created_at": "2021-07-26T13:00:00Z"
+            }
+          ]
+        },
+        "created_at": "2021-07-26T13:00:00Z"
+      },
+      "8FC8DE0E-1F89-4900-93FA-5BBEF6620E0E": {
+        "name": "ISU2",
+        "image_name": "ISU2の写真",
+        "image_file_hash": "050ca18c21d79d12f9c21e976e8c8636",
+        "character": "がんばりや",
+        "is_deleted": false,
+        "conditions": {
+          "info": [
+            {
+              "timestamp": 12345678,
+              "is_sitting": true,
+              "is_dirty": false,
+              "is_overweight": false,
+              "is_broken": false,
+              "message": "元気だよ！",
+              "created_at": "2021-07-26T13:00:00Z"
+            }
+          ],
+          "warning": [
+            {
+              "timestamp": 12345678,
+              "is_sitting": true,
+              "is_dirty": true,
+              "is_overweight": false,
+              "is_broken": false,
+              "message": "汚れてるよ！",
+              "created_at": "2021-07-26T13:00:00Z"
+            }
+          ],
+          "critical": [
+            {
+              "timestamp": 12345678,
+              "is_sitting": true,
+              "is_dirty": true,
+              "is_overweight": true,
+              "is_broken": true,
+              "message": "もうだめだおしましだ・・・",
+              "created_at": "2021-07-26T13:00:00Z"
+            }
+          ]
+        },
+        "created_at": "2021-07-26T11:00:00Z"
+      }
+    }
+  }
+]
