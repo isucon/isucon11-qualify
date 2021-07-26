@@ -17,6 +17,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"time"
@@ -300,24 +301,71 @@ func getIsuErrorAction(ctx context.Context, a *agent.Agent) (string, *http.Respo
 }
 
 func postIsuAction(ctx context.Context, a *agent.Agent, req service.PostIsuRequest) (*service.Isu, *http.Response, error) {
-	body, err := json.Marshal(req)
+	buf := &bytes.Buffer{}
+	writer := multipart.NewWriter(buf)
+
+	part, err := writer.CreateFormField("jia_isu_uuid")
+	if err != nil {
+		logger.AdminLogger.Panic(err)
+	}
+	_, err = part.Write([]byte(req.JIAIsuUUID))
+	if err != nil {
+		logger.AdminLogger.Panic(err)
+	}
+
+	part, err = writer.CreateFormField("isu_name")
+	if err != nil {
+		logger.AdminLogger.Panic(err)
+	}
+	_, err = part.Write([]byte(req.IsuName))
+	if err != nil {
+		logger.AdminLogger.Panic(err)
+	}
+	// TODO: 画像も追加する
+	//part, err := writer.CreateFormFile("image", filepath.Base(file.Name()))
+	//io.Copy(part, file)
+	err = writer.Close()
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 	}
 	isu := &service.Isu{}
-	res, err := reqJSONResJSON(ctx, a, http.MethodPost, "/api/isu", bytes.NewReader(body), isu, []int{http.StatusOK})
+	res, err := reqMultipartResJSON(ctx, a, http.MethodPost, "/api/isu", buf, writer, isu, []int{http.StatusOK})
 	if err != nil {
 		return nil, nil, err
 	}
 	return isu, res, nil
 }
 
-func postIsuErrorAction(ctx context.Context, a *agent.Agent, req interface{}) (string, *http.Response, error) {
-	body, err := json.Marshal(req)
+func postIsuErrorAction(ctx context.Context, a *agent.Agent, req service.PostIsuRequest) (string, *http.Response, error) {
+	buf := &bytes.Buffer{}
+	writer := multipart.NewWriter(buf)
+
+	part, err := writer.CreateFormField("jia_isu_uuid")
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 	}
-	res, text, err := reqJSONResError(ctx, a, http.MethodPost, "/api/isu", bytes.NewReader(body), []int{http.StatusBadRequest, http.StatusConflict, http.StatusUnauthorized, http.StatusNotFound})
+	_, err = part.Write([]byte(req.JIAIsuUUID))
+	if err != nil {
+		logger.AdminLogger.Panic(err)
+	}
+
+	part, err = writer.CreateFormField("isu_name")
+	if err != nil {
+		logger.AdminLogger.Panic(err)
+	}
+	_, err = part.Write([]byte(req.IsuName))
+	if err != nil {
+		logger.AdminLogger.Panic(err)
+	}
+	// TODO: 画像も追加する
+	// TODO: file.Nameを正しく渡すと不正出来そうなので、拡張子残すくらいにしておきたい
+	//part, err := writer.CreateFormFile("image", filepath.Base(file.Name()))
+	//io.Copy(part, file)
+	err = writer.Close()
+	if err != nil {
+		logger.AdminLogger.Panic(err)
+	}
+	res, text, err := reqMultipartResError(ctx, a, http.MethodPost, "/api/isu", buf, writer, []int{http.StatusBadRequest, http.StatusConflict, http.StatusUnauthorized, http.StatusNotFound, http.StatusForbidden})
 	if err != nil {
 		return "", nil, err
 	}
@@ -385,7 +433,7 @@ func getIsuIconErrorAction(ctx context.Context, a *agent.Agent, id string) (stri
 }
 
 func postIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req service.PostIsuConditionRequest) (*http.Response, error) {
-	reqUrl := fmt.Sprintf("/api/isu/%s/condition", id)
+	reqUrl := fmt.Sprintf("/api/condition/%s", id)
 	body, err := json.Marshal(req)
 	if err != nil {
 		logger.AdminLogger.Panic(err)
@@ -398,7 +446,7 @@ func postIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req 
 }
 
 func postIsuConditionErrorAction(ctx context.Context, a *agent.Agent, id string, req service.PostIsuConditionRequest) (string, *http.Response, error) {
-	reqUrl := fmt.Sprintf("/api/isu/%s/condition", id)
+	reqUrl := fmt.Sprintf("/api/condition/%s", id)
 	body, err := json.Marshal(req)
 	if err != nil {
 		logger.AdminLogger.Panic(err)

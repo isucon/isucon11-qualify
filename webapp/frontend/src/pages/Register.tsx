@@ -3,7 +3,7 @@ import { useHistory } from 'react-router-dom'
 import Card from '../components/UI/Card'
 import IconInput from '../components/UI/IconInput'
 import Input from '../components/UI/Input'
-import apis from '../lib/apis'
+import apis, { PostIsuRequest } from '../lib/apis'
 
 const Register = () => {
   const [id, setId] = useState('')
@@ -13,10 +13,14 @@ const Register = () => {
 
   const submit = async () => {
     try {
-      await apis.postIsu({ jia_isu_uuid: id, isu_name: name })
-      if (file) {
-        await apis.putIsuIcon(id, file)
+      const req: PostIsuRequest = {
+        jia_isu_uuid: id,
+        isu_name: name
       }
+      if (file) {
+        req.image = file
+      }
+      await apis.postIsu(req)
       history.push(`/isu/${id}`)
     } catch (e) {
       alert(e.response.data.message)
