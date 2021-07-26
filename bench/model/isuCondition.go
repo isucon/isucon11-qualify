@@ -90,6 +90,10 @@ func NewIsuConditionArray() IsuConditionArray {
 	}
 }
 
+func (ia *IsuConditionArray) Length() int {
+	return len(ia.Info) + len(ia.Warning) + len(ia.Critical)
+}
+
 func (ia *IsuConditionArray) Add(cond *IsuCondition) {
 	switch cond.ConditionLevel {
 	case ConditionLevelInfo:

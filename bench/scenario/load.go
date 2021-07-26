@@ -105,11 +105,9 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 	for _, isu := range user.IsuListOrderByCreatedAt {
 		lastSolvedTime[isu.JIAIsuUUID] = s.virtualTimeStart
 	}
-	scenarioLoopStopper := time.After(1 * time.Millisecond) //ループ頻度調整
+	loopCount := 0
 scenarioLoop:
 	for {
-		<-scenarioLoopStopper
-		scenarioLoopStopper = time.After(50 * time.Millisecond) //TODO: 頻度調整
 		select {
 		case <-ctx.Done():
 			return
@@ -129,6 +127,21 @@ scenarioLoop:
 			return
 		default:
 		}
+
+		//conditionの数が一定数に達したらループ
+		conditionMin := 1000000000
+		for _, isu := range user.IsuListOrderByCreatedAt {
+			tmp := isu.Conditions.Length()
+			if tmp < conditionMin {
+				conditionMin = tmp
+			}
+		}
+		//20ループ/秒
+		if conditionMin*20/int(PostInterval*PostContentNum/s.virtualTimeMulti/time.Second) < loopCount {
+			time.Sleep(5 * time.Millisecond)
+			continue
+		}
+		loopCount++
 
 		//conditionを見るISUを選択
 		//TODO: 乱数にする
@@ -472,12 +485,9 @@ func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.Benchmar
 	for _, isu := range user.IsuListOrderByCreatedAt {
 		lastSolvedTime[isu.JIAIsuUUID] = s.virtualTimeStart
 	}
-	scenarioLoopStopper := time.After(1 * time.Millisecond)
+	loopCount := 0
 scenarioLoop:
 	for {
-		<-scenarioLoopStopper
-		scenarioLoopStopper = time.After(50 * time.Millisecond) //TODO: 頻度調整
-
 		select {
 		case <-ctx.Done():
 			return
@@ -511,6 +521,22 @@ scenarioLoop:
 			return
 		default:
 		}
+
+		//conditionの数が一定数に達したらループ
+		conditionMin := 1000000000
+		for _, isu := range user.IsuListOrderByCreatedAt {
+			tmp := isu.Conditions.Length()
+			if tmp < conditionMin {
+				conditionMin = tmp
+			}
+		}
+		//20ループ/秒
+		if conditionMin*20/int(PostInterval*PostContentNum/s.virtualTimeMulti/time.Second) < loopCount {
+			time.Sleep(5 * time.Millisecond)
+			continue
+		}
+		loopCount++
+
 		mustExistUntil := s.ToVirtualTime(time.Now().Add(-1 * time.Second)).Unix()
 
 		//GET /
