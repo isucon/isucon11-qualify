@@ -28,7 +28,7 @@ func NewIsuConditionPoster(targetIP string, targetPort int, isuUUID string) IsuC
 
 func (m *IsuConditionPoster) KeepPosting() {
 	targetURL := fmt.Sprintf(
-		"http://%s:%d/api/isu/%s/condition",
+		"http://%s:%d/api/condition/%s",
 		m.TargetIP, m.TargetPort, m.IsuUUID,
 	)
 	randEngine := rand.New(rand.NewSource(0))

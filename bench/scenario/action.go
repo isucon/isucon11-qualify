@@ -280,7 +280,6 @@ func getMeErrorAction(ctx context.Context, a *agent.Agent) (string, *http.Respon
 	if err != nil {
 		return resBody, nil, err
 	}
-
 	return resBody, res, nil
 }
 

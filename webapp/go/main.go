@@ -228,7 +228,7 @@ func main() {
 	e.GET("/api/condition", getAllIsuConditions)
 	e.GET("/api/condition/:jia_isu_uuid", getIsuConditions)
 	// API for Isu
-	e.POST("/api/isu/:jia_isu_uuid/condition", postIsuCondition)
+	e.POST("/api/condition/:jia_isu_uuid", postIsuCondition)
 	// Frontend
 	e.GET("/", getIndex)
 	e.GET("/condition", getIndex)
@@ -1161,7 +1161,7 @@ func getIsuConditionsFromDB(jiaIsuUUID string, cursorEndTime time.Time, conditio
 	return conditionsResponse, nil
 }
 
-// POST /api/isu/{jia_isu_uuid}/condition
+// POST /api/condition/{jia_isu_uuid}
 // ISUからのセンサデータを受け取る
 func postIsuCondition(c echo.Context) error {
 	// input (path_param)
@@ -1213,7 +1213,7 @@ func postIsuCondition(c echo.Context) error {
 		// parse
 		timestamp := time.Unix(cond.Timestamp, 0)
 
-		if !conditionFormat.Match([]byte(cond.Condition)) {
+		if !conditionFormat.MatchString(cond.Condition) {
 			c.Logger().Errorf("bad request body")
 			return c.String(http.StatusBadRequest, "bad request body")
 		}
