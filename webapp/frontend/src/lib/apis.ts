@@ -77,14 +77,29 @@ class Apis {
 
   async getIsuGraphs(
     jiaIsuUuid: string,
-    params: GraphRequest,
+    req: GraphRequest,
     axiosConfig?: AxiosRequestConfig
   ) {
-    const { data } = await axios.get<Graph[]>(`/api/isu/${jiaIsuUuid}/graph`, {
-      params,
-      ...axiosConfig
+    const params: RawGraphRequest = {
+      date: dateToTimestamp(req.date)
+    }
+    const { data } = await axios.get<RawGraph[]>(
+      `/api/isu/${jiaIsuUuid}/graph`,
+      {
+        params,
+        ...axiosConfig
+      }
+    )
+
+    const graphs: Graph[] = []
+    data.forEach(rawGraph => {
+      graphs.push({
+        ...rawGraph,
+        start_at: timestampToDate(rawGraph.start_at),
+        end_at: timestampToDate(rawGraph.end_at)
+      })
     })
-    return data
+    return graphs
   }
 
   async getConditions(req: ConditionRequest, axiosConfig?: AxiosRequestConfig) {
@@ -136,10 +151,17 @@ export interface GraphData {
   detail: { [key: string]: number }
 }
 
-export interface Graph {
+interface RawGraph {
   jia_isu_uuid: string
   start_at: number
   end_at: number
+  data: GraphData | null
+}
+
+export interface Graph {
+  jia_isu_uuid: string
+  start_at: Date
+  end_at: Date
   data: GraphData | null
 }
 
@@ -185,8 +207,12 @@ export interface ConditionRequest {
   condition_level: string
 }
 
-export interface GraphRequest {
+interface RawGraphRequest {
   date: number
+}
+
+export interface GraphRequest {
+  date: Date
 }
 
 export const DEFAULT_CONDITION_LIMIT = 20

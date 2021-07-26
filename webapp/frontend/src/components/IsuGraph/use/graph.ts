@@ -34,7 +34,7 @@ const useGraph = (getGraphs: (req: GraphRequest) => Promise<Graph[]>) => {
     const fetchGraphs = async () => {
       const date = new Date()
       const graphs = await getGraphs({
-        date: Date.parse(date.toLocaleDateString('ja-JP')) / 1000
+        date: date
       })
       const graphData = genGraphData(graphs)
       updateResult(state => ({
@@ -52,13 +52,13 @@ const useGraph = (getGraphs: (req: GraphRequest) => Promise<Graph[]>) => {
   }, [getGraphs, updateResult])
 
   const fetchGraphs = async (payload: { day: string }) => {
-    const miliUnixtime = Date.parse(payload.day)
-    if (isNaN(miliUnixtime)) {
+    const date = new Date(payload.day)
+    if (isNaN(date.getTime())) {
       alert('日時の指定が不正です')
       return
     }
 
-    const graphs = await getGraphs({ date: miliUnixtime / 1000 })
+    const graphs = await getGraphs({ date: date })
     const graphData = genGraphData(graphs)
 
     updateResult(state => ({
@@ -116,9 +116,11 @@ const genGraphData = (graphs: Graph[]) => {
       })
     }
 
-    const date = new Date(graph.start_at * 1000)
     timeCategories.push(
-      date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+      graph.start_at.toLocaleTimeString('ja-JP', {
+        hour: '2-digit',
+        minute: '2-digit'
+      })
     )
   })
 
