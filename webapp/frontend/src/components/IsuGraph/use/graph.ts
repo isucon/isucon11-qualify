@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { GraphRequest, Graph } from '../../../lib/apis'
+import { getNowDate } from '../../../lib/date'
 
 export interface Tooltip {
   score: string
@@ -32,7 +33,7 @@ const useGraph = (getGraphs: (req: GraphRequest) => Promise<Graph[]>) => {
 
   useEffect(() => {
     const fetchGraphs = async () => {
-      const date = new Date()
+      const date = getNowDate()
       const graphs = await getGraphs({
         date: date
       })
