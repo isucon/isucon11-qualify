@@ -68,7 +68,7 @@ jobs:
       - name: Test Go App
         run: |
           # イメージを self-hosted runner のローカルからコピー
-          rm -r ../bench/images && cp -a /opt/isucon11-qualify/images ../bench/images
+          cp -a /opt/isucon11-qualify/images/* ../bench/images
           target=go docker-compose -f docker-compose-ci.yml up --build --exit-code-from apitest -- apitest
       - name: Clean up
         if: failure() || true
