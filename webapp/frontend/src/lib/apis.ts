@@ -190,3 +190,11 @@ export interface GraphRequest {
 }
 
 export const DEFAULT_CONDITION_LIMIT = 20
+
+const dateToTimestamp = (date: Date) => {
+  return Math.floor(date.getTime() / 1000)
+}
+
+const timestampToDate = (timestamp: number) => {
+  return new Date(timestamp * 1000)
+}
