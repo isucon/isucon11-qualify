@@ -104,23 +104,51 @@ class Apis {
   }
 
   async getConditions(req: ConditionRequest, axiosConfig?: AxiosRequestConfig) {
-    const { data } = await axios.get<Condition[]>(`/api/condition`, {
-      params: req,
+    const params: ApiConditionRequest = {
+      ...req,
+      start_time: req.start_time ? dateToTimestamp(req.start_time) : undefined,
+      cursor_end_time: dateToTimestamp(req.cursor_end_time)
+    }
+    const { data } = await axios.get<ApiCondition[]>(`/api/condition`, {
+      params,
       ...axiosConfig
     })
-    return data
+
+    const conditions: Condition[] = []
+    data.forEach(apiCondition => {
+      conditions.push({
+        ...apiCondition,
+        date: timestampToDate(apiCondition.timestamp)
+      })
+    })
+
+    return conditions
   }
 
   async getIsuConditions(
     jiaIsuUuid: string,
-    params: ConditionRequest,
+    req: ConditionRequest,
     axiosConfig?: AxiosRequestConfig
   ) {
-    const { data } = await axios.get<Condition[]>(
+    const params: ApiConditionRequest = {
+      ...req,
+      start_time: req.start_time ? dateToTimestamp(req.start_time) : undefined,
+      cursor_end_time: dateToTimestamp(req.cursor_end_time)
+    }
+    const { data } = await axios.get<ApiCondition[]>(
       `/api/condition/${jiaIsuUuid}`,
       { params, ...axiosConfig }
     )
-    return data
+
+    const conditions: Condition[] = []
+    data.forEach(apiCondition => {
+      conditions.push({
+        ...apiCondition,
+        date: timestampToDate(apiCondition.timestamp)
+      })
+    })
+
+    return conditions
   }
 }
 
@@ -188,7 +216,7 @@ export interface PostIsuRequest {
   image?: File
 }
 
-export interface Condition {
+interface ApiCondition {
   jia_isu_uuid: string
   isu_name: string
   timestamp: number
@@ -198,11 +226,29 @@ export interface Condition {
   message: string
 }
 
+export interface Condition {
+  jia_isu_uuid: string
+  isu_name: string
+  date: Date
+  is_sitting: boolean
+  condition: string
+  condition_level: ConditionLevel
+  message: string
+}
+
 type ConditionLevel = 'info' | 'warning' | 'critical'
 
-export interface ConditionRequest {
+interface ApiConditionRequest {
   start_time?: number
   cursor_end_time: number
+  cursor_jia_isu_uuid: string
+  // critical,warning,info をカンマ区切りで取り扱う
+  condition_level: string
+}
+
+export interface ConditionRequest {
+  start_time?: Date
+  cursor_end_time: Date
   cursor_jia_isu_uuid: string
   // critical,warning,info をカンマ区切りで取り扱う
   condition_level: string
