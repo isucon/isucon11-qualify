@@ -3,6 +3,7 @@ package scenario
 import (
 	"bytes"
 	"context"
+	"crypto/md5"
 	"io"
 	"math"
 	"math/rand"
@@ -168,7 +169,9 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 	}
 	var image io.Reader
 	if rand.Intn(100) != 0 {
-		image = bytes.NewBuffer(random.Image())
+		imageBytes := random.Image()
+		isu.ImageHash = md5.Sum(imageBytes)
+		image = bytes.NewBuffer(imageBytes)
 	}
 	isuResponse, res, err := postIsuAction(ctx, owner.Agent, req, image) //TODO:画像
 	if err != nil {
