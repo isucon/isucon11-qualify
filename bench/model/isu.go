@@ -130,7 +130,7 @@ func (isu *Isu) getConditionFromChan(ctx context.Context, userConditionBuffer *I
 
 var defaultIconHash [md5.Size]byte
 
-const defaultIconFilePath = "./images/default.png"
+const defaultIconFilePath = "./images/default.jpg"
 
 func init() {
 	image, err := ioutil.ReadFile(defaultIconFilePath)

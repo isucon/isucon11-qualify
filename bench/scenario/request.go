@@ -1,14 +1,12 @@
 package scenario
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
-	"net/textproto"
 	"strings"
 
 	"github.com/isucon/isucandar/agent"
@@ -94,28 +92,6 @@ func reqPngResError(ctx context.Context, agent *agent.Agent, method string, rpat
 	}
 
 	return httpres, string(resBody), nil
-}
-
-func getFormFromImage(image io.Reader) (io.Reader, string, error) {
-	body := &bytes.Buffer{}
-	mw := multipart.NewWriter(body)
-	part := make(textproto.MIMEHeader)
-	part.Set("Content-Type", "image/png")
-	part.Set("Content-Disposition", `form-data; name="image"; filename="image.png"`)
-	pw, err := mw.CreatePart(part)
-	if err != nil {
-		logger.AdminLogger.Panic(err)
-	}
-	_, err = io.Copy(pw, image)
-	if err != nil {
-		logger.AdminLogger.Panic(err)
-	}
-	contentType := mw.FormDataContentType()
-	err = mw.Close()
-	if err != nil {
-		logger.AdminLogger.Panic(err)
-	}
-	return body, contentType, nil
 }
 
 func reqNoContentResPng(ctx context.Context, agent *agent.Agent, method string, rpath string, allowedStatusCodes []int) (*http.Response, []byte, error) {
