@@ -72,16 +72,25 @@ zones/c/versions.tf:
 	cp base/versions.tf zones/c/versions.tf
 
 .PHONY: destroy destroy-common destroy-zone-a destroy-zone-b destroy-zone-c
-destroy: destroy-common destroy-zone-a destroy-zone-b destroy-zone-c
+destroy: destroy-zone-a destroy-zone-b destroy-zone-c destroy-common
 
 destroy-common:
 	terraform -chdir=common destroy
 destroy-zone-a:
-	terraform -chdir=zones/a destroy -var="ami_id=$(AMI_ID)"
+	terraform -chdir=zones/a destroy \
+		-var="ami_id=" \
+		-var="isuxportal_supervisor_endpoint_url=" \
+		-var="isuxportal_supervisor_token="
 destroy-zone-b:
-	terraform -chdir=zones/b destroy -var="ami_id=$(AMI_ID)"
+	terraform -chdir=zones/b destroy \
+		-var="ami_id=" \
+		-var="isuxportal_supervisor_endpoint_url=" \
+		-var="isuxportal_supervisor_token="
 destroy-zone-c:
-	terraform -chdir=zones/c destroy -var="ami_id=$(AMI_ID)"
+	terraform -chdir=zones/c destroy \
+		-var="ami_id=" \
+		-var="isuxportal_supervisor_endpoint_url=" \
+		-var="isuxportal_supervisor_token="
 
 .PHONY: cleanup
 cleanup:

@@ -69,18 +69,18 @@ data "template_cloudinit_config" "config" {
 
 ### resources ###
 
-resource "aws_subnet" "isucon11q-zone-a" {
+resource "aws_subnet" "isucon11q-zone-b" {
   vpc_id                  = data.aws_vpc.isucon11q.id
-  cidr_block              = "192.168.0.0/20"
-  availability_zone       = "ap-northeast-1a"
+  cidr_block              = "192.168.16.0/20"
+  availability_zone       = "ap-northeast-1b"
   map_public_ip_on_launch = true
   tags = {
-    Name = "isucon11q-zone-a"
+    Name = "isucon11q-zone-b"
   }
 }
 
 resource "aws_route_table_association" "isucon11q" {
-  subnet_id      = aws_subnet.isucon11q-zone-a.id
+  subnet_id      = aws_subnet.isucon11q-zone-b.id
   route_table_id = data.aws_route_table.isucon11q.id
 }
 
@@ -89,12 +89,12 @@ resource "aws_eip" "bench" {
 
   vpc                       = true
   instance                  = aws_instance.bench[each.value].id
-  associate_with_private_ip = "192.168.1.${index(local.team_ids, each.value) + 1}"
+  associate_with_private_ip = "192.168.17.${index(local.team_ids, each.value) + 1}"
   depends_on                = [data.aws_internet_gateway.isucon11q]
 }
 
 resource "aws_key_pair" "bench" {
-  key_name   = "isucon11q-zone-a"
+  key_name   = "isucon11q-zone-b"
   public_key = file("../../base/pubkey.pem")
 }
 
@@ -104,8 +104,8 @@ resource "aws_instance" "bench" {
   ami                    = var.ami_id
   instance_type          = "c5.large"
   key_name               = aws_key_pair.bench.id
-  subnet_id              = aws_subnet.isucon11q-zone-a.id
-  private_ip             = "192.168.1.${index(local.team_ids, each.value) + 1}"
+  subnet_id              = aws_subnet.isucon11q-zone-b.id
+  private_ip             = "192.168.17.${index(local.team_ids, each.value) + 1}"
   vpc_security_group_ids = [data.aws_security_group.isucon11q.id]
   root_block_device {
     volume_size = 20

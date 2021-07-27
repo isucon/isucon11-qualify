@@ -5,6 +5,25 @@ resource "aws_vpc" "isucon11q" {
   }
 }
 
+resource "aws_internet_gateway" "isucon11q" {
+  vpc_id = aws_vpc.isucon11q.id
+  tags = {
+    Name = "isucon11q"
+  }
+}
+
+resource "aws_route_table" "isucon11q" {
+  vpc_id = aws_vpc.isucon11q.id
+  route {
+    gateway_id = aws_internet_gateway.isucon11q.id
+    cidr_block = "0.0.0.0/0"
+  }
+  tags = {
+    Name = "isucon11q"
+  }
+}
+
+
 resource "aws_security_group" "isucon11q" {
   name   = "isucon11q"
   vpc_id = aws_vpc.isucon11q.id
