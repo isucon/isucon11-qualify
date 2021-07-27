@@ -1302,7 +1302,7 @@ func getTrend(c echo.Context) error {
 	characterList := []Isu{}
 	err = tx.Select(&characterList, "SELECT * FROM `isu` GROUP BY `character`")
 	if err != nil {
-		c.Logger().Errorf("db error po: %v", err)
+		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -1315,22 +1315,21 @@ func getTrend(c echo.Context) error {
 			character.Character,
 		)
 		if err != nil {
-			c.Logger().Errorf("db error hage: %v", err)
+			c.Logger().Errorf("db error: %v", err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
 
-		scoreSum := uint(0)
+		scoreSum := 0
 		for _, isu := range isuList {
 			conditions := []IsuCondition{}
 			err = tx.Select(&conditions,
 				"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? AND `timestamp` >= ? AND `timestamp` < ?", isu.JIAIsuUUID, date, date.Add(time.Hour*24),
 			)
 			if err != nil {
-				c.Logger().Errorf("db error hoge: %v", err)
+				c.Logger().Errorf("db error: %v", err)
 				return c.NoContent(http.StatusInternalServerError)
 			}
 
-			var scoreSum uint = 0
 			for _, condition := range conditions {
 				warnCount := strings.Count(condition.Condition, "=true")
 				switch warnCount {
@@ -1343,7 +1342,7 @@ func getTrend(c echo.Context) error {
 				}
 			}
 		}
-		res = append(res, TrendResponse{ Character: character.Character, Score: uint(math.Round(float64(scoreSum) / float64(len(isuList)))) })
+		res = append(res, TrendResponse{Character: character.Character, Score: uint(math.Round(float64(scoreSum) / float64(len(isuList))))})
 	}
 
 	// トランザクション終了
