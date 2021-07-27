@@ -1,8 +1,11 @@
 package scenario
 
 import (
+	"bytes"
 	"context"
+	"io"
 	"math"
+	"math/rand"
 	"net/url"
 	"sync"
 	"time"
@@ -11,6 +14,7 @@ import (
 	"github.com/isucon/isucandar/agent"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
+	"github.com/isucon/isucon11-qualify/bench/random"
 	"github.com/isucon/isucon11-qualify/bench/service"
 )
 
@@ -162,7 +166,11 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 		JIAIsuUUID: isu.JIAIsuUUID,
 		IsuName:    isu.Name,
 	}
-	isuResponse, res, err := postIsuAction(ctx, owner.Agent, req, nil) //TODO:画像
+	var image io.Reader
+	if rand.Intn(100) != 0 {
+		image = bytes.NewBuffer(random.Image())
+	}
+	isuResponse, res, err := postIsuAction(ctx, owner.Agent, req, image) //TODO:画像
 	if err != nil {
 		step.AddError(err)
 		isu.StreamsForScenario.StateChan <- model.IsuStateChangeDelete
