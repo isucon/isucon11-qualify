@@ -162,7 +162,7 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 		JIAIsuUUID: isu.JIAIsuUUID,
 		IsuName:    isu.Name,
 	}
-	isuResponse, res, err := postIsuAction(ctx, owner.Agent, req)
+	isuResponse, res, err := postIsuAction(ctx, owner.Agent, req, nil) //TODO:画像
 	if err != nil {
 		step.AddError(err)
 		isu.StreamsForScenario.StateChan <- model.IsuStateChangeDelete

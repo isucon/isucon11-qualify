@@ -16,9 +16,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"net/url"
 	"time"
 
@@ -300,7 +302,7 @@ func getIsuErrorAction(ctx context.Context, a *agent.Agent) (string, *http.Respo
 	return resBody, res, nil
 }
 
-func postIsuAction(ctx context.Context, a *agent.Agent, req service.PostIsuRequest) (*service.Isu, *http.Response, error) {
+func postIsuAction(ctx context.Context, a *agent.Agent, req service.PostIsuRequest, image io.Reader) (*service.Isu, *http.Response, error) {
 	buf := &bytes.Buffer{}
 	writer := multipart.NewWriter(buf)
 
@@ -321,9 +323,21 @@ func postIsuAction(ctx context.Context, a *agent.Agent, req service.PostIsuReque
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 	}
-	// TODO: 画像も追加する
-	//part, err := writer.CreateFormFile("image", filepath.Base(file.Name()))
-	//io.Copy(part, file)
+	//画像も追加する
+	if image != nil {
+		partHeader := make(textproto.MIMEHeader)
+		partHeader.Set("Content-Type", "image/jpg")
+		partHeader.Set("Content-Disposition", `form-data; name="image"; filename="image.jpg"`)
+		pw, err := writer.CreatePart(partHeader)
+		if err != nil {
+			logger.AdminLogger.Panic(err)
+		}
+		_, err = io.Copy(pw, image)
+		if err != nil {
+			logger.AdminLogger.Panic(err)
+		}
+	}
+
 	err = writer.Close()
 	if err != nil {
 		logger.AdminLogger.Panic(err)
