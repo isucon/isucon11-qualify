@@ -50,50 +50,6 @@ func reqNoContentResError(ctx context.Context, agent *agent.Agent, method string
 	return httpres, string(resBody), nil
 }
 
-func reqPngResNoContent(ctx context.Context, agent *agent.Agent, method string, rpath string, image io.Reader, allowedStatusCodes []int) (*http.Response, error) {
-	body, contentType, err := getFormFromImage(image)
-	if err != nil {
-		return nil, err
-	}
-	httpreq, err := agent.NewRequest(method, rpath, body)
-	if err != nil {
-		logger.AdminLogger.Panic(err)
-	}
-	httpreq.Header.Set("Content-Type", contentType)
-
-	httpres, err := doRequest(ctx, agent, httpreq, allowedStatusCodes)
-	if err != nil {
-		return nil, err
-	}
-	defer httpres.Body.Close()
-
-	return httpres, nil
-}
-
-func reqPngResError(ctx context.Context, agent *agent.Agent, method string, rpath string, image io.Reader, allowedStatusCodes []int) (*http.Response, string, error) {
-	body, contentType, err := getFormFromImage(image)
-	if err != nil {
-		return nil, "", err
-	}
-	httpreq, err := agent.NewRequest(method, rpath, body)
-	if err != nil {
-		logger.AdminLogger.Panic(err)
-	}
-	httpreq.Header.Set("Content-Type", contentType)
-
-	httpres, err := doRequest(ctx, agent, httpreq, allowedStatusCodes)
-	if err != nil {
-		return nil, "", err
-	}
-
-	resBody, err := checkContentTypeAndGetBody(httpres, "text/plain")
-	if err != nil {
-		return httpres, "", err
-	}
-
-	return httpres, string(resBody), nil
-}
-
 func reqNoContentResPng(ctx context.Context, agent *agent.Agent, method string, rpath string, allowedStatusCodes []int) (*http.Response, []byte, error) {
 	httpreq, err := agent.NewRequest(method, rpath, nil)
 	if err != nil {
