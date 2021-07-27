@@ -25,9 +25,8 @@ type Isu struct {
 
 func NewIsu(user User) Isu {
 	u, _ := uuid.NewRandom()
-	createdAt := random.Time()
+	createdAt := random.TimeAfterArg(user.CreatedAt)
 
-	updatedAt := createdAt
 	image := defaultImage()
 
 	return Isu{
@@ -39,7 +38,24 @@ func NewIsu(user User) Isu {
 		random.Character(),
 		false,
 		createdAt,
-		updatedAt,
+		createdAt,
+	}
+}
+
+func NewIsuWithCreatedAt(user User, createdAt time.Time) Isu {
+	u, _ := uuid.NewRandom()
+	image := defaultImage()
+
+	return Isu{
+		user,
+		u.String(),
+		random.IsuName(),
+		image,
+		random.CatalogID(),
+		random.Character(),
+		false,
+		createdAt,
+		createdAt,
 	}
 }
 

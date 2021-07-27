@@ -1,10 +1,43 @@
 package random
 
 import (
+	"sync"
+
 	"github.com/docker/docker/pkg/namesgenerator"
 )
 
+var (
+	mu            sync.Mutex
+	generatedUser map[string]struct{}
+)
+
+func init() {
+	generatedUser = make(map[string]struct{}, 128)
+}
+
+// 108 * 237 通りのユーザ名を重複なしで返す
 func UserName() string {
-	// MEMO: すでに存在するユーザ名を出力する可能性がある
-	return namesgenerator.GetRandomName(0)
+	var username string
+	// NOTE: bench内から呼び出す処理で log.Fatalf して欲しくないので、無限ループする
+	for {
+		username = namesgenerator.GetRandomName(0)
+		if !hasAlreadyGenerated(username) {
+			break
+		}
+	}
+	setGeneratedUser(username)
+	return username
+}
+
+func hasAlreadyGenerated(username string) bool {
+	mu.Lock()
+	defer mu.Unlock()
+	_, exists := generatedUser[username]
+	return exists
+}
+
+func setGeneratedUser(username string) {
+	mu.Lock()
+	defer mu.Unlock()
+	generatedUser[username] = struct{}{}
 }
