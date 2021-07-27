@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"github.com/isucon/isucandar"
@@ -23,12 +24,41 @@ const (
 	ConditionTagCount = 100             //condition 100件ごとに1タグ
 )
 
+var (
+	globalConditionInfoCount     int32
+	globalConditionWarningCount  int32
+	globalConditionCriticalCount int32
+)
+
 type posterState struct {
 	//PostInterval         time.Duration
 	lastCondition        model.IsuCondition
 	lastClean            time.Time
 	lastDetectOverweight time.Time
 	isuStateDelete       bool //椅子を削除する(正の点数が出るpostを行わない)
+}
+
+func ConditionScore(step *isucandar.BenchmarkStep) {
+	conditionInfoCount := atomic.SwapInt32(&globalConditionInfoCount, 0)
+	for conditionInfoCount >= ConditionTagCount {
+		step.AddScore(ScorePostConditionInfo)
+		conditionInfoCount -= ConditionTagCount
+	}
+	atomic.AddInt32(&globalConditionInfoCount, conditionInfoCount)
+
+	conditionWarningCount := atomic.SwapInt32(&globalConditionWarningCount, 0)
+	for conditionWarningCount >= ConditionTagCount {
+		step.AddScore(ScorePostConditionWarning)
+		conditionWarningCount -= ConditionTagCount
+	}
+	atomic.AddInt32(&globalConditionInfoCount, conditionWarningCount)
+
+	conditionCriticalCount := atomic.SwapInt32(&globalConditionCriticalCount, 0)
+	for conditionCriticalCount >= ConditionTagCount {
+		step.AddScore(ScorePostConditionCritical)
+		conditionCriticalCount -= ConditionTagCount
+	}
+	atomic.AddInt32(&globalConditionInfoCount, conditionCriticalCount)
 }
 
 //POST /api/condition/{jia_isu_id}をたたく Goroutine
@@ -57,9 +87,15 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 	httpClient := http.Client{}
 	httpClient.Timeout = agent.DefaultRequestTimeout + 5*time.Second //MEMO: post conditionがtimeoutすると付随してたくさんエラーが出るので、timeoutしにくいようにする
 
-	conditionInfoCount := 0
-	conditionWarningCount := 0
-	conditionCriticalCount := 0
+	var conditionInfoCount int32 = 0
+	var conditionWarningCount int32 = 0
+	var conditionCriticalCount int32 = 0
+	defer func() {
+		atomic.AddInt32(&globalConditionInfoCount, conditionInfoCount)
+		atomic.AddInt32(&globalConditionWarningCount, conditionWarningCount)
+		atomic.AddInt32(&globalConditionCriticalCount, conditionCriticalCount)
+		ConditionScore(step)
+	}()
 
 	//post isuの待ち
 	select {
