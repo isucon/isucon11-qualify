@@ -128,10 +128,6 @@ type GetMeResponse struct {
 	JIAUserID string `json:"jia_user_id"`
 }
 
-type PutIsuRequest struct {
-	Name string `json:"name"`
-}
-
 type GraphResponse struct {
 	StartAt int64      `json:"start_at"`
 	EndAt   int64      `json:"end_at"`
@@ -221,7 +217,6 @@ func main() {
 	e.GET("/api/isu", getIsuList)
 	e.POST("/api/isu", postIsu)
 	e.GET("/api/isu/:jia_isu_uuid", getIsu)
-	e.PUT("/api/isu/:jia_isu_uuid", putIsu)
 	e.DELETE("/api/isu/:jia_isu_uuid", deleteIsu)
 	e.GET("/api/isu/:jia_isu_uuid/icon", getIsuIcon)
 	e.GET("/api/isu/:jia_isu_uuid/graph", getIsuGraph)
@@ -613,66 +608,6 @@ func getIsu(c echo.Context) error {
 			return c.String(http.StatusNotFound, "isu not found")
 		}
 
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	return c.JSON(http.StatusOK, isu)
-}
-
-//  PUT /api/isu/{jia_isu_uuid}
-// 自分の所有しているISUの情報を変更する
-func putIsu(c echo.Context) error {
-	jiaUserID, err := getUserIDFromSession(c.Request())
-	if err != nil {
-		c.Logger().Errorf("you are not signed in: %v", err)
-		return c.String(http.StatusUnauthorized, "you are not signed in")
-	}
-
-	jiaIsuUUID := c.Param("jia_isu_uuid")
-
-	var req PutIsuRequest
-	err = c.Bind(&req)
-	if err != nil {
-		c.Logger().Errorf("invalid request: %v", err)
-		return c.String(http.StatusBadRequest, "invalid request")
-	}
-
-	tx, err := db.Beginx()
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	defer tx.Rollback()
-
-	var count int
-	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
-		jiaUserID, jiaIsuUUID)
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	if count == 0 {
-		c.Logger().Errorf("isu not found")
-		return c.String(http.StatusNotFound, "isu not found")
-	}
-
-	_, err = tx.Exec("UPDATE `isu` SET `name` = ? WHERE `jia_isu_uuid` = ?", req.Name, jiaIsuUUID)
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	var isu Isu
-	err = tx.Get(&isu, "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
-		jiaUserID, jiaIsuUUID)
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	err = tx.Commit()
-	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
