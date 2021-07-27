@@ -280,7 +280,7 @@ func getUserIDFromSession(r *http.Request) (string, error) {
 }
 
 func getJIAServiceURL(tx *sqlx.Tx) string {
-	config := Config{}
+	var config Config
 	err := tx.Get(&config, "SELECT * FROM `isu_association_config` WHERE `name` = ?", "jia_service_url")
 	if err != nil {
 		if !errors.Is(err, sql.ErrNoRows) {
@@ -301,7 +301,7 @@ func getIndex(c echo.Context) error {
 }
 
 func postInitialize(c echo.Context) error {
-	request := InitializeRequest{}
+	var request InitializeRequest
 	err := c.Bind(&request)
 	if err != nil {
 		c.Logger().Errorf("bad request body: %v", err)
