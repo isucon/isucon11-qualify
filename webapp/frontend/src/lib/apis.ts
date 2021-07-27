@@ -81,10 +81,10 @@ class Apis {
     req: GraphRequest,
     axiosConfig?: AxiosRequestConfig
   ) {
-    const params: RawGraphRequest = {
+    const params: ApiGraphRequest = {
       date: dateToTimestamp(req.date)
     }
-    const { data } = await axios.get<RawGraph[]>(
+    const { data } = await axios.get<ApiGraph[]>(
       `/api/isu/${jiaIsuUuid}/graph`,
       {
         params,
@@ -93,11 +93,11 @@ class Apis {
     )
 
     const graphs: Graph[] = []
-    data.forEach(rawGraph => {
+    data.forEach(apiGraph => {
       graphs.push({
-        ...rawGraph,
-        start_at: timestampToDate(rawGraph.start_at),
-        end_at: timestampToDate(rawGraph.end_at)
+        ...apiGraph,
+        start_at: timestampToDate(apiGraph.start_at),
+        end_at: timestampToDate(apiGraph.end_at)
       })
     })
     return graphs
@@ -152,7 +152,7 @@ export interface GraphData {
   detail: { [key: string]: number }
 }
 
-interface RawGraph {
+interface ApiGraph {
   jia_isu_uuid: string
   start_at: number
   end_at: number
@@ -208,7 +208,7 @@ export interface ConditionRequest {
   condition_level: string
 }
 
-interface RawGraphRequest {
+interface ApiGraphRequest {
   date: number
 }
 
