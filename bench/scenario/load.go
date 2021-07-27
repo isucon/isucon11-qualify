@@ -137,7 +137,7 @@ scenarioLoop:
 			}
 		}
 		//20ループ/秒
-		if conditionMin*20/int(PostInterval*PostContentNum/s.virtualTimeMulti/time.Second) < loopCount {
+		if conditionMin*20/(PostContentNum*int(PostInterval*PostContentNum/s.virtualTimeMulti/time.Second)) < loopCount {
 			scenarioSuccess = false
 			time.Sleep(5 * time.Millisecond)
 			continue
@@ -532,7 +532,7 @@ scenarioLoop:
 			}
 		}
 		//20ループ/秒
-		if conditionMin*20/int(PostInterval*PostContentNum/s.virtualTimeMulti/time.Second) < loopCount {
+		if conditionMin*20/(PostContentNum*int(PostInterval*PostContentNum/s.virtualTimeMulti/time.Second)) < loopCount {
 			scenarioSuccess = false
 			time.Sleep(5 * time.Millisecond)
 			continue
