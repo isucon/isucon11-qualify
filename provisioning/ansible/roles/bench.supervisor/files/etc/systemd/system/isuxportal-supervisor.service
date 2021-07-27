@@ -3,27 +3,31 @@ Description=isuxportal-supervisor
 After=network.target
 
 [Service]
+# 基本設定
 User=isucon
 ExecStart=/usr/local/bin/isuxportal-supervisor /home/isucon/bench/bench
 WorkingDirectory=/home/isucon/bench
 LogsDirectory=isuxportal-supervisor
-
-AmbientCapabilities=CAP_NET_BIND_SERVICE
-CapabilityBoundingSet=CAP_NET_BIND_SERVICE
 LimitNOFILE=2000000
-
+RestartSec=2s
+Restart=on-failure
+# 環境変数
 Environment=ISUXPORTAL_SUPERVISOR_INSTANCE_NAME=%H
 Environment=ISUXPORTAL_SUPERVISOR_HARD_TIMEOUT=180
 Environment=ISUXPORTAL_SUPERVISOR_LOG_DIRECTORY=/var/log/isuxportal-supervisor
 Environment=ISUXPORTAL_SUPERVISOR_INTERVAL_AFTER_EMPTY_RECEIVE=2
-
 EnvironmentFile=/run/isuxportal-supervisor.env
 
-RestartSec=2s
-Restart=on-failure
+# 一般ユーザが特権ポートをバインドするための設定
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
 
+# bench 差し替えを graceful に行うための設定
+ExecStartPre=-/bin/mv /tmp/isuxportal-supervisor /usr/local/bin/isuxportal-supervisor
+ExecStartPre=-/bin/mv /tmp/bench /home/isucon/bench/bench
 TimeoutStopSec=200s
 KillMode=mixed
+
 
 
 [Install]
