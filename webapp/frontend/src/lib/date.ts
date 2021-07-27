@@ -1,6 +1,11 @@
 export const getNowDate = () => {
-  const localDateStr = new Date().toLocaleDateString()
-  return new Date(localDateStr)
+  return new Date()
+}
+
+export const getTodayDate = () => {
+  const date = getNowDate()
+  date.setHours(0, 0, 0, 0)
+  return date
 }
 
 export const dateToTimestamp = (date: Date) => {

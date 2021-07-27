@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { GraphRequest, Graph } from '../../../lib/apis'
-import { getNowDate } from '../../../lib/date'
+import { getTodayDate } from '../../../lib/date'
 
 export interface Tooltip {
   score: string
@@ -33,9 +33,9 @@ const useGraph = (getGraphs: (req: GraphRequest) => Promise<Graph[]>) => {
 
   useEffect(() => {
     const fetchGraphs = async () => {
-      const date = getNowDate()
+      const day = getTodayDate()
       const graphs = await getGraphs({
-        date: date
+        date: day
       })
       const graphData = genGraphData(graphs)
       updateResult(state => ({
@@ -45,7 +45,7 @@ const useGraph = (getGraphs: (req: GraphRequest) => Promise<Graph[]>) => {
         sittingData: graphData.sittingData,
         timeCategories: graphData.timeCategories,
         score: graphData.score,
-        day: date.toLocaleDateString('ja-JP'),
+        day: day.toLocaleDateString(),
         tooltipData: graphData.tooltipData
       }))
     }
