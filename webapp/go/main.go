@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"html/template"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"os"
 	"os/exec"
@@ -232,6 +233,7 @@ func main() {
 	e.GET("/api/isu/:jia_isu_uuid/graph", getIsuGraph)
 	e.GET("/api/condition", getAllIsuConditions)
 	e.GET("/api/condition/:jia_isu_uuid", getIsuConditions)
+	e.GET("/api/trend", getTrend)
 	// API for Isu
 	e.POST("/api/condition/:jia_isu_uuid", postIsuCondition)
 	// Frontend
@@ -1319,6 +1321,11 @@ func truncateAfterHours(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), 0, 0, 0, t.Location())
 }
 
+//時間以下を切り捨て、一日単位にする関数
+func truncateAfterDays(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+}
+
 //スコア計算をする関数
 func calculateGraphData(IsuConditionCluster []IsuCondition) ([]byte, error) {
 	graph := &GraphData{}
@@ -1384,4 +1391,88 @@ func calculateGraphData(IsuConditionCluster []IsuCondition) ([]byte, error) {
 		return nil, err
 	}
 	return graphJSON, nil
+}
+
+func getTrend(c echo.Context) error {
+	_, err := getUserIDFromSession(c.Request())
+	if err != nil {
+		c.Logger().Errorf("you are not signed in: %v", err)
+		return c.String(http.StatusUnauthorized, "you are not signed in")
+	}
+
+	dateStr := c.QueryParam("date")
+	if dateStr == "" {
+		c.Logger().Errorf("date is required")
+		return c.String(http.StatusBadRequest, "date is required")
+	}
+	dateInt64, err := strconv.ParseInt(dateStr, 10, 64)
+	if err != nil {
+		c.Logger().Errorf("date is invalid format")
+		return c.String(http.StatusBadRequest, "date is invalid format")
+	}
+	date := truncateAfterDays(time.Unix(dateInt64, 0))
+
+	// トランザクション開始
+	tx, err := db.Beginx()
+	if err != nil {
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	defer tx.Rollback()
+
+	characterList := []Isu{}
+	err = tx.Select(&characterList, "SELECT * FROM `isu` GROUP BY `character`")
+	if err != nil {
+		c.Logger().Errorf("db error po: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	res := []TrendResponse{}
+
+	for _, character := range characterList {
+		isuList := []Isu{}
+		err = tx.Select(&isuList,
+			"SELECT * FROM `isu` WHERE `character` = ? AND `is_deleted` = false",
+			character.Character,
+		)
+		if err != nil {
+			c.Logger().Errorf("db error hage: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+
+		scoreSum := uint(0)
+		for _, isu := range isuList {
+			conditions := []IsuCondition{}
+			err = tx.Select(&conditions,
+				"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? AND `timestamp` >= ? AND `timestamp` < ?", isu.JIAIsuUUID, date, date.Add(time.Hour*24),
+			)
+			if err != nil {
+				c.Logger().Errorf("db error hoge: %v", err)
+				return c.NoContent(http.StatusInternalServerError)
+			}
+
+			var scoreSum uint = 0
+			for _, condition := range conditions {
+				warnCount := strings.Count(condition.Condition, "=true")
+				switch warnCount {
+				case 0:
+					scoreSum += 2
+				case 1, 2:
+					scoreSum += 1
+				case 3:
+					scoreSum += 0
+				}
+			}
+		}
+		res = append(res, TrendResponse{ Character: character.Character, Score: uint(math.Round(float64(scoreSum) / float64(len(isuList)))) })
+	}
+
+	// トランザクション終了
+	err = tx.Commit()
+	if err != nil {
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	return c.JSON(http.StatusOK, res)
 }
