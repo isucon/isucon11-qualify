@@ -128,7 +128,7 @@ func verifyIsuConditions(res *http.Response,
 		return errorInvalid(res, "要素数が正しくありません")
 	}
 	//レスポンス側のstartTimeのチェック
-	if request.StartTime != nil && len(backendData) != 0 && backendData[len(backendData)-1].Timestamp < *request.StartTime {
+	if request.StartTime != nil && len(backendData) != 0 && backendData[0].Timestamp < *request.StartTime {
 		return errorInvalid(res, "データが正しくありません")
 	}
 
