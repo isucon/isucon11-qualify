@@ -19,7 +19,7 @@ type Condition struct {
 }
 
 func NewCondition(isu Isu) Condition {
-	t := random.TimeAfterArg(isu.CreatedAt)
+	t := isu.CreatedAt.Add(time.Minute) // 初回 condition は ISU が作成された時間 + 1分後
 	isSitting, isDirty, isOverweigh, isBroken := random.Condition()
 	return Condition{
 		isu,
@@ -35,7 +35,7 @@ func NewCondition(isu Isu) Condition {
 
 // MEMO: random.baseTime を超えた時間が入る可能性がある
 func NewConditionFromLastCondition(c Condition, durationMinute int) Condition {
-	c.Timestamp = c.Timestamp.Add(time.Duration(durationMinute) * time.Minute)
+	c.Timestamp = c.Timestamp.Add(time.Duration(durationMinute) * time.Minute) // 前回 condition を送信した時間の durationMinute 後
 	c.CreatedAt = c.Timestamp
 	c.IsSitting = random.IsSittingFromLastCondition(c.IsSitting)
 	c.IsDirty = random.IsDirtyFromLastCondition(c.IsDirty)

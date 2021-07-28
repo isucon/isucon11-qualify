@@ -20,6 +20,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"strconv"
 	"path/filepath"
 	"time"
 
@@ -31,7 +32,7 @@ import (
 )
 
 const (
-	searchLimit    = 20
+	homeIsuLimit   = 4
 	conditionLimit = 20
 	isuListLimit   = 200 // TODO 修正が必要なら変更
 )
@@ -284,11 +285,22 @@ func getMeErrorAction(ctx context.Context, a *agent.Agent) (string, *http.Respon
 	return resBody, res, nil
 }
 
-func getIsuAction(ctx context.Context, a *agent.Agent, query url.Values) ([]*service.Isu, *http.Response, error) {
-	var isuList []*service.Isu
-	rpath := getPathWithParams("/api/isu", query)
-	res, err := reqJSONResJSON(ctx, a, http.MethodGet, rpath, nil, &isuList, []int{http.StatusOK})
+func getIsuAction(ctx context.Context, a *agent.Agent, limit int) ([]*service.Isu, *http.Response, error) {
+	targetURL, err := url.Parse("/api/isu")
+	if err != nil {
+		logger.AdminLogger.Panicln(err)
+	}
+	q := url.Values{}
+	if limit < 0 {
+		logger.AdminLogger.Panicf("internal error: limit is minus: %v\n", limit)
+	}
+	if limit != 0 {
+		q.Set("limit", strconv.Itoa(limit))
+	}
+	targetURL.RawQuery = q.Encode()
 
+	var isuList []*service.Isu
+	res, err := reqJSONResJSON(ctx, a, http.MethodGet, targetURL.String(), nil, &isuList, []int{http.StatusOK})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -594,7 +606,7 @@ func browserGetHomeAction(ctx context.Context, a *agent.Agent,
 
 	errors := []error{}
 	// TODO: ここ以下は多分並列
-	isuList, hres, err := getIsuAction(ctx, a, url.Values{})
+	isuList, hres, err := getIsuAction(ctx, a, homeIsuLimit)
 	if err != nil {
 		errors = append(errors, err)
 	}

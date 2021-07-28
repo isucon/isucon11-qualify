@@ -11,6 +11,7 @@ import (
 	"github.com/isucon/isucandar/agent"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
+	"github.com/isucon/isucon11-qualify/bench/random"
 	"github.com/isucon/isucon11-qualify/bench/service"
 )
 
@@ -53,8 +54,8 @@ func NewScenario(jiaServiceURL *url.URL, loadTimeout time.Duration) (*Scenario, 
 		// TODO: シナリオを初期化する
 		//realTimeStart: time.Now()
 		LoadTimeout:       loadTimeout,
-		virtualTimeStart:  time.Date(2020, 7, 1, 0, 0, 0, 0, time.Local), //TODO: ちゃんと決める
-		virtualTimeMulti:  30000,                                         //5分=300秒に一回 => 1秒に100回
+		virtualTimeStart:  random.BaseTime, //初期データ生成時のベースタイムと合わせるために当パッケージの値を利用
+		virtualTimeMulti:  30000,           //5分=300秒に一回 => 1秒に100回
 		jiaServiceURL:     jiaServiceURL,
 		initializeTimeout: 20 * time.Second,
 		normalUsers:       []*model.User{},
