@@ -153,7 +153,7 @@ type GetIsuConditionResponse struct {
 
 type TrendResponse struct {
 	Character string
-	Score     uint
+	Score     int
 }
 
 type PostIsuConditionRequest struct {
@@ -1342,7 +1342,7 @@ func getTrend(c echo.Context) error {
 				}
 			}
 		}
-		res = append(res, TrendResponse{Character: character.Character, Score: uint(math.Round(float64(scoreSum) / float64(len(isuList))))})
+		res = append(res, TrendResponse{Character: character.Character, Score: int(math.Round(float64(scoreSum) / float64(len(isuList))))})
 	}
 
 	// トランザクション終了
