@@ -1,6 +1,6 @@
 ### variables & locals ###
 
-variable "ami_id" {
+variable "git_tag" {
   type = string
 }
 variable "isuxportal_supervisor_endpoint_url" {
@@ -37,10 +37,22 @@ data "aws_internet_gateway" "isucon11q" {
   }
 }
 
-data "aws_security_group" "isucon11q" {
+data "aws_security_group" "isucon11q-bench" {
   filter {
     name   = "tag:Name"
-    values = ["isucon11q"]
+    values = ["isucon11q-bench"]
+  }
+}
+
+data "aws_ami" "bench" {
+  owners = ["self"]
+  filter {
+    name = "name"
+    values = ["isucon11q-amd64-bench-*"]
+  }
+  filter {
+    name = "tag:GitTag"
+    values = [var.git_tag]
   }
 }
 
@@ -83,16 +95,7 @@ resource "aws_route_table_association" "isucon11q" {
   route_table_id = data.aws_route_table.isucon11q.id
 }
 
-resource "aws_eip" "bench" {
-  for_each = toset(local.team_ids)
-
-  vpc                       = true
-  instance                  = aws_instance.bench[each.value].id
-  associate_with_private_ip = "192.168.33.${index(local.team_ids, each.value) + 1}"
-  depends_on                = [data.aws_internet_gateway.isucon11q]
-}
-
-resource "aws_key_pair" "bench" {
+resource "aws_key_pair" "keypair" {
   key_name   = "isucon11q-zone-c"
   public_key = file("../../base/pubkey.pem")
 }
@@ -100,12 +103,12 @@ resource "aws_key_pair" "bench" {
 resource "aws_instance" "bench" {
   for_each = toset(local.team_ids)
 
-  ami                    = var.ami_id
+  ami                    = data.aws_ami.bench.id
   instance_type          = "c5.large"
-  key_name               = aws_key_pair.bench.id
+  key_name               = aws_key_pair.keypair.id
   subnet_id              = aws_subnet.isucon11q-zone-c.id
   private_ip             = "192.168.33.${index(local.team_ids, each.value) + 1}"
-  vpc_security_group_ids = [data.aws_security_group.isucon11q.id]
+  vpc_security_group_ids = [data.aws_security_group.isucon11q-bench.id]
   root_block_device {
     volume_size = 20
     volume_type = "gp3"
@@ -117,3 +120,9 @@ resource "aws_instance" "bench" {
   }
 }
 
+output "bench" {
+  value = {
+    for instance in aws_instance.bench:
+    instance.tags.Name => instance.public_ip
+  }
+}
