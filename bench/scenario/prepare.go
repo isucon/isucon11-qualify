@@ -262,8 +262,7 @@ func (s *Scenario) prepareCheckGetMe(ctx context.Context, loginUser *model.User,
 func (s *Scenario) prepareCheckGetIsuList(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
 	//ISU一覧の取得 e.GET("/api/isu", getIsuList)
 	// check: 椅子未所持の場合は椅子が存在しない
-	query := url.Values{}
-	isuList, res, err := getIsuAction(ctx, noIsuUser.Agent, query)
+	isuList, res, err := getIsuAction(ctx, noIsuUser.Agent, 1)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -278,9 +277,7 @@ func (s *Scenario) prepareCheckGetIsuList(ctx context.Context, loginUser *model.
 	isu2 := s.NewIsu(ctx, step, loginUser, true, nil)
 	isu3 := s.NewIsu(ctx, step, loginUser, true, nil)
 
-	query = url.Values{}
-	query.Set("limit", "2")
-	isuList, res, err = getIsuAction(ctx, loginUser.Agent, query)
+	isuList, res, err = getIsuAction(ctx, loginUser.Agent, 2)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -302,8 +299,7 @@ func (s *Scenario) prepareCheckGetIsuList(ctx context.Context, loginUser *model.
 		return
 	}
 	loginUser.RemoveIsu(isu3)
-	query = url.Values{}
-	isuList, res, err = getIsuAction(ctx, loginUser.Agent, query)
+	isuList, res, err = getIsuAction(ctx, loginUser.Agent, 1)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -316,7 +312,7 @@ func (s *Scenario) prepareCheckGetIsuList(ctx context.Context, loginUser *model.
 	}
 
 	// check: サインインしてない状態で取得
-	query = url.Values{}
+	query := url.Values{}
 	resBody, res, err := getIsuErrorAction(ctx, guestAgent, query)
 	if err != nil {
 		step.AddError(err)
