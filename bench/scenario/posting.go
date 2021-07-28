@@ -191,7 +191,6 @@ func (state *posterState) NextIsLatestTimestamp(nowTimeStamp time.Time) bool {
 }
 func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChange model.IsuStateChange, jiaIsuUUID string) model.IsuCondition {
 
-	//乱数初期化（逆算できるように）
 	timeStamp := state.NextConditionTimestamp()
 
 	//状態変化
