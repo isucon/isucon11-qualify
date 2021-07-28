@@ -1157,7 +1157,9 @@ func (s *Scenario) prepareCheckPostIsuCondition(ctx context.Context, loginUser *
 		})
 	}
 	targetURL := fmt.Sprintf("%s/api/condition/%s", isuTargetBaseUrl[isu.JIAIsuUUID], isu.JIAIsuUUID)
-	res, err := postIsuConditionAction(targetURL, &conditionsReq)
+	httpClient := http.Client{}
+	httpClient.Timeout = agent.DefaultRequestTimeout + 5*time.Second
+	res, err := postIsuConditionAction(httpClient, targetURL, &conditionsReq)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -1191,7 +1193,7 @@ func (s *Scenario) prepareCheckPostIsuCondition(ctx context.Context, loginUser *
 
 	// check: 存在しないjia_isu_uuid
 	targetURL = fmt.Sprintf("%s/api/condition/%s", isuTargetBaseUrl[isu.JIAIsuUUID], "jiaisuuuid")
-	resBody, res, err := postIsuConditionErrorAction(targetURL, req)
+	resBody, res, err := postIsuConditionErrorAction(httpClient, targetURL, req)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -1215,7 +1217,7 @@ func (s *Scenario) prepareCheckPostIsuCondition(ctx context.Context, loginUser *
 	})
 
 	targetURL = fmt.Sprintf("%s/api/condition/%s", isuTargetBaseUrl[isu.JIAIsuUUID], isu.JIAIsuUUID)
-	resBody, res, err = postIsuConditionErrorAction(targetURL, req)
+	resBody, res, err = postIsuConditionErrorAction(httpClient, targetURL, req)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -1238,7 +1240,7 @@ func (s *Scenario) prepareCheckPostIsuCondition(ctx context.Context, loginUser *
 		"timestamp":  time.Now().Unix(),
 	})
 	targetURL = fmt.Sprintf("%s/api/condition/%s", isuTargetBaseUrl[isu.JIAIsuUUID], isu.JIAIsuUUID)
-	resBody, res, err = postIsuConditionErrorAction(targetURL, req)
+	resBody, res, err = postIsuConditionErrorAction(httpClient, targetURL, req)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -1262,7 +1264,7 @@ func (s *Scenario) prepareCheckPostIsuCondition(ctx context.Context, loginUser *
 	})
 
 	targetURL = fmt.Sprintf("%s/api/condition/%s", isuTargetBaseUrl[isu.JIAIsuUUID], isu.JIAIsuUUID)
-	resBody, res, err = postIsuConditionErrorAction(targetURL, req)
+	resBody, res, err = postIsuConditionErrorAction(httpClient, targetURL, req)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -1286,7 +1288,7 @@ func (s *Scenario) prepareCheckPostIsuCondition(ctx context.Context, loginUser *
 	})
 
 	targetURL = fmt.Sprintf("%s/api/condition/%s", isuTargetBaseUrl[isu.JIAIsuUUID], isu.JIAIsuUUID)
-	resBody, res, err = postIsuConditionErrorAction(targetURL, req)
+	resBody, res, err = postIsuConditionErrorAction(httpClient, targetURL, req)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -1303,7 +1305,7 @@ func (s *Scenario) prepareCheckPostIsuCondition(ctx context.Context, loginUser *
 	// check: reqが空
 	req = []map[string]interface{}{}
 	targetURL = fmt.Sprintf("%s/api/condition/%s", isuTargetBaseUrl[isu.JIAIsuUUID], isu.JIAIsuUUID)
-	resBody, res, err = postIsuConditionErrorAction(targetURL, req)
+	resBody, res, err = postIsuConditionErrorAction(httpClient, targetURL, req)
 	if err != nil {
 		step.AddError(err)
 		return

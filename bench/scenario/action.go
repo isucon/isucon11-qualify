@@ -20,8 +20,8 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
-	"strconv"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/isucon/isucandar/agent"
@@ -465,9 +465,7 @@ func getIsuIconErrorAction(ctx context.Context, a *agent.Agent, id string) (stri
 	return text, res, nil
 }
 
-func postIsuConditionAction(targetUrl string, req *[]service.PostIsuConditionRequest) (*http.Response, error) {
-	httpClient := http.Client{}
-	httpClient.Timeout = agent.DefaultRequestTimeout + 5*time.Second
+func postIsuConditionAction(httpClient http.Client, targetUrl string, req *[]service.PostIsuConditionRequest) (*http.Response, error) {
 	conditionByte, err := json.Marshal(req)
 	if err != nil {
 		logger.AdminLogger.Panic(err)
@@ -486,9 +484,7 @@ func postIsuConditionAction(targetUrl string, req *[]service.PostIsuConditionReq
 	return res, nil
 }
 
-func postIsuConditionErrorAction(targetUrl string, req []map[string]interface{}) (string, *http.Response, error) {
-	httpClient := http.Client{}
-	httpClient.Timeout = agent.DefaultRequestTimeout + 5*time.Second
+func postIsuConditionErrorAction(httpClient http.Client, targetUrl string, req []map[string]interface{}) (string, *http.Response, error) {
 	conditionByte, err := json.Marshal(req)
 	if err != nil {
 		logger.AdminLogger.Panic(err)
