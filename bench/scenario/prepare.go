@@ -384,7 +384,7 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 		step.AddError(err)
 		return
 	}
-	data, err := ioutil.ReadFile("./images/NoImage.png")
+	data, err := ioutil.ReadFile("./images/default.jpg")
 	if err != nil {
 		logger.AdminLogger.Panicln(err)
 	}
@@ -396,12 +396,12 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 	}
 
 	// check: 椅子の登録が成功する（画像あり）
-	img, err := ioutil.ReadFile("./images/TestImage.png")
+	img, err := ioutil.ReadFile("./images/CIMG8423_resize.jpg")
 	if err != nil {
 		logger.AdminLogger.Panicln(err)
 	}
 	isuImg := &service.IsuImg{
-		ImgName: "TestImage.png",
+		ImgName: "CIMG8423_resize.jpg",
 		Img:     img,
 	}
 	isuWithImg := s.NewIsu(ctx, step, loginUser, true, isuImg)
