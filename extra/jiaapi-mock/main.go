@@ -15,6 +15,9 @@ import (
 //go:embed ec256-private.pem
 var privateKey []byte
 
+//go:embed index.html
+var htmlTopPage []byte
+
 func main() {
 	// Controllers
 	authController, err := controller.NewAuthController(privateKey)
@@ -34,7 +37,7 @@ func main() {
 	e.Use(middleware.Recover())
 
 	// 動作確認用のログインページ
-	e.Static("/", "./index.html")
+	e.GET("/", func(ctx echo.Context) error { return ctx.Blob(200, "text/html; charset=utf-8", htmlTopPage) })
 	// APIs
 	e.POST("/api/auth", authController.PostAuth)
 	e.GET("/api/catalog/:catalog_id", catalogController.GetCatalog)
