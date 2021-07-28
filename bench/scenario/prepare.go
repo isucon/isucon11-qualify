@@ -605,7 +605,7 @@ func (s *Scenario) prepareCheckGetIsuIcon(ctx context.Context, loginUser *model.
 	}
 
 	// check: 登録されていない椅子に対するリクエスト
-	resBody, res, err = getIsuIconErrorAction(ctx, loginUser.Agent, isu.JIAIsuUUID)
+	resBody, res, err = getIsuIconErrorAction(ctx, loginUser.Agent, "jiaisuuuid")
 	if err != nil {
 		step.AddError(err)
 		return
