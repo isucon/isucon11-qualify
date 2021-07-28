@@ -18,9 +18,9 @@ terraform-bench
     "1",
     "2"
   ],
-  "zone_b": [
-  ],
   "zone_c": [
+  ],
+  "zone_d": [
   ]
 }
 ```
