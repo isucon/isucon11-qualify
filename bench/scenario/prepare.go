@@ -111,7 +111,7 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	loginUser := s.NewUser(ctx, step, loginAgent, model.UserTypeNormal)
 	guestAgent, err := s.NewAgent()
 	if err != nil {
-		return err
+		logger.AdminLogger.Panicln(err)
 	}
 
 	noIsuAgent, err := s.NewAgent()
@@ -513,7 +513,7 @@ func (s *Scenario) prepareCheckGetIsu(ctx context.Context, loginUser *model.User
 	}
 
 	// check: 他ユーザの椅子に対するリクエスト
-	resBody, res, err = getIsuIdErrorAction(ctx, noIsuUser.Agent, "jiaisuuuid")
+	resBody, res, err = getIsuIdErrorAction(ctx, noIsuUser.Agent, isu.JIAIsuUUID)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -578,7 +578,7 @@ func (s *Scenario) prepareCheckGetIsuIcon(ctx context.Context, loginUser *model.
 	}
 
 	// check: 未ログイン状態
-	resBody, res, err := getIsuIconErrorAction(ctx, guestAgent, "jiaisuuuid")
+	resBody, res, err := getIsuIconErrorAction(ctx, guestAgent, isu.JIAIsuUUID)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -630,7 +630,7 @@ func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model
 	// check: 未ログイン状態
 	query := url.Values{}
 	query.Set("date", strconv.FormatInt(time.Now().Unix(), 10))
-	resBody, res, err := getIsuGraphErrorAction(ctx, guestAgent, "jiaisuuuid", query)
+	resBody, res, err := getIsuGraphErrorAction(ctx, guestAgent, isu.JIAIsuUUID, query)
 	if err != nil {
 		step.AddError(err)
 		return
