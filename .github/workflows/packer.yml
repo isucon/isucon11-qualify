@@ -11,6 +11,7 @@ jobs:
     runs-on:
       - self-hosted
       - isucon11-github001 # 乱数のseedを合わせるために特定インスタンスを指定
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v2
 
@@ -64,6 +65,7 @@ jobs:
     runs-on: [self-hosted]
     needs:
       - build-initial-data
+    timeout-minutes: 30
     env:
       PACKER_LOG: '1'
     defaults:

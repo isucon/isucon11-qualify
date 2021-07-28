@@ -468,10 +468,10 @@ paths:
           $ref:  "#/components/responses/NotFoundError"
 
 
-  /api/isu/{jia_isu_uuid}/condition:
+  /api/condition/{jia_isu_uuid}:
     post:
       tags: [backend]
-      summary: '/api/isu/{jia_isu_uuid}/condition'
+      summary: '/api/condition/{jia_isu_uuid}'
       description: 'ISUからのセンサデータを受け取る'
       parameters:
         - name: jia_isu_uuid

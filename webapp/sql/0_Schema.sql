@@ -9,8 +9,7 @@ CREATE TABLE `isu` (
   `jia_isu_uuid` CHAR(36) PRIMARY KEY,
   `name` VARCHAR(255) NOT NULL,
   `image` LONGBLOB,
-  `character` VARCHAR(255) NOT NULL,
-  `jia_catalog_id` VARCHAR(255) NOT NULL, -- TODO: jia_catalog_id の format 策定 (#50)
+  `character` VARCHAR(255),
   `jia_user_id` VARCHAR(255) NOT NULL,
   `is_deleted` TINYINT(1) NOT NULL DEFAULT FALSE,
   `created_at` DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),

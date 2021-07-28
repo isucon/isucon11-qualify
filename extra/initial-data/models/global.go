@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	defaultImagePath = "./images/default.png"
+	defaultImagePath = "./images/default.jpg"
 )
 
 var (

@@ -1,0 +1,56 @@
+---
+
+- name: "roles/bench.supervisor/tasks/main: Clone isucon/isucon11-portal"
+  become: no
+  git:
+    #repo: git@github.com:isucon/isucon11-portal  # TODO: isucon11-portal リポジトリに鍵を登録して pull できるようにする
+    repo: https://github.com/isucon/isucon10-portal
+    dest: /tmp/isucon11-portal
+    recursive: no
+
+- name: "roles/bench.supervisor/tasks/main: Change Owner of isucon/isucon11-portal"
+  become_user: root
+  file:
+    path: /tmp/isucon11-portal
+    owner: isucon
+    group: isucon
+    recurse: true
+
+- name: "roles/bench.supervisor/tasks/main: Build isuxportal-supervisor"
+  become_user: isucon
+  args:
+    chdir: /tmp/isucon11-portal/supervisor
+  environment:
+    PATH: "/home/isucon/.cargo/bin:{{ ansible_env.PATH }}"
+  shell: cargo build --release --bin isuxportal-supervisor
+
+- name: "roles/bench.supervisor/tasks/main: Deploy isuxportal-supervisor"
+  become_user: root
+  copy:
+    remote_src: yes
+    src: /tmp/isucon11-portal/supervisor/target/release/isuxportal-supervisor
+    dest: /usr/local/bin/
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: "roles/bench.supervisor/tasks/main: Deploy some files"
+  become_user: root
+  copy:
+    src: "{{ item }}"
+    dest: "/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  with_items:
+    - etc/systemd/system/isuxportal-supervisor.service
+
+- name: "roles/bench.supervisor/tasks/isucondition: Include generate_env.yml"
+  include: generate_env.yml
+
+- name: "roles/bench.supervisor/tasks/main: Enable isuxportal-supervisor.service"
+  become_user: root
+  systemd:
+    daemon_reload: "yes"
+    name: "isuxportal-supervisor.service"
+    enabled: "yes"

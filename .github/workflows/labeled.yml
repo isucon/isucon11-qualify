@@ -5,6 +5,7 @@ on: [pull_request]
 jobs:
   label:
     runs-on: self-hosted
+    timeout-minutes: 15
     steps:
     - uses: actions/labeler@v2
       with:

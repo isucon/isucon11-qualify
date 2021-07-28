@@ -55,7 +55,8 @@ var (
 
 	jwtVerificationKey *ecdsa.PublicKey
 
-	isuConditionIP string
+	isuConditionPublicAddress string
+	isuConditionPublicPort    int
 )
 
 type Config struct {
@@ -64,40 +65,18 @@ type Config struct {
 }
 
 type Isu struct {
-	JIAIsuUUID   string    `db:"jia_isu_uuid" json:"jia_isu_uuid"`
-	Name         string    `db:"name" json:"name"`
-	Image        []byte    `db:"image" json:"-"`
-	JIACatalogID string    `db:"jia_catalog_id" json:"jia_catalog_id"`
-	Character    string    `db:"character" json:"character"`
-	JIAUserID    string    `db:"jia_user_id" json:"-"`
-	IsDeleted    bool      `db:"is_deleted" json:"-"`
-	CreatedAt    time.Time `db:"created_at" json:"-"`
-	UpdatedAt    time.Time `db:"updated_at" json:"-"`
+	JIAIsuUUID string    `db:"jia_isu_uuid" json:"jia_isu_uuid"`
+	Name       string    `db:"name" json:"name"`
+	Image      []byte    `db:"image" json:"-"`
+	Character  string    `db:"character" json:"character"`
+	JIAUserID  string    `db:"jia_user_id" json:"-"`
+	IsDeleted  bool      `db:"is_deleted" json:"-"`
+	CreatedAt  time.Time `db:"created_at" json:"-"`
+	UpdatedAt  time.Time `db:"updated_at" json:"-"`
 }
 
 type IsuFromJIA struct {
-	JIACatalogID string `json:"catalog_id"`
-	Character    string `json:"character"`
-}
-
-type CatalogFromJIA struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	LimitWeight int    `json:"limit_weight"`
-	Weight      int    `json:"weight"`
-	Size        string `json:"size"`
-	Maker       string `json:"maker"`
-	Features    string `json:"features"`
-}
-
-type Catalog struct {
-	JIACatalogID string `json:"jia_catalog_id"`
-	Name         string `json:"name"`
-	LimitWeight  int    `json:"limit_weight"`
-	Weight       int    `json:"weight"`
-	Size         string `json:"size"`
-	Maker        string `json:"maker"`
-	Tags         string `json:"tags"`
+	Character string `json:"character"`
 }
 
 type IsuCondition struct {
@@ -147,11 +126,6 @@ type InitializeResponse struct {
 
 type GetMeResponse struct {
 	JIAUserID string `json:"jia_user_id"`
-}
-
-type PostIsuRequest struct {
-	JIAIsuUUID string `json:"jia_isu_uuid"`
-	IsuName    string `json:"isu_name"`
 }
 
 type PutIsuRequest struct {
@@ -244,19 +218,17 @@ func main() {
 	e.POST("/api/auth", postAuthentication)
 	e.POST("/api/signout", postSignout)
 	e.GET("/api/user/me", getMe)
-	e.GET("/api/catalog/:jia_catalog_id", getCatalog)
 	e.GET("/api/isu", getIsuList)
 	e.POST("/api/isu", postIsu)
 	e.GET("/api/isu/:jia_isu_uuid", getIsu)
 	e.PUT("/api/isu/:jia_isu_uuid", putIsu)
 	e.DELETE("/api/isu/:jia_isu_uuid", deleteIsu)
 	e.GET("/api/isu/:jia_isu_uuid/icon", getIsuIcon)
-	e.PUT("/api/isu/:jia_isu_uuid/icon", putIsuIcon)
 	e.GET("/api/isu/:jia_isu_uuid/graph", getIsuGraph)
 	e.GET("/api/condition", getAllIsuConditions)
 	e.GET("/api/condition/:jia_isu_uuid", getIsuConditions)
 	// API for Isu
-	e.POST("/api/isu/:jia_isu_uuid/condition", postIsuCondition)
+	e.POST("/api/condition/:jia_isu_uuid", postIsuCondition)
 	// Frontend
 	e.GET("/", getIndex)
 	e.GET("/condition", getIndex)
@@ -277,14 +249,19 @@ func main() {
 	db.SetMaxOpenConns(10)
 	defer db.Close()
 
-	isuConditionIP = os.Getenv("ISU_CONDITION_IP")
-	if isuConditionIP == "" {
-		e.Logger.Fatalf("env ver ISU_CONDITION_IP is missing: %v", err)
+	isuConditionPublicAddress = os.Getenv("SERVER_PUBLIC_ADDRESS")
+	if isuConditionPublicAddress == "" {
+		e.Logger.Fatalf("env ver SERVER_PUBLIC_ADDRESS is missing")
+		return
+	}
+	isuConditionPublicPort, err = strconv.Atoi(getEnv("SERVER_PUBLIC_PORT", "80"))
+	if err != nil {
+		e.Logger.Fatalf("env ver SERVER_PUBLIC_PORT is invalid: %v", err)
 		return
 	}
 
 	// Start server
-	serverPort := fmt.Sprintf(":%v", getEnv("SERVER_PORT", "3000"))
+	serverPort := fmt.Sprintf(":%v", getEnv("SERVER_APP_PORT", "3000"))
 	e.Logger.Fatal(e.Start(serverPort))
 }
 
@@ -302,9 +279,9 @@ func getUserIDFromSession(r *http.Request) (string, error) {
 	return userID.(string), nil
 }
 
-func getJIAServiceURL() string {
+func getJIAServiceURL(tx *sqlx.Tx) string {
 	config := Config{}
-	err := db.Get(&config, "SELECT * FROM `isu_association_config` WHERE `name` = ?", "jia_service_url")
+	err := tx.Get(&config, "SELECT * FROM `isu_association_config` WHERE `name` = ?", "jia_service_url")
 	if err != nil {
 		if !errors.Is(err, sql.ErrNoRows) {
 			log.Print(err)
@@ -448,77 +425,6 @@ func getMe(c echo.Context) error {
 	return c.JSON(http.StatusOK, res)
 }
 
-// GET /api/catalog/{jia_catalog_id}
-// カタログ情報を取得
-func getCatalog(c echo.Context) error {
-	// ログインチェック
-	_, err := getUserIDFromSession(c.Request())
-	if err != nil {
-		c.Logger().Errorf("you are not signed in: %v", err)
-		return c.String(http.StatusUnauthorized, "you are not signed in")
-	}
-
-	jiaCatalogID := c.Param("jia_catalog_id")
-	if jiaCatalogID == "" {
-		c.Logger().Errorf("jia_catalog_id is missing")
-		return c.String(http.StatusBadRequest, "jia_catalog_id is missing")
-	}
-
-	// 日本ISU協会に問い合わせる(http request)
-	catalogFromJIA, statusCode, err := fetchCatalogFromJIA(jiaCatalogID)
-	if err != nil {
-		c.Logger().Errorf("failed to get catalog from JIA: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	if statusCode == http.StatusNotFound {
-		c.Logger().Errorf("invalid jia_catalog_id")
-		return c.String(http.StatusNotFound, "invalid jia_catalog_id")
-	}
-
-	catalog, err := castCatalogFromJIA(catalogFromJIA)
-	if err != nil {
-		c.Logger().Errorf("failed to cast catalog: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	return c.JSON(http.StatusOK, catalog)
-}
-
-// 日本ISU協会にカタログ情報を問い合わせる
-// 日本ISU協会のAPIについては資料を参照
-func fetchCatalogFromJIA(catalogID string) (*CatalogFromJIA, int, error) {
-	targetURLStr := getJIAServiceURL() + "/api/catalog/" + catalogID
-	res, err := http.Get(targetURLStr)
-	if err != nil {
-		return nil, http.StatusInternalServerError, err
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode != http.StatusOK {
-		return nil, res.StatusCode, nil
-	}
-
-	catalog := &CatalogFromJIA{}
-	err = json.NewDecoder(res.Body).Decode(&catalog)
-	if err != nil {
-		return nil, http.StatusOK, err
-	}
-	return catalog, http.StatusOK, nil
-}
-
-//CatalogFromJIAからCatalogへのキャスト
-func castCatalogFromJIA(catalogFromJIA *CatalogFromJIA) (*Catalog, error) {
-	//TODO: バリデーション
-	catalog := &Catalog{}
-	catalog.JIACatalogID = catalogFromJIA.ID
-	catalog.Name = catalogFromJIA.Name
-	catalog.LimitWeight = catalogFromJIA.LimitWeight
-	catalog.Weight = catalogFromJIA.Weight
-	catalog.Size = catalogFromJIA.Size
-	catalog.Maker = catalogFromJIA.Maker
-	catalog.Tags = catalogFromJIA.Features
-	return catalog, nil
-}
-
 func getIsuList(c echo.Context) error {
 	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
@@ -531,8 +437,8 @@ func getIsuList(c echo.Context) error {
 	if limitStr != "" {
 		limit, err = strconv.Atoi(limitStr)
 		if err != nil || limit <= 0 {
-			c.Logger().Errorf("invalid value: limit: (limit = %v) %v", limit, err)
-			return c.String(http.StatusBadRequest, "invalid value: limit")
+			c.Logger().Errorf("bad format: limit: limit = %v, %v", limit, err)
+			return c.String(http.StatusBadRequest, "bad format: limit")
 		}
 	}
 
@@ -558,39 +464,70 @@ func postIsu(c echo.Context) error {
 		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 
-	var req PostIsuRequest
-	err = c.Bind(&req)
+	useDefaultImage := false
+
+	jiaIsuUUID := c.FormValue("jia_isu_uuid")
+	isuName := c.FormValue("isu_name")
+	fh, err := c.FormFile("image")
 	if err != nil {
-		c.Logger().Errorf("bad request body: %v", err)
-		return c.String(http.StatusBadRequest, "bad request body")
+		if !errors.Is(err, http.ErrMissingFile) {
+			c.Logger().Errorf("failed to get icon: %v", err)
+			return c.String(http.StatusBadRequest, "failed to get icon")
+		}
+		useDefaultImage = true
 	}
 
-	jiaIsuUUID := req.JIAIsuUUID
-	isuName := req.IsuName
+	var image []byte
 
-	// 既に登録されたisuでないか確認
-	var count int
-	// TODO 再activate時もエラー起こすため、 `is_deleted` は見ない
-	err = db.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
-		jiaUserID, jiaIsuUUID)
+	if useDefaultImage {
+		// デフォルト画像を準備
+		image, err = ioutil.ReadFile(defaultIconFilePath)
+		if err != nil {
+			c.Logger().Errorf("failed to read default icon: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+	} else {
+		file, err := fh.Open()
+		if err != nil {
+			c.Logger().Errorf("failed to open fh: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+		defer file.Close()
+
+		image, err = ioutil.ReadAll(file)
+		if err != nil {
+			c.Logger().Errorf("failed to read file: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+	}
+
+	// トランザクション開始
+	tx, err := db.Beginx()
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
-	if count != 0 {
-		// TODO 再activate時もここでエラー; day2で再検討
-		c.Logger().Errorf("duplicated isu: %v", err)
-		return c.String(http.StatusConflict, "duplicated isu")
+	defer tx.Rollback()
+
+	// 新しいisuのデータをinsert
+	_, err = tx.Exec("INSERT INTO `isu`"+
+		"	(`jia_isu_uuid`, `name`, `image`, `jia_user_id`) VALUES (?, ?, ?, ?)",
+		jiaIsuUUID, isuName, image, jiaUserID)
+	if err != nil {
+		mysqlErr, ok := err.(*mysql.MySQLError)
+
+		if ok && mysqlErr.Number == uint16(mysqlErrNumDuplicateEntry) {
+			c.Logger().Errorf("duplicated isu: %v", err)
+			return c.String(http.StatusConflict, "duplicated isu")
+		}
+
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	// JIAにisuのactivateをリクエスト
-	targetURL := getJIAServiceURL() + "/api/activate"
-	port, err := strconv.Atoi(getEnv("SERVER_PORT", "3000"))
-	if err != nil {
-		c.Logger().Errorf("bad port number: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	body := JIAServiceRequest{isuConditionIP, port, jiaIsuUUID}
+	targetURL := getJIAServiceURL(tx) + "/api/activate"
+	body := JIAServiceRequest{isuConditionPublicAddress, isuConditionPublicPort, jiaIsuUUID}
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
 		c.Logger().Errorf("failed to marshal data: %v", err)
@@ -629,27 +566,24 @@ func postIsu(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	// デフォルト画像を準備
-	image, err := ioutil.ReadFile(defaultIconFilePath)
-	if err != nil {
-		c.Logger().Errorf("failed to read default icon: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	// 新しいisuのデータをinsert
-	_, err = db.Exec("INSERT INTO `isu`"+
-		"	(`jia_isu_uuid`, `name`, `image`, `character`, `jia_catalog_id`, `jia_user_id`) VALUES (?, ?, ?, ?, ?, ?)",
-		jiaIsuUUID, isuName, image, isuFromJIA.Character, isuFromJIA.JIACatalogID, jiaUserID)
+	_, err = tx.Exec("UPDATE `isu` SET `character` = ? WHERE  `jia_isu_uuid` = ?", isuFromJIA.Character, jiaIsuUUID)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	var isu Isu
-	err = db.Get(
+	err = tx.Get(
 		&isu,
 		"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
 		jiaUserID, jiaIsuUUID)
+	if err != nil {
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	// トランザクション終了
+	err = tx.Commit()
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -785,13 +719,8 @@ func deleteIsu(c echo.Context) error {
 	}
 
 	// JIAにisuのdeactivateをリクエスト
-	targetURL := getJIAServiceURL() + "/api/deactivate"
-	port, err := strconv.Atoi(getEnv("SERVER_PORT", "3000"))
-	if err != nil {
-		c.Logger().Errorf("bad port number: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	body := JIAServiceRequest{isuConditionIP, port, jiaIsuUUID}
+	targetURL := getJIAServiceURL(tx) + "/api/deactivate"
+	body := JIAServiceRequest{isuConditionPublicAddress, isuConditionPublicPort, jiaIsuUUID}
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
 		c.Logger().Errorf("failed to marshal data: %v", err)
@@ -854,81 +783,7 @@ func getIsuIcon(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	// TODO: putIsuIconでjpgも受け付けるなら対応が必要
-	return c.Blob(http.StatusOK, "image/png", image)
-}
-
-//  PUT /api/isu/{jia_isu_uuid}/icon
-// ISUのアイコンを登録する
-// multipart/form-data
-// MEMO: DB 内の image は longblob
-func putIsuIcon(c echo.Context) error {
-	jiaUserID, err := getUserIDFromSession(c.Request())
-	if err != nil {
-		c.Logger().Errorf("you are not signed in: %v", err)
-		return c.String(http.StatusUnauthorized, "you are not signed in")
-	}
-
-	jiaIsuUUID := c.Param("jia_isu_uuid")
-	fh, err := c.FormFile("image")
-	if err != nil {
-		c.Logger().Errorf("jia_isu_uuid is invalid: %v", err)
-		return c.String(http.StatusBadRequest, "jia_isu_uuid is invalid")
-	}
-
-	contentType := fh.Header.Get("Content-Type")
-	// TODO: jpeg画像も受け付けるなら対応必要
-	if contentType != "image/png" {
-		c.Logger().Errorf("invalid image format: %v", contentType)
-		return c.String(http.StatusBadRequest, "invalid image format")
-	}
-
-	file, err := fh.Open()
-	if err != nil {
-		c.Logger().Errorf("failed to open fh: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	defer file.Close()
-
-	image, err := ioutil.ReadAll(file)
-	if err != nil {
-		c.Logger().Errorf("failed to read file: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	tx, err := db.Beginx()
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	defer tx.Rollback()
-
-	var count int
-	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false FOR UPDATE",
-		jiaUserID, jiaIsuUUID)
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	if count == 0 {
-		c.Logger().Errorf("isu not found")
-		return c.String(http.StatusNotFound, "isu not found")
-	}
-
-	_, err = tx.Exec("UPDATE `isu` SET `image` = ? WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
-		image, jiaUserID, jiaIsuUUID)
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	return c.NoContent(http.StatusOK)
+	return c.Blob(http.StatusOK, "", image)
 }
 
 //  GET /api/isu/{jia_isu_uuid}/graph
@@ -1104,18 +959,18 @@ func getAllIsuConditions(c echo.Context) error {
 		return c.JSON(http.StatusOK, isuList)
 	}
 
-	// ユーザの所持椅子毎に /api/condition/{jia_isu_uuid} を叩く
+	// ユーザの所持椅子毎に DB から引く
 	conditionsResponse := []*GetIsuConditionResponse{}
 	for _, isu := range isuList {
 		//cursorのjia_isu_uuidで決まる部分は、とりあえず全部取得しておく
 		//  cursorEndTime >= timestampを取りたいので、
-		//  cursorEndTime + 1sec > timestampとしてリクエストを送る
+		//  cursorEndTime + 1sec > timestampとしてクエリを送る
 		//この一要素はフィルターにかかるかどうか分からないので、limitも+1しておく
 
 		conditionsTmp, err := getIsuConditionsFromDB(isu.JIAIsuUUID, cursorEndTime.Add(1*time.Second),
 			conditionLevel, startTime, limit+1, isu.Name)
 		if err != nil {
-			c.Logger().Errorf("failed to http request: %v", err)
+			c.Logger().Errorf("db error: %v", err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
 
@@ -1306,7 +1161,7 @@ func getIsuConditionsFromDB(jiaIsuUUID string, cursorEndTime time.Time, conditio
 	return conditionsResponse, nil
 }
 
-// POST /api/isu/{jia_isu_uuid}/condition
+// POST /api/condition/{jia_isu_uuid}
 // ISUからのセンサデータを受け取る
 func postIsuCondition(c echo.Context) error {
 	// input (path_param)
@@ -1358,7 +1213,7 @@ func postIsuCondition(c echo.Context) error {
 		// parse
 		timestamp := time.Unix(cond.Timestamp, 0)
 
-		if !conditionFormat.Match([]byte(cond.Condition)) {
+		if !conditionFormat.MatchString(cond.Condition) {
 			c.Logger().Errorf("bad request body")
 			return c.String(http.StatusBadRequest, "bad request body")
 		}

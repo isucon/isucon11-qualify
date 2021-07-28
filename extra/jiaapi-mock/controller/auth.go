@@ -42,8 +42,8 @@ func NewAuthController(key []byte) (*AuthController, error) {
 
 func (c *AuthController) PostAuth(ctx echo.Context) error {
 	input := &struct {
-		User     string `json:"user" validate:"required`
-		Password string `json:"password" validate:"required`
+		User     string `json:"user" validate:"required"`
+		Password string `json:"password" validate:"required"`
 	}{}
 	err := ctx.Bind(input)
 	if err != nil {

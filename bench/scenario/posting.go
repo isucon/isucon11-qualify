@@ -31,7 +31,7 @@ type posterState struct {
 	isuStateDelete       bool //椅子を削除する(正の点数が出るpostを行わない)
 }
 
-//POST /api/isu/{jia_isu_id}/conditionをたたく Goroutine
+//POST /api/condition/{jia_isu_id}をたたく Goroutine
 func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseURL string, jiaIsuUUID string, scenarioChan *model.StreamsForPoster) {
 	defer func() { scenarioChan.ActiveChan <- false }() //deactivate 容量1で、ここでしか使わないのでブロックしない
 
@@ -53,7 +53,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		isuStateDelete:       false,
 	}
 	randEngine := rand.New(rand.NewSource(rand.Int63()))
-	targetURL := fmt.Sprintf("%s/api/isu/%s/condition", targetBaseURL, jiaIsuUUID)
+	targetURL := fmt.Sprintf("%s/api/condition/%s", targetBaseURL, jiaIsuUUID)
 	httpClient := http.Client{}
 	httpClient.Timeout = agent.DefaultRequestTimeout + 5*time.Second //MEMO: post conditionがtimeoutすると付随してたくさんエラーが出るので、timeoutしにくいようにする
 

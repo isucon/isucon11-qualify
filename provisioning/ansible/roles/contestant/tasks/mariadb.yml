@@ -1,16 +1,15 @@
 ---
-- name: "roles/contestant/tasks/mysql: Install Package"
+- name: "roles/contestant/tasks/mariadb: Install Package"
   apt:
     name:
-    - mysql-server-8.0
-    - mysql-server-core-8.0
-    - mysql-common
-    - mysql-client-8.0
-    - mysql-client-core-8.0
+    - mariadb-common
+    - mariadb-server-10.3
+    - mariadb-server-core-10.3
+    - mariadb-client-10.3
+    - mariadb-client-core-10.3
     update_cache: yes
 
-
-- name: "roles/contestant/tasks/mysql: Set temporary password"
+- name: "roles/contestant/tasks/mariadb: Set temporary password"
   become_user: root
   blockinfile:
     create: yes
@@ -20,7 +19,7 @@
       user = root
       password = root
 
-- name: "roles/contestant/tasks/mysql: Create isucon user on MySQL"
+- name: "roles/contestant/tasks/mariadb: Create isucon user on MariaDB"
   become_user: root
   shell: >
       mysql -e "
@@ -29,12 +28,12 @@
         FLUSH PRIVILEGES;
       "
 
-- name: "roles/contestant/tasks/mysql: Remove temporary file"
+- name: "roles/contestant/tasks/mariadb: Remove temporary file"
   file:
     path: *myCnf
     state: absent
 
-- name: "roles.contestant.tasks.mysql: Copy configs"
+- name: "roles.contestant.tasks.mariadb: Copy configs"
   copy:
     src: "{{ item }}"
     dest: "/{{ item }}"
@@ -42,13 +41,13 @@
     group: "root"
     mode: "0644"
   with_items:
-  - etc/mysql/mysql.conf.d/mysqld.cnf
+  - etc/mysql/mariadb.conf.d/50-server.cnf
   - etc/mysql/conf.d/my.cnf
 
-- name: "roles/contestant/tasks/mysql: Start mysql-server"
+- name: "roles/contestant/tasks/mariadb: Start mariadb-server"
   systemd:
     daemon_reload: "yes"
-    name: "mysql"
+    name: "mariadb.service"
     state: "restarted"
     enabled: "yes"
 
