@@ -589,7 +589,7 @@ func postIsu(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	return c.JSON(http.StatusOK, isu)
+	return c.JSON(http.StatusCreated, isu)
 }
 
 //  GET /api/isu/{jia_isu_uuid}
