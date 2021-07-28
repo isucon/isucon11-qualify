@@ -125,7 +125,6 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	s.prepareCheckGetIsuList(ctx, loginUser, noIsuUser, guestAgent, step)
 	s.prepareCheckPostIsu(ctx, loginUser, noIsuUser, guestAgent, step)
 	s.prepareCheckGetIsu(ctx, loginUser, noIsuUser, guestAgent, step)
-	s.prepareCheckDeleteIsu(ctx, loginUser, noIsuUser, guestAgent, step)
 	s.prepareCheckGetIsuIcon(ctx, loginUser, noIsuUser, guestAgent, step)
 	s.prepareCheckGetIsuGraph(ctx, loginUser, noIsuUser, guestAgent, step)
 	s.prepareCheckGetAllIsuConditions(ctx, loginUser, noIsuUser, guestAgent, step)
@@ -273,7 +272,6 @@ func (s *Scenario) prepareCheckGetIsuList(ctx context.Context, loginUser *model.
 	}
 
 	// check: 登録したISUがlimit分取得できる
-	isu1 := s.NewIsu(ctx, step, loginUser, true, nil)
 	isu2 := s.NewIsu(ctx, step, loginUser, true, nil)
 	isu3 := s.NewIsu(ctx, step, loginUser, true, nil)
 
@@ -283,31 +281,11 @@ func (s *Scenario) prepareCheckGetIsuList(ctx context.Context, loginUser *model.
 		return
 	}
 	//expected
-	sIsu1 := isu1.ToService()
 	sIsu2 := isu2.ToService()
 	sIsu3 := isu3.ToService()
 	expected := []*service.Isu{sIsu3, sIsu2}
 	if !reflect.DeepEqual(isuList, expected) {
 		step.AddError(errorInvalidResponse2(res, "ユーザの所持する椅子の数や順番が一致しません。"))
-		return
-	}
-
-	// check: 削除済みの椅子が取得できないことを確認
-	_, err = deleteIsuAction(ctx, loginUser.Agent, isu3.JIAIsuUUID)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	loginUser.RemoveIsu(isu3)
-	isuList, res, err = getIsuAction(ctx, loginUser.Agent, 2)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	//expected
-	expected = []*service.Isu{sIsu2, sIsu1}
-	if !reflect.DeepEqual(isuList, expected) {
-		step.AddError(errorInvalidResponse2(res, "ユーザの所持する椅子や順番が一致しません。"))
 		return
 	}
 
@@ -499,7 +477,6 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 		return
 	}
 
-	// TODO: check: delete後のisuをactivate
 	// TODO: check: 画像が存在しない
 
 }
@@ -535,28 +512,6 @@ func (s *Scenario) prepareCheckGetIsu(ctx context.Context, loginUser *model.User
 		return
 	}
 
-	// check: 削除済みの椅子に対するリクエスト
-	// 削除済みや他ユーザからのやつは個別にやるより一連の処理にまとめたほうがすっきりしそう
-	_, err = deleteIsuAction(ctx, loginUser.Agent, isu.JIAIsuUUID)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	loginUser.RemoveIsu(isu)
-	resBody, res, err = getIsuIdErrorAction(ctx, loginUser.Agent, isu.JIAIsuUUID)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyStatusCode(res, http.StatusNotFound); err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyText(res, resBody, "isu not found"); err != nil {
-		step.AddError(err)
-		return
-	}
-
 	// check: 他ユーザの椅子に対するリクエスト
 	resBody, res, err = getIsuIdErrorAction(ctx, noIsuUser.Agent, "jiaisuuuid")
 	if err != nil {
@@ -587,76 +542,6 @@ func (s *Scenario) prepareCheckGetIsu(ctx context.Context, loginUser *model.User
 		return
 	}
 
-}
-
-// TODO: 一部実装途中
-func (s *Scenario) prepareCheckDeleteIsu(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
-	//ISUの削除 e.DELETE("/api/isu/:jia_isu_uuid", deleteIsu)
-
-	isu := s.NewIsu(ctx, step, loginUser, true, nil)
-	// check: 他ユーザの椅子に対するリクエスト
-	resBody, res, err := deleteIsuErrorAction(ctx, noIsuUser.Agent, isu.JIAIsuUUID)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyStatusCode(res, http.StatusNotFound); err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyText(res, resBody, "isu not found"); err != nil {
-		step.AddError(err)
-		return
-	}
-
-	// check: 正常系
-	_, err = deleteIsuAction(ctx, loginUser.Agent, isu.JIAIsuUUID)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	loginUser.RemoveIsu(isu)
-
-	// check: 削除済みの椅子に対するリクエスト
-	resBody, res, err = deleteIsuErrorAction(ctx, loginUser.Agent, isu.JIAIsuUUID)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyStatusCode(res, http.StatusNotFound); err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyText(res, resBody, "isu not found"); err != nil {
-		step.AddError(err)
-		return
-	}
-
-	// check: 未ログイン状態
-	resBody, res, err = deleteIsuErrorAction(ctx, guestAgent, "jiaisuuuid")
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyNotSignedIn(res, resBody); err != nil {
-		step.AddError(err)
-		return
-	}
-
-	// check: 存在しない椅子を削除
-	resBody, res, err = deleteIsuErrorAction(ctx, loginUser.Agent, "jiaisuuuid")
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyStatusCode(res, http.StatusNotFound); err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyText(res, resBody, "isu not found"); err != nil {
-		step.AddError(err)
-		return
-	}
 }
 
 func (s *Scenario) prepareCheckGetIsuIcon(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
@@ -699,27 +584,6 @@ func (s *Scenario) prepareCheckGetIsuIcon(ctx context.Context, loginUser *model.
 		return
 	}
 	if err := verifyNotSignedIn(res, resBody); err != nil {
-		step.AddError(err)
-		return
-	}
-
-	// check: 削除済みの椅子に対するリクエスト
-	_, err = deleteIsuAction(ctx, loginUser.Agent, isu.JIAIsuUUID)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	loginUser.RemoveIsu(isu)
-	resBody, res, err = getIsuIconErrorAction(ctx, loginUser.Agent, isu.JIAIsuUUID)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyStatusCode(res, http.StatusNotFound); err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyText(res, resBody, "isu not found"); err != nil {
 		step.AddError(err)
 		return
 	}
@@ -813,29 +677,6 @@ func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model
 	query = url.Values{}
 	query.Set("date", strconv.FormatInt(time.Now().Unix(), 10))
 	resBody, res, err = getIsuGraphErrorAction(ctx, noIsuUser.Agent, isu.JIAIsuUUID, query)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyStatusCode(res, http.StatusNotFound); err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyText(res, resBody, "isu not found"); err != nil {
-		step.AddError(err)
-		return
-	}
-
-	// check: 削除済みの椅子に対するリクエスト
-	_, err = deleteIsuAction(ctx, loginUser.Agent, isu.JIAIsuUUID)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	loginUser.RemoveIsu(isu)
-	query = url.Values{}
-	query.Set("date", strconv.FormatInt(time.Now().Unix(), 10))
-	resBody, res, err = getIsuGraphErrorAction(ctx, loginUser.Agent, isu.JIAIsuUUID, query)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -1071,7 +912,6 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 	//- 正常系
 	//	- option無し
 	isu := s.NewIsu(ctx, step, loginUser, true, nil)
-	deletedIsu := s.NewIsu(ctx, step, loginUser, true, nil)
 	// ある程度conditionが溜まるまで待つが3秒は適当
 	select {
 	case <-time.After(3 * time.Second):
@@ -1233,31 +1073,6 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 		return
 	}
 
-	// check: 削除済みの椅子に対するリクエスト
-	_, err = deleteIsuAction(ctx, loginUser.Agent, deletedIsu.JIAIsuUUID)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	loginUser.RemoveIsu(deletedIsu)
-
-	query = url.Values{}
-	query.Set("cursor_end_time", strconv.FormatInt(dataExistTimestamp, 10))
-	query.Set("condition_level", "info,warning,critical")
-	resBody, res, err = getIsuConditionErrorAction(ctx, loginUser.Agent, deletedIsu.JIAIsuUUID, query)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyStatusCode(res, http.StatusNotFound); err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyText(res, resBody, "isu not found"); err != nil {
-		step.AddError(err)
-		return
-	}
-
 	// check: 他ユーザの椅子に対するリクエスト
 	query = url.Values{}
 	query.Set("cursor_end_time", strconv.FormatInt(dataExistTimestamp, 10))
@@ -1299,7 +1114,6 @@ func (s *Scenario) prepareCheckPostIsuCondition(ctx context.Context, loginUser *
 	// ISUからのcondition送信 e.POST("/api/isu/:jia_isu_uuid/condition", postIsuCondition)
 	// - 正常系
 	isu := s.NewIsu(ctx, step, loginUser, true, nil)
-	deletedIsu := s.NewIsu(ctx, step, loginUser, true, nil)
 
 	// 通常のisu condition送信とかぶらないように未来の日付にしてる
 	// TODO: ここは時間表現ではなく、prepare中はkeepPostingさせないなどして制御するか、keepPostingした上で厳し目チェックに
@@ -1378,28 +1192,6 @@ func (s *Scenario) prepareCheckPostIsuCondition(ctx context.Context, loginUser *
 	// check: 存在しないjia_isu_uuid
 	targetURL = fmt.Sprintf("%s/api/condition/%s", isuTargetBaseUrl[isu.JIAIsuUUID], "jiaisuuuid")
 	resBody, res, err := postIsuConditionErrorAction(targetURL, req)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyStatusCode(res, http.StatusNotFound); err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyText(res, resBody, "isu not found"); err != nil {
-		step.AddError(err)
-		return
-	}
-
-	// check: 削除済みの椅子に対するリクエスト
-	_, err = deleteIsuAction(ctx, loginUser.Agent, deletedIsu.JIAIsuUUID)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	loginUser.RemoveIsu(deletedIsu)
-	targetURL = fmt.Sprintf("%s/api/condition/%s", isuTargetBaseUrl[deletedIsu.JIAIsuUUID], deletedIsu.JIAIsuUUID)
-	resBody, res, err = postIsuConditionErrorAction(targetURL, req)
 	if err != nil {
 		step.AddError(err)
 		return
