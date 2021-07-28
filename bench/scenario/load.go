@@ -460,9 +460,9 @@ func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.Benchmar
 	for _, isu := range user.IsuListOrderByCreatedAt {
 		lastSolvedTime[isu.JIAIsuUUID] = s.virtualTimeStart
 	}
-	const breakNum = 100                          //一度に壊れるISUの数
-	breakTime := time.Now().Add(20 * time.Second) //大量のISUの状態が悪化するタイミング
-	breakDelete := false                          //大量修理シナリオか、大量交換シナリオか
+	// const breakNum = 100                          //一度に壊れるISUの数
+	// breakTime := time.Now().Add(20 * time.Second) //大量のISUの状態が悪化するタイミング
+	// breakDelete := false                          //大量修理シナリオか、大量交換シナリオか
 	scenarioLoopStopper := time.After(1 * time.Millisecond)
 	for {
 		<-scenarioLoopStopper
@@ -522,17 +522,17 @@ func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.Benchmar
 			continue
 		}
 
-		if breakTime.Before(time.Now()) {
-			if breakDelete {
-				scenarioSuccess = s.exchangeCompanyIsu()
-			} else {
-				scenarioSuccess = s.repairCompanyIsu()
-			}
-			breakDelete = !breakDelete
-			breakTime = time.Now().Add(20 * time.Second)
-		} else {
-			scenarioSuccess = s.checkCompanyConditionScenario(ctx, step, user, lastSolvedTime)
-		}
+		// if breakTime.Before(time.Now()) {
+		// 	if breakDelete {
+		// 		scenarioSuccess = s.exchangeCompanyIsu()
+		// 	} else {
+		// 		scenarioSuccess = s.repairCompanyIsu()
+		// 	}
+		// 	breakDelete = !breakDelete
+		// 	breakTime = time.Now().Add(20 * time.Second)
+		// } else {
+		scenarioSuccess = s.checkCompanyConditionScenario(ctx, step, user, lastSolvedTime)
+		//}
 	}
 }
 
