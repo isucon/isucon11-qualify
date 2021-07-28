@@ -16,7 +16,7 @@ Environment=ISUXPORTAL_SUPERVISOR_INSTANCE_NAME=%H
 Environment=ISUXPORTAL_SUPERVISOR_HARD_TIMEOUT=180
 Environment=ISUXPORTAL_SUPERVISOR_LOG_DIRECTORY=/var/log/isuxportal-supervisor
 Environment=ISUXPORTAL_SUPERVISOR_INTERVAL_AFTER_EMPTY_RECEIVE=2
-EnvironmentFile=/run/isuxportal-supervisor.env
+EnvironmentFile=/home/isucon/isuxportal-supervisor.env
 
 # 一般ユーザが特権ポートをバインドするための設定
 AmbientCapabilities=CAP_NET_BIND_SERVICE
