@@ -39,6 +39,7 @@ type IsuConditionPosterRequest struct {
 //ISU協会 Goroutineとposterの通信
 type JiaAPI2PosterData struct {
 	activated  bool
+	closeWait  <-chan struct{}
 	cancelFunc context.CancelFunc
 }
 
@@ -114,6 +115,7 @@ func (s *Scenario) postActivate(c echo.Context) error {
 	//poster Goroutineの起動
 	var isuDetail *IsuDetailInfomation
 	var scenarioChan *model.StreamsForPoster
+	closeWait := make(chan struct{})
 	posterContext, cancelFunc := context.WithCancel(jiaAPIContext)
 	err = func() error {
 		var ok bool
@@ -130,6 +132,7 @@ func (s *Scenario) postActivate(c echo.Context) error {
 		isuIsActivated[state.IsuUUID] = JiaAPI2PosterData{
 			activated:  true,
 			cancelFunc: cancelFunc,
+			closeWait:  closeWait,
 		}
 		isuDetail = isuDetailInfomation[state.IsuUUID]
 
@@ -141,7 +144,7 @@ func (s *Scenario) postActivate(c echo.Context) error {
 	s.loadWaitGroup.Add(1)
 	go func() {
 		defer s.loadWaitGroup.Done()
-		s.keepPosting(posterContext, jiaAPIStep, targetBaseURL, state.IsuUUID, scenarioChan)
+		s.keepPosting(posterContext, jiaAPIStep, targetBaseURL, state.IsuUUID, scenarioChan, closeWait)
 	}()
 
 	return c.JSON(http.StatusAccepted, isuDetail)
@@ -165,6 +168,7 @@ func postDeactivate(c echo.Context) error {
 	}
 	v.cancelFunc()
 	v.activated = false
+	<-v.closeWait //posterの終了を待機
 
 	return c.NoContent(http.StatusNoContent)
 }
