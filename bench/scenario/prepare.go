@@ -238,11 +238,11 @@ func (s *Scenario) prepareCheckGetMe(ctx context.Context, loginUser *model.User,
 	}
 
 	if meRes == nil {
-		step.AddError(errorInvalidResponse2(res, "レスポンス内容が不正です。"))
+		step.AddError(errorInvalid(res, "レスポンス内容が不正です。"))
 		return
 	}
 	if meRes.JIAUserID != loginUser.UserID {
-		step.AddError(errorInvalidResponse2(res, "ログインユーザと一致しません。"))
+		step.AddError(errorInvalid(res, "ログインユーザと一致しません。"))
 		return
 	}
 
@@ -267,7 +267,7 @@ func (s *Scenario) prepareCheckGetIsuList(ctx context.Context, loginUser *model.
 		return
 	}
 	if len(isuList) != 0 {
-		step.AddError(errorInvalidResponse2(res, "ユーザの所持する椅子の数が一致しません。"))
+		step.AddError(errorInvalid(res, "ユーザの所持する椅子の数が一致しません。"))
 		return
 	}
 
@@ -285,7 +285,7 @@ func (s *Scenario) prepareCheckGetIsuList(ctx context.Context, loginUser *model.
 	sIsu3 := isu3.ToService()
 	expected := []*service.Isu{sIsu3, sIsu2}
 	if !reflect.DeepEqual(isuList, expected) {
-		step.AddError(errorInvalidResponse2(res, "ユーザの所持する椅子の数や順番が一致しません。"))
+		step.AddError(errorInvalid(res, "ユーザの所持する椅子の数や順番が一致しません。"))
 		return
 	}
 
@@ -349,7 +349,7 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 		return
 	}
 	if !reflect.DeepEqual(*actual, *expected) {
-		step.AddError(errorInvalidResponse2(res, "ユーザが所持している椅子が取得できません。"))
+		step.AddError(errorInvalid(res, "ユーザが所持している椅子が取得できません。"))
 		return
 	}
 
@@ -370,7 +370,7 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 	actualImg := md5.Sum(imgByte)
 	if expectedImg != actualImg {
 		// TODO: backendの画像変更待ち
-		//step.AddError(errorInvalidResponse2(res, "期待するISUアイコンと一致しません"))
+		//step.AddError(errorInvalid(res, "期待するISUアイコンと一致しません"))
 		//return
 	}
 
@@ -392,7 +392,7 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 		return
 	}
 	if !reflect.DeepEqual(*actual, *expected) {
-		step.AddError(errorInvalidResponse2(res, "ユーザが所持している椅子が取得できません。"))
+		step.AddError(errorInvalid(res, "ユーザが所持している椅子が取得できません。"))
 		return
 	}
 
@@ -408,7 +408,7 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 	expectedImg = md5.Sum(img)
 	actualImg = md5.Sum(imgByte)
 	if expectedImg != actualImg {
-		step.AddError(errorInvalidResponse2(res, "期待するISUアイコンと一致しません"))
+		step.AddError(errorInvalid(res, "期待するISUアイコンと一致しません"))
 		return
 	}
 
@@ -497,7 +497,7 @@ func (s *Scenario) prepareCheckGetIsu(ctx context.Context, loginUser *model.User
 		return
 	}
 	if !reflect.DeepEqual(*resIsu, *expected) {
-		step.AddError(errorInvalidResponse2(res, "ユーザが所持している椅子が取得できません。"))
+		step.AddError(errorInvalid(res, "ユーザが所持している椅子が取得できません。"))
 		return
 	}
 
@@ -562,7 +562,7 @@ func (s *Scenario) prepareCheckGetIsuIcon(ctx context.Context, loginUser *model.
 	expected := md5.Sum(imgByte)
 	actual := md5.Sum(imgByte)
 	if expected != actual {
-		step.AddError(errorInvalidResponse2(res, "期待するISUアイコンと一致しません"))
+		step.AddError(errorInvalid(res, "期待するISUアイコンと一致しません"))
 		return
 	}
 
@@ -573,7 +573,7 @@ func (s *Scenario) prepareCheckGetIsuIcon(ctx context.Context, loginUser *model.
 	}
 	actual = md5.Sum(imgByte)
 	if expected != actual {
-		step.AddError(errorInvalidResponse2(res, "期待するISUアイコンと一致しません"))
+		step.AddError(errorInvalid(res, "期待するISUアイコンと一致しません"))
 		return
 	}
 
@@ -901,7 +901,7 @@ func (s *Scenario) prepareCheckGetAllIsuConditions(ctx context.Context, loginUse
 		return
 	}
 	if len(conditionsTmp) != 0 {
-		step.AddError(errorInvalidResponse2(res, "ユーザの所持していないISUのConditionが取得できています。"))
+		step.AddError(errorInvalid(res, "ユーザの所持していないISUのConditionが取得できています。"))
 		return
 	}
 }
@@ -1173,10 +1173,10 @@ func (s *Scenario) prepareCheckPostIsuCondition(ctx context.Context, loginUser *
 	}
 	conditionsRes, res, err := getIsuConditionAction(ctx, loginUser.Agent, isu.JIAIsuUUID, getReq)
 	if len(conditionsRes) != len(expected) {
-		step.AddError(errorInvalidResponse2(res, "condition数が一致しません。"))
+		step.AddError(errorInvalid(res, "condition数が一致しません。"))
 	}
 	if !reflect.DeepEqual(conditionsRes, expected) {
-		step.AddError(errorInvalidResponse2(res, "conditionが一致しません。"))
+		step.AddError(errorInvalid(res, "conditionが一致しません。"))
 	}
 
 	// check: conditionかぶりのエラー（かぶらなくなったので削除）

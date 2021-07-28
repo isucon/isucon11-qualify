@@ -316,7 +316,7 @@ func verifyResources(page string, res *http.Response, resources agent.Resources)
 func errorChecksum(base string, resource *agent.Resource, name string) error {
 	if resource == nil {
 		logger.AdminLogger.Printf("resource not found: %s on %s\n", name, base)
-		return failure.NewError(ErrChecksum, errorInvalidResponse("期待するリソースが読み込まれませんでした: %s", name))
+		return errorCheckSum("期待するリソースが読み込まれませんでした: %s", name)
 	}
 
 	if resource.Error != nil {
@@ -326,7 +326,7 @@ func errorChecksum(base string, resource *agent.Resource, name string) error {
 				return nerr
 			}
 		}
-		return failure.NewError(ErrChecksum, errorInvalidResponse("リソースの取得に失敗しました: %s: %v", name, resource.Error))
+		return errorCheckSum("リソースの取得に失敗しました: %s: %v", name, resource.Error)
 	}
 
 	res := resource.Response
@@ -348,11 +348,11 @@ func errorChecksum(base string, resource *agent.Resource, name string) error {
 	hash := md5.New()
 	if _, err := io.Copy(hash, res.Body); err != nil {
 		logger.AdminLogger.Printf("resource checksum: %v", err)
-		return failure.NewError(ErrChecksum, errorInvalidResponse("リソースの取得に失敗しました: %s", path))
+		return errorCheckSum("リソースの取得に失敗しました: %s", path)
 	}
 	actual := fmt.Sprintf("%x", hash.Sum(nil))
 	if expected != actual {
-		return failure.NewError(ErrChecksum, errorInvalidResponse("期待するチェックサムと一致しません: %s", path))
+		return errorCheckSum("期待するチェックサムと一致しません: %s", path)
 	}
 	return nil
 }
