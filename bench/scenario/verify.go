@@ -386,14 +386,9 @@ func verifyGraph(
 		}
 		lastStartAt = graphOne.StartAt
 
-		// graphOne.start_at <= graphOne.condition_timestamps < graphOne.end_at であることの検証
-		for _, timestamp := range graphOne.ConditionTimestamps {
-			if !(graphOne.StartAt <= timestamp && timestamp < graphOne.EndAt) {
-				return errorInvalid(res, "condition_timestampsがstart_atからend_atの中に収まっていません")
-			}
-		}
-
 		// 特定の ISU における expected な conditions を新しい順に取得するイテレータを生成
+		// TODO: 最新の expected condition を指すイテレータを取得している
+		//    → GET graph のレスポンスに合わせた時間の expected condition を指すイテレータを取得したほうが良さそう
 		targetIsu := targetUser.IsuListByID[targetIsuUUID]
 		filter := model.ConditionLevelInfo | model.ConditionLevelWarning | model.ConditionLevelCritical
 		baseIter := targetIsu.Conditions.End(filter)
@@ -403,6 +398,11 @@ func verifyGraph(
 		// graphOne.ConditionTimestamps を逆順 (timestamp が新しい順) に loop
 		for idxTimestamps := len(graphOne.ConditionTimestamps) - 1; idxTimestamps >= 0; idxTimestamps-- {
 			timestamp := graphOne.ConditionTimestamps[idxTimestamps]
+
+			// graphOne.start_at <= graphOne.condition_timestamps < graphOne.end_at であることの検証
+			if !(graphOne.StartAt <= timestamp && timestamp < graphOne.EndAt) {
+				return errorInvalid(res, "condition_timestampsがstart_atからend_atの中に収まっていません")
+			}
 
 			// graphOne.ConditionTimestamps の要素が古い順に並んでいることの検証
 			nowSort := model.IsuConditionCursor{TimestampUnix: timestamp}
@@ -427,7 +427,12 @@ func verifyGraph(
 			}
 		}
 
-		// conditionsBaseOfScore から score が組み立てられることの検証
+		// actual の data が空の場合 verify skip
+		if graphOne.Data == nil {
+			continue
+		}
+
+		// conditionsBaseOfScore から組み立てた data が actual と等値であることの検証
 		expectedGraph := model.NewGraph(conditionsBaseOfScore)
 
 		if graphOne.Data.Score != expectedGraph.Score() ||
