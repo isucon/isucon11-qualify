@@ -217,7 +217,6 @@ func main() {
 	e.GET("/api/isu", getIsuList)
 	e.POST("/api/isu", postIsu)
 	e.GET("/api/isu/:jia_isu_uuid", getIsu)
-	e.DELETE("/api/isu/:jia_isu_uuid", deleteIsu)
 	e.GET("/api/isu/:jia_isu_uuid/icon", getIsuIcon)
 	e.GET("/api/isu/:jia_isu_uuid/graph", getIsuGraph)
 	e.GET("/api/condition", getAllIsuConditions)
@@ -613,81 +612,6 @@ func getIsu(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, isu)
-}
-
-//  DELETE /api/isu/{jia_isu_uuid}
-// 所有しているISUを削除する
-func deleteIsu(c echo.Context) error {
-	jiaUserID, err := getUserIDFromSession(c.Request())
-	if err != nil {
-		c.Logger().Errorf("you are not signed in: %v", err)
-		return c.String(http.StatusUnauthorized, "you are not signed in")
-	}
-
-	jiaIsuUUID := c.Param("jia_isu_uuid")
-
-	tx, err := db.Beginx()
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	defer tx.Rollback()
-
-	var count int
-	err = tx.Get(
-		&count,
-		"SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
-		jiaUserID, jiaIsuUUID)
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	if count == 0 {
-		c.Logger().Errorf("isu not found")
-		return c.String(http.StatusNotFound, "isu not found")
-	}
-
-	_, err = tx.Exec("UPDATE `isu` SET `is_deleted` = true WHERE `jia_isu_uuid` = ?", jiaIsuUUID)
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	// JIAにisuのdeactivateをリクエスト
-	targetURL := getJIAServiceURL(tx) + "/api/deactivate"
-	body := JIAServiceRequest{isuConditionPublicAddress, isuConditionPublicPort, jiaIsuUUID}
-	bodyJSON, err := json.Marshal(body)
-	if err != nil {
-		c.Logger().Errorf("failed to marshal data: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	req, err := http.NewRequest(http.MethodPost, targetURL, bytes.NewBuffer(bodyJSON))
-	if err != nil {
-		c.Logger().Errorf("failed to build request: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		c.Logger().Errorf("failed to request to JIAService: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode != http.StatusNoContent {
-		c.Logger().Errorf("JIAService returned error: status code %v", res.StatusCode)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	return c.NoContent(http.StatusNoContent)
 }
 
 //  GET /api/isu/{jia_isu_uuid}/icon
