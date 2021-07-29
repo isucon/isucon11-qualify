@@ -1,12 +1,8 @@
 package scenario
 
 import (
-	"bytes"
 	"context"
-	"crypto/md5"
-	"io"
 	"math"
-	"math/rand"
 	"net/url"
 	"sync"
 	"time"
@@ -168,13 +164,11 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 		JIAIsuUUID: isu.JIAIsuUUID,
 		IsuName:    isu.Name,
 	}
-	var image io.Reader
-	if rand.Intn(100) != 0 {
-		imageBytes := random.Image()
-		isu.ImageHash = md5.Sum(imageBytes)
-		image = bytes.NewBuffer(imageBytes)
+	if img != nil {
+		req.ImgName = img.ImgName
+		req.Img = img.Img
 	}
-	isuResponse, res, err := postIsuAction(ctx, owner.Agent, req, image) //TODO:画像
+	isuResponse, res, err := postIsuAction(ctx, owner.Agent, req) //TODO:画像
 	if err != nil {
 		addErrorWithContext(ctx, step, err)
 		isu.StreamsForScenario.StateChan <- model.IsuStateChangeDelete

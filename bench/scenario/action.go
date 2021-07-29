@@ -16,12 +16,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
-	"net/textproto"
 	"net/url"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -327,7 +326,7 @@ func getPathWithParams(pathStr string, query url.Values) string {
 	return path.String()
 }
 
-func postIsuAction(ctx context.Context, a *agent.Agent, req service.PostIsuRequest, image io.Reader) (*service.Isu, *http.Response, error) {
+func postIsuAction(ctx context.Context, a *agent.Agent, req service.PostIsuRequest) (*service.Isu, *http.Response, error) {
 	buf := &bytes.Buffer{}
 	writer := multipart.NewWriter(buf)
 
@@ -348,16 +347,13 @@ func postIsuAction(ctx context.Context, a *agent.Agent, req service.PostIsuReque
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 	}
-	//画像も追加する
-	if image != nil {
-		partHeader := make(textproto.MIMEHeader)
-		partHeader.Set("Content-Type", "image/jpg")
-		partHeader.Set("Content-Disposition", `form-data; name="image"; filename="image.jpg"`)
-		pw, err := writer.CreatePart(partHeader)
+
+	if req.Img != nil && req.ImgName != "" {
+		part, err := writer.CreateFormFile("image", filepath.Base(req.ImgName))
 		if err != nil {
 			logger.AdminLogger.Panic(err)
 		}
-		_, err = io.Copy(pw, image)
+		_, err = part.Write(req.Img)
 		if err != nil {
 			logger.AdminLogger.Panic(err)
 		}
