@@ -325,6 +325,7 @@ func getPathWithParams(pathStr string, query url.Values) string {
 	path.RawQuery = query.Encode()
 	return path.String()
 }
+
 func postIsuAction(ctx context.Context, a *agent.Agent, req service.PostIsuRequest) (*service.Isu, *http.Response, error) {
 	buf := &bytes.Buffer{}
 	writer := multipart.NewWriter(buf)
@@ -357,6 +358,7 @@ func postIsuAction(ctx context.Context, a *agent.Agent, req service.PostIsuReque
 			logger.AdminLogger.Panic(err)
 		}
 	}
+
 	err = writer.Close()
 	if err != nil {
 		logger.AdminLogger.Panic(err)

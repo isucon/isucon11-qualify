@@ -2,6 +2,9 @@ package model
 
 import (
 	"context"
+	"crypto/md5"
+	"io/ioutil"
+	"log"
 	"github.com/isucon/isucon11-qualify/bench/service"
 
 	"github.com/google/uuid"
@@ -45,7 +48,7 @@ type Isu struct {
 	Owner              *User
 	JIAIsuUUID         string
 	Name               string
-	ImageName          string
+	ImageHash          [md5.Size]byte
 	JIACatalogID       string
 	Character          string
 	IsWantDeactivated  bool                //シナリオ上でDeleteリクエストを送ったかどうか
@@ -72,7 +75,7 @@ func NewRandomIsuRaw(owner *User) (*Isu, *StreamsForPoster, error) {
 		Owner:             owner,
 		JIAIsuUUID:        id.String(),
 		Name:              random.IsuName(),
-		ImageName:         "NoImage.png",                          //TODO: ちゃんとデータに合わせる
+		ImageHash:         defaultIconHash,
 		JIACatalogID:      "550e8400-e29b-41d4-a716-446655440000", //TODO:
 		Character:         random.Character(),
 		IsWantDeactivated: false,
@@ -124,6 +127,18 @@ func (isu *Isu) getConditionFromChan(ctx context.Context, userConditionBuffer *I
 			return
 		}
 	}
+}
+
+var defaultIconHash [md5.Size]byte
+
+const defaultIconFilePath = "./images/default.jpg"
+
+func init() {
+	image, err := ioutil.ReadFile(defaultIconFilePath)
+	if err != nil {
+		log.Fatalf("failed to read default icon: %v", err)
+	}
+	defaultIconHash = md5.Sum(image)
 }
 
 func (isu *Isu) ToService() *service.Isu {

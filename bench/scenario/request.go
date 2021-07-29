@@ -1,14 +1,12 @@
 package scenario
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
-	"net/textproto"
 	"strings"
 
 	"github.com/isucon/isucandar/agent"
@@ -50,72 +48,6 @@ func reqNoContentResError(ctx context.Context, agent *agent.Agent, method string
 	}
 
 	return httpres, string(resBody), nil
-}
-
-func reqPngResNoContent(ctx context.Context, agent *agent.Agent, method string, rpath string, image io.Reader, allowedStatusCodes []int) (*http.Response, error) {
-	body, contentType, err := getFormFromImage(image)
-	if err != nil {
-		return nil, err
-	}
-	httpreq, err := agent.NewRequest(method, rpath, body)
-	if err != nil {
-		logger.AdminLogger.Panic(err)
-	}
-	httpreq.Header.Set("Content-Type", contentType)
-
-	httpres, err := doRequest(ctx, agent, httpreq, allowedStatusCodes)
-	if err != nil {
-		return nil, err
-	}
-	defer httpres.Body.Close()
-
-	return httpres, nil
-}
-
-func reqPngResError(ctx context.Context, agent *agent.Agent, method string, rpath string, image io.Reader, allowedStatusCodes []int) (*http.Response, string, error) {
-	body, contentType, err := getFormFromImage(image)
-	if err != nil {
-		return nil, "", err
-	}
-	httpreq, err := agent.NewRequest(method, rpath, body)
-	if err != nil {
-		logger.AdminLogger.Panic(err)
-	}
-	httpreq.Header.Set("Content-Type", contentType)
-
-	httpres, err := doRequest(ctx, agent, httpreq, allowedStatusCodes)
-	if err != nil {
-		return nil, "", err
-	}
-
-	resBody, err := checkContentTypeAndGetBody(httpres, "text/plain")
-	if err != nil {
-		return httpres, "", err
-	}
-
-	return httpres, string(resBody), nil
-}
-
-func getFormFromImage(image io.Reader) (io.Reader, string, error) {
-	body := &bytes.Buffer{}
-	mw := multipart.NewWriter(body)
-	part := make(textproto.MIMEHeader)
-	part.Set("Content-Type", "image/png")
-	part.Set("Content-Disposition", `form-data; name="image"; filename="image.png"`)
-	pw, err := mw.CreatePart(part)
-	if err != nil {
-		logger.AdminLogger.Panic(err)
-	}
-	_, err = io.Copy(pw, image)
-	if err != nil {
-		logger.AdminLogger.Panic(err)
-	}
-	contentType := mw.FormDataContentType()
-	err = mw.Close()
-	if err != nil {
-		logger.AdminLogger.Panic(err)
-	}
-	return body, contentType, nil
 }
 
 func reqNoContentResPng(ctx context.Context, agent *agent.Agent, method string, rpath string, allowedStatusCodes []int) (*http.Response, []byte, error) {
