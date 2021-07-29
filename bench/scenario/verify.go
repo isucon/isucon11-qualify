@@ -385,6 +385,8 @@ func verifyGraph(
 		}
 
 		// 特定の ISU における expected な conditions を新しい順に取得するイテレータを生成
+		// TODO: 最新の expected condition を指すイテレータを取得している
+		//    → GET graph のレスポンスに合わせた時間の expected condition を指すイテレータを取得したほうが良さそう
 		targetIsu := targetUser.IsuListByID[targetIsuUUID]
 		filter := model.ConditionLevelInfo | model.ConditionLevelWarning | model.ConditionLevelCritical
 		baseIter := targetIsu.Conditions.End(filter)
@@ -418,7 +420,12 @@ func verifyGraph(
 			}
 		}
 
-		// conditionsBaseOfScore から score が組み立てられることの検証
+		// actual の data が空の場合 verify skip
+		if graphOne.Data == nil {
+			continue
+		}
+
+		// conditionsBaseOfScore から組み立てた data が actual と等値であることの検証
 		expectedGraph := model.NewGraph(conditionsBaseOfScore)
 
 		if graphOne.Data.Score != expectedGraph.Score() ||

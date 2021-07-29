@@ -32,8 +32,8 @@ type GraphDetail struct {
 	missingData  int
 }
 
-func NewGraph(c []*IsuCondition) *Graph {
-	graph := &Graph{conditions: c}
+func NewGraph(c []*IsuCondition) Graph {
+	graph := Graph{conditions: c}
 	graph.calculate()
 	return graph
 }
@@ -46,7 +46,11 @@ func (g *Graph) calculate() {
 			sittingCount++
 		}
 	}
-	g.sitting = sittingCount * 100 / len(g.conditions)
+	if sittingCount != 0 {
+		g.sitting = sittingCount * 100 / len(g.conditions)
+	} else {
+		g.sitting = 0
+	}
 
 	//score&detail
 	g.score = 100
