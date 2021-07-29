@@ -138,13 +138,28 @@ scenarioLoop:
 		targetIsu := user.IsuListOrderByCreatedAt[nextTargetIsuIndex]
 
 		//GET /
+		mustExistUntil := s.ToVirtualTime(time.Now().Add(-1 * time.Second)).Unix()
 		dataExistTimestamp := GetConditionDataExistTimestamp(s, user)
 		_, _, errs := browserGetHomeAction(ctx, user.Agent, dataExistTimestamp, true,
 			func(res *http.Response, isuList []*service.Isu) []error {
-				return verifyIsuOrderByCreatedAt(res, user.IsuListOrderByCreatedAt, isuList)
+				expected := user.IsuListOrderByCreatedAt
+				if homeIsuLimit < len(expected) { //limit
+					expected = expected[len(expected)-homeIsuLimit:]
+				}
+				return verifyIsuOrderByCreatedAt(res, expected, isuList)
 			},
 			func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
-				//TODO: conditionの検証
+				//conditionの検証
+				err := verifyIsuConditions(res, user, "", &service.GetIsuConditionRequest{
+					CursorEndTime:    dataExistTimestamp,
+					CursorJIAIsuUUID: "z",
+					ConditionLevel:   "critical,warning,info",
+				},
+					conditions, mustExistUntil,
+				)
+				if err != nil {
+					return []error{err}
+				}
 				return []error{}
 			},
 		)
@@ -507,10 +522,24 @@ func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.Benchmar
 		dataExistTimestamp := GetConditionDataExistTimestamp(s, user)
 		_, _, errs := browserGetHomeAction(ctx, user.Agent, dataExistTimestamp, true,
 			func(res *http.Response, isuList []*service.Isu) []error {
-				return verifyIsuOrderByCreatedAt(res, user.IsuListOrderByCreatedAt, isuList)
+				expected := user.IsuListOrderByCreatedAt
+				if homeIsuLimit < len(expected) { //limit
+					expected = expected[len(expected)-homeIsuLimit:]
+				}
+				return verifyIsuOrderByCreatedAt(res, expected, isuList)
 			},
 			func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
-				//TODO: conditionの検証
+				//conditionの検証
+				err := verifyIsuConditions(res, user, "", &service.GetIsuConditionRequest{
+					CursorEndTime:    dataExistTimestamp,
+					CursorJIAIsuUUID: "z",
+					ConditionLevel:   "critical,warning,info",
+				},
+					conditions, mustExistUntil,
+				)
+				if err != nil {
+					return []error{err}
+				}
 				return []error{}
 			},
 		)
