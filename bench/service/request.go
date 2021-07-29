@@ -50,3 +50,7 @@ type GetIsuConditionRequest struct {
 	ConditionLevel   string
 	Limit            *int
 }
+
+type GetGraphRequest struct {
+	Date int64 // unixtime
+}

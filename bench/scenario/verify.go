@@ -182,7 +182,7 @@ func verifyIsuConditions(res *http.Response,
 				break //ok
 			}
 
-			if expected.TimestampUnix < c.Timestamp {
+			if expected.TimestampUnix <= c.Timestamp {
 				return errorMissmatch(res, "POSTに成功していない時刻のデータが返されました")
 			}
 		}
@@ -353,5 +353,14 @@ func errorChecksum(base string, resource *agent.Resource, name string) error {
 	if expected != actual {
 		return errorCheckSum("期待するチェックサムと一致しません: %s", path)
 	}
+	return nil
+}
+
+func verifyGraph(
+	res *http.Response, targetUser *model.User, targetIsuUUID string,
+	getGraphReq *service.GetGraphRequest,
+	getGraphResp service.GraphResponse) error {
+
+	// TODO verify
 	return nil
 }

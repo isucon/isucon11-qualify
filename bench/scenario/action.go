@@ -571,23 +571,26 @@ func getIsuConditionRequestParams(base string, req service.GetIsuConditionReques
 	return targetURL.String()
 }
 
-func getIsuGraphAction(ctx context.Context, a *agent.Agent, id string, date int64) ([]*service.GraphResponse, *http.Response, error) {
-	graph := []*service.GraphResponse{}
-	reqUrl := fmt.Sprintf("/api/isu/%s/graph?date=%d", id, date)
+func getIsuGraphAction(ctx context.Context, a *agent.Agent, id string, req service.GetGraphRequest) (service.GraphResponse, *http.Response, error) {
+	graph := service.GraphResponse{}
+	reqUrl := fmt.Sprintf("/api/isu/%s/graph?date=%d", id, req.Date)
 	res, err := reqJSONResJSON(ctx, a, http.MethodGet, reqUrl, nil, &graph, []int{http.StatusOK})
 	if err != nil {
 		return nil, nil, err
 	}
 
 	//TODO: バリデーション
+	// res, text, err := reqJSONResError(ctx, a, http.MethodPost, reqUrl, bytes.NewReader(body), []int{http.StatusNotFound, http.StatusBadRequest})
+	// if err != nil {
+	// 	return "", nil, err
+	// }
 
 	return graph, res, nil
 }
 
-func getIsuGraphErrorAction(ctx context.Context, a *agent.Agent, id string, query url.Values) (string, *http.Response, error) {
-	path := fmt.Sprintf("/api/isu/%s/graph", id)
-	rpath := getPathWithParams(path, query)
-	res, text, err := reqNoContentResError(ctx, a, http.MethodGet, rpath, []int{http.StatusUnauthorized, http.StatusNotFound, http.StatusBadRequest})
+func getIsuGraphErrorAction(ctx context.Context, a *agent.Agent, id string, req service.GetGraphRequest) (string, *http.Response, error) {
+	reqUrl := fmt.Sprintf("/api/isu/%s/graph?date=%d", id, req.Date)
+	res, text, err := reqNoContentResError(ctx, a, http.MethodGet, reqUrl, []int{http.StatusUnauthorized, http.StatusNotFound, http.StatusBadRequest})
 	if err != nil {
 		return "", nil, err
 	}
@@ -704,8 +707,8 @@ func browserGetIsuConditionAction(ctx context.Context, a *agent.Agent, id string
 }
 
 func browserGetIsuGraphAction(ctx context.Context, a *agent.Agent, id string, date int64,
-	validateGraph func(*http.Response, []*service.GraphResponse) []error,
-) (*service.Isu, []*service.GraphResponse, []error) {
+	validateGraph func(*http.Response, service.GraphResponse) []error,
+) (*service.Isu, service.GraphResponse, []error) {
 	// TODO: 静的ファイルのGET
 
 	errors := []error{}
@@ -714,7 +717,8 @@ func browserGetIsuGraphAction(ctx context.Context, a *agent.Agent, id string, da
 	if err != nil {
 		errors = append(errors, err)
 	}
-	graph, res, err := getIsuGraphAction(ctx, a, id, date)
+	req := service.GetGraphRequest{Date: date}
+	graph, res, err := getIsuGraphAction(ctx, a, id, req)
 	if err != nil {
 		errors = append(errors, err)
 	} else {
