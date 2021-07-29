@@ -21,3 +21,7 @@ run-bench-race:
 .PHONY: down-bench
 down-bench:
 	target=go docker compose -f docker-compose-bench.yml down
+
+.PHONY: run-bench-noload
+run-bench-noload:
+	target=go docker compose -f docker-compose-bench.yml exec apitest go run ./main.go --no-load=true

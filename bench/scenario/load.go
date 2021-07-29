@@ -287,7 +287,7 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 	const isuCountMax = 4 //ルートページに表示する最大数
 	isuCount := rand.Intn(isuCountMax) + 1
 	for i := 0; i < isuCount; i++ {
-		isu := s.NewIsu(ctx, step, user, true)
+		isu := s.NewIsu(ctx, step, user, true, nil)
 		if isu == nil {
 			//deactivate
 			for _, isu := range user.IsuListOrderByCreatedAt {
@@ -487,7 +487,7 @@ func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.Benchmar
 	isuCount := rand.Intn(10) + 500
 	newIsuOK := true
 	for i := 0; i < isuCount; i++ {
-		isu := s.NewIsu(ctx, step, user, true)
+		isu := s.NewIsu(ctx, step, user, true, nil)
 		if isu == nil {
 			newIsuOK = false
 			break
