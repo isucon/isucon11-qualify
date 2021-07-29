@@ -642,14 +642,6 @@ func (s *Scenario) initCompanyUser(ctx context.Context, step *isucandar.Benchmar
 	return user, userAgents
 }
 
-func (s *Scenario) exchangeCompanyIsu(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User, lastSolvedTime map[string]time.Time) bool {
-	return false //TODO:
-}
-
-func (s *Scenario) repairCompanyIsu(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User, lastSolvedTime map[string]time.Time) bool {
-	return false //TODO:
-}
-
 func (s *Scenario) checkCompanyConditionScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User, lastSolvedTime map[string]time.Time) bool {
 	//定期的にconditionを見に行くシナリオ
 	scenarioSuccess := true
