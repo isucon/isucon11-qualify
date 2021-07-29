@@ -14,10 +14,9 @@ type GetMeResponse struct {
 }
 
 type Isu struct {
-	JIAIsuUUID   string `json:"jia_isu_uuid"`
-	Name         string `json:"name"`
-	JIACatalogID string `json:"jia_catalog_id"`
-	Character    string `json:"character"`
+	JIAIsuUUID string `json:"jia_isu_uuid"`
+	Name       string `json:"name"`
+	Character  string `json:"character"`
 	// TODO: これはmodelの方にあるのが正しそう
 	Icon []byte `json:"-"`
 }

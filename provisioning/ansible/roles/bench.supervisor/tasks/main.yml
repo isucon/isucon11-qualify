@@ -44,7 +44,9 @@
     mode: "0644"
   with_items:
     - etc/systemd/system/isuxportal-supervisor.service
-    - run/isuxportal-supervisor.env
+
+- name: "roles/bench.supervisor/tasks/isucondition: Include generate_env.yml"
+  include: generate_env.yml
 
 - name: "roles/bench.supervisor/tasks/main: Enable isuxportal-supervisor.service"
   become_user: root

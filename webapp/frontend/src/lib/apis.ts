@@ -1,4 +1,5 @@
 import axios, { AxiosRequestConfig } from 'axios'
+import { dateToTimestamp, timestampToDate } from './date'
 
 class Apis {
   async postAuth(jwt: string, axiosConfig?: AxiosRequestConfig) {
@@ -77,34 +78,77 @@ class Apis {
 
   async getIsuGraphs(
     jiaIsuUuid: string,
-    params: GraphRequest,
+    req: GraphRequest,
     axiosConfig?: AxiosRequestConfig
   ) {
-    const { data } = await axios.get<Graph[]>(`/api/isu/${jiaIsuUuid}/graph`, {
-      params,
-      ...axiosConfig
+    const params: ApiGraphRequest = {
+      date: dateToTimestamp(req.date)
+    }
+    const { data } = await axios.get<ApiGraph[]>(
+      `/api/isu/${jiaIsuUuid}/graph`,
+      {
+        params,
+        ...axiosConfig
+      }
+    )
+
+    const graphs: Graph[] = []
+    data.forEach(apiGraph => {
+      graphs.push({
+        ...apiGraph,
+        start_at: timestampToDate(apiGraph.start_at),
+        end_at: timestampToDate(apiGraph.end_at)
+      })
     })
-    return data
+    return graphs
   }
 
   async getConditions(req: ConditionRequest, axiosConfig?: AxiosRequestConfig) {
-    const { data } = await axios.get<Condition[]>(`/api/condition`, {
-      params: req,
+    const params: ApiConditionRequest = {
+      ...req,
+      start_time: req.start_time ? dateToTimestamp(req.start_time) : undefined,
+      cursor_end_time: dateToTimestamp(req.cursor_end_time)
+    }
+    const { data } = await axios.get<ApiCondition[]>(`/api/condition`, {
+      params,
       ...axiosConfig
     })
-    return data
+
+    const conditions: Condition[] = []
+    data.forEach(apiCondition => {
+      conditions.push({
+        ...apiCondition,
+        date: timestampToDate(apiCondition.timestamp)
+      })
+    })
+
+    return conditions
   }
 
   async getIsuConditions(
     jiaIsuUuid: string,
-    params: ConditionRequest,
+    req: ConditionRequest,
     axiosConfig?: AxiosRequestConfig
   ) {
-    const { data } = await axios.get<Condition[]>(
+    const params: ApiConditionRequest = {
+      ...req,
+      start_time: req.start_time ? dateToTimestamp(req.start_time) : undefined,
+      cursor_end_time: dateToTimestamp(req.cursor_end_time)
+    }
+    const { data } = await axios.get<ApiCondition[]>(
       `/api/condition/${jiaIsuUuid}`,
       { params, ...axiosConfig }
     )
-    return data
+
+    const conditions: Condition[] = []
+    data.forEach(apiCondition => {
+      conditions.push({
+        ...apiCondition,
+        date: timestampToDate(apiCondition.timestamp)
+      })
+    })
+
+    return conditions
   }
 }
 
@@ -136,10 +180,17 @@ export interface GraphData {
   detail: { [key: string]: number }
 }
 
-export interface Graph {
+interface ApiGraph {
   jia_isu_uuid: string
   start_at: number
   end_at: number
+  data: GraphData | null
+}
+
+export interface Graph {
+  jia_isu_uuid: string
+  start_at: Date
+  end_at: Date
   data: GraphData | null
 }
 
@@ -165,7 +216,7 @@ export interface PostIsuRequest {
   image?: File
 }
 
-export interface Condition {
+interface ApiCondition {
   jia_isu_uuid: string
   isu_name: string
   timestamp: number
@@ -175,9 +226,19 @@ export interface Condition {
   message: string
 }
 
+export interface Condition {
+  jia_isu_uuid: string
+  isu_name: string
+  date: Date
+  is_sitting: boolean
+  condition: string
+  condition_level: ConditionLevel
+  message: string
+}
+
 type ConditionLevel = 'info' | 'warning' | 'critical'
 
-export interface ConditionRequest {
+interface ApiConditionRequest {
   start_time?: number
   cursor_end_time: number
   cursor_jia_isu_uuid: string
@@ -185,8 +246,20 @@ export interface ConditionRequest {
   condition_level: string
 }
 
-export interface GraphRequest {
+export interface ConditionRequest {
+  start_time?: Date
+  cursor_end_time: Date
+  cursor_jia_isu_uuid: string
+  // critical,warning,info をカンマ区切りで取り扱う
+  condition_level: string
+}
+
+interface ApiGraphRequest {
   date: number
+}
+
+export interface GraphRequest {
+  date: Date
 }
 
 export const DEFAULT_CONDITION_LIMIT = 20

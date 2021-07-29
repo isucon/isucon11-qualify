@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	"io/ioutil"
 	"log"
+	"github.com/isucon/isucon11-qualify/bench/service"
 
 	"github.com/google/uuid"
 	"github.com/isucon/isucon11-qualify/bench/random"
@@ -138,4 +139,12 @@ func init() {
 		log.Fatalf("failed to read default icon: %v", err)
 	}
 	defaultIconHash = md5.Sum(image)
+}
+
+func (isu *Isu) ToService() *service.Isu {
+	return &service.Isu{
+		JIAIsuUUID: isu.JIAIsuUUID,
+		Name:       isu.Name,
+		Character:  isu.Character,
+	}
 }

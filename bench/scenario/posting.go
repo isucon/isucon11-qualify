@@ -32,8 +32,11 @@ type posterState struct {
 }
 
 //POST /api/condition/{jia_isu_id}をたたく Goroutine
-func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseURL string, jiaIsuUUID string, scenarioChan *model.StreamsForPoster) {
-	defer func() { scenarioChan.ActiveChan <- false }() //deactivate 容量1で、ここでしか使わないのでブロックしない
+func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseURL string, jiaIsuUUID string, scenarioChan *model.StreamsForPoster, closeWait chan<- struct{}) {
+	defer func() {
+		close(closeWait)
+		scenarioChan.ActiveChan <- false //deactivate 容量1で、ここでしか使わないのでブロックしない
+	}()
 
 	userTimer, userTimerCancel := context.WithDeadline(ctx, s.realTimeLoadFinishedAt.Add(-agent.DefaultRequestTimeout-1*time.Second))
 	defer userTimerCancel()
@@ -52,7 +55,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		lastDetectOverweight: nowTimeStamp,
 		isuStateDelete:       false,
 	}
-	randEngine := rand.New(rand.NewSource(0))
+	randEngine := rand.New(rand.NewSource(rand.Int63()))
 	targetURL := fmt.Sprintf("%s/api/condition/%s", targetBaseURL, jiaIsuUUID)
 	httpClient := http.Client{}
 	httpClient.Timeout = agent.DefaultRequestTimeout + 5*time.Second //MEMO: post conditionがtimeoutすると付随してたくさんエラーが出るので、timeoutしにくいようにする
@@ -131,12 +134,15 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		if err != nil {
 			logger.AdminLogger.Panic(err)
 		}
-		res, err := httpClient.Post(
-			targetURL, "application/json",
-			bytes.NewBuffer(conditionByte),
-		)
+		req, err := http.NewRequest(http.MethodPost, targetURL, bytes.NewBuffer(conditionByte))
 		if err != nil {
-			step.AddError(failure.NewError(ErrHTTP, err))
+			logger.AdminLogger.Panic(err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req = req.WithContext(ctx)
+		res, err := httpClient.Do(req)
+		if err != nil {
+			addErrorWithContext(ctx, step, failure.NewError(ErrHTTP, err))
 			continue // goto next loop
 		}
 		func() {
@@ -144,7 +150,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 
 			err = verifyStatusCode(res, http.StatusCreated)
 			if err != nil {
-				step.AddError(err)
+				addErrorWithContext(ctx, step, err)
 				return // goto next loop
 			}
 
@@ -191,9 +197,7 @@ func (state *posterState) NextIsLatestTimestamp(nowTimeStamp time.Time) bool {
 }
 func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChange model.IsuStateChange, jiaIsuUUID string) model.IsuCondition {
 
-	//乱数初期化（逆算できるように）
 	timeStamp := state.NextConditionTimestamp()
-	randEngine.Seed(timeStamp.Unix() + 961054102)
 
 	//状態変化
 	lastConditionIsDirty := state.lastCondition.IsDirty

@@ -66,9 +66,11 @@ func reqNoContentResPng(ctx context.Context, agent *agent.Agent, method string, 
 	//resBody, err := checkContentTypeAndGetBody(httpres, "image/png")
 	resBody, err := ioutil.ReadAll(httpres.Body)
 	if err != nil {
-		if !isTimeout(err) {
-			return httpres, nil, failure.NewError(ErrCritical, err)
-		}
+		// if !isTimeout(err) {
+		// 	return httpres, nil, failure.NewError(ErrCritical, err)
+		// }
+
+		//MEMO: 仕様をよく知らず、想定外のエラーを全部Criticalにするのが怖いので逃げておく by eiya
 		return httpres, nil, failure.NewError(ErrHTTP, err)
 	}
 
@@ -209,9 +211,11 @@ func checkContentTypeAndGetBody(httpres *http.Response, contentType string) ([]b
 
 	resBody, err := ioutil.ReadAll(httpres.Body)
 	if err != nil {
-		if !isTimeout(err) {
-			return nil, failure.NewError(ErrCritical, err)
-		}
+		// if !isTimeout(err) {
+		// 	return nil, failure.NewError(ErrCritical, err)
+		// }
+
+		//MEMO: 仕様をよく知らず、想定外のエラーを全部Criticalにするのが怖いので逃げておく by eiya
 		return nil, failure.NewError(ErrHTTP, err)
 	}
 
