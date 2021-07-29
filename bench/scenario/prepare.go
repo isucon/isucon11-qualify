@@ -631,9 +631,8 @@ func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model
 	isu := s.NewIsu(ctx, step, loginUser, true, nil)
 
 	// check: 未ログイン状態
-	query := url.Values{}
-	query.Set("date", strconv.FormatInt(time.Now().Unix(), 10))
-	resBody, res, err := getIsuGraphErrorAction(ctx, guestAgent, isu.JIAIsuUUID, query)
+	req := service.GetGraphRequest{Date: time.Now().Unix()}
+	resBody, res, err := getIsuGraphErrorAction(ctx, guestAgent, isu.JIAIsuUUID, req)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -643,60 +642,60 @@ func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model
 		return
 	}
 
-	// check: dateパラメータ不足
-	query = url.Values{}
-	resBody, res, err = getIsuGraphErrorAction(ctx, loginUser.Agent, isu.JIAIsuUUID, query)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyStatusCode(res, http.StatusBadRequest); err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyText(res, resBody, "date is required"); err != nil {
-		step.AddError(err)
-		return
-	}
+	// // check: dateパラメータ不足
+	// query = url.Values{}
 
-	// check: dateパラメータのフォーマット違反
-	query = url.Values{}
-	query.Set("date", "date")
-	resBody, res, err = getIsuGraphErrorAction(ctx, loginUser.Agent, isu.JIAIsuUUID, query)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyStatusCode(res, http.StatusBadRequest); err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyText(res, resBody, "date is invalid format"); err != nil {
-		step.AddError(err)
-		return
-	}
+	// resBody, res, err = getIsuGraphErrorAction(ctx, loginUser.Agent, isu.JIAIsuUUID, nil)
+	// if err != nil {
+	// 	step.AddError(err)
+	// 	return
+	// }
+	// if err := verifyStatusCode(res, http.StatusBadRequest); err != nil {
+	// 	step.AddError(err)
+	// 	return
+	// }
+	// if err := verifyText(res, resBody, "date is required"); err != nil {
+	// 	step.AddError(err)
+	// 	return
+	// }
 
-	// check: 他ユーザの椅子に対するリクエスト
-	query = url.Values{}
-	query.Set("date", strconv.FormatInt(time.Now().Unix(), 10))
-	resBody, res, err = getIsuGraphErrorAction(ctx, noIsuUser.Agent, isu.JIAIsuUUID, query)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyStatusCode(res, http.StatusNotFound); err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyText(res, resBody, "isu not found"); err != nil {
-		step.AddError(err)
-		return
-	}
+	// // check: dateパラメータのフォーマット違反
+	// query = url.Values{}
+	// query.Set("date", "date")
+	// resBody, res, err = getIsuGraphErrorAction(ctx, loginUser.Agent, isu.JIAIsuUUID, query)
+	// if err != nil {
+	// 	step.AddError(err)
+	// 	return
+	// }
+	// if err := verifyStatusCode(res, http.StatusBadRequest); err != nil {
+	// 	step.AddError(err)
+	// 	return
+	// }
+	// if err := verifyText(res, resBody, "date is invalid format"); err != nil {
+	// 	step.AddError(err)
+	// 	return
+	// }
+
+	// // check: 他ユーザの椅子に対するリクエスト
+	// query = url.Values{}
+	// query.Set("date", strconv.FormatInt(time.Now().Unix(), 10))
+	// resBody, res, err = getIsuGraphErrorAction(ctx, noIsuUser.Agent, isu.JIAIsuUUID, query)
+	// if err != nil {
+	// 	step.AddError(err)
+	// 	return
+	// }
+	// if err := verifyStatusCode(res, http.StatusNotFound); err != nil {
+	// 	step.AddError(err)
+	// 	return
+	// }
+	// if err := verifyText(res, resBody, "isu not found"); err != nil {
+	// 	step.AddError(err)
+	// 	return
+	// }
 
 	// check: 登録されていない椅子に対するリクエスト
-	query = url.Values{}
-	query.Set("date", strconv.FormatInt(time.Now().Unix(), 10))
-	resBody, res, err = getIsuGraphErrorAction(ctx, loginUser.Agent, "jiaisuuuid", query)
+	req = service.GetGraphRequest{Date: time.Now().Unix()}
+	resBody, res, err = getIsuGraphErrorAction(ctx, loginUser.Agent, "jiaisuuuid", req)
 	if err != nil {
 		step.AddError(err)
 		return
