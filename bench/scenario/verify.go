@@ -184,7 +184,11 @@ func verifyIsuConditions(res *http.Response,
 				//反映されていないことが許可されているので、無視して良い
 				continue
 			}
-			return errorMissmatch(res, "POSTに成功していない時刻のデータが返されました")
+			
+			if expected.TimestampUnix <= c.Timestamp {
+				return errorMissmatch(res, "POSTに成功していない時刻のデータが返されました")
+			}
+			return errorMissmatch(res, "データが足りません")
 		}
 
 		//等価チェック

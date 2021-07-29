@@ -149,6 +149,7 @@ func (s *Scenario) postActivate(c echo.Context) error {
 		s.keepPosting(posterContext, jiaAPIStep, targetBaseURL, state.IsuUUID, scenarioChan, closeWait)
 	}()
 
+	time.Sleep(50 * time.Millisecond)
 	return c.JSON(http.StatusAccepted, isuDetail)
 }
 
@@ -172,5 +173,6 @@ func postDeactivate(c echo.Context) error {
 	v.activated = false
 	<-v.closeWait //posterの終了を待機
 
+	time.Sleep(50 * time.Millisecond)
 	return c.NoContent(http.StatusNoContent)
 }
