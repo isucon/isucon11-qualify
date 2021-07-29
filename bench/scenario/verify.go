@@ -366,20 +366,30 @@ func verifyGraph(
 		return errorInvalid(res, "要素数が正しくありません")
 	}
 
+	var lastStartAt int64
 	// getGraphResp を逆順 (timestamp が新しい順) にloop
 	for idxGraphResp := len(getGraphResp) - 1; idxGraphResp >= 0; idxGraphResp-- {
 		graphOne := getGraphResp[idxGraphResp]
 
-		// TODO: getGraphResp の要素が古い順に並んでいることの検証
+		// getGraphResp の要素が古い順に連続して並んでいることの検証
+		if idxGraphResp != len(getGraphResp)-1 && !(graphOne.EndAt == lastStartAt) {
+			return errorInvalid(res, "整列順が正しくありません")
+		}
+		lastStartAt = graphOne.StartAt
 
-		// TODO: graphOne.start_at < graphOne.condition_timestamps  < graphOne.end_at であることの検証
+		// graphOne.start_at <= graphOne.condition_timestamps < graphOne.end_at であることの検証
+		for _, timestamp := range graphOne.ConditionTimestamps {
+			if !(graphOne.StartAt <= timestamp && timestamp < graphOne.EndAt) {
+				return errorInvalid(res, "condition_timestampsがstart_atからend_atの中に収まっていません")
+			}
+		}
 
 		// 特定の ISU における expected な conditions を新しい順に取得するイテレータを生成
 		targetIsu := targetUser.IsuListByID[targetIsuUUID]
 		filter := model.ConditionLevelInfo | model.ConditionLevelWarning | model.ConditionLevelCritical
 		baseIter := targetIsu.Conditions.End(filter)
 
-		var conditionsBasedScore []*model.IsuCondition
+		var conditionsBaseOfScore []*model.IsuCondition
 		var lastSort model.IsuConditionCursor
 		// graphOne.ConditionTimestamps を逆順 (timestamp が新しい順) に loop
 		for idxTimestamps := len(graphOne.ConditionTimestamps) - 1; idxTimestamps >= 0; idxTimestamps-- {
@@ -390,6 +400,7 @@ func verifyGraph(
 			if idxTimestamps != len(graphOne.ConditionTimestamps)-1 && !nowSort.Less(&lastSort) {
 				return errorInvalid(res, "整列順が正しくありません")
 			}
+			lastSort = nowSort
 
 			// graphOne.ConditionTimestamps[*] が expected に存在することの検証
 			var expected *model.IsuCondition
@@ -401,14 +412,13 @@ func verifyGraph(
 				}
 				if expected.TimestampUnix == timestamp {
 					// graphOne.ConditionTimestamps[n] から condition を取得
-					conditionsBasedScore = append(conditionsBasedScore, expected)
+					conditionsBaseOfScore = append(conditionsBaseOfScore, expected)
 					break //ok
 				}
 			}
-			lastSort = nowSort
 		}
 
-		// TODO conditionsBasedScore から score が組み立てられることの検証
+		// TODO conditionsBaseOfScore から score が組み立てられることの検証
 	}
 
 	return nil
