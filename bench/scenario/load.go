@@ -138,7 +138,6 @@ scenarioLoop:
 		targetIsu := user.IsuListOrderByCreatedAt[nextTargetIsuIndex]
 
 		//GET /
-		mustExistUntil := s.ToVirtualTime(time.Now().Add(-1 * time.Second)).Unix()
 		dataExistTimestamp := GetConditionDataExistTimestamp(s, user)
 		_, _, errs := browserGetHomeAction(ctx, user.Agent, dataExistTimestamp, true,
 			func(res *http.Response, isuList []*service.Isu) []error {
@@ -150,12 +149,14 @@ scenarioLoop:
 			},
 			func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
 				//conditionの検証
-				err := verifyIsuConditions(res, user, "", &service.GetIsuConditionRequest{
-					CursorEndTime:    dataExistTimestamp,
-					CursorJIAIsuUUID: "z",
-					ConditionLevel:   "critical,warning,info",
-				},
-					conditions, mustExistUntil,
+				err := verifyIsuConditions(
+					res, user, "",
+					&service.GetIsuConditionRequest{
+						CursorEndTime:    dataExistTimestamp,
+						CursorJIAIsuUUID: "z",
+						ConditionLevel:   "critical,warning,info",
+					},
+					conditions,
 				)
 				if err != nil {
 					return []error{err}
@@ -320,14 +321,11 @@ func (s *Scenario) getIsuConditionWithScroll(
 	scrollCount int,
 ) []*service.GetIsuConditionResponse {
 	//GET condition/{jia_isu_uuid} を取得してバリデーション
-	mustExistUntil := s.ToVirtualTime(time.Now().Add(-1 * time.Second)).Unix()
 	_, conditions, errs := browserGetIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
 		request,
 		func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
 			//conditionの検証
-			err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request,
-				conditions, mustExistUntil,
-			)
+			err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request, conditions)
 			if err != nil {
 				return []error{err}
 			}
@@ -361,9 +359,7 @@ func (s *Scenario) getIsuConditionWithScroll(
 			return nil
 		}
 		//検証
-		err = verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request,
-			conditionsTmp, mustExistUntil,
-		)
+		err = verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request, conditionsTmp)
 		if err != nil {
 			addErrorWithContext(ctx, step, err)
 			return nil
@@ -569,7 +565,6 @@ func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.Benchmar
 		}
 
 		//GET /
-		mustExistUntil := s.ToVirtualTime(time.Now().Add(-1 * time.Second)).Unix()
 		//TODO: ベンチはPUT isu/iconが来ないとして、304を常に許すようにします。
 		dataExistTimestamp := GetConditionDataExistTimestamp(s, user)
 		_, _, errs := browserGetHomeAction(ctx, user.Agent, dataExistTimestamp, true,
@@ -582,12 +577,14 @@ func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.Benchmar
 			},
 			func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
 				//conditionの検証
-				err := verifyIsuConditions(res, user, "", &service.GetIsuConditionRequest{
-					CursorEndTime:    dataExistTimestamp,
-					CursorJIAIsuUUID: "z",
-					ConditionLevel:   "critical,warning,info",
-				},
-					conditions, mustExistUntil,
+				err := verifyIsuConditions(
+					res, user, "",
+					&service.GetIsuConditionRequest{
+						CursorEndTime:    dataExistTimestamp,
+						CursorJIAIsuUUID: "z",
+						ConditionLevel:   "critical,warning,info",
+					},
+					conditions,
 				)
 				if err != nil {
 					return []error{err}
@@ -696,7 +693,6 @@ func (s *Scenario) initCompanyUser(ctx context.Context, step *isucandar.Benchmar
 func (s *Scenario) checkCompanyConditionScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User, lastSolvedTime map[string]time.Time) bool {
 	//定期的にconditionを見に行くシナリオ
 	scenarioSuccess := true
-	mustExistUntil := s.ToVirtualTime(time.Now().Add(-1 * time.Second)).Unix()
 	dataExistTimestamp := GetConditionDataExistTimestamp(s, user)
 	request := service.GetIsuConditionRequest{
 		StartTime:        nil,
@@ -709,9 +705,7 @@ func (s *Scenario) checkCompanyConditionScenario(ctx context.Context, step *isuc
 		request,
 		func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
 			//conditionの検証
-			err := verifyIsuConditions(res, user, "", &request,
-				conditions, mustExistUntil,
-			)
+			err := verifyIsuConditions(res, user, "", &request, conditions)
 			if err != nil {
 				return []error{err}
 			}
@@ -743,7 +737,7 @@ func (s *Scenario) checkCompanyConditionScenario(ctx context.Context, step *isuc
 			break
 		}
 		//検証
-		err = verifyIsuConditions(res, user, "", &request, conditionsTmp, mustExistUntil)
+		err = verifyIsuConditions(res, user, "", &request, conditionsTmp)
 		if err != nil {
 			scenarioSuccess = false
 			addErrorWithContext(ctx, step, err)

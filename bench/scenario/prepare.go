@@ -5,15 +5,16 @@ package scenario
 
 import (
 	"context"
-	"fmt"
 	"crypto/md5"
-	"github.com/isucon/isucon11-qualify/bench/model"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"reflect"
 	"strconv"
 	"time"
+
+	"github.com/isucon/isucon11-qualify/bench/model"
 
 	"github.com/isucon/isucandar"
 	"github.com/isucon/isucandar/agent"
@@ -936,8 +937,7 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 		return
 	}
 	//検証 (TODO: これprepare用に正確な検証に変更する）
-	mustExistUntil := s.ToVirtualTime(time.Now()).Unix()
-	err = verifyIsuConditions(res, loginUser, isu.JIAIsuUUID, &req, conditionsTmp, mustExistUntil)
+	err = verifyIsuConditions(res, loginUser, isu.JIAIsuUUID, &req, conditionsTmp)
 	if err != nil {
 		step.AddError(err)
 		return
