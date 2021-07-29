@@ -364,3 +364,12 @@ func errorChecksum(base string, resource *agent.Resource, name string) error {
 	}
 	return nil
 }
+
+func verifyGraph(
+	res *http.Response, targetUser *model.User, targetIsuUUID string,
+	getGraphReq *service.GetGraphRequest,
+	getGraphResp service.GraphResponse) error {
+
+	// TODO verify
+	return nil
+}

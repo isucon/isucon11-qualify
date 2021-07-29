@@ -42,7 +42,14 @@ type GetIsuConditionResponse struct {
 	Message        string `json:"message"`
 }
 
-type GraphResponse struct {
+type GraphResponse []*GraphResponseOne
+
+func (r GraphResponse) Append(graph GraphResponse) {
+	r = append(r, graph...)
+	return
+}
+
+type GraphResponseOne struct {
 	StartAt int64      `json:"start_at"`
 	EndAt   int64      `json:"end_at"`
 	Data    *GraphData `json:"data"`
