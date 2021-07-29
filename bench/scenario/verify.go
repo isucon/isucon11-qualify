@@ -418,7 +418,17 @@ func verifyGraph(
 			}
 		}
 
-		// TODO conditionsBaseOfScore から score が組み立てられることの検証
+		// conditionsBaseOfScore から score が組み立てられることの検証
+		expectedGraph := model.NewGraph(conditionsBaseOfScore)
+
+		if graphOne.Data.Score != expectedGraph.Score() ||
+			graphOne.Data.Sitting != expectedGraph.Sitting() ||
+			graphOne.Data.Detail["is_broken"] != expectedGraph.IsBroken() ||
+			graphOne.Data.Detail["is_dirty"] != expectedGraph.IsDirty() ||
+			graphOne.Data.Detail["is_overweight"] != expectedGraph.IsOverweight() ||
+			graphOne.Data.Detail["missing_data"] != expectedGraph.MissingData() {
+			return errorMissmatch(res, "graphのデータが正しくありません")
+		}
 	}
 
 	return nil
