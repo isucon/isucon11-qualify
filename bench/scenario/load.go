@@ -518,6 +518,7 @@ func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.Benchmar
 		}
 
 		//GET /
+		mustExistUntil := s.ToVirtualTime(time.Now().Add(-1 * time.Second)).Unix()
 		//TODO: ベンチはPUT isu/iconが来ないとして、304を常に許すようにします。
 		dataExistTimestamp := GetConditionDataExistTimestamp(s, user)
 		_, _, errs := browserGetHomeAction(ctx, user.Agent, dataExistTimestamp, true,
