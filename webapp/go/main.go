@@ -144,6 +144,11 @@ type GetIsuConditionResponse struct {
 	Message        string `json:"message"`
 }
 
+type TrendResponse struct {
+	Character string
+	Score     uint
+}
+
 type PostIsuConditionRequest struct {
 	IsSitting bool   `json:"is_sitting"`
 	Condition string `json:"condition"`

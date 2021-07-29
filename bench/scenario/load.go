@@ -462,25 +462,10 @@ func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.Benchmar
 	logger.AdminLogger.Println("Company User start")
 	defer logger.AdminLogger.Println("Company User END")
 
-	//ユーザー作成
-	userAgents := make([]*agent.Agent, 10)
-	for i := range userAgents {
-		var err error
-		userAgents[i], err = s.NewAgent()
-		if err != nil {
-			logger.AdminLogger.Panicln(err)
-		}
-	}
-	user := s.NewUser(ctx, step, userAgents[0], model.UserTypeCompany)
+	user, userAgents := s.initCompanyUser(ctx, step)
 	if user == nil {
-		logger.AdminLogger.Println("Company User fail: NewUser")
 		return //致命的でないエラー
 	}
-	func() {
-		s.companyUsersMtx.Lock()
-		defer s.companyUsersMtx.Unlock()
-		s.companyUsers = append(s.companyUsers, user)
-	}()
 
 	//椅子作成
 	//const isuCountMax = 1000
@@ -535,15 +520,16 @@ func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.Benchmar
 
 	step.AddScore(ScoreCompanyUserInitialize)
 
-	randEngine := rand.New(rand.NewSource(5498513))
 	scenarioDoneCount := 0
 	scenarioSuccess := false
 	lastSolvedTime := make(map[string]time.Time)
 	for _, isu := range user.IsuListOrderByCreatedAt {
 		lastSolvedTime[isu.JIAIsuUUID] = s.virtualTimeStart
 	}
+	// const breakNum = 100                          //一度に壊れるISUの数
+	// breakTime := time.Now().Add(20 * time.Second) //大量のISUの状態が悪化するタイミング
+	// breakDelete := false                          //大量修理シナリオか、大量交換シナリオか
 	scenarioLoopStopper := time.After(1 * time.Millisecond)
-scenarioLoop:
 	for {
 		<-scenarioLoopStopper
 		scenarioLoopStopper = time.After(50 * time.Millisecond) //TODO: 頻度調整
@@ -581,9 +567,9 @@ scenarioLoop:
 			return
 		default:
 		}
-		mustExistUntil := s.ToVirtualTime(time.Now().Add(-1 * time.Second)).Unix()
 
 		//GET /
+		mustExistUntil := s.ToVirtualTime(time.Now().Add(-1 * time.Second)).Unix()
 		//TODO: ベンチはPUT isu/iconが来ないとして、304を常に許すようにします。
 		dataExistTimestamp := GetConditionDataExistTimestamp(s, user)
 		_, _, errs := browserGetHomeAction(ctx, user.Agent, dataExistTimestamp, true,
@@ -613,93 +599,187 @@ scenarioLoop:
 			scenarioSuccess = false
 			addErrorWithContext(ctx, step, err)
 		}
+		if !scenarioSuccess {
+			continue
+		}
 
-		if randEngine.Intn(100) < 80 {
-			//定期的にconditionを見に行くシナリオ
-			request := service.GetIsuConditionRequest{
-				StartTime:        nil,
-				CursorEndTime:    dataExistTimestamp,
-				CursorJIAIsuUUID: "z",
-				ConditionLevel:   "warning,critical",
-				Limit:            nil,
+		// if breakTime.Before(time.Now()) {
+		// 	if breakDelete {
+		// 		scenarioSuccess = s.exchangeCompanyIsu()
+		// 	} else {
+		// 		scenarioSuccess = s.repairCompanyIsu()
+		// 	}
+		// 	breakDelete = !breakDelete
+		// 	breakTime = time.Now().Add(20 * time.Second)
+		// } else {
+		scenarioSuccess = s.checkCompanyConditionScenario(ctx, step, user, lastSolvedTime)
+		//}
+	}
+}
+
+func (s *Scenario) initCompanyUser(ctx context.Context, step *isucandar.BenchmarkStep) (*model.User, []*agent.Agent) {
+	//ユーザー作成
+	userAgents := make([]*agent.Agent, 10)
+	for i := range userAgents {
+		var err error
+		userAgents[i], err = s.NewAgent()
+		if err != nil {
+			logger.AdminLogger.Panicln(err)
+		}
+	}
+	user := s.NewUser(ctx, step, userAgents[0], model.UserTypeCompany)
+	if user == nil {
+		logger.AdminLogger.Println("Company User fail: NewUser")
+		return nil, nil
+	}
+	func() {
+		s.companyUsersMtx.Lock()
+		defer s.companyUsersMtx.Unlock()
+		s.companyUsers = append(s.companyUsers, user)
+	}()
+
+	//椅子作成
+	//const isuCountMax = 1000
+	isuCount := rand.Intn(10) + 500
+	newIsuOK := true
+	for i := 0; i < isuCount; i++ {
+		isu := s.NewIsu(ctx, step, user, true, nil)
+		if isu == nil {
+			newIsuOK = false
+			break
+		}
+	}
+	if !newIsuOK {
+		//並列にdeactivate
+		isuChan := make(chan *model.Isu, len(user.IsuListOrderByCreatedAt))
+		for _, isu := range user.IsuListOrderByCreatedAt {
+			go func(isu *model.Isu) { isu.StreamsForScenario.StateChan <- model.IsuStateChangeDelete }(isu)
+			isuChan <- isu
+		}
+		close(isuChan)
+		w, err := worker.NewWorker(func(ctx context.Context, index int) {
+			agent := userAgents[index]
+			_, errs := authAction(ctx, agent, user.UserID)
+			for _, err := range errs {
+				step.AddError(err)
+				return
 			}
-			conditions, errs := browserGetConditionsAction(ctx, user.Agent,
-				request,
-				func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
-					//conditionの検証
-					err := verifyIsuConditions(res, user, "", &request,
-						conditions, mustExistUntil,
-					)
-					if err != nil {
-						return []error{err}
-					}
-					return []error{}
+			for isu := range isuChan {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+				res, err := deleteIsuAction(ctx, agent, isu.JIAIsuUUID)
+				if err != nil {
+					step.AddError(err)
+				} else if !isu.IsDeactivated() {
+					addErrorWithContext(ctx, step, errorInvalid(res, "deactivateが完了していません"))
+				}
+			}
+		}, worker.WithLoopCount(int32(len(userAgents))))
+		if err != nil {
+			logger.AdminLogger.Panicln(err)
+		}
+		w.Process(ctx)
+		//w.Wait()
+		//MEMO: ctx.Done()の場合は、プロセスが終了していない可能性がある。
+
+		logger.AdminLogger.Println("Company User fail: NewIsu(initialize)")
+		return nil, nil
+	}
+
+	step.AddScore(ScoreCompanyUserInitialize)
+	return user, userAgents
+}
+
+func (s *Scenario) checkCompanyConditionScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User, lastSolvedTime map[string]time.Time) bool {
+	//定期的にconditionを見に行くシナリオ
+	scenarioSuccess := true
+	mustExistUntil := s.ToVirtualTime(time.Now().Add(-1 * time.Second)).Unix()
+	dataExistTimestamp := GetConditionDataExistTimestamp(s, user)
+	request := service.GetIsuConditionRequest{
+		StartTime:        nil,
+		CursorEndTime:    dataExistTimestamp,
+		CursorJIAIsuUUID: "z",
+		ConditionLevel:   "warning,critical",
+		Limit:            nil,
+	}
+	conditions, errs := browserGetConditionsAction(ctx, user.Agent,
+		request,
+		func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
+			//conditionの検証
+			err := verifyIsuConditions(res, user, "", &request,
+				conditions, mustExistUntil,
+			)
+			if err != nil {
+				return []error{err}
+			}
+			return []error{}
+		},
+	)
+	for _, err := range errs {
+		scenarioSuccess = false
+		step.AddError(err)
+	}
+	if len(errs) > 0 || len(conditions) == 0 {
+		return scenarioSuccess
+	}
+
+	//スクロール
+	for i := 0; i < 2 && len(conditions) == 20*(i+1); i++ {
+		var conditionsTmp []*service.GetIsuConditionResponse
+		request = service.GetIsuConditionRequest{
+			StartTime:        nil,
+			CursorEndTime:    conditions[len(conditions)-1].Timestamp,
+			CursorJIAIsuUUID: conditions[len(conditions)-1].JIAIsuUUID,
+			ConditionLevel:   "warning,critical",
+			Limit:            nil,
+		}
+		conditionsTmp, res, err := getConditionAction(ctx, user.Agent, request)
+		if err != nil {
+			scenarioSuccess = false
+			addErrorWithContext(ctx, step, err)
+			break
+		}
+		//検証
+		err = verifyIsuConditions(res, user, "", &request, conditionsTmp, mustExistUntil)
+		if err != nil {
+			scenarioSuccess = false
+			addErrorWithContext(ctx, step, err)
+			break
+		}
+
+		conditions = append(conditions, conditionsTmp...)
+	}
+
+	//conditionを確認して、椅子状態を改善
+	solvedConditions, findTimestamps := findBadIsuStateWithID(conditions)
+	for targetIsuID, timestamp := range findTimestamps {
+		if solvedConditions[targetIsuID] != model.IsuStateChangeNone && lastSolvedTime[targetIsuID].Before(time.Unix(timestamp, 0)) {
+			//graphを見る
+			virtualDay := (timestamp / (24 * 60 * 60)) * (24 * 60 * 60)
+			_, _, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsuID, virtualDay,
+				func(res *http.Response, graph []*service.GraphResponse) []error {
+					return []error{} //TODO: 検証
 				},
 			)
 			for _, err := range errs {
 				scenarioSuccess = false
-				addErrorWithContext(ctx, step, err)
-			}
-			if len(errs) > 0 || len(conditions) == 0 {
-				continue scenarioLoop
+				step.AddError(err)
 			}
 
-			//スクロール
-			for i := 0; i < 2 && len(conditions) == 20*(i+1); i++ {
-				var conditionsTmp []*service.GetIsuConditionResponse
-				request = service.GetIsuConditionRequest{
-					StartTime:        nil,
-					CursorEndTime:    conditions[len(conditions)-1].Timestamp,
-					CursorJIAIsuUUID: conditions[len(conditions)-1].JIAIsuUUID,
-					ConditionLevel:   "warning,critical",
-					Limit:            nil,
-				}
-				conditionsTmp, res, err := getConditionAction(ctx, user.Agent, request)
-				if err != nil {
-					scenarioSuccess = false
-					addErrorWithContext(ctx, step, err)
-					break
-				}
-				//検証
-				err = verifyIsuConditions(res, user, "", &request, conditionsTmp, mustExistUntil)
-				if err != nil {
-					scenarioSuccess = false
-					addErrorWithContext(ctx, step, err)
-					break
-				}
-
-				conditions = append(conditions, conditionsTmp...)
+			//状態改善
+			lastSolvedTime[targetIsuID] = time.Unix(timestamp, 0)
+			select {
+			case <-ctx.Done():
+				return false
+			case user.IsuListByID[targetIsuID].StreamsForScenario.StateChan <- solvedConditions[targetIsuID]: //バッファがあるのでブロック率は低い読みで直列に投げる
 			}
-
-			//conditionを確認して、椅子状態を改善
-			solvedConditions, findTimestamps := findBadIsuStateWithID(conditions)
-			for targetIsuID, timestamp := range findTimestamps {
-				if solvedConditions[targetIsuID] != model.IsuStateChangeNone && lastSolvedTime[targetIsuID].Before(time.Unix(timestamp, 0)) {
-					//graphを見る
-					virtualDay := (timestamp / (24 * 60 * 60)) * (24 * 60 * 60)
-					_, _, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsuID, virtualDay,
-						func(res *http.Response, graph []*service.GraphResponse) []error {
-							return []error{} //TODO: 検証
-						},
-					)
-					for _, err := range errs {
-						scenarioSuccess = false
-						addErrorWithContext(ctx, step, err)
-					}
-
-					//状態改善
-					lastSolvedTime[targetIsuID] = time.Unix(timestamp, 0)
-					select {
-					case <-ctx.Done():
-						return
-					case user.IsuListByID[targetIsuID].StreamsForScenario.StateChan <- solvedConditions[targetIsuID]: //バッファがあるのでブロック率は低い読みで直列に投げる
-					}
-				}
-			}
-		} else {
-			//TODO:
 		}
 	}
+
+	return scenarioSuccess
 }
 
 func findBadIsuStateWithID(conditions []*service.GetIsuConditionResponse) (map[string]model.IsuStateChange, map[string]int64) {
