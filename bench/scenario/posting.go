@@ -55,7 +55,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		lastDetectOverweight: nowTimeStamp,
 		isuStateDelete:       false,
 	}
-	randEngine := rand.New(rand.NewSource(0))
+	randEngine := rand.New(rand.NewSource(rand.Int63()))
 	targetURL := fmt.Sprintf("%s/api/condition/%s", targetBaseURL, jiaIsuUUID)
 	httpClient := http.Client{}
 	httpClient.Timeout = agent.DefaultRequestTimeout + 5*time.Second //MEMO: post conditionがtimeoutすると付随してたくさんエラーが出るので、timeoutしにくいようにする
@@ -194,9 +194,7 @@ func (state *posterState) NextIsLatestTimestamp(nowTimeStamp time.Time) bool {
 }
 func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChange model.IsuStateChange, jiaIsuUUID string) model.IsuCondition {
 
-	//乱数初期化（逆算できるように）
 	timeStamp := state.NextConditionTimestamp()
-	randEngine.Seed(timeStamp.Unix() + 961054102)
 
 	//状態変化
 	lastConditionIsDirty := state.lastCondition.IsDirty
