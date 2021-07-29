@@ -1160,13 +1160,6 @@ func postIsuCondition(c echo.Context) error {
 				"	VALUES (?, ?, ?, ?, ?)",
 			jiaIsuUUID, timestamp, cond.IsSitting, cond.Condition, cond.Message)
 		if err != nil {
-			mysqlErr, ok := err.(*mysql.MySQLError)
-
-			if ok && mysqlErr.Number == uint16(mysqlErrNumDuplicateEntry) {
-				c.Logger().Errorf("duplicated condition: %v", err)
-				return c.String(http.StatusConflict, "duplicated condition")
-			}
-
 			c.Logger().Errorf("db error: %v", err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
