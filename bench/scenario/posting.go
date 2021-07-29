@@ -271,18 +271,18 @@ func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChan
 		}
 		//overweight
 		if condition.IsSitting && timeStamp.Sub(state.lastDetectOverweight) > 60*time.Minute {
-			if randEngine.Intn(100) <= 50 {
+			if randEngine.Intn(100) <= 5 {
 				condition.IsOverweight = true
 			}
 		}
 		//dirty
 		if timeStamp.Sub(state.lastClean) > 75*time.Minute {
-			if randEngine.Intn(100) <= 50 {
+			if randEngine.Intn(100) <= 5 {
 				condition.IsDirty = true
 			}
 		}
 		//broken
-		if randEngine.Intn(100) <= 1 {
+		if randEngine.Intn(1000) <= 1 {
 			condition.IsBroken = true
 		}
 
