@@ -646,7 +646,12 @@ func getIsuGraphWithPaging(
 		func(res *http.Response, graph service.GraphResponse) []error {
 			//検証前にデータ取得
 			user.GetConditionFromChan(ctx)
-			return []error{} //TODO: 検証
+			// graph の検証
+			err := verifyGraph(res, user, targetIsu.JIAIsuUUID, &service.GetGraphRequest{Date: virtualDay}, graph)
+			if err != nil {
+				return []error{err}
+			}
+			return []error{}
 		},
 	)
 	for _, err := range errs {
@@ -661,7 +666,12 @@ func getIsuGraphWithPaging(
 		virtualDay -= 24 * 60 * 60
 		_, graphTmp, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, virtualDay,
 			func(res *http.Response, graph service.GraphResponse) []error {
-				return []error{} //TODO: 検証
+				// graph の検証
+				err := verifyGraph(res, user, targetIsu.JIAIsuUUID, &service.GetGraphRequest{Date: virtualDay}, graph)
+				if err != nil {
+					return []error{err}
+				}
+				return []error{}
 			},
 		)
 		for _, err := range errs {
@@ -901,6 +911,7 @@ func (s *Scenario) checkCompanyConditionScenario(ctx context.Context, step *isuc
 
 		conditions = append(conditions, conditionsTmp...)
 	}
+
 	//conditionを確認して、椅子状態を改善
 	solvedConditions, findTimestamps := findBadIsuStateWithID(conditions)
 	for targetIsuID, timestamp := range findTimestamps {

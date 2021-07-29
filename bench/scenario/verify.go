@@ -370,6 +370,55 @@ func verifyGraph(
 	getGraphReq *service.GetGraphRequest,
 	getGraphResp service.GraphResponse) error {
 
-	// TODO verify
+	// graphResp の配列は必ず 24 つ (24時間分) である
+	if len(getGraphResp) != 24 {
+		return errorInvalid(res, "要素数が正しくありません")
+	}
+
+	// getGraphResp を逆順 (timestamp が新しい順) にloop
+	for idxGraphResp := len(getGraphResp) - 1; idxGraphResp >= 0; idxGraphResp-- {
+		graphOne := getGraphResp[idxGraphResp]
+
+		// TODO: getGraphResp の要素が古い順に並んでいることの検証
+
+		// TODO: graphOne.start_at < graphOne.condition_timestamps  < graphOne.end_at であることの検証
+
+		// 特定の ISU における expected な conditions を新しい順に取得するイテレータを生成
+		targetIsu := targetUser.IsuListByID[targetIsuUUID]
+		filter := model.ConditionLevelInfo | model.ConditionLevelWarning | model.ConditionLevelCritical
+		baseIter := targetIsu.Conditions.End(filter)
+
+		var conditionsBasedScore []*model.IsuCondition
+		var lastSort model.IsuConditionCursor
+		// graphOne.ConditionTimestamps を逆順 (timestamp が新しい順) に loop
+		for idxTimestamps := len(graphOne.ConditionTimestamps) - 1; idxTimestamps >= 0; idxTimestamps-- {
+			timestamp := graphOne.ConditionTimestamps[idxTimestamps]
+
+			// graphOne.ConditionTimestamps の要素が古い順に並んでいることの検証
+			nowSort := model.IsuConditionCursor{TimestampUnix: timestamp}
+			if idxTimestamps != len(graphOne.ConditionTimestamps)-1 && !nowSort.Less(&lastSort) {
+				return errorInvalid(res, "整列順が正しくありません")
+			}
+
+			// graphOne.ConditionTimestamps[*] が expected に存在することの検証
+			var expected *model.IsuCondition
+			for {
+				expected = baseIter.Prev()
+				// 降順イテレータから得た expected が timestamp を追い抜いた ⇒ actual が expected に無いデータを返している
+				if expected == nil || expected.TimestampUnix < timestamp {
+					return errorMissmatch(res, "POSTに成功していない時刻のデータが返されました")
+				}
+				if expected.TimestampUnix == timestamp {
+					// graphOne.ConditionTimestamps[n] から condition を取得
+					conditionsBasedScore = append(conditionsBasedScore, expected)
+					break //ok
+				}
+			}
+			lastSort = nowSort
+		}
+
+		// TODO conditionsBasedScore から score が組み立てられることの検証
+	}
+
 	return nil
 }

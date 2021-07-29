@@ -250,6 +250,21 @@ func lowerBoundIsuConditionIndex(base []IsuCondition, end int, targetTimestamp i
 	return ok
 }
 
+// bench 側で持つ targetTimestamp 以降の condition のイテレータを取得
+func (ia *IsuConditionArray) NewConditionIterSinceTimestamp(filter ConditionLevel, targetTimestamp int64, targetIsuUUID string) IsuConditionArrayIterator {
+	iter := ia.End(filter)
+	if (iter.filter & ConditionLevelInfo) != 0 {
+		iter.indexInfo = upperBoundIsuConditionIndex(iter.parent.Info, len(iter.parent.Info), targetTimestamp, targetIsuUUID)
+	}
+	if (iter.filter & ConditionLevelWarning) != 0 {
+		iter.indexWarning = upperBoundIsuConditionIndex(iter.parent.Warning, len(iter.parent.Warning), targetTimestamp, targetIsuUUID)
+	}
+	if (iter.filter & ConditionLevelCritical) != 0 {
+		iter.indexCritical = upperBoundIsuConditionIndex(iter.parent.Critical, len(iter.parent.Critical), targetTimestamp, targetIsuUUID)
+	}
+	return iter
+}
+
 //TreeSet実装
 
 //conditionをcreated atの大きい順で見る
