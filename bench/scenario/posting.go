@@ -142,7 +142,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		req = req.WithContext(ctx)
 		res, err := httpClient.Do(req)
 		if err != nil {
-			step.AddError(failure.NewError(ErrHTTP, err))
+			addErrorWithContext(ctx, step, failure.NewError(ErrHTTP, err))
 			continue // goto next loop
 		}
 		func() {
@@ -150,7 +150,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 
 			err = verifyStatusCode(res, http.StatusCreated)
 			if err != nil {
-				step.AddError(err)
+				addErrorWithContext(ctx, step, err)
 				return // goto next loop
 			}
 
