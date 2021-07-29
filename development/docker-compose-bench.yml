@@ -11,8 +11,7 @@ services:
       MYSQL_DATABASE: isucondition
       MYSQL_USER: isucon
       MYSQL_PASSWORD: isucon
-#      SERVER_PUBLIC_ADDRESS: backend
-      SERVER_PUBLIC_ADDRESS: localhost
+      SERVER_PUBLIC_ADDRESS: backend
       SERVER_PUBLIC_PORT: 3000
     entrypoint: dockerize -wait tcp://mysql-backend:3306 -timeout 60s
     command: air -c /development/air.toml
@@ -48,17 +47,17 @@ services:
     ports:
       - "3306:3306"
 
-#  apitest:
-#    build:
-#      context: ..
-#      dockerfile: development/apitest/dev.dockerfile
-#    environment:
-#      ISUXBENCH_TARGET: backend:3000
-#    working_dir:  /bench_dir
-#    entrypoint: bash
-#    tty: true
-#    volumes:
-#      - "../bench:/bench_dir"
-#    depends_on:
-#      - mysql-backend
-#      - backend
+  apitest:
+    build:
+      context: ..
+      dockerfile: development/apitest/dev.dockerfile
+    environment:
+      ISUXBENCH_TARGET: backend:3000
+    working_dir:  /bench_dir
+    entrypoint: bash
+    tty: true
+    volumes:
+      - "../bench:/bench_dir"
+    depends_on:
+      - mysql-backend
+      - backend
