@@ -165,14 +165,14 @@ scenarioLoop:
 		)
 		for _, err := range errs {
 			scenarioSuccess = false
-			step.AddError(err)
+			addErrorWithContext(ctx, step, err)
 		}
 
 		//GET /isu/{jia_isu_uuid}
 		_, errs = browserGetIsuDetailAction(ctx, user.Agent, targetIsu.JIAIsuUUID, true)
 		for _, err := range errs {
 			scenarioSuccess = false
-			step.AddError(err)
+			addErrorWithContext(ctx, step, err)
 		}
 
 		if randEngine.Intn(2) < 1 {
@@ -204,7 +204,7 @@ scenarioLoop:
 				_ = getIsuGraphWithPaging(ctx, step, user, targetIsu, virtualDay, 10)
 				for _, err := range errs {
 					scenarioSuccess = false
-					step.AddError(err)
+					addErrorWithContext(ctx, step, err)
 				}
 
 				//状態改善
@@ -287,7 +287,7 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 	const isuCountMax = 4 //ルートページに表示する最大数
 	isuCount := rand.Intn(isuCountMax) + 1
 	for i := 0; i < isuCount; i++ {
-		isu := s.NewIsu(ctx, step, user, true)
+		isu := s.NewIsu(ctx, step, user, true, nil)
 		if isu == nil {
 			//deactivate
 			for _, isu := range user.IsuListOrderByCreatedAt {
@@ -336,7 +336,7 @@ func (s *Scenario) getIsuConditionWithScroll(
 	)
 	if len(errs) > 0 {
 		for _, err := range errs {
-			step.AddError(err)
+			addErrorWithContext(ctx, step, err)
 		}
 		return nil
 	}
@@ -357,7 +357,7 @@ func (s *Scenario) getIsuConditionWithScroll(
 		}
 		conditionsTmp, res, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
 		if err != nil {
-			step.AddError(err)
+			addErrorWithContext(ctx, step, err)
 			return nil
 		}
 		//検証
@@ -365,7 +365,7 @@ func (s *Scenario) getIsuConditionWithScroll(
 			conditionsTmp, mustExistUntil,
 		)
 		if err != nil {
-			step.AddError(err)
+			addErrorWithContext(ctx, step, err)
 			return nil
 		}
 
@@ -392,7 +392,7 @@ func getIsuGraphWithPaging(
 		},
 	)
 	for _, err := range errs {
-		step.AddError(err)
+		addErrorWithContext(ctx, step, err)
 	}
 	if len(errs) > 0 {
 		return nil
@@ -407,7 +407,7 @@ func getIsuGraphWithPaging(
 			},
 		)
 		for _, err := range errs {
-			step.AddError(err)
+			addErrorWithContext(ctx, step, err)
 		}
 		if len(errs) > 0 {
 			return nil
@@ -462,13 +462,64 @@ func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.Benchmar
 	logger.AdminLogger.Println("Company User start")
 	defer logger.AdminLogger.Println("Company User END")
 
-	//user, userAgents := s.initCompanyUser(ctx, step)
-	user, _ := s.initCompanyUser(ctx, step)
+	user, userAgents := s.initCompanyUser(ctx, step)
 	if user == nil {
 		return //致命的でないエラー
 	}
 
-	//randEngine := rand.New(rand.NewSource(5498513))
+	//椅子作成
+	//const isuCountMax = 1000
+	isuCount := rand.Intn(10) + 500
+	newIsuOK := true
+	for i := 0; i < isuCount; i++ {
+		isu := s.NewIsu(ctx, step, user, true, nil)
+		if isu == nil {
+			newIsuOK = false
+			break
+		}
+	}
+	if !newIsuOK {
+		//並列にdeactivate
+		isuChan := make(chan *model.Isu, len(user.IsuListOrderByCreatedAt))
+		for _, isu := range user.IsuListOrderByCreatedAt {
+			go func(isu *model.Isu) { isu.StreamsForScenario.StateChan <- model.IsuStateChangeDelete }(isu)
+			isuChan <- isu
+		}
+		close(isuChan)
+		w, err := worker.NewWorker(func(ctx context.Context, index int) {
+			agent := userAgents[index]
+			_, errs := authAction(ctx, agent, user.UserID)
+			for _, err := range errs {
+				step.AddError(err)
+				return
+			}
+			for isu := range isuChan {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+				res, err := deleteIsuAction(ctx, agent, isu.JIAIsuUUID)
+				if err != nil {
+					step.AddError(err)
+				} else if !isu.IsDeactivated() {
+					step.AddError(errorInvalid(res, "deactivateが完了していません"))
+				}
+			}
+		}, worker.WithLoopCount(int32(len(userAgents))))
+		if err != nil {
+			logger.AdminLogger.Panicln(err)
+		}
+		w.Process(ctx)
+		//w.Wait()
+		//MEMO: ctx.Done()の場合は、プロセスが終了していない可能性がある。
+
+		logger.AdminLogger.Println("Company User fail: NewIsu(initialize)")
+		return //致命的でないエラー
+	}
+
+	step.AddScore(ScoreCompanyUserInitialize)
+
 	scenarioDoneCount := 0
 	scenarioSuccess := false
 	lastSolvedTime := make(map[string]time.Time)
@@ -546,7 +597,7 @@ func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.Benchmar
 		)
 		for _, err := range errs {
 			scenarioSuccess = false
-			step.AddError(err)
+			addErrorWithContext(ctx, step, err)
 		}
 		if !scenarioSuccess {
 			continue
@@ -592,7 +643,7 @@ func (s *Scenario) initCompanyUser(ctx context.Context, step *isucandar.Benchmar
 	isuCount := rand.Intn(10) + 500
 	newIsuOK := true
 	for i := 0; i < isuCount; i++ {
-		isu := s.NewIsu(ctx, step, user, true)
+		isu := s.NewIsu(ctx, step, user, true, nil)
 		if isu == nil {
 			newIsuOK = false
 			break
@@ -623,7 +674,7 @@ func (s *Scenario) initCompanyUser(ctx context.Context, step *isucandar.Benchmar
 				if err != nil {
 					step.AddError(err)
 				} else if !isu.IsDeactivated() {
-					step.AddError(errorInvalid(res, "deactivateが完了していません"))
+					addErrorWithContext(ctx, step, errorInvalid(res, "deactivateが完了していません"))
 				}
 			}
 		}, worker.WithLoopCount(int32(len(userAgents))))
@@ -688,14 +739,14 @@ func (s *Scenario) checkCompanyConditionScenario(ctx context.Context, step *isuc
 		conditionsTmp, res, err := getConditionAction(ctx, user.Agent, request)
 		if err != nil {
 			scenarioSuccess = false
-			step.AddError(err)
+			addErrorWithContext(ctx, step, err)
 			break
 		}
 		//検証
 		err = verifyIsuConditions(res, user, "", &request, conditionsTmp, mustExistUntil)
 		if err != nil {
 			scenarioSuccess = false
-			step.AddError(err)
+			addErrorWithContext(ctx, step, err)
 			break
 		}
 

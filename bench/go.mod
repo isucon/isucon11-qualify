@@ -7,7 +7,7 @@ require (
 	github.com/docker/docker v20.10.7+incompatible
 	github.com/emirpasic/gods v1.12.0
 	github.com/google/uuid v1.2.0
-	github.com/isucon/isucandar v0.0.0-20210706075559-501b2c3ed1da
+	github.com/isucon/isucandar v0.0.0-20210720111100-eb5e03ab1e8c
 	github.com/isucon/isucon10-portal v0.0.0-20201008112716-8c0b637e1bd8
 	github.com/labstack/echo/v4 v4.4.0
 )

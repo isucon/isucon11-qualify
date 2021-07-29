@@ -2,6 +2,7 @@ package model
 
 import (
 	"context"
+	"github.com/isucon/isucon11-qualify/bench/service"
 
 	"github.com/google/uuid"
 	"github.com/isucon/isucon11-qualify/bench/random"
@@ -122,5 +123,13 @@ func (isu *Isu) getConditionFromChan(ctx context.Context, userConditionBuffer *I
 		default:
 			return
 		}
+	}
+}
+
+func (isu *Isu) ToService() *service.Isu {
+	return &service.Isu{
+		JIAIsuUUID: isu.JIAIsuUUID,
+		Name:       isu.Name,
+		Character:  isu.Character,
 	}
 }

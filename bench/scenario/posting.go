@@ -134,12 +134,15 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		if err != nil {
 			logger.AdminLogger.Panic(err)
 		}
-		res, err := httpClient.Post(
-			targetURL, "application/json",
-			bytes.NewBuffer(conditionByte),
-		)
+		req, err := http.NewRequest(http.MethodPost, targetURL, bytes.NewBuffer(conditionByte))
 		if err != nil {
-			step.AddError(failure.NewError(ErrHTTP, err))
+			logger.AdminLogger.Panic(err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req = req.WithContext(ctx)
+		res, err := httpClient.Do(req)
+		if err != nil {
+			addErrorWithContext(ctx, step, failure.NewError(ErrHTTP, err))
 			continue // goto next loop
 		}
 		func() {
@@ -147,7 +150,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 
 			err = verifyStatusCode(res, http.StatusCreated)
 			if err != nil {
-				step.AddError(err)
+				addErrorWithContext(ctx, step, err)
 				return // goto next loop
 			}
 

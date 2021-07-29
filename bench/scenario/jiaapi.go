@@ -20,6 +20,7 @@ var (
 	isuIsActivated        = map[string]JiaAPI2PosterData{}
 	streamsForPoster      = map[string]*model.StreamsForPoster{}
 	isuDetailInfomation   = map[string]*IsuDetailInfomation{}
+	isuTargetBaseUrl      = map[string]string{} // 本当はISUに紐付けたい
 
 	jiaAPIContext context.Context
 	jiaAPIStep    *isucandar.BenchmarkStep
@@ -134,6 +135,7 @@ func (s *Scenario) postActivate(c echo.Context) error {
 			cancelFunc: cancelFunc,
 			closeWait:  closeWait,
 		}
+		isuTargetBaseUrl[state.IsuUUID] = targetBaseURL
 		isuDetail = isuDetailInfomation[state.IsuUUID]
 
 		return nil
