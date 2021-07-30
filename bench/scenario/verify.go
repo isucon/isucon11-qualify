@@ -6,6 +6,7 @@ package scenario
 // シナリオのstructがあれば文脈無しで検証できるもの
 
 import (
+	"context"
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
@@ -521,7 +522,67 @@ func verifyGraph(
 			return errorMissmatch(res, "graphのデータが正しくありません")
 		}
 	}
+	return nil
+}
 
+func (s *Scenario) verifyTrend(
+	ctx context.Context, res *http.Response,
+	trendReq *service.GetTrendRequest, trendResp service.GetTrendResponse,
+) error {
+
+	// レスポンスの要素にある性格を格納するための set
+	var characterSet model.IsuCharacterSet
+
+	for _, trendOne := range trendResp {
+
+		character, err := model.NewIsuCharacter(trendOne.Character)
+		if err != nil {
+			return errorInvalid(res, err.Error())
+		}
+		characterSet = characterSet.Append(character)
+
+		// trendResp[*].conditions の配列の長さの検証
+		if len(trendOne.Conditions) != trendReq.Num {
+			return errorInvalid(res, "要素数が正しくありません")
+		}
+
+		var lastConditionTimestamp int64
+		for idx, condition := range trendOne.Conditions {
+
+			// conditions が新しい順にソートされていることの検証
+			if idx != 0 && !(condition.Timestamp <= lastConditionTimestamp) {
+				return errorInvalid(res, "整列順が正しくありません")
+			}
+			lastConditionTimestamp = condition.Timestamp
+
+			// condition.ID から isu を取得する
+			isu, ok := s.IsuFromID[condition.IsuID]
+			if !ok {
+				return errorMissmatch(res, "condition.isu_id に紐づく ISU が存在しません")
+			}
+			// poster から condition を同期する
+			isu.Owner.GetConditionFromChan(ctx)
+			// condition を最新順に取得するイテレータを生成
+			filter := model.ConditionLevelInfo | model.ConditionLevelWarning | model.ConditionLevelCritical
+			baseIter := isu.Conditions.LowerBound(filter, trendReq.Date, isu.JIAIsuUUID)
+
+			// condition.timestamp と condition.condition の値を検証
+			for {
+				expected := baseIter.Prev()
+
+				if expected == nil || expected.TimestampUnix < condition.Timestamp {
+					return errorMissmatch(res, "POSTに成功していない時刻のデータが返されました")
+				}
+				if expected.TimestampUnix == condition.Timestamp && expected.ConditionLevel.Equal(condition.ConditionLevel) {
+					// condition.timestamp と condition.condition が一致したため検証ループを抜ける
+					break
+				}
+			}
+		}
+	}
+	if !characterSet.IsFull() {
+		return errorInvalid(res, "全ての性格のトレンドが取得できていません")
+	}
 	return nil
 }
 

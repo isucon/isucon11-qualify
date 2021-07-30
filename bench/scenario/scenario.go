@@ -43,12 +43,13 @@ type Scenario struct {
 	jiaCancel     context.CancelFunc
 
 	//内部状態
-	normalUsersMtx  sync.Mutex
-	normalUsers     []*model.User
+	normalUsersMtx sync.Mutex
+	normalUsers    []*model.User
 
-	// TODO: ユーザーを増やすロジックを書いたときに必要性を再度考える
 	viewerMtx sync.Mutex
 	viewers   []*model.Viewer
+
+	IsuFromID map[int]*model.Isu
 }
 
 func NewScenario(jiaServiceURL *url.URL, loadTimeout time.Duration) (*Scenario, error) {
@@ -61,6 +62,7 @@ func NewScenario(jiaServiceURL *url.URL, loadTimeout time.Duration) (*Scenario, 
 		jiaServiceURL:     jiaServiceURL,
 		initializeTimeout: 20 * time.Second,
 		normalUsers:       []*model.User{},
+		IsuFromID:         make(map[int]*model.Isu, 8192),
 	}, nil
 }
 
@@ -168,6 +170,9 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 
 	// POST isu のレスポンスより ID を取得して isu モデルに代入する
 	isu.ID = isuResponse.ID
+
+	// isu.ID から model.TrendCondition を取得できるようにする (GET /trend 用)
+	s.IsuFromID[isu.ID] = isu
 
 	// poster に isu model の初期化終了を伝える
 	isu.StreamsForScenario.StateChan <- model.IsuStateChangeNone

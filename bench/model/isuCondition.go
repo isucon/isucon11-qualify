@@ -15,6 +15,15 @@ const (
 	ConditionLevelCritical ConditionLevel = 4
 )
 
+func (cl ConditionLevel) Equal(conditionLevel string) bool {
+	if (cl == ConditionLevelInfo && conditionLevel == "info") ||
+		(cl == ConditionLevelWarning && conditionLevel == "warning") ||
+		(cl == ConditionLevelCritical && conditionLevel == "critical") {
+		return true
+	}
+	return false
+}
+
 //TODO: メモリ節約の必要があるなら考える
 type IsuCondition struct {
 	StateChange   IsuStateChange

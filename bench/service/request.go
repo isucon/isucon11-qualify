@@ -51,3 +51,8 @@ type GetIndividualIsuConditionRequest struct {
 type GetGraphRequest struct {
 	Date int64 // unixtime
 }
+
+type GetTrendRequest struct {
+	Date int64 `json:"date"` //unixtime
+	Num  int   `json:"num"`
+}
