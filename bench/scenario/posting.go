@@ -124,6 +124,13 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 			continue
 		}
 
+		//TODO: ユーザー Goroutineが詰まると詰まるのでいや
+		select {
+		case <-ctx.Done():
+			return
+		case scenarioChan.ConditionChan <- conditions:
+		}
+
 		_, err := postIsuConditionAction(httpClient, targetURL, &conditionsReq)
 		if err != nil {
 			nerr, ok := err.(net.Error)
@@ -140,13 +147,6 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		} else {
 			// TODO: validation
 			// この else ブロックで validation するのは timeout 時 res.Body が nil だから
-		}
-
-		//TODO: ユーザー Goroutineが詰まると詰まるのでいや
-		select {
-		case <-ctx.Done():
-			return
-		case scenarioChan.ConditionChan <- conditions:
 		}
 	}
 }
