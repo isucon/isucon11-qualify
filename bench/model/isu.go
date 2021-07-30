@@ -5,6 +5,8 @@ import (
 	"crypto/md5"
 	"io/ioutil"
 	"log"
+	"time"
+
 	"github.com/isucon/isucon11-qualify/bench/service"
 
 	"github.com/google/uuid"
@@ -55,6 +57,7 @@ type Isu struct {
 	isDeactivated      bool                //実際にdeactivateされているか
 	StreamsForScenario *StreamsForScenario //poster Goroutineとの通信
 	Conditions         IsuConditionArray   //シナリオ Goroutineからのみ参照
+	PostTime           time.Time           //POST /isu/:id を叩いた仮想時間
 }
 
 //新しいISUの生成
