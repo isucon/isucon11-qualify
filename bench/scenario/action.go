@@ -508,7 +508,7 @@ func postIsuConditionErrorAction(httpClient http.Client, targetUrl string, req [
 	return string(resBody), res, nil
 }
 
-func getIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req service.GetIsuConditionRequest) ([]*service.GetIsuConditionResponse, *http.Response, error) {
+func getIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req service.GetIndividualIsuConditionRequest) ([]*service.GetIsuConditionResponse, *http.Response, error) {
 	reqUrl := getIsuConditionRequestParams(fmt.Sprintf("/api/condition/%s", id), req)
 	conditions := []*service.GetIsuConditionResponse{}
 	res, err := reqJSONResJSON(ctx, a, http.MethodGet, reqUrl, nil, &conditions, []int{http.StatusOK})
@@ -529,7 +529,7 @@ func getIsuConditionErrorAction(ctx context.Context, a *agent.Agent, id string, 
 }
 
 func getConditionAction(ctx context.Context, a *agent.Agent, req service.GetIsuConditionRequest) ([]*service.GetIsuConditionResponse, *http.Response, error) {
-	reqUrl := getIsuConditionRequestParams("/api/condition", req)
+	reqUrl := getConditionRequestParams("/api/condition", req)
 	conditions := []*service.GetIsuConditionResponse{}
 	res, err := reqJSONResJSON(ctx, a, http.MethodGet, reqUrl, nil, &conditions, []int{http.StatusOK})
 	if err != nil {
@@ -549,7 +549,26 @@ func getConditionErrorAction(ctx context.Context, a *agent.Agent, query url.Valu
 	return text, res, nil
 }
 
-func getIsuConditionRequestParams(base string, req service.GetIsuConditionRequest) string {
+func getIsuConditionRequestParams(base string, req service.GetIndividualIsuConditionRequest) string {
+	targetURL, err := url.Parse(base)
+	if err != nil {
+		logger.AdminLogger.Panicln(err)
+	}
+
+	q := url.Values{}
+	if req.StartTime != nil {
+		q.Set("start_time", fmt.Sprint(*req.StartTime))
+	}
+	q.Set("cursor_end_time", fmt.Sprint(req.CursorEndTime))
+	q.Set("condition_level", req.ConditionLevel)
+	if req.Limit != nil {
+		q.Set("limit", fmt.Sprint(*req.Limit))
+	}
+	targetURL.RawQuery = q.Encode()
+	return targetURL.String()
+}
+
+func getConditionRequestParams(base string, req service.GetIsuConditionRequest) string {
 	targetURL, err := url.Parse(base)
 	if err != nil {
 		logger.AdminLogger.Panicln(err)
@@ -598,8 +617,7 @@ func browserGetHomeAction(ctx context.Context, a *agent.Agent,
 	virtualNowUnix int64,
 	allowNotModified bool,
 	validateIsu func(*http.Response, []*service.Isu) []error,
-	validateCondition func(*http.Response, []*service.GetIsuConditionResponse) []error,
-) ([]*service.Isu, []*service.GetIsuConditionResponse, []error) {
+) ([]*service.Isu, []error) {
 	// TODO: 静的ファイルのGET
 
 	errors := []error{}
@@ -619,14 +637,7 @@ func browserGetHomeAction(ctx context.Context, a *agent.Agent,
 		}
 		errors = append(errors, validateIsu(hres, isuList)...)
 	}
-
-	conditions, hres, err := getConditionAction(ctx, a, service.GetIsuConditionRequest{CursorEndTime: virtualNowUnix, CursorJIAIsuUUID: "z", ConditionLevel: "critical,warning,info"})
-	if err != nil {
-		errors = append(errors, err)
-	} else {
-		errors = append(errors, validateCondition(hres, conditions)...)
-	}
-	return isuList, conditions, errors
+	return isuList, errors
 }
 
 func browserGetConditionsAction(ctx context.Context, a *agent.Agent, req service.GetIsuConditionRequest,
@@ -683,7 +694,7 @@ func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string,
 	return nil, errors
 }
 
-func browserGetIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req service.GetIsuConditionRequest,
+func browserGetIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req service.GetIndividualIsuConditionRequest,
 	validateCondition func(*http.Response, []*service.GetIsuConditionResponse) []error,
 ) (*service.Isu, []*service.GetIsuConditionResponse, []error) {
 	// TODO: 静的ファイルのGET

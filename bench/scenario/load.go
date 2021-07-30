@@ -108,7 +108,6 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 		lastSolvedTime[isu.JIAIsuUUID] = s.virtualTimeStart
 	}
 	scenarioLoopStopper := time.After(1 * time.Millisecond) //ループ頻度調整
-scenarioLoop:
 	for {
 		<-scenarioLoopStopper
 		scenarioLoopStopper = time.After(50 * time.Millisecond) //TODO: 頻度調整
@@ -140,29 +139,13 @@ scenarioLoop:
 
 		//GET /
 		dataExistTimestamp := GetConditionDataExistTimestamp(s, user)
-		_, _, errs := browserGetHomeAction(ctx, user.Agent, dataExistTimestamp, true,
+		_, errs := browserGetHomeAction(ctx, user.Agent, dataExistTimestamp, true,
 			func(res *http.Response, isuList []*service.Isu) []error {
 				expected := user.IsuListOrderByCreatedAt
 				if homeIsuLimit < len(expected) { //limit
 					expected = expected[len(expected)-homeIsuLimit:]
 				}
 				return verifyIsuOrderByCreatedAt(res, expected, isuList)
-			},
-			func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
-				//conditionの検証
-				err := verifyIsuConditions(
-					res, user, "",
-					&service.GetIsuConditionRequest{
-						CursorEndTime:    dataExistTimestamp,
-						CursorJIAIsuUUID: "z",
-						ConditionLevel:   "critical,warning,info",
-					},
-					conditions,
-				)
-				if err != nil {
-					return []error{err}
-				}
-				return []error{}
 			},
 		)
 		for _, err := range errs {
@@ -182,20 +165,19 @@ scenarioLoop:
 			//TODO: リロード
 
 			//定期的にconditionを見に行くシナリオ
-			request := service.GetIsuConditionRequest{
+			request := service.GetIndividualIsuConditionRequest{
 				StartTime:        nil,
 				CursorEndTime:    dataExistTimestamp,
-				CursorJIAIsuUUID: "",
 				ConditionLevel:   "info,warning,critical",
 				Limit:            nil,
 			}
 			conditions := s.getIsuConditionWithScroll(ctx, step, user, targetIsu, request, 2)
 			if conditions == nil {
 				scenarioSuccess = false
-				continue scenarioLoop
+				continue
 			}
 			if len(conditions) == 0 {
-				continue scenarioLoop
+				continue
 			}
 
 			//conditionを確認して、椅子状態を改善
@@ -244,16 +226,15 @@ scenarioLoop:
 				if dataExistTimestamp < cursorEndTime {
 					cursorEndTime = dataExistTimestamp
 				}
-				request := service.GetIsuConditionRequest{
+				request := service.GetIndividualIsuConditionRequest{
 					StartTime:        &startTime,
 					CursorEndTime:    cursorEndTime,
-					CursorJIAIsuUUID: "",
 					ConditionLevel:   "warning,critical",
 					Limit:            nil,
 				}
 				conditions := s.getIsuConditionWithScroll(ctx, step, user, targetIsu, request, 0)
 				if conditions == nil {
-					continue scenarioLoop
+					continue
 				}
 
 				//状態改善
@@ -322,7 +303,7 @@ func (s *Scenario) getIsuConditionWithScroll(
 	step *isucandar.BenchmarkStep,
 	user *model.User,
 	targetIsu *model.Isu,
-	request service.GetIsuConditionRequest,
+	request service.GetIndividualIsuConditionRequest,
 	scrollCount int,
 ) []*service.GetIsuConditionResponse {
 	//GET condition/{jia_isu_uuid} を取得してバリデーション
@@ -351,10 +332,9 @@ func (s *Scenario) getIsuConditionWithScroll(
 	}
 	for i := 0; i < scrollCount && len(conditions) == limit*(i+1); i++ {
 		var conditionsTmp []*service.GetIsuConditionResponse
-		request = service.GetIsuConditionRequest{
+		request = service.GetIndividualIsuConditionRequest{
 			StartTime:        request.StartTime,
 			CursorEndTime:    conditions[len(conditions)-1].Timestamp,
-			CursorJIAIsuUUID: "",
 			ConditionLevel:   request.ConditionLevel,
 			Limit:            request.Limit,
 		}
@@ -573,29 +553,13 @@ func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.Benchmar
 		//GET /
 		//TODO: ベンチはPUT isu/iconが来ないとして、304を常に許すようにします。
 		dataExistTimestamp := GetConditionDataExistTimestamp(s, user)
-		_, _, errs := browserGetHomeAction(ctx, user.Agent, dataExistTimestamp, true,
+		_, errs := browserGetHomeAction(ctx, user.Agent, dataExistTimestamp, true,
 			func(res *http.Response, isuList []*service.Isu) []error {
 				expected := user.IsuListOrderByCreatedAt
 				if homeIsuLimit < len(expected) { //limit
 					expected = expected[len(expected)-homeIsuLimit:]
 				}
 				return verifyIsuOrderByCreatedAt(res, expected, isuList)
-			},
-			func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
-				//conditionの検証
-				err := verifyIsuConditions(
-					res, user, "",
-					&service.GetIsuConditionRequest{
-						CursorEndTime:    dataExistTimestamp,
-						CursorJIAIsuUUID: "z",
-						ConditionLevel:   "critical,warning,info",
-					},
-					conditions,
-				)
-				if err != nil {
-					return []error{err}
-				}
-				return []error{}
 			},
 		)
 		for _, err := range errs {
@@ -703,18 +667,18 @@ func (s *Scenario) checkCompanyConditionScenario(ctx context.Context, step *isuc
 	request := service.GetIsuConditionRequest{
 		StartTime:        nil,
 		CursorEndTime:    dataExistTimestamp,
-		CursorJIAIsuUUID: "z",
 		ConditionLevel:   "warning,critical",
 		Limit:            nil,
 	}
 	conditions, errs := browserGetConditionsAction(ctx, user.Agent,
 		request,
 		func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
+			// どうせ company は消すからコメントアウト
 			//conditionの検証
-			err := verifyIsuConditions(res, user, "", &request, conditions)
-			if err != nil {
-				return []error{err}
-			}
+			// err := verifyIsuConditions(res, user, "", &request, conditions)
+			// if err != nil {
+			// 	return []error{err}
+			// }
 			return []error{}
 		},
 	)
@@ -736,19 +700,20 @@ func (s *Scenario) checkCompanyConditionScenario(ctx context.Context, step *isuc
 			ConditionLevel:   "warning,critical",
 			Limit:            nil,
 		}
-		conditionsTmp, res, err := getConditionAction(ctx, user.Agent, request)
+		conditionsTmp, _, err := getConditionAction(ctx, user.Agent, request)
 		if err != nil {
 			scenarioSuccess = false
 			addErrorWithContext(ctx, step, err)
 			break
 		}
 		//検証
-		err = verifyIsuConditions(res, user, "", &request, conditionsTmp)
-		if err != nil {
-			scenarioSuccess = false
-			addErrorWithContext(ctx, step, err)
-			break
-		}
+		// どうせ消すからコメントアウト
+		// err = verifyIsuConditions(res, user, "", &request, conditionsTmp)
+		// if err != nil {
+		// 	scenarioSuccess = false
+		// 	addErrorWithContext(ctx, step, err)
+		// 	break
+		// }
 
 		conditions = append(conditions, conditionsTmp...)
 	}
