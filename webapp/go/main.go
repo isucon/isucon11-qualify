@@ -36,6 +36,9 @@ const (
 	defaultIconFilePath       = "../NoImage.jpg"
 	defaultJIAServiceURL      = "http://localhost:5000"
 	mysqlErrNumDuplicateEntry = 1062
+	conditionLevelInfo        = "info"
+	conditionLevelWarning     = "warning"
+	conditionLevelCritical    = "critical"
 )
 
 var scorePerCondition = map[string]int{
@@ -141,6 +144,8 @@ type GraphDataPointWithInfo struct {
 	ConditionTimestamps []int64
 }
 
+type ConditionLevel string
+
 type GetIsuConditionResponse struct {
 	JIAIsuUUID     string `json:"jia_isu_uuid"`
 	IsuName        string `json:"isu_name"`
@@ -152,8 +157,14 @@ type GetIsuConditionResponse struct {
 }
 
 type TrendResponse struct {
-	Character string
-	Score     int
+	Character  string           `json:"character"`
+	Conditions []TrendCondition `json:"conditions"`
+}
+
+type TrendCondition struct {
+	ID             int    `json:"isu_id"`
+	Timestamp      int64  `json:"timestamp"`
+	ConditionLevel string `json:"condition_level"`
 }
 
 type PostIsuConditionRequest struct {
@@ -1099,11 +1110,11 @@ func calcConditionLevel(condition string) (string, error) {
 	warnCount := strings.Count(condition, "=true")
 	switch warnCount {
 	case 0:
-		conditionLevel = "info"
+		conditionLevel = conditionLevelInfo
 	case 1, 2:
-		conditionLevel = "warning"
+		conditionLevel = conditionLevelWarning
 	case 3:
-		conditionLevel = "critical"
+		conditionLevel = conditionLevelCritical
 	default:
 		return "", fmt.Errorf("unexpected warn count")
 	}
@@ -1272,13 +1283,9 @@ func calculateGraphData(IsuConditionCluster []IsuCondition) ([]byte, error) {
 	return graphJSON, nil
 }
 
+// POST /api/trend?date=t&limit=n
+// ある時刻tにおけるISUの性格毎の最新n件のコンディション情報
 func getTrend(c echo.Context) error {
-	_, err := getUserIDFromSession(c.Request())
-	if err != nil {
-		c.Logger().Errorf("you are not signed in: %v", err)
-		return c.String(http.StatusUnauthorized, "you are not signed in")
-	}
-
 	dateStr := c.QueryParam("date")
 	if dateStr == "" {
 		c.Logger().Errorf("date is required")
@@ -1290,6 +1297,16 @@ func getTrend(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "date is invalid format")
 	}
 	date := truncateAfterDays(time.Unix(dateInt64, 0))
+
+	limitStr := c.QueryParam("limit")
+	var limit int
+	if limitStr != "" {
+		limit, err = strconv.Atoi(limitStr)
+		if err != nil || limit <= 0 {
+			c.Logger().Errorf("bad format: limit: limit = %v, %v", limit, err)
+			return c.String(http.StatusBadRequest, "bad format: limit")
+		}
+	}
 
 	// トランザクション開始
 	tx, err := db.Beginx()
@@ -1319,30 +1336,32 @@ func getTrend(c echo.Context) error {
 			return c.NoContent(http.StatusInternalServerError)
 		}
 
-		scoreSum := 0
+		characterIsuConditions := []TrendCondition{}
 		for _, isu := range isuList {
 			conditions := []IsuCondition{}
 			err = tx.Select(&conditions,
-				"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? AND `timestamp` >= ? AND `timestamp` < ?", isu.JIAIsuUUID, date, date.Add(time.Hour*24),
+				"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? AND `timestamp` >= ? ORDER BY timestamp",
+				isu.JIAIsuUUID, date,
 			)
 			if err != nil {
 				c.Logger().Errorf("db error: %v", err)
 				return c.NoContent(http.StatusInternalServerError)
 			}
 
-			for _, condition := range conditions {
-				warnCount := strings.Count(condition.Condition, "=true")
-				switch warnCount {
-				case 0:
-					scoreSum += 2
-				case 1, 2:
-					scoreSum += 1
-				case 3:
-					scoreSum += 0
-				}
+			isuLastCondition := conditions[len(conditions)-1]
+			trendCondition := TrendCondition{
+				ID:             isuLastCondition.ID,
+				Timestamp:      isuLastCondition.Timestamp.Unix(),
+				ConditionLevel: calcConditionLevel(isuLastCondition.Condition),
 			}
+			characterIsuConditions = append(characterIsuConditions, trendCondition)
 		}
-		res = append(res, TrendResponse{Character: character.Character, Score: int(math.Round(float64(scoreSum) / float64(len(isuList))))})
+		// timestampを降順ソート
+		sort.Slice(characterIsuConditions, func(i, j int) bool {
+			return characterIsuConditions[i].Timestamp > characterIsuConditions[j].Timestamp
+		})
+		res = append(res,
+			TrendResponse{Character: character.Character, Conditions: characterIsuConditions[0:limit]})
 	}
 
 	// トランザクション終了
