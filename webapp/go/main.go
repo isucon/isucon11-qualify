@@ -70,7 +70,6 @@ type Isu struct {
 	Image      []byte    `db:"image" json:"-"`
 	Character  string    `db:"character" json:"character"`
 	JIAUserID  string    `db:"jia_user_id" json:"-"`
-	IsDeleted  bool      `db:"is_deleted" json:"-"`
 	CreatedAt  time.Time `db:"created_at" json:"-"`
 	UpdatedAt  time.Time `db:"updated_at" json:"-"`
 }
