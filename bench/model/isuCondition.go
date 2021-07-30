@@ -26,37 +26,37 @@ type IsuCondition struct {
 	IsBroken       bool
 	ConditionLevel ConditionLevel `json:"-"`
 	Message        string         `json:"message"`
-	OwnerID        string
+	OwnerIsuUUID   string
 	//	Owner          *Isu
 }
 
 //left < right
 func (left *IsuCondition) Less(right *IsuCondition) bool {
 	return left.TimestampUnix < right.TimestampUnix ||
-		(left.TimestampUnix == right.TimestampUnix && left.OwnerID < right.OwnerID)
+		(left.TimestampUnix == right.TimestampUnix && left.OwnerIsuUUID < right.OwnerIsuUUID)
 }
 
 type IsuConditionCursor struct {
 	TimestampUnix int64
-	OwnerID       string
+	OwnerIsuUUID  string
 }
 
 //left < right
 func (left *IsuConditionCursor) Less(right *IsuConditionCursor) bool {
 	return left.TimestampUnix < right.TimestampUnix ||
-		(left.TimestampUnix == right.TimestampUnix && left.OwnerID < right.OwnerID)
+		(left.TimestampUnix == right.TimestampUnix && left.OwnerIsuUUID < right.OwnerIsuUUID)
 }
 
 //left < right
 func (left *IsuCondition) Less2(right *IsuConditionCursor) bool {
 	return left.TimestampUnix < right.TimestampUnix ||
-		(left.TimestampUnix == right.TimestampUnix && left.OwnerID < right.OwnerID)
+		(left.TimestampUnix == right.TimestampUnix && left.OwnerIsuUUID < right.OwnerIsuUUID)
 }
 
 //left < right
 func (left *IsuConditionCursor) Less2(right *IsuCondition) bool {
 	return left.TimestampUnix < right.TimestampUnix ||
-		(left.TimestampUnix == right.TimestampUnix && left.OwnerID < right.OwnerID)
+		(left.TimestampUnix == right.TimestampUnix && left.OwnerIsuUUID < right.OwnerIsuUUID)
 }
 
 //conditionをcreated atの大きい順で見る
@@ -116,30 +116,30 @@ func (ia *IsuConditionArray) Back() *IsuCondition {
 	return iter.Prev()
 }
 
-func (ia *IsuConditionArray) UpperBound(filter ConditionLevel, targetTimestamp int64, targetIsuUUID string) IsuConditionArrayIterator {
+func (ia *IsuConditionArray) UpperBound(filter ConditionLevel, targetTimestamp int64, targetOwnerIsuUUID string) IsuConditionArrayIterator {
 	iter := ia.End(filter)
 	if (iter.filter & ConditionLevelInfo) != 0 {
-		iter.indexInfo = upperBoundIsuConditionIndex(iter.parent.Info, len(iter.parent.Info), targetTimestamp, targetIsuUUID)
+		iter.indexInfo = upperBoundIsuConditionIndex(iter.parent.Info, len(iter.parent.Info), targetTimestamp, targetOwnerIsuUUID)
 	}
 	if (iter.filter & ConditionLevelWarning) != 0 {
-		iter.indexWarning = upperBoundIsuConditionIndex(iter.parent.Warning, len(iter.parent.Warning), targetTimestamp, targetIsuUUID)
+		iter.indexWarning = upperBoundIsuConditionIndex(iter.parent.Warning, len(iter.parent.Warning), targetTimestamp, targetOwnerIsuUUID)
 	}
 	if (iter.filter & ConditionLevelCritical) != 0 {
-		iter.indexCritical = upperBoundIsuConditionIndex(iter.parent.Critical, len(iter.parent.Critical), targetTimestamp, targetIsuUUID)
+		iter.indexCritical = upperBoundIsuConditionIndex(iter.parent.Critical, len(iter.parent.Critical), targetTimestamp, targetOwnerIsuUUID)
 	}
 	return iter
 }
 
-func (ia *IsuConditionArray) LowerBound(filter ConditionLevel, targetTimestamp int64, targetIsuUUID string) IsuConditionArrayIterator {
+func (ia *IsuConditionArray) LowerBound(filter ConditionLevel, targetTimestamp int64, targetOwnerIsuUUID string) IsuConditionArrayIterator {
 	iter := ia.End(filter)
 	if (iter.filter & ConditionLevelInfo) != 0 {
-		iter.indexInfo = lowerBoundIsuConditionIndex(iter.parent.Info, len(iter.parent.Info), targetTimestamp, targetIsuUUID)
+		iter.indexInfo = lowerBoundIsuConditionIndex(iter.parent.Info, len(iter.parent.Info), targetTimestamp, targetOwnerIsuUUID)
 	}
 	if (iter.filter & ConditionLevelWarning) != 0 {
-		iter.indexWarning = lowerBoundIsuConditionIndex(iter.parent.Warning, len(iter.parent.Warning), targetTimestamp, targetIsuUUID)
+		iter.indexWarning = lowerBoundIsuConditionIndex(iter.parent.Warning, len(iter.parent.Warning), targetTimestamp, targetOwnerIsuUUID)
 	}
 	if (iter.filter & ConditionLevelCritical) != 0 {
-		iter.indexCritical = lowerBoundIsuConditionIndex(iter.parent.Critical, len(iter.parent.Critical), targetTimestamp, targetIsuUUID)
+		iter.indexCritical = lowerBoundIsuConditionIndex(iter.parent.Critical, len(iter.parent.Critical), targetTimestamp, targetOwnerIsuUUID)
 	}
 	return iter
 }
@@ -179,10 +179,10 @@ func (iter *IsuConditionArrayIterator) Prev() *IsuCondition {
 }
 
 //baseはlessの昇順
-func upperBoundIsuConditionIndex(base []IsuCondition, end int, targetTimestamp int64, targetIsuUUID string) int {
+func upperBoundIsuConditionIndex(base []IsuCondition, end int, targetTimestamp int64, targetOwnerIsuUUID string) int {
 	//末尾の方にあることが分かっているので、末尾を固定要素ずつ線形探索 + 二分探索
 	//assert end <= len(base)
-	target := IsuConditionCursor{TimestampUnix: targetTimestamp, OwnerID: targetIsuUUID}
+	target := IsuConditionCursor{TimestampUnix: targetTimestamp, OwnerIsuUUID: targetOwnerIsuUUID}
 	if end <= 0 {
 		return end //要素が見つからない
 	}
@@ -215,10 +215,10 @@ func upperBoundIsuConditionIndex(base []IsuCondition, end int, targetTimestamp i
 }
 
 //baseはlessの昇順
-func lowerBoundIsuConditionIndex(base []IsuCondition, end int, targetTimestamp int64, targetIsuUUID string) int {
+func lowerBoundIsuConditionIndex(base []IsuCondition, end int, targetTimestamp int64, targetOwnerIsuUUID string) int {
 	//末尾の方にあることが分かっているので、末尾を固定要素ずつ線形探索 + 二分探索
 	//assert end <= len(base)
-	target := IsuConditionCursor{TimestampUnix: targetTimestamp, OwnerID: targetIsuUUID}
+	target := IsuConditionCursor{TimestampUnix: targetTimestamp, OwnerIsuUUID: targetOwnerIsuUUID}
 	if end <= 0 {
 		return end //要素が見つからない
 	}
@@ -318,9 +318,9 @@ func (ia *IsuConditionTreeSet) Back() *IsuCondition {
 	return iter.Prev()
 }
 
-func (ia *IsuConditionTreeSet) LowerBound(filter ConditionLevel, targetTimestamp int64, targetIsuUUID string) IsuConditionTreeSetIterator {
+func (ia *IsuConditionTreeSet) LowerBound(filter ConditionLevel, targetTimestamp int64, targetOwnerIsuUUID string) IsuConditionTreeSetIterator {
 	iter := ia.End(filter)
-	cursor := &IsuCondition{TimestampUnix: targetTimestamp, OwnerID: targetIsuUUID}
+	cursor := &IsuCondition{TimestampUnix: targetTimestamp, OwnerIsuUUID: targetOwnerIsuUUID}
 	if (filter & ConditionLevelInfo) != 0 {
 		node, found := ia.Info.Ceiling(cursor)
 		if found {
