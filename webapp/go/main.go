@@ -487,6 +487,12 @@ func postIsu(c echo.Context) error {
 			return c.NoContent(http.StatusInternalServerError)
 		}
 	} else {
+		contentType := fh.Header.Get("Content-Type")
+		if contentType != "image/jpeg" {
+			c.Logger().Errorf("invalid content type: %s", contentType)
+			return c.String(http.StatusBadRequest, "bad format: image")
+		}
+
 		file, err := fh.Open()
 		if err != nil {
 			c.Logger().Errorf("failed to open fh: %v", err)
