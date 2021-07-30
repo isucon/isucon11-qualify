@@ -129,9 +129,9 @@ type GetMeResponse struct {
 }
 
 type GraphResponse struct {
-	StartAt int64     `json:"start_at"`
-	EndAt   int64     `json:"end_at"`
-	Data    GraphData `json:"data"`
+	StartAt int64      `json:"start_at"`
+	EndAt   int64      `json:"end_at"`
+	Data    *GraphData `json:"data"`
 }
 
 type GetIsuConditionResponse struct {
@@ -797,19 +797,23 @@ func getIsuGraph(c echo.Context) error {
 
 	// dateから24時間分のグラフ用データを1時間単位で作成
 	for tmpTime.Before(date.Add(time.Hour * 24)) {
+		var graphData *GraphData
+
 		inRange := index < len(graphList)
 		if inRange {
 			tmpGraph = graphList[index]
 		}
 
 		if inRange && tmpGraph.StartAt.Equal(tmpTime) {
+			graphData = &tmpGraph.Data
+
 			index++
 		}
 
 		graphResponse := GraphResponse{
 			StartAt: tmpTime.Unix(),
 			EndAt:   tmpTime.Add(time.Hour).Unix(),
-			Data:    tmpGraph.Data,
+			Data:    graphData,
 		}
 		res = append(res, graphResponse)
 		tmpTime = tmpTime.Add(time.Hour)
