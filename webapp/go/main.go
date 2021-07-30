@@ -803,9 +803,6 @@ func getIsuGraph(c echo.Context) error {
 // GET /api/isu/{jia_isu_uuid}/graph のレスポンス作成のため，
 // グラフのデータ点を一日分生成
 func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Time) ([]GraphResponse, error) {
-	IsuConditionCluster := []IsuCondition{} // 一時間ごとの纏まり
-	var tmpIsuCondition IsuCondition
-
 	//
 	// 指定されたISUについて，グラフのデータ点を生成
 	//
@@ -813,18 +810,22 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 	if err != nil {
 		return nil, err
 	}
+
+	IsuConditionCluster := []IsuCondition{}
+	var tmpIsuCondition IsuCondition
 	graphDatas := []GraphDataPointWithInfo{}
-	//一時間ごとに区切る
 	var startTime time.Time
+
+	// isu conditionを順番に読んでいき，一時間ごとにデータ点を計算
 	for rows.Next() {
 		err = rows.StructScan(&tmpIsuCondition)
 		if err != nil {
 			return nil, err
 		}
+
 		tmpTime := truncateAfterHours(tmpIsuCondition.Timestamp)
 		if startTime != tmpTime {
 			if len(IsuConditionCluster) > 0 {
-				//tmpTimeは次の一時間なので、それ以外を使ってスコア計算
 				data, err := calculateGraphDataPoint(IsuConditionCluster)
 				if err != nil {
 					return nil, fmt.Errorf("failed to calculate graph: %v", err)
@@ -832,14 +833,13 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 				graphDatas = append(graphDatas, GraphDataPointWithInfo{JIAIsuUUID: jiaIsuUUID, StartAt: startTime, Data: data})
 			}
 
-			//次の一時間の探索
 			startTime = tmpTime
 			IsuConditionCluster = []IsuCondition{}
 		}
 		IsuConditionCluster = append(IsuConditionCluster, tmpIsuCondition)
 	}
+	// 最後の一時間分を計算
 	if len(IsuConditionCluster) > 0 {
-		//最後の一時間分
 		data, err := calculateGraphDataPoint(IsuConditionCluster)
 		if err != nil {
 			return nil, fmt.Errorf("failed to calculate graph: %v", err)
@@ -869,14 +869,14 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 		graphList = graphDatas[startIndex:endNextIndex]
 	}
 
+	//
+	// レスポンスを作るため，GraphResponseの配列に整形
+	//
 	res := []GraphResponse{}
 	index := 0
 	tmpTime := graphDate
 	var tmpGraph GraphDataPointWithInfo
 
-	//
-	// レスポンスを作るため，GraphResponseの配列に整形
-	//
 	for tmpTime.Before(graphDate.Add(time.Hour * 24)) {
 		inRange := index < len(graphList)
 		if inRange {
