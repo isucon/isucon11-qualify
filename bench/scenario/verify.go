@@ -161,7 +161,7 @@ func verifyIsuConditions(res *http.Response,
 	var lastSort model.IsuConditionCursor
 	for i, c := range backendData {
 		//backendDataが新しい順にソートされていることの検証
-		nowSort := model.IsuConditionCursor{TimestampUnix: c.Timestamp, OwnerID: c.JIAIsuUUID}
+		nowSort := model.IsuConditionCursor{TimestampUnix: c.Timestamp, OwnerIsuUUID: c.JIAIsuUUID}
 		if i != 0 && !nowSort.Less(&lastSort) {
 			return errorInvalid(res, "整列順が正しくありません")
 		}
@@ -173,7 +173,7 @@ func verifyIsuConditions(res *http.Response,
 				return errorMissmatch(res, "POSTに成功していない時刻のデータが返されました")
 			}
 
-			if expected.TimestampUnix == c.Timestamp && expected.OwnerID == c.JIAIsuUUID {
+			if expected.TimestampUnix == c.Timestamp && expected.OwnerIsuUUID == c.JIAIsuUUID {
 				break //ok
 			}
 
@@ -210,7 +210,7 @@ func verifyIsuConditions(res *http.Response,
 		if c.Condition != expectedCondition ||
 			c.ConditionLevel != expectedConditionLevelStr ||
 			c.IsSitting != expected.IsSitting ||
-			c.JIAIsuUUID != expected.OwnerID ||
+			c.JIAIsuUUID != expected.OwnerIsuUUID ||
 			c.Message != expected.Message ||
 			c.IsuName != targetUser.IsuListByID[c.JIAIsuUUID].Name {
 			return errorMissmatch(res, "データが正しくありません")

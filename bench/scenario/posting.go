@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	PostInterval      = 5 * time.Minute //Virtual Timeでのpost間隔
-	PostContentNum    = 100             //一回のpostで何要素postするか
+	PostInterval   = 5 * time.Minute //Virtual Timeでのpost間隔
+	PostContentNum = 100             //一回のpostで何要素postするか
 )
 
 type posterState struct {
@@ -34,7 +34,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		scenarioChan.ActiveChan <- false //deactivate 容量1で、ここでしか使わないのでブロックしない
 	}()
 
-	postConditionTimeout := 50*time.Millisecond //MEMO: timeout は気にせずにズバズバ投げる
+	postConditionTimeout := 50 * time.Millisecond //MEMO: timeout は気にせずにズバズバ投げる
 	userTimer, userTimerCancel := context.WithDeadline(ctx, s.realTimeLoadFinishedAt.Add(-postConditionTimeout))
 	defer userTimerCancel()
 
@@ -207,7 +207,7 @@ func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChan
 			ConditionLevel: model.ConditionLevelCritical,
 			Message:        "",
 			TimestampUnix:  timeStamp.Unix(),
-			OwnerID:        jiaIsuUUID,
+			OwnerIsuUUID:   jiaIsuUUID,
 		}
 	} else {
 		//新しいConditionを生成
@@ -220,7 +220,7 @@ func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChan
 			//ConditionLevel: model.ConditionLevelCritical,
 			Message:       "",
 			TimestampUnix: timeStamp.Unix(),
-			OwnerID:       jiaIsuUUID,
+			OwnerIsuUUID:  jiaIsuUUID,
 		}
 		// TODO: over_weight が true のときは sitting を false にしないように
 		//sitting
