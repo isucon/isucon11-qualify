@@ -149,3 +149,7 @@ func (isu *Isu) ToService() *service.Isu {
 		Character:  isu.Character,
 	}
 }
+
+func (isu *Isu) ReadCondition(timestamp int64) {
+	isu.LastReadTimestamp = timestamp
+}
