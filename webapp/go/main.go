@@ -33,7 +33,7 @@ const (
 	isuListLimit              = 200 // TODO 修正が必要なら変更
 	frontendContentsPath      = "../public"
 	jwtVerificationKeyPath    = "../ec256-public.pem"
-	defaultIconFilePath       = "../NoImage.png"
+	defaultIconFilePath       = "../NoImage.jpg"
 	defaultJIAServiceURL      = "http://localhost:5000"
 	mysqlErrNumDuplicateEntry = 1062
 )
