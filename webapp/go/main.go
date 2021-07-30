@@ -806,45 +806,46 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 	//
 	// 指定されたISUについて，グラフのデータ点を生成
 	//
+	dataPoints := []GraphDataPointWithInfo{}
+	conditionsInThisHour := []IsuCondition{}
+	var startTimeInThisHour time.Time
+	var condition IsuCondition
+
+	// isu conditionを順番に読んでいき，一時間ごとにデータ点を計算
 	rows, err := tx.Queryx("SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` ASC", jiaIsuUUID)
 	if err != nil {
 		return nil, err
 	}
-
-	IsuConditionCluster := []IsuCondition{}
-	var tmpIsuCondition IsuCondition
-	graphDatas := []GraphDataPointWithInfo{}
-	var startTime time.Time
-
-	// isu conditionを順番に読んでいき，一時間ごとにデータ点を計算
 	for rows.Next() {
-		err = rows.StructScan(&tmpIsuCondition)
+		err = rows.StructScan(&condition)
 		if err != nil {
 			return nil, err
 		}
 
-		tmpTime := truncateAfterHours(tmpIsuCondition.Timestamp)
-		if startTime != tmpTime {
-			if len(IsuConditionCluster) > 0 {
-				data, err := calculateGraphDataPoint(IsuConditionCluster)
+		truncedConditionTime := truncateAfterHours(condition.Timestamp)
+		if truncedConditionTime != startTimeInThisHour {
+			if len(conditionsInThisHour) > 0 {
+				data, err := calculateGraphDataPoint(conditionsInThisHour)
 				if err != nil {
 					return nil, fmt.Errorf("failed to calculate graph: %v", err)
 				}
-				graphDatas = append(graphDatas, GraphDataPointWithInfo{JIAIsuUUID: jiaIsuUUID, StartAt: startTime, Data: data})
+				dataPoints = append(dataPoints,
+					GraphDataPointWithInfo{JIAIsuUUID: jiaIsuUUID, StartAt: startTimeInThisHour, Data: data})
 			}
 
-			startTime = tmpTime
-			IsuConditionCluster = []IsuCondition{}
+			startTimeInThisHour = truncedConditionTime
+			conditionsInThisHour = []IsuCondition{}
 		}
-		IsuConditionCluster = append(IsuConditionCluster, tmpIsuCondition)
+		conditionsInThisHour = append(conditionsInThisHour, condition)
 	}
 	// 最後の一時間分を計算
-	if len(IsuConditionCluster) > 0 {
-		data, err := calculateGraphDataPoint(IsuConditionCluster)
+	if len(conditionsInThisHour) > 0 {
+		data, err := calculateGraphDataPoint(conditionsInThisHour)
 		if err != nil {
 			return nil, fmt.Errorf("failed to calculate graph: %v", err)
 		}
-		graphDatas = append(graphDatas, GraphDataPointWithInfo{JIAIsuUUID: jiaIsuUUID, StartAt: startTime, Data: data})
+		dataPoints = append(dataPoints,
+			GraphDataPointWithInfo{JIAIsuUUID: jiaIsuUUID, StartAt: startTimeInThisHour, Data: data})
 	}
 
 	//
@@ -852,12 +853,12 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 	//
 	endDate := graphDate.Add(time.Hour * 24)
 	startIndex := 0
-	endNextIndex := len(graphDatas)
-	for i, graph := range graphDatas {
+	endNextIndex := len(dataPoints)
+	for i, graph := range dataPoints {
 		if startIndex == 0 && !graph.StartAt.Before(graphDate) {
 			startIndex = i
 		}
-		if endNextIndex == len(graphDatas) && graph.StartAt.After(endDate) {
+		if endNextIndex == len(dataPoints) && graph.StartAt.After(endDate) {
 			endNextIndex = i
 		}
 	}
@@ -866,7 +867,7 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 	if endNextIndex < startIndex {
 		graphList = []GraphDataPointWithInfo{}
 	} else {
-		graphList = graphDatas[startIndex:endNextIndex]
+		graphList = dataPoints[startIndex:endNextIndex]
 	}
 
 	//
