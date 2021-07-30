@@ -1,18 +1,15 @@
 package scenario
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"math/rand"
+	"net"
 	"net/http"
 	"time"
 
 	"github.com/isucon/isucandar"
-	"github.com/isucon/isucandar/agent"
 	"github.com/isucon/isucandar/failure"
-	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
 	"github.com/isucon/isucon11-qualify/bench/service"
 )
@@ -38,7 +35,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		scenarioChan.ActiveChan <- false //deactivate 容量1で、ここでしか使わないのでブロックしない
 	}()
 
-	postConditionTimeout := agent.DefaultRequestTimeout + 5*time.Second //MEMO: post conditionがtimeoutすると付随してたくさんエラーが出るので、timeoutしにくいようにする
+	postConditionTimeout := 50*time.Millisecond //MEMO: timeout は気にせずにズバズバ投げる
 	userTimer, userTimerCancel := context.WithDeadline(ctx, s.realTimeLoadFinishedAt.Add(-postConditionTimeout))
 	defer userTimerCancel()
 
@@ -132,64 +129,55 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 			continue
 		}
 
-		// TODO: これは Action におくべき
-		conditionByte, err := json.Marshal(conditionsReq)
+		_, err := postIsuConditionAction(httpClient, targetURL, &conditionsReq)
 		if err != nil {
-			logger.AdminLogger.Panic(err)
+			nerr, ok := err.(net.Error)
+			// オリジナルのエラーなら失敗したっていうこと
+			if !ok {
+				addErrorWithContext(ctx, step, failure.NewError(ErrHTTP, err))
+				continue // goto next loop
+			}
+			// タイムアウトなら無視する
+			if !nerr.Timeout() {
+				addErrorWithContext(ctx, step, failure.NewError(ErrHTTP, err))
+				continue // goto next loop
+			}
+		} else {
+			// TODO: validation
+			// この else ブロックで validation するのは timeout 時 res.Body が nil だから
 		}
-		req, err := http.NewRequest(http.MethodPost, targetURL, bytes.NewBuffer(conditionByte))
-		if err != nil {
-			logger.AdminLogger.Panic(err)
+
+		for _, condition := range conditions {
+			switch condition.ConditionLevel {
+			case model.ConditionLevelInfo:
+				conditionInfoCount++
+			case model.ConditionLevelWarning:
+				conditionWarningCount++
+			case model.ConditionLevelCritical:
+				conditionCriticalCount++
+			}
 		}
-		req.Header.Set("Content-Type", "application/json")
-		req = req.WithContext(ctx)
-		res, err := httpClient.Do(req)
-		if err != nil {
-			addErrorWithContext(ctx, step, failure.NewError(ErrHTTP, err))
-			continue // goto next loop
+
+		//TODO: ユーザー Goroutineが詰まると詰まるのでいや
+		select {
+		case <-ctx.Done():
+			return
+		case scenarioChan.ConditionChan <- conditions:
 		}
-		// TODO: ここで待たない(もしかしたら)
-		func() {
-			defer res.Body.Close()
 
-			err = verifyStatusCode(res, http.StatusCreated)
-			if err != nil {
-				addErrorWithContext(ctx, step, err)
-				return // goto next loop
-			}
-
-			for _, condition := range conditions {
-				switch condition.ConditionLevel {
-				case model.ConditionLevelInfo:
-					conditionInfoCount++
-				case model.ConditionLevelWarning:
-					conditionWarningCount++
-				case model.ConditionLevelCritical:
-					conditionCriticalCount++
-				}
-			}
-
-			//TODO: ユーザー Goroutineが詰まると詰まるのでいや
-			select {
-			case <-ctx.Done():
-				return
-			case scenarioChan.ConditionChan <- conditions:
-			}
-
-			//TODO: スレッドを終了する際に、端数をグローバル変数に逃がして、後で集計できるようにする
-			for conditionInfoCount >= ConditionTagCount {
-				step.AddScore(ScorePostConditionInfo)
-				conditionInfoCount -= ConditionTagCount
-			}
-			for conditionWarningCount >= ConditionTagCount {
-				step.AddScore(ScorePostConditionWarning)
-				conditionWarningCount -= ConditionTagCount
-			}
-			for conditionCriticalCount >= ConditionTagCount {
-				step.AddScore(ScorePostConditionCritical)
-				conditionCriticalCount -= ConditionTagCount
-			}
-		}()
+		//TODO: スレッドを終了する際に、端数をグローバル変数に逃がして、後で集計できるようにする
+		for conditionInfoCount >= ConditionTagCount {
+			step.AddScore(ScorePostConditionInfo)
+			conditionInfoCount -= ConditionTagCount
+		}
+		for conditionWarningCount >= ConditionTagCount {
+			step.AddScore(ScorePostConditionWarning)
+			conditionWarningCount -= ConditionTagCount
+		}
+		for conditionCriticalCount >= ConditionTagCount {
+			step.AddScore(ScorePostConditionCritical)
+			conditionCriticalCount -= ConditionTagCount
+		}
 	}
 }
 
