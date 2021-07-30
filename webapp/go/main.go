@@ -806,12 +806,13 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 	//
 	// 指定されたISUについて，グラフのデータ点を生成
 	//
+
+	// isu conditionを順番に読んでいき，一時間ごとにデータ点を計算
 	dataPoints := []GraphDataPointWithInfo{}
 	conditionsInThisHour := []IsuCondition{}
 	var startTimeInThisHour time.Time
 	var condition IsuCondition
 
-	// isu conditionを順番に読んでいき，一時間ごとにデータ点を計算
 	rows, err := tx.Queryx("SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` ASC", jiaIsuUUID)
 	if err != nil {
 		return nil, err
@@ -838,7 +839,7 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 		}
 		conditionsInThisHour = append(conditionsInThisHour, condition)
 	}
-	// 最後の一時間分を計算
+	// 残った一時間分を計算
 	if len(conditionsInThisHour) > 0 {
 		data, err := calculateGraphDataPoint(conditionsInThisHour)
 		if err != nil {
@@ -851,23 +852,23 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 	//
 	// graphDateの範囲にデータ点を絞る
 	//
-	endDate := graphDate.Add(time.Hour * 24)
+	endTime := graphDate.Add(time.Hour * 24)
 	startIndex := 0
-	endNextIndex := len(dataPoints)
+	endIndex := len(dataPoints)
 	for i, graph := range dataPoints {
 		if startIndex == 0 && !graph.StartAt.Before(graphDate) {
 			startIndex = i
 		}
-		if endNextIndex == len(dataPoints) && graph.StartAt.After(endDate) {
-			endNextIndex = i
+		if endIndex == len(dataPoints) && graph.StartAt.After(endTime) {
+			endIndex = i
 		}
 	}
 
-	var graphList []GraphDataPointWithInfo
-	if endNextIndex < startIndex {
-		graphList = []GraphDataPointWithInfo{}
+	var filteredDataPoints []GraphDataPointWithInfo
+	if endIndex < startIndex {
+		filteredDataPoints = []GraphDataPointWithInfo{}
 	} else {
-		graphList = dataPoints[startIndex:endNextIndex]
+		filteredDataPoints = dataPoints[startIndex:endIndex]
 	}
 
 	//
@@ -879,9 +880,9 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 	var tmpGraph GraphDataPointWithInfo
 
 	for tmpTime.Before(graphDate.Add(time.Hour * 24)) {
-		inRange := index < len(graphList)
+		inRange := index < len(filteredDataPoints)
 		if inRange {
-			tmpGraph = graphList[index]
+			tmpGraph = filteredDataPoints[index]
 		}
 
 		var data *GraphDataPoint
