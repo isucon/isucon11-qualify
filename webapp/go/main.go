@@ -828,6 +828,129 @@ func getIsuGraph(c echo.Context) error {
 	return c.JSON(http.StatusOK, res)
 }
 
+func getGraphDataList(tx *sqlx.Tx, jiaIsuUUID string, date time.Time) ([]Graph, error) {
+	// IsuConditionを一時間ごとの区切りに分け、区切りごとにスコアを計算する
+	IsuConditionCluster := []IsuCondition{} // 一時間ごとの纏まり
+	var tmpIsuCondition IsuCondition
+	rows, err := tx.Queryx("SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` ASC", jiaIsuUUID)
+	if err != nil {
+		return nil, err
+	}
+	graphDatas := []Graph{}
+	//一時間ごとに区切る
+	var startTime time.Time
+	for rows.Next() {
+		err = rows.StructScan(&tmpIsuCondition)
+		if err != nil {
+			return nil, err
+		}
+		tmpTime := truncateAfterHours(tmpIsuCondition.Timestamp)
+		if startTime != tmpTime {
+			if len(IsuConditionCluster) > 0 {
+				//tmpTimeは次の一時間なので、それ以外を使ってスコア計算
+				data, err := calculateGraphData(IsuConditionCluster)
+				if err != nil {
+					return nil, fmt.Errorf("failed to calculate graph: %v", err)
+				}
+				graphDatas = append(graphDatas, Graph{JIAIsuUUID: jiaIsuUUID, StartAt: startTime, Data: data})
+			}
+
+			//次の一時間の探索
+			startTime = tmpTime
+			IsuConditionCluster = []IsuCondition{}
+		}
+		IsuConditionCluster = append(IsuConditionCluster, tmpIsuCondition)
+	}
+	if len(IsuConditionCluster) > 0 {
+		//最後の一時間分
+		data, err := calculateGraphData(IsuConditionCluster)
+		if err != nil {
+			return nil, fmt.Errorf("failed to calculate graph: %v", err)
+		}
+		graphDatas = append(graphDatas, Graph{JIAIsuUUID: jiaIsuUUID, StartAt: startTime, Data: data})
+	}
+
+	// 24時間分のグラフデータだけを取り出す処理
+	endDate := date.Add(time.Hour * 24)
+	startIndex := 0
+	endNextIndex := len(graphDatas)
+	for i, graph := range graphDatas {
+		if startIndex == 0 && !graph.StartAt.Before(date) {
+			startIndex = i
+		}
+		if endNextIndex == len(graphDatas) && graph.StartAt.After(endDate) {
+			endNextIndex = i
+		}
+	}
+	if endNextIndex < startIndex {
+		return []Graph{}, nil
+	}
+
+	return graphDatas[startIndex:endNextIndex], nil
+}
+
+//スコア計算をする関数
+func calculateGraphData(IsuConditionCluster []IsuCondition) (GraphData, error) {
+	graph := GraphData{}
+
+	//sitting
+	sittingCount := 0
+	for _, log := range IsuConditionCluster {
+		if log.IsSitting {
+			sittingCount++
+		}
+	}
+	graph.Sitting = sittingCount * 100 / len(IsuConditionCluster)
+
+	//score&detail
+	graph.Score = 100
+	//condition要因の減点
+	graph.Detail = map[string]int{}
+	for key := range scorePerCondition {
+		graph.Detail[key] = 0
+	}
+	for _, log := range IsuConditionCluster {
+		conditions := map[string]bool{}
+		//DB上にある is_dirty=true/false,is_overweight=true/false,... 形式のデータを
+		//map[string]bool形式に変換
+		for _, cond := range strings.Split(log.Condition, ",") {
+			keyValue := strings.Split(cond, "=")
+			if len(keyValue) != 2 {
+				continue //形式に従っていないものは無視
+			}
+			conditions[keyValue[0]] = (keyValue[1] != "false")
+		}
+
+		//trueになっているものは減点
+		for key, enabled := range conditions {
+			if enabled {
+				score, ok := scorePerCondition[key]
+				if ok {
+					graph.Score += score
+					graph.Detail[key] += score
+				}
+			}
+		}
+	}
+	//スコアに影響がないDetailを削除
+	for key := range scorePerCondition {
+		if graph.Detail[key] == 0 {
+			delete(graph.Detail, key)
+		}
+	}
+	//個数減点
+	if len(IsuConditionCluster) < 50 {
+		minus := -(50 - len(IsuConditionCluster)) * 2
+		graph.Score += minus
+		graph.Detail["missing_data"] = minus
+	}
+	if graph.Score < 0 {
+		graph.Score = 0
+	}
+
+	return graph, nil
+}
+
 //  GET /api/condition?
 // 自分の所持椅子の通知を取得する
 func getAllIsuConditions(c echo.Context) error {
@@ -1190,130 +1313,7 @@ func postIsuCondition(c echo.Context) error {
 	return c.NoContent(http.StatusCreated)
 }
 
-func getGraphDataList(tx *sqlx.Tx, jiaIsuUUID string, date time.Time) ([]Graph, error) {
-	// IsuConditionを一時間ごとの区切りに分け、区切りごとにスコアを計算する
-	IsuConditionCluster := []IsuCondition{} // 一時間ごとの纏まり
-	var tmpIsuCondition IsuCondition
-	rows, err := tx.Queryx("SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` ASC", jiaIsuUUID)
-	if err != nil {
-		return nil, err
-	}
-	graphDatas := []Graph{}
-	//一時間ごとに区切る
-	var startTime time.Time
-	for rows.Next() {
-		err = rows.StructScan(&tmpIsuCondition)
-		if err != nil {
-			return nil, err
-		}
-		tmpTime := truncateAfterHours(tmpIsuCondition.Timestamp)
-		if startTime != tmpTime {
-			if len(IsuConditionCluster) > 0 {
-				//tmpTimeは次の一時間なので、それ以外を使ってスコア計算
-				data, err := calculateGraphData(IsuConditionCluster)
-				if err != nil {
-					return nil, fmt.Errorf("failed to calculate graph: %v", err)
-				}
-				graphDatas = append(graphDatas, Graph{JIAIsuUUID: jiaIsuUUID, StartAt: startTime, Data: data})
-			}
-
-			//次の一時間の探索
-			startTime = tmpTime
-			IsuConditionCluster = []IsuCondition{}
-		}
-		IsuConditionCluster = append(IsuConditionCluster, tmpIsuCondition)
-	}
-	if len(IsuConditionCluster) > 0 {
-		//最後の一時間分
-		data, err := calculateGraphData(IsuConditionCluster)
-		if err != nil {
-			return nil, fmt.Errorf("failed to calculate graph: %v", err)
-		}
-		graphDatas = append(graphDatas, Graph{JIAIsuUUID: jiaIsuUUID, StartAt: startTime, Data: data})
-	}
-
-	// 24時間分のグラフデータだけを取り出す処理
-	endDate := date.Add(time.Hour * 24)
-	startIndex := 0
-	endNextIndex := len(graphDatas)
-	for i, graph := range graphDatas {
-		if startIndex == 0 && !graph.StartAt.Before(date) {
-			startIndex = i
-		}
-		if endNextIndex == len(graphDatas) && graph.StartAt.After(endDate) {
-			endNextIndex = i
-		}
-	}
-	if endNextIndex < startIndex {
-		return []Graph{}, nil
-	}
-
-	return graphDatas[startIndex:endNextIndex], nil
-}
-
 //分以下を切り捨て、一時間単位にする関数
 func truncateAfterHours(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), 0, 0, 0, t.Location())
-}
-
-//スコア計算をする関数
-func calculateGraphData(IsuConditionCluster []IsuCondition) (GraphData, error) {
-	graph := GraphData{}
-
-	//sitting
-	sittingCount := 0
-	for _, log := range IsuConditionCluster {
-		if log.IsSitting {
-			sittingCount++
-		}
-	}
-	graph.Sitting = sittingCount * 100 / len(IsuConditionCluster)
-
-	//score&detail
-	graph.Score = 100
-	//condition要因の減点
-	graph.Detail = map[string]int{}
-	for key := range scorePerCondition {
-		graph.Detail[key] = 0
-	}
-	for _, log := range IsuConditionCluster {
-		conditions := map[string]bool{}
-		//DB上にある is_dirty=true/false,is_overweight=true/false,... 形式のデータを
-		//map[string]bool形式に変換
-		for _, cond := range strings.Split(log.Condition, ",") {
-			keyValue := strings.Split(cond, "=")
-			if len(keyValue) != 2 {
-				continue //形式に従っていないものは無視
-			}
-			conditions[keyValue[0]] = (keyValue[1] != "false")
-		}
-
-		//trueになっているものは減点
-		for key, enabled := range conditions {
-			if enabled {
-				score, ok := scorePerCondition[key]
-				if ok {
-					graph.Score += score
-					graph.Detail[key] += score
-				}
-			}
-		}
-	}
-	//スコアに影響がないDetailを削除
-	for key := range scorePerCondition {
-		if graph.Detail[key] == 0 {
-			delete(graph.Detail, key)
-		}
-	}
-	//個数減点
-	if len(IsuConditionCluster) < 50 {
-		minus := -(50 - len(IsuConditionCluster)) * 2
-		graph.Score += minus
-		graph.Detail["missing_data"] = minus
-	}
-	if graph.Score < 0 {
-		graph.Score = 0
-	}
-
-	return graph, nil
 }
