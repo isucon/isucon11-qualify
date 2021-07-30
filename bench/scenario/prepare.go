@@ -920,10 +920,9 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 
 	dataExistTimestamp := GetConditionDataExistTimestamp(s, loginUser)
 
-	req := service.GetIsuConditionRequest{
+	req := service.GetIndividualIsuConditionRequest{
 		StartTime:        nil,
 		CursorEndTime:    dataExistTimestamp,
-		CursorJIAIsuUUID: "",
 		ConditionLevel:   "info,warning,critical",
 		Limit:            nil,
 	}
@@ -1165,10 +1164,9 @@ func (s *Scenario) prepareCheckPostIsuCondition(ctx context.Context, loginUser *
 	}
 
 	limit := len(expected)
-	getReq := service.GetIsuConditionRequest{
+	getReq := service.GetIndividualIsuConditionRequest{
 		StartTime:        nil,
 		CursorEndTime:    baseTime.Add(11 * time.Minute).Unix(),
-		CursorJIAIsuUUID: "",
 		ConditionLevel:   "info,warning,critical",
 		Limit:            &limit,
 	}

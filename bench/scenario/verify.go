@@ -122,7 +122,7 @@ func verifyIsuOrderByCreatedAt(res *http.Response, expectedReverse []*model.Isu,
 //
 //mustExistUntil: この値以下のtimestampを持つものは全て反映されているべき
 func verifyIsuConditions(res *http.Response,
-	targetUser *model.User, targetIsuUUID string, request *service.GetIsuConditionRequest,
+	targetUser *model.User, targetIsuUUID string, request *service.GetIndividualIsuConditionRequest,
 	backendData []*service.GetIsuConditionResponse) error {
 
 	//limitを超えているかチェック
@@ -152,15 +152,10 @@ func verifyIsuConditions(res *http.Response,
 			filter |= model.ConditionLevelCritical
 		}
 	}
-	var baseIter model.IsuConditionIterator
-	if targetIsuUUID != "" {
-		targetIsu := targetUser.IsuListByID[targetIsuUUID]
-		iterTmp := targetIsu.Conditions.LowerBound(filter, request.CursorEndTime, request.CursorJIAIsuUUID)
-		baseIter = &iterTmp
-	} else {
-		iterTmp := targetUser.Conditions.LowerBound(filter, request.CursorEndTime, request.CursorJIAIsuUUID)
-		baseIter = &iterTmp
-	}
+
+	targetIsu := targetUser.IsuListByID[targetIsuUUID]
+	iterTmp := targetIsu.Conditions.LowerBound(filter, request.CursorEndTime, targetIsuUUID)
+	baseIter := &iterTmp
 
 	//backendDataは新しい順にソートされているはずなので、先頭からチェック
 	var lastSort model.IsuConditionCursor

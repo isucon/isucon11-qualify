@@ -165,10 +165,9 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 			//TODO: リロード
 
 			//定期的にconditionを見に行くシナリオ
-			request := service.GetIsuConditionRequest{
+			request := service.GetIndividualIsuConditionRequest{
 				StartTime:        nil,
 				CursorEndTime:    dataExistTimestamp,
-				CursorJIAIsuUUID: "",
 				ConditionLevel:   "info,warning,critical",
 				Limit:            nil,
 			}
@@ -227,10 +226,9 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 				if dataExistTimestamp < cursorEndTime {
 					cursorEndTime = dataExistTimestamp
 				}
-				request := service.GetIsuConditionRequest{
+				request := service.GetIndividualIsuConditionRequest{
 					StartTime:        &startTime,
 					CursorEndTime:    cursorEndTime,
-					CursorJIAIsuUUID: "",
 					ConditionLevel:   "warning,critical",
 					Limit:            nil,
 				}
@@ -305,7 +303,7 @@ func (s *Scenario) getIsuConditionWithScroll(
 	step *isucandar.BenchmarkStep,
 	user *model.User,
 	targetIsu *model.Isu,
-	request service.GetIsuConditionRequest,
+	request service.GetIndividualIsuConditionRequest,
 	scrollCount int,
 ) []*service.GetIsuConditionResponse {
 	//GET condition/{jia_isu_uuid} を取得してバリデーション
@@ -334,10 +332,9 @@ func (s *Scenario) getIsuConditionWithScroll(
 	}
 	for i := 0; i < scrollCount && len(conditions) == limit*(i+1); i++ {
 		var conditionsTmp []*service.GetIsuConditionResponse
-		request = service.GetIsuConditionRequest{
+		request = service.GetIndividualIsuConditionRequest{
 			StartTime:        request.StartTime,
 			CursorEndTime:    conditions[len(conditions)-1].Timestamp,
-			CursorJIAIsuUUID: "",
 			ConditionLevel:   request.ConditionLevel,
 			Limit:            request.Limit,
 		}
@@ -670,18 +667,18 @@ func (s *Scenario) checkCompanyConditionScenario(ctx context.Context, step *isuc
 	request := service.GetIsuConditionRequest{
 		StartTime:        nil,
 		CursorEndTime:    dataExistTimestamp,
-		CursorJIAIsuUUID: "z",
 		ConditionLevel:   "warning,critical",
 		Limit:            nil,
 	}
 	conditions, errs := browserGetConditionsAction(ctx, user.Agent,
 		request,
 		func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
+			// どうせ company は消すからコメントアウト
 			//conditionの検証
-			err := verifyIsuConditions(res, user, "", &request, conditions)
-			if err != nil {
-				return []error{err}
-			}
+			// err := verifyIsuConditions(res, user, "", &request, conditions)
+			// if err != nil {
+			// 	return []error{err}
+			// }
 			return []error{}
 		},
 	)
@@ -703,19 +700,20 @@ func (s *Scenario) checkCompanyConditionScenario(ctx context.Context, step *isuc
 			ConditionLevel:   "warning,critical",
 			Limit:            nil,
 		}
-		conditionsTmp, res, err := getConditionAction(ctx, user.Agent, request)
+		conditionsTmp, _, err := getConditionAction(ctx, user.Agent, request)
 		if err != nil {
 			scenarioSuccess = false
 			addErrorWithContext(ctx, step, err)
 			break
 		}
 		//検証
-		err = verifyIsuConditions(res, user, "", &request, conditionsTmp)
-		if err != nil {
-			scenarioSuccess = false
-			addErrorWithContext(ctx, step, err)
-			break
-		}
+		// どうせ消すからコメントアウト
+		// err = verifyIsuConditions(res, user, "", &request, conditionsTmp)
+		// if err != nil {
+		// 	scenarioSuccess = false
+		// 	addErrorWithContext(ctx, step, err)
+		// 	break
+		// }
 
 		conditions = append(conditions, conditionsTmp...)
 	}
