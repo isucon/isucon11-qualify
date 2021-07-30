@@ -98,9 +98,10 @@ type GraphDataPoint struct {
 
 // グラフ作成の計算に使用
 type GraphDataPointWithInfo struct {
-	JIAIsuUUID string
-	StartAt    time.Time
-	Data       GraphDataPoint
+	JIAIsuUUID          string
+	StartAt             time.Time
+	Data                GraphDataPoint
+	ConditionTimestamps []int64
 }
 
 type User struct {
@@ -129,9 +130,10 @@ type GetMeResponse struct {
 }
 
 type GraphResponse struct {
-	StartAt int64           `json:"start_at"`
-	EndAt   int64           `json:"end_at"`
-	Data    *GraphDataPoint `json:"data"`
+	StartAt             int64           `json:"start_at"`
+	EndAt               int64           `json:"end_at"`
+	Data                *GraphDataPoint `json:"data"`
+	ConditionTimestamps []int64         `json:"condition_timestamps"`
 }
 
 type GetIsuConditionResponse struct {
