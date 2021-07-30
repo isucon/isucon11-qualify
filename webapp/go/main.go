@@ -811,6 +811,7 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 
 	dataPoints := []GraphDataPointWithInfo{}
 	conditionsInThisHour := []IsuCondition{}
+	var timestampsInThisHour []int64
 	var startTimeInThisHour time.Time
 	var condition IsuCondition
 
@@ -833,13 +834,18 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 					return nil, fmt.Errorf("failed to calculate graph: %v", err)
 				}
 				dataPoints = append(dataPoints,
-					GraphDataPointWithInfo{JIAIsuUUID: jiaIsuUUID, StartAt: startTimeInThisHour, Data: data})
+					GraphDataPointWithInfo{
+						JIAIsuUUID:          jiaIsuUUID,
+						StartAt:             startTimeInThisHour,
+						Data:                data,
+						ConditionTimestamps: timestampsInThisHour})
 			}
 
 			startTimeInThisHour = truncedConditionTime
 			conditionsInThisHour = []IsuCondition{}
 		}
 		conditionsInThisHour = append(conditionsInThisHour, condition)
+		timestampsInThisHour = append(timestampsInThisHour, condition.Timestamp.Unix())
 	}
 	// 残った一時間分を計算
 	if len(conditionsInThisHour) > 0 {
@@ -848,7 +854,11 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 			return nil, fmt.Errorf("failed to calculate graph: %v", err)
 		}
 		dataPoints = append(dataPoints,
-			GraphDataPointWithInfo{JIAIsuUUID: jiaIsuUUID, StartAt: startTimeInThisHour, Data: data})
+			GraphDataPointWithInfo{
+				JIAIsuUUID:          jiaIsuUUID,
+				StartAt:             startTimeInThisHour,
+				Data:                data,
+				ConditionTimestamps: timestampsInThisHour})
 	}
 
 	//
@@ -882,20 +892,23 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 
 	for thisTime.Before(graphDate.Add(time.Hour * 24)) {
 		var data *GraphDataPoint
+		timestamps := []int64{}
 
 		if index < len(filteredDataPoints) {
 			dataWithInfo := filteredDataPoints[index]
 
 			if dataWithInfo.StartAt.Equal(thisTime) {
 				data = &dataWithInfo.Data
+				timestamps = dataWithInfo.ConditionTimestamps
 				index++
 			}
 		}
 
 		resp := GraphResponse{
-			StartAt: thisTime.Unix(),
-			EndAt:   thisTime.Add(time.Hour).Unix(),
-			Data:    data,
+			StartAt:             thisTime.Unix(),
+			EndAt:               thisTime.Add(time.Hour).Unix(),
+			Data:                data,
+			ConditionTimestamps: timestamps,
 		}
 		responseList = append(responseList, resp)
 
