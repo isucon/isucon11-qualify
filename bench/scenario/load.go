@@ -139,29 +139,13 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 
 		//GET /
 		dataExistTimestamp := GetConditionDataExistTimestamp(s, user)
-		_, _, errs := browserGetHomeAction(ctx, user.Agent, dataExistTimestamp, true,
+		_, errs := browserGetHomeAction(ctx, user.Agent, dataExistTimestamp, true,
 			func(res *http.Response, isuList []*service.Isu) []error {
 				expected := user.IsuListOrderByCreatedAt
 				if homeIsuLimit < len(expected) { //limit
 					expected = expected[len(expected)-homeIsuLimit:]
 				}
 				return verifyIsuOrderByCreatedAt(res, expected, isuList)
-			},
-			func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
-				//conditionの検証
-				err := verifyIsuConditions(
-					res, user, "",
-					&service.GetIsuConditionRequest{
-						CursorEndTime:    dataExistTimestamp,
-						CursorJIAIsuUUID: "z",
-						ConditionLevel:   "critical,warning,info",
-					},
-					conditions,
-				)
-				if err != nil {
-					return []error{err}
-				}
-				return []error{}
 			},
 		)
 		for _, err := range errs {
@@ -572,29 +556,13 @@ func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.Benchmar
 		//GET /
 		//TODO: ベンチはPUT isu/iconが来ないとして、304を常に許すようにします。
 		dataExistTimestamp := GetConditionDataExistTimestamp(s, user)
-		_, _, errs := browserGetHomeAction(ctx, user.Agent, dataExistTimestamp, true,
+		_, errs := browserGetHomeAction(ctx, user.Agent, dataExistTimestamp, true,
 			func(res *http.Response, isuList []*service.Isu) []error {
 				expected := user.IsuListOrderByCreatedAt
 				if homeIsuLimit < len(expected) { //limit
 					expected = expected[len(expected)-homeIsuLimit:]
 				}
 				return verifyIsuOrderByCreatedAt(res, expected, isuList)
-			},
-			func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
-				//conditionの検証
-				err := verifyIsuConditions(
-					res, user, "",
-					&service.GetIsuConditionRequest{
-						CursorEndTime:    dataExistTimestamp,
-						CursorJIAIsuUUID: "z",
-						ConditionLevel:   "critical,warning,info",
-					},
-					conditions,
-				)
-				if err != nil {
-					return []error{err}
-				}
-				return []error{}
 			},
 		)
 		for _, err := range errs {

@@ -598,8 +598,7 @@ func browserGetHomeAction(ctx context.Context, a *agent.Agent,
 	virtualNowUnix int64,
 	allowNotModified bool,
 	validateIsu func(*http.Response, []*service.Isu) []error,
-	validateCondition func(*http.Response, []*service.GetIsuConditionResponse) []error,
-) ([]*service.Isu, []*service.GetIsuConditionResponse, []error) {
+) ([]*service.Isu, []error) {
 	// TODO: 静的ファイルのGET
 
 	errors := []error{}
@@ -619,14 +618,7 @@ func browserGetHomeAction(ctx context.Context, a *agent.Agent,
 		}
 		errors = append(errors, validateIsu(hres, isuList)...)
 	}
-
-	conditions, hres, err := getConditionAction(ctx, a, service.GetIsuConditionRequest{CursorEndTime: virtualNowUnix, CursorJIAIsuUUID: "z", ConditionLevel: "critical,warning,info"})
-	if err != nil {
-		errors = append(errors, err)
-	} else {
-		errors = append(errors, validateCondition(hres, conditions)...)
-	}
-	return isuList, conditions, errors
+	return isuList, errors
 }
 
 func browserGetConditionsAction(ctx context.Context, a *agent.Agent, req service.GetIsuConditionRequest,
