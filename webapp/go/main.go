@@ -1260,8 +1260,8 @@ func truncateAfterHours(t time.Time) time.Time {
 }
 
 //スコア計算をする関数
-func calculateGraphData(IsuConditionCluster []IsuCondition) ([]byte, error) {
-	graph := &GraphData{}
+func calculateGraphData(IsuConditionCluster []IsuCondition) (GraphData, error) {
+	graph := GraphData{}
 
 	//sitting
 	sittingCount := 0
@@ -1318,10 +1318,5 @@ func calculateGraphData(IsuConditionCluster []IsuCondition) ([]byte, error) {
 		graph.Score = 0
 	}
 
-	//JSONに変換
-	graphJSON, err := json.Marshal(graph)
-	if err != nil {
-		return nil, err
-	}
-	return graphJSON, nil
+	return graph, nil
 }
