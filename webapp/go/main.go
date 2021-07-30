@@ -880,11 +880,9 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 
 	for thisTime.Before(graphDate.Add(time.Hour * 24)) {
 		var data *GraphDataPoint
-		var dataWithInfo GraphDataPointWithInfo
 
-		inRange := index < len(filteredDataPoints)
-		if inRange {
-			dataWithInfo = filteredDataPoints[index]
+		if index < len(filteredDataPoints) {
+			dataWithInfo := filteredDataPoints[index]
 
 			if dataWithInfo.StartAt.Equal(thisTime) {
 				data = &dataWithInfo.Data
