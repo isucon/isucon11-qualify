@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"html/template"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/exec"
@@ -201,6 +202,8 @@ func init() {
 	if err != nil {
 		log.Fatalf("Unable to parse ECDSA public key: %v", err)
 	}
+
+	rand.Seed(42)
 }
 
 func main() {
@@ -1118,6 +1121,15 @@ func postIsuCondition(c echo.Context) error {
 		c.Logger().Errorf("jia_isu_uuid is missing")
 		return c.String(http.StatusBadRequest, "jia_isu_uuid is missing")
 	}
+
+	// MEMO(isucon11-q実装者) 以下のTODOコメントはヒントにするため，予選本番でも残す
+	// TODO: これ良くないので後でなんとかする
+	DROP_PROBABILITY := 0.1
+	if rand.Float64() <= DROP_PROBABILITY {
+		c.Logger().Infof("drop post isu condition request")
+		return c.NoContent(http.StatusCreated)
+	}
+
 	var req []PostIsuConditionRequest
 	err := c.Bind(&req)
 	if err != nil {
