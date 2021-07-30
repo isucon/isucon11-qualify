@@ -84,7 +84,7 @@ func (i Isu) WithDelete() Isu {
 }
 
 func (i Isu) Create() error {
-	if _, err := db.Exec("INSERT INTO isu VALUES (?,?,?,?,?,?,?,?)",
+	if _, err := db.Exec("INSERT INTO isu(`jia_isu_uuid`,`name`,`image`,`character`,`jia_user_id`,`is_deleted`,`created_at`,`updated_at`) VALUES (?,?,?,?,?,?,?,?)",
 		i.JIAIsuUUID, i.Name, i.Image, i.Character, i.User.JIAUserID,
 		i.IsDeleted, i.CreatedAt, i.UpdatedAt,
 	); err != nil {
