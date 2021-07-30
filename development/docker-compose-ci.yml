@@ -16,7 +16,7 @@ services:
       - "3000:3000"
     volumes:
       - "../webapp/ec256-public.pem:/webapp/ec256-public.pem"
-      - "../webapp/NoImage.png:/webapp/NoImage.png"
+      - "../webapp/NoImage.jpg:/webapp/NoImage.jpg"
       - "../webapp/sql:/webapp/sql"
     depends_on:
       - mysql-backend
