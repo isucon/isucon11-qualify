@@ -903,7 +903,7 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 	return responseList, nil
 }
 
-// グラフの一つのデータ点を，複数のISU conditionを与えて計算
+// 複数のISU conditionからグラフの一つのデータ点を計算
 func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, error) {
 	dataPoint := GraphDataPoint{}
 
