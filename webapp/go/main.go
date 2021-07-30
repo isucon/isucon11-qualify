@@ -13,7 +13,6 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -225,7 +224,6 @@ func main() {
 	e.DELETE("/api/isu/:jia_isu_uuid", deleteIsu)
 	e.GET("/api/isu/:jia_isu_uuid/icon", getIsuIcon)
 	e.GET("/api/isu/:jia_isu_uuid/graph", getIsuGraph)
-	e.GET("/api/condition", getAllIsuConditions)
 	e.GET("/api/condition/:jia_isu_uuid", getIsuConditions)
 	// API for Isu
 	e.POST("/api/condition/:jia_isu_uuid", postIsuCondition)
@@ -829,139 +827,6 @@ func getIsuGraph(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, res)
-}
-
-//  GET /api/condition?
-// 自分の所持椅子の通知を取得する
-func getAllIsuConditions(c echo.Context) error {
-	// input
-	//     * start_time: 開始時間
-	//     * cursor_end_time: 終了時間 (required)
-	//     * cursor_jia_isu_uuid (required)
-	//     * condition_level: critical,warning,info (csv)
-	//               critical: conditionsのうちtrueが3個
-	//               warning: conditionsのうちtrueのものが1 or 2個
-	//               info: warning無し
-	//     * TODO: day2実装: message (文字列検索)
-
-	jiaUserID, err := getUserIDFromSession(c.Request())
-	if err != nil {
-		c.Logger().Errorf("you are not signed in: %v", err)
-		return c.String(http.StatusUnauthorized, "you are not signed in")
-	}
-	//required query param
-	cursorEndTimeInt64, err := strconv.ParseInt(c.QueryParam("cursor_end_time"), 10, 64)
-	if err != nil {
-		c.Logger().Errorf("bad format: cursor_end_time: %v", err)
-		return c.String(http.StatusBadRequest, "bad format: cursor_end_time")
-	}
-	cursorEndTime := time.Unix(cursorEndTimeInt64, 0)
-
-	cursorJIAIsuUUID := c.QueryParam("cursor_jia_isu_uuid")
-	if cursorJIAIsuUUID == "" {
-		c.Logger().Errorf("cursor_jia_isu_uuid is missing")
-		return c.String(http.StatusBadRequest, "cursor_jia_isu_uuid is missing")
-	}
-	cursor := &GetIsuConditionResponse{
-		JIAIsuUUID: cursorJIAIsuUUID,
-		Timestamp:  cursorEndTime.Unix(),
-	}
-	conditionLevelCSV := c.QueryParam("condition_level")
-	if conditionLevelCSV == "" {
-		c.Logger().Errorf("condition_level is missing")
-		return c.String(http.StatusBadRequest, "condition_level is missing")
-	}
-	conditionLevel := map[string]interface{}{}
-	for _, level := range strings.Split(conditionLevelCSV, ",") {
-		conditionLevel[level] = struct{}{}
-	}
-	//optional query param
-	startTimeStr := c.QueryParam("start_time")
-	startTime := time.Time{}
-	if startTimeStr != "" {
-		startTimeInt64, err := strconv.ParseInt(startTimeStr, 10, 64)
-		if err != nil {
-			c.Logger().Errorf("bad format: start_time: %v", err)
-			return c.String(http.StatusBadRequest, "bad format: start_time")
-		}
-		startTime = time.Unix(startTimeInt64, 0)
-	}
-
-	limitStr := c.QueryParam("limit")
-	limit := conditionLimit
-	if limitStr != "" {
-		limit, err = strconv.Atoi(limitStr)
-		if err != nil || limit <= 0 {
-			c.Logger().Errorf("bad format: limit: limit = %v, %v", limit, err)
-			return c.String(http.StatusBadRequest, "bad format: limit")
-		}
-	}
-
-	// ユーザの所持椅子取得
-	isuList := []Isu{}
-	err = db.Select(&isuList,
-		"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = false",
-		jiaUserID,
-	)
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	if len(isuList) == 0 {
-		return c.JSON(http.StatusOK, isuList)
-	}
-
-	// ユーザの所持椅子毎に DB から引く
-	conditionsResponse := []*GetIsuConditionResponse{}
-	for _, isu := range isuList {
-		//cursorのjia_isu_uuidで決まる部分は、とりあえず全部取得しておく
-		//  cursorEndTime >= timestampを取りたいので、
-		//  cursorEndTime + 1sec > timestampとしてクエリを送る
-		//この一要素はフィルターにかかるかどうか分からないので、limitも+1しておく
-
-		conditionsTmp, err := getIsuConditionsFromDB(isu.JIAIsuUUID, cursorEndTime.Add(1*time.Second),
-			conditionLevel, startTime, limit+1, isu.Name)
-		if err != nil {
-			c.Logger().Errorf("db error: %v", err)
-			return c.NoContent(http.StatusInternalServerError)
-		}
-
-		// ユーザの所持椅子ごとのデータをマージ
-		conditionsResponse = append(conditionsResponse, conditionsTmp...)
-	}
-
-	// (`timestamp`, `jia_isu_uuid`)のペアで降順ソート
-	sort.Slice(conditionsResponse, func(i int, j int) bool { return conditionGreaterThan(conditionsResponse[i], conditionsResponse[j]) })
-	// (cursor_end_time, cursor_jia_isu_uuid) > (`timestamp`, `jia_isu_uuid`)でフィルター
-	removeIndex := 0
-	for removeIndex < len(conditionsResponse) {
-		if conditionGreaterThan(cursor, conditionsResponse[removeIndex]) {
-			break
-		}
-		removeIndex++
-	}
-	//[0,index)は「(cursor_end_time, cursor_jia_isu_uuid) > (`timestamp`, `jia_isu_uuid`)」を満たしていないので取り除く
-	conditionsResponse = conditionsResponse[removeIndex:]
-
-	//limitを取る
-	if len(conditionsResponse) > limit {
-		conditionsResponse = conditionsResponse[:limit]
-	}
-
-	return c.JSON(http.StatusOK, conditionsResponse)
-}
-
-// left > right を計算する関数
-func conditionGreaterThan(left *GetIsuConditionResponse, right *GetIsuConditionResponse) bool {
-	//(`timestamp`, `jia_isu_uuid`)のペアを辞書順に比較
-
-	if left.Timestamp > right.Timestamp {
-		return true
-	}
-	if left.Timestamp == right.Timestamp {
-		return left.JIAIsuUUID > right.JIAIsuUUID
-	}
-	return false
 }
 
 //  GET /api/condition/{jia_isu_uuid}?
