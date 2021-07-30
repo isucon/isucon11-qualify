@@ -872,41 +872,42 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 	}
 
 	//
-	// レスポンスを作るため，GraphResponseの配列に整形
+	// データがない時間を埋めて，24時間分のレスポンスに整形
 	//
-	res := []GraphResponse{}
+	responseList := []GraphResponse{}
 	index := 0
-	tmpTime := graphDate
-	var tmpGraph GraphDataPointWithInfo
+	thisTime := graphDate
 
-	for tmpTime.Before(graphDate.Add(time.Hour * 24)) {
+	for thisTime.Before(graphDate.Add(time.Hour * 24)) {
+		var data *GraphDataPoint
+		var dataWithInfo GraphDataPointWithInfo
+
 		inRange := index < len(filteredDataPoints)
 		if inRange {
-			tmpGraph = filteredDataPoints[index]
+			dataWithInfo = filteredDataPoints[index]
+
+			if dataWithInfo.StartAt.Equal(thisTime) {
+				data = &dataWithInfo.Data
+				index++
+			}
 		}
 
-		var data *GraphDataPoint
-		if inRange && tmpGraph.StartAt.Equal(tmpTime) {
-			data = &tmpGraph.Data
-
-			index++
-		}
-
-		graphResponse := GraphResponse{
-			StartAt: tmpTime.Unix(),
-			EndAt:   tmpTime.Add(time.Hour).Unix(),
+		resp := GraphResponse{
+			StartAt: thisTime.Unix(),
+			EndAt:   thisTime.Add(time.Hour).Unix(),
 			Data:    data,
 		}
-		res = append(res, graphResponse)
-		tmpTime = tmpTime.Add(time.Hour)
+		responseList = append(responseList, resp)
+
+		thisTime = thisTime.Add(time.Hour)
 	}
 
-	return res, nil
+	return responseList, nil
 }
 
 // グラフの一つのデータ点を，複数のISU conditionを与えて計算
 func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, error) {
-	graph := GraphDataPoint{}
+	dataPoint := GraphDataPoint{}
 
 	//sitting
 	sittingCount := 0
@@ -915,14 +916,14 @@ func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, erro
 			sittingCount++
 		}
 	}
-	graph.Sitting = sittingCount * 100 / len(isuConditions)
+	dataPoint.Sitting = sittingCount * 100 / len(isuConditions)
 
 	//score&detail
-	graph.Score = 100
+	dataPoint.Score = 100
 	//condition要因の減点
-	graph.Detail = map[string]int{}
+	dataPoint.Detail = map[string]int{}
 	for key := range scorePerCondition {
-		graph.Detail[key] = 0
+		dataPoint.Detail[key] = 0
 	}
 	for _, log := range isuConditions {
 		conditions := map[string]bool{}
@@ -941,29 +942,29 @@ func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, erro
 			if enabled {
 				score, ok := scorePerCondition[key]
 				if ok {
-					graph.Score += score
-					graph.Detail[key] += score
+					dataPoint.Score += score
+					dataPoint.Detail[key] += score
 				}
 			}
 		}
 	}
 	//スコアに影響がないDetailを削除
 	for key := range scorePerCondition {
-		if graph.Detail[key] == 0 {
-			delete(graph.Detail, key)
+		if dataPoint.Detail[key] == 0 {
+			delete(dataPoint.Detail, key)
 		}
 	}
 	//個数減点
 	if len(isuConditions) < 50 {
 		minus := -(50 - len(isuConditions)) * 2
-		graph.Score += minus
-		graph.Detail["missing_data"] = minus
+		dataPoint.Score += minus
+		dataPoint.Detail["missing_data"] = minus
 	}
-	if graph.Score < 0 {
-		graph.Score = 0
+	if dataPoint.Score < 0 {
+		dataPoint.Score = 0
 	}
 
-	return graph, nil
+	return dataPoint, nil
 }
 
 //  GET /api/condition?
