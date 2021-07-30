@@ -38,7 +38,8 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		scenarioChan.ActiveChan <- false //deactivate 容量1で、ここでしか使わないのでブロックしない
 	}()
 
-	userTimer, userTimerCancel := context.WithDeadline(ctx, s.realTimeLoadFinishedAt.Add(-agent.DefaultRequestTimeout-1*time.Second))
+	postConditionTimeout := agent.DefaultRequestTimeout + 5*time.Second //MEMO: post conditionがtimeoutすると付随してたくさんエラーが出るので、timeoutしにくいようにする
+	userTimer, userTimerCancel := context.WithDeadline(ctx, s.realTimeLoadFinishedAt.Add(-postConditionTimeout))
 	defer userTimerCancel()
 
 	nowTimeStamp := s.ToVirtualTime(time.Now())
@@ -58,7 +59,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 	randEngine := rand.New(rand.NewSource(rand.Int63()))
 	targetURL := fmt.Sprintf("%s/api/condition/%s", targetBaseURL, jiaIsuUUID)
 	httpClient := http.Client{}
-	httpClient.Timeout = agent.DefaultRequestTimeout + 5*time.Second //MEMO: post conditionがtimeoutすると付随してたくさんエラーが出るので、timeoutしにくいようにする
+	httpClient.Timeout = postConditionTimeout
 
 	conditionInfoCount := 0
 	conditionWarningCount := 0
@@ -77,6 +78,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 	}
 
 	//TODO: 頻度はちゃんと検討して変える
+	// TODO: ここを投げっぱなしにしてPOSTする前から5msまつ、みたいな風にする
 	timer := time.NewTicker(PostInterval * PostContentNum / s.virtualTimeMulti)
 	defer timer.Stop()
 	for {
@@ -130,6 +132,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 			continue
 		}
 
+		// TODO: これは Action におくべき
 		conditionByte, err := json.Marshal(conditionsReq)
 		if err != nil {
 			logger.AdminLogger.Panic(err)
@@ -145,6 +148,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 			addErrorWithContext(ctx, step, failure.NewError(ErrHTTP, err))
 			continue // goto next loop
 		}
+		// TODO: ここで待たない(もしかしたら)
 		func() {
 			defer res.Body.Close()
 
@@ -205,6 +209,7 @@ func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChan
 	lastConditionIsBroken := state.lastCondition.IsBroken
 	if stateChange == model.IsuStateChangeBad {
 		randV := randEngine.Intn(100)
+		// TODO: 70% なら 69 じゃない, 対して影響はない
 		if randV <= 70 {
 			lastConditionIsDirty = true
 		} else if randV <= 90 {
@@ -234,6 +239,7 @@ func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChan
 	var condition model.IsuCondition
 	if state.isuStateDelete {
 		//削除された椅子のConditionは0点固定
+		// TODO: 削除当たりの処理を消す
 		condition = model.IsuCondition{
 			StateChange:    model.IsuStateChangeDelete,
 			IsSitting:      true,
@@ -258,6 +264,7 @@ func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChan
 			TimestampUnix: timeStamp.Unix(),
 			OwnerID:       jiaIsuUUID,
 		}
+		// TODO: over_weight が true のときは sitting を false にしないように
 		//sitting
 		if condition.IsSitting {
 			if randEngine.Intn(100) <= 10 {
@@ -290,27 +297,31 @@ func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChan
 		condition.Message = "今日もいい天気" //TODO: メッセージをちゃんと生成
 
 		//conditionLevel
-		warnCount := 0
-		if condition.IsDirty {
-			warnCount += 1
-		}
-		if condition.IsOverweight {
-			warnCount += 1
-		}
-		if condition.IsBroken {
-			warnCount += 1
-		}
-		if warnCount == 0 {
-			condition.ConditionLevel = model.ConditionLevelInfo
-		} else if warnCount == 1 || warnCount == 2 {
-			condition.ConditionLevel = model.ConditionLevelWarning
-		} else {
-			condition.ConditionLevel = model.ConditionLevelCritical
-		}
+		condition.ConditionLevel = calcConditionLevel(condition)
 	}
 
 	//last更新
 	state.lastCondition = condition
 
 	return condition
+}
+
+func calcConditionLevel(condition model.IsuCondition) model.ConditionLevel {
+	warnCount := 0
+	if condition.IsDirty {
+		warnCount += 1
+	}
+	if condition.IsOverweight {
+		warnCount += 1
+	}
+	if condition.IsBroken {
+		warnCount += 1
+	}
+	if warnCount == 0 {
+		return model.ConditionLevelInfo
+	} else if warnCount == 1 || warnCount == 2 {
+		return model.ConditionLevelWarning
+	} else {
+		return model.ConditionLevelCritical
+	}
 }
