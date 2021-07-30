@@ -797,15 +797,14 @@ func getIsuGraph(c echo.Context) error {
 
 	// dateから24時間分のグラフ用データを1時間単位で作成
 	for tmpTime.Before(date.Add(time.Hour * 24)) {
-		var graphData *GraphData
-
 		inRange := index < len(graphList)
 		if inRange {
 			tmpGraph = graphList[index]
 		}
 
+		var data *GraphData
 		if inRange && tmpGraph.StartAt.Equal(tmpTime) {
-			graphData = &tmpGraph.Data
+			data = &tmpGraph.Data
 
 			index++
 		}
@@ -813,7 +812,7 @@ func getIsuGraph(c echo.Context) error {
 		graphResponse := GraphResponse{
 			StartAt: tmpTime.Unix(),
 			EndAt:   tmpTime.Add(time.Hour).Unix(),
-			Data:    graphData,
+			Data:    data,
 		}
 		res = append(res, graphResponse)
 		tmpTime = tmpTime.Add(time.Hour)
