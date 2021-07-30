@@ -5,15 +5,16 @@ package scenario
 
 import (
 	"context"
-	"fmt"
 	"crypto/md5"
-	"github.com/isucon/isucon11-qualify/bench/model"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"reflect"
 	"strconv"
 	"time"
+
+	"github.com/isucon/isucon11-qualify/bench/model"
 
 	"github.com/isucon/isucandar"
 	"github.com/isucon/isucandar/agent"
@@ -34,9 +35,6 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 	//TODO: 得点調整
 	step.Result().Score.Set(ScoreNormalUserInitialize, 10)
 	step.Result().Score.Set(ScoreNormalUserLoop, 10)
-	step.Result().Score.Set(ScorePostConditionInfo, 2)
-	step.Result().Score.Set(ScorePostConditionWarning, 1)
-	step.Result().Score.Set(ScorePostConditionCritical, 0)
 
 	//初期データの生成
 	s.InitializeData()
@@ -922,10 +920,9 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 
 	dataExistTimestamp := GetConditionDataExistTimestamp(s, loginUser)
 
-	req := service.GetIsuConditionRequest{
+	req := service.GetIndividualIsuConditionRequest{
 		StartTime:        nil,
 		CursorEndTime:    dataExistTimestamp,
-		CursorJIAIsuUUID: "",
 		ConditionLevel:   "info,warning,critical",
 		Limit:            nil,
 	}
@@ -936,8 +933,7 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 		return
 	}
 	//検証 (TODO: これprepare用に正確な検証に変更する）
-	mustExistUntil := s.ToVirtualTime(time.Now()).Unix()
-	err = verifyIsuConditions(res, loginUser, isu.JIAIsuUUID, &req, conditionsTmp, mustExistUntil)
+	err = verifyIsuConditions(res, loginUser, isu.JIAIsuUUID, &req, conditionsTmp)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -1168,10 +1164,9 @@ func (s *Scenario) prepareCheckPostIsuCondition(ctx context.Context, loginUser *
 	}
 
 	limit := len(expected)
-	getReq := service.GetIsuConditionRequest{
+	getReq := service.GetIndividualIsuConditionRequest{
 		StartTime:        nil,
 		CursorEndTime:    baseTime.Add(11 * time.Minute).Unix(),
-		CursorJIAIsuUUID: "",
 		ConditionLevel:   "info,warning,critical",
 		Limit:            &limit,
 	}

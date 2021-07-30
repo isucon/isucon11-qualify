@@ -9,14 +9,15 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
-	"github.com/isucon/isucandar/agent"
-	"github.com/isucon/isucandar/failure"
-	"github.com/isucon/isucon11-qualify/bench/logger"
 	"io"
 	"net"
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/isucon/isucandar/agent"
+	"github.com/isucon/isucandar/failure"
+	"github.com/isucon/isucon11-qualify/bench/logger"
 
 	"github.com/isucon/isucon11-qualify/bench/model"
 	"github.com/isucon/isucon11-qualify/bench/service"
@@ -121,8 +122,8 @@ func verifyIsuOrderByCreatedAt(res *http.Response, expectedReverse []*model.Isu,
 //
 //mustExistUntil: この値以下のtimestampを持つものは全て反映されているべき
 func verifyIsuConditions(res *http.Response,
-	targetUser *model.User, targetIsuUUID string, request *service.GetIsuConditionRequest,
-	backendData []*service.GetIsuConditionResponse, mustExistUntil int64) error {
+	targetUser *model.User, targetIsuUUID string, request *service.GetIndividualIsuConditionRequest,
+	backendData []*service.GetIsuConditionResponse) error {
 
 	//limitを超えているかチェック
 	var limit int
@@ -151,20 +152,16 @@ func verifyIsuConditions(res *http.Response,
 			filter |= model.ConditionLevelCritical
 		}
 	}
-	var baseIter model.IsuConditionIterator
-	if targetIsuUUID != "" {
-		targetIsu := targetUser.IsuListByID[targetIsuUUID]
-		iterTmp := targetIsu.Conditions.LowerBound(filter, request.CursorEndTime, request.CursorJIAIsuUUID)
-		baseIter = &iterTmp
-	} else {
-		iterTmp := targetUser.Conditions.LowerBound(filter, request.CursorEndTime, request.CursorJIAIsuUUID)
-		baseIter = &iterTmp
-	}
 
-	//backendDataの先頭からチェック
+	targetIsu := targetUser.IsuListByID[targetIsuUUID]
+	iterTmp := targetIsu.Conditions.LowerBound(filter, request.CursorEndTime, targetIsuUUID)
+	baseIter := &iterTmp
+
+	//backendDataは新しい順にソートされているはずなので、先頭からチェック
 	var lastSort model.IsuConditionCursor
 	for i, c := range backendData {
-		nowSort := model.IsuConditionCursor{TimestampUnix: c.Timestamp, OwnerID: c.JIAIsuUUID}
+		//backendDataが新しい順にソートされていることの検証
+		nowSort := model.IsuConditionCursor{TimestampUnix: c.Timestamp, OwnerIsuUUID: c.JIAIsuUUID}
 		if i != 0 && !nowSort.Less(&lastSort) {
 			return errorInvalid(res, "整列順が正しくありません")
 		}
@@ -176,19 +173,13 @@ func verifyIsuConditions(res *http.Response,
 				return errorMissmatch(res, "POSTに成功していない時刻のデータが返されました")
 			}
 
-			if expected.TimestampUnix == c.Timestamp && expected.OwnerID == c.JIAIsuUUID {
+			if expected.TimestampUnix == c.Timestamp && expected.OwnerIsuUUID == c.JIAIsuUUID {
 				break //ok
 			}
 
-			if mustExistUntil < expected.TimestampUnix {
-				//反映されていないことが許可されているので、無視して良い
-				continue
-			}
-			
-			if expected.TimestampUnix <= c.Timestamp {
+			if expected.TimestampUnix < c.Timestamp {
 				return errorMissmatch(res, "POSTに成功していない時刻のデータが返されました")
 			}
-			return errorMissmatch(res, "データが足りません")
 		}
 
 		//等価チェック
@@ -219,12 +210,11 @@ func verifyIsuConditions(res *http.Response,
 		if c.Condition != expectedCondition ||
 			c.ConditionLevel != expectedConditionLevelStr ||
 			c.IsSitting != expected.IsSitting ||
-			c.JIAIsuUUID != expected.OwnerID ||
+			c.JIAIsuUUID != expected.OwnerIsuUUID ||
 			c.Message != expected.Message ||
 			c.IsuName != targetUser.IsuListByID[c.JIAIsuUUID].Name {
 			return errorMissmatch(res, "データが正しくありません")
 		}
-
 		lastSort = nowSort
 	}
 
