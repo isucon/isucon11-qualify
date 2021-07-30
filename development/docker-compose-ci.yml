@@ -22,7 +22,9 @@ services:
       - mysql-backend
 
   mysql-backend:
-    image: mariadb:10.3.29-focal
+    build:
+      context: .
+      dockerfile: mysql-backend/Dockerfile
     restart: always
     environment:
       MYSQL_DATABASE: isucondition
