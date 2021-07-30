@@ -129,9 +129,9 @@ type GetMeResponse struct {
 }
 
 type GraphResponse struct {
-	StartAt int64     `json:"start_at"`
-	EndAt   int64     `json:"end_at"`
-	Data    GraphData `json:"data"`
+	StartAt int64      `json:"start_at"`
+	EndAt   int64      `json:"end_at"`
+	Data    *GraphData `json:"data"`
 }
 
 type GetIsuConditionResponse struct {
