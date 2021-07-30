@@ -57,6 +57,7 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	return nil
 }
 
+// UserLoop を増やすかどうか判定し、増やすなり減らす
 func (s *Scenario) userAdder(ctx context.Context, step *isucandar.BenchmarkStep) {
 	defer logger.AdminLogger.Println("--- userAdder END")
 	//TODO: パラメーター調整
@@ -176,6 +177,7 @@ scenarioLoop:
 			addErrorWithContext(ctx, step, err)
 		}
 
+		// 1 / 2
 		if randEngine.Intn(2) < 1 {
 			//TODO: リロード
 
@@ -197,10 +199,11 @@ scenarioLoop:
 			}
 
 			//conditionを確認して、椅子状態を改善
-			solvedCondition, findTimestamp := findBadIsuState(conditions)
-			if solvedCondition != model.IsuStateChangeNone && lastSolvedTime[targetIsu.JIAIsuUUID].Before(time.Unix(findTimestamp, 0)) {
+			solveCondition, findTimestamp := findBadIsuState(conditions)
+			if solveCondition != model.IsuStateChangeNone && lastSolvedTime[targetIsu.JIAIsuUUID].Before(time.Unix(findTimestamp, 0)) {
 				//graphを見る
 				//TODO: これたぶん最新のconditionを見ているので検証コケる
+				// kiku: これってなんで悪かったらグラフを見るの？ -> 詳しいところをみたい / Graphが全体でConditionが詳細な気がする？たぶちさんにもきく
 				virtualDay := (findTimestamp / (24 * 60 * 60)) * (24 * 60 * 60)
 				_ = getIsuGraphWithPaging(ctx, step, user, targetIsu, virtualDay, 10)
 				for _, err := range errs {
@@ -214,11 +217,12 @@ scenarioLoop:
 				select {
 				case <-ctx.Done():
 					return
-				case targetIsu.StreamsForScenario.StateChan <- solvedCondition:
+				case targetIsu.StreamsForScenario.StateChan <- solveCondition:
 				}
 			}
 		} else {
 
+			// 割り算で切り捨てを発生させている(day単位)
 			virtualToday := (dataExistTimestamp / (24 * 60 * 60)) * (24 * 60 * 60)
 			virtualToday -= 24 * 60 * 60
 			graph := getIsuGraphWithPaging(ctx, step, user, targetIsu, virtualToday, 10)
@@ -226,6 +230,7 @@ scenarioLoop:
 			//悪いものを探す
 			var errorEndAtUnix int64 = 0
 			for _, g := range graph {
+				// TODO: 状態が悪いスコアの条件を切り出す
 				if g.Data != nil && g.Data.Score < 100 {
 					errorEndAtUnix = g.StartAt
 				}
@@ -252,13 +257,13 @@ scenarioLoop:
 				}
 
 				//状態改善
-				solvedCondition, findTimestamp := findBadIsuState(conditions)
-				if solvedCondition != model.IsuStateChangeNone && lastSolvedTime[targetIsu.JIAIsuUUID].Before(time.Unix(findTimestamp, 0)) {
+				solveCondition, findTimestamp := findBadIsuState(conditions)
+				if solveCondition != model.IsuStateChangeNone && lastSolvedTime[targetIsu.JIAIsuUUID].Before(time.Unix(findTimestamp, 0)) {
 					lastSolvedTime[targetIsu.JIAIsuUUID] = time.Unix(findTimestamp, 0)
 					select {
 					case <-ctx.Done():
 						return
-					case targetIsu.StreamsForScenario.StateChan <- solvedCondition: //バッファがあるのでブロック率は低い読みで直列に投げる
+					case targetIsu.StreamsForScenario.StateChan <- solveCondition: //バッファがあるのでブロック率は低い読みで直列に投げる
 					}
 				}
 			}
@@ -416,7 +421,7 @@ func getIsuGraphWithPaging(
 
 func findBadIsuState(conditions []*service.GetIsuConditionResponse) (model.IsuStateChange, int64) {
 	var virtualTimestamp int64
-	solvedCondition := model.IsuStateChangeNone
+	solveCondition := model.IsuStateChangeNone
 	for _, c := range conditions {
 		//MEMO: 重かったらフォーマットが想定通りの前提で最適化する
 		bad := false
@@ -428,20 +433,21 @@ func findBadIsuState(conditions []*service.GetIsuConditionResponse) (model.IsuSt
 			if keyValue[1] != "false" {
 				bad = true
 				if keyValue[0] == "is_dirty" {
-					solvedCondition |= model.IsuStateChangeClear
-				} else if keyValue[0] == "is_overweight" {
-					solvedCondition |= model.IsuStateChangeDetectOverweight
+					solveCondition |= model.IsuStateChangeClear
+				} else if keyValue[0] == "is_overweight" { // これだけ解消される可能性がある
+					solveCondition |= model.IsuStateChangeDetectOverweight
 				} else if keyValue[0] == "is_broken" {
-					solvedCondition |= model.IsuStateChangeRepair
+					solveCondition |= model.IsuStateChangeRepair
 				}
 			}
 		}
+		// TODO: これ == 0 で大丈夫？一度 virtualTimestamp に値を入れた時点で break したほうが良さそう(braekすると)
 		if bad && virtualTimestamp == 0 {
 			virtualTimestamp = c.Timestamp
 		}
 	}
 
-	return solvedCondition, virtualTimestamp
+	return solveCondition, virtualTimestamp
 }
 
 func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.BenchmarkStep) {
@@ -778,12 +784,12 @@ func (s *Scenario) checkCompanyConditionScenario(ctx context.Context, step *isuc
 
 func findBadIsuStateWithID(conditions []*service.GetIsuConditionResponse) (map[string]model.IsuStateChange, map[string]int64) {
 	virtualTimestamp := make(map[string]int64)
-	solvedCondition := make(map[string]model.IsuStateChange)
+	solveCondition := make(map[string]model.IsuStateChange)
 	for _, c := range conditions {
 		//MEMO: 重かったらフォーマットが想定通りの前提で最適化する
 		bad := false
-		if _, ok := solvedCondition[c.JIAIsuUUID]; !ok {
-			solvedCondition[c.JIAIsuUUID] = model.IsuStateChangeNone
+		if _, ok := solveCondition[c.JIAIsuUUID]; !ok {
+			solveCondition[c.JIAIsuUUID] = model.IsuStateChangeNone
 		}
 		for _, cond := range strings.Split(c.Condition, ",") {
 			keyValue := strings.Split(cond, "=")
@@ -793,11 +799,11 @@ func findBadIsuStateWithID(conditions []*service.GetIsuConditionResponse) (map[s
 			if keyValue[1] != "false" {
 				bad = true
 				if keyValue[0] == "is_dirty" {
-					solvedCondition[c.JIAIsuUUID] |= model.IsuStateChangeClear
+					solveCondition[c.JIAIsuUUID] |= model.IsuStateChangeClear
 				} else if keyValue[0] == "is_overweight" {
-					solvedCondition[c.JIAIsuUUID] |= model.IsuStateChangeDetectOverweight
+					solveCondition[c.JIAIsuUUID] |= model.IsuStateChangeDetectOverweight
 				} else if keyValue[0] == "is_broken" {
-					solvedCondition[c.JIAIsuUUID] |= model.IsuStateChangeRepair
+					solveCondition[c.JIAIsuUUID] |= model.IsuStateChangeRepair
 				}
 			}
 		}
@@ -806,5 +812,5 @@ func findBadIsuStateWithID(conditions []*service.GetIsuConditionResponse) (map[s
 		}
 	}
 
-	return solvedCondition, virtualTimestamp
+	return solveCondition, virtualTimestamp
 }

@@ -174,6 +174,7 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 		isu.StreamsForScenario.StateChan <- model.IsuStateChangeDelete
 		return nil
 	}
+	// TODO: これは validate でやるべきなきがする
 	if isuResponse.JIAIsuUUID != isu.JIAIsuUUID ||
 		isuResponse.Name != isu.Name ||
 		isuResponse.Character != isu.Character {
@@ -181,7 +182,7 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 	}
 	isu.StreamsForScenario.StateChan <- model.IsuStateChangeNone
 
-	//並列に生成する場合は後でgetにより正しい順番を得て、その順序でaddする
+	//並列に生成する場合は後でgetにより正しい順番を得て、その順序でaddする。企業ユーザーは並列にaddしないと回らない
 	//その場合はaddToUser==falseになる
 	if addToUser {
 		//戻り値をownerに追加する
@@ -191,6 +192,11 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 	return isu
 }
 
+// あるユーザーに対して、所有しているISUの
+// 送信が完了したconditionをlevelごとに分け、それぞれの最後に成功したもののうち一番(仮想時間的に)最初のもののうち、
+// 最初のものを返す
+// TODO: これ一つのISUだけ全然conditionを返さなかったらベンチマークハックできない？ -> 直す
+// MEMO: ここで「絶対にそこまではあるtimestamp」を保証する必要がなくなるので使わなくなるはず
 func GetConditionDataExistTimestamp(s *Scenario, user *model.User) int64 {
 	if len(user.IsuListOrderByCreatedAt) == 0 {
 		return s.virtualTimeStart.Unix()
