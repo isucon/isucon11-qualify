@@ -786,7 +786,7 @@ func getIsuGraph(c echo.Context) error {
 
 	res, err := generateIsuGraphResponse(tx, jiaIsuUUID, date)
 	if err != nil {
-		c.Logger().Errorf("cannot get graph: %v", err)
+		c.Logger().Errorf("failed to generating isu graph: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -802,9 +802,13 @@ func getIsuGraph(c echo.Context) error {
 
 // GET /api/isu/{jia_isu_uuid}/graph のレスポンス作成のため，
 // グラフのデータ点を一日分生成
-func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, date time.Time) ([]GraphResponse, error) {
+func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Time) ([]GraphResponse, error) {
 	IsuConditionCluster := []IsuCondition{} // 一時間ごとの纏まり
 	var tmpIsuCondition IsuCondition
+
+	//
+	// 指定されたISUについて，グラフのデータ点を生成
+	//
 	rows, err := tx.Queryx("SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` ASC", jiaIsuUUID)
 	if err != nil {
 		return nil, err
@@ -843,12 +847,14 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, date time.Time) ([
 		graphDatas = append(graphDatas, GraphDataPointWithInfo{JIAIsuUUID: jiaIsuUUID, StartAt: startTime, Data: data})
 	}
 
-	// 24時間分のグラフデータだけを取り出す処理
-	endDate := date.Add(time.Hour * 24)
+	//
+	// graphDateの範囲にデータ点を絞る
+	//
+	endDate := graphDate.Add(time.Hour * 24)
 	startIndex := 0
 	endNextIndex := len(graphDatas)
 	for i, graph := range graphDatas {
-		if startIndex == 0 && !graph.StartAt.Before(date) {
+		if startIndex == 0 && !graph.StartAt.Before(graphDate) {
 			startIndex = i
 		}
 		if endNextIndex == len(graphDatas) && graph.StartAt.After(endDate) {
@@ -865,11 +871,13 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, date time.Time) ([
 
 	res := []GraphResponse{}
 	index := 0
-	tmpTime := date
+	tmpTime := graphDate
 	var tmpGraph GraphDataPointWithInfo
 
-	// dateから24時間分のグラフ用データを1時間単位で作成
-	for tmpTime.Before(date.Add(time.Hour * 24)) {
+	//
+	// レスポンスを作るため，GraphResponseの配列に整形
+	//
+	for tmpTime.Before(graphDate.Add(time.Hour * 24)) {
 		inRange := index < len(graphList)
 		if inRange {
 			tmpGraph = graphList[index]
