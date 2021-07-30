@@ -804,10 +804,9 @@ func getIsuGraph(c echo.Context) error {
 // グラフのデータ点を一日分生成
 func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Time) ([]GraphResponse, error) {
 	//
-	// 指定されたISUについて，グラフのデータ点を生成
+	// 指定されたISUについて，グラフにおける一時間ごとのデータ点を計算
 	//
 
-	// isu conditionを順番に読んでいき，一時間ごとにデータ点を計算
 	dataPoints := []GraphDataPointWithInfo{}
 	conditionsInThisHour := []IsuCondition{}
 	var startTimeInThisHour time.Time
@@ -817,6 +816,7 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 	if err != nil {
 		return nil, err
 	}
+	// isu conditionを順番に読んでいき，一時間ごとにデータ点を計算
 	for rows.Next() {
 		err = rows.StructScan(&condition)
 		if err != nil {
