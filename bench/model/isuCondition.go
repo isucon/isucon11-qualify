@@ -27,7 +27,7 @@ type IsuCondition struct {
 	ConditionLevel ConditionLevel `json:"-"`
 	Message        string         `json:"message"`
 	OwnerIsuUUID   string
-	//	Owner          *Isu
+	OwnerIsuID     string
 }
 
 //left < right

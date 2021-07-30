@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	"io/ioutil"
 	"log"
+
 	"github.com/isucon/isucon11-qualify/bench/service"
 
 	"github.com/google/uuid"
@@ -46,6 +47,7 @@ type StreamsForScenario struct {
 //IsuはISU協会 Goroutineからも読み込まれる
 type Isu struct {
 	Owner              *User
+	ID                 int64
 	JIAIsuUUID         string
 	Name               string
 	ImageHash          [md5.Size]byte
