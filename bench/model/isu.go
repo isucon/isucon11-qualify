@@ -55,6 +55,7 @@ type Isu struct {
 	isDeactivated      bool                //実際にdeactivateされているか
 	StreamsForScenario *StreamsForScenario //poster Goroutineとの通信
 	Conditions         IsuConditionArray   //シナリオ Goroutineからのみ参照
+	LastReadTimestamp  int64               //シナリオ Goroutineからのみ参照
 }
 
 //新しいISUの生成

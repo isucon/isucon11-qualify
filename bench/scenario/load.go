@@ -102,6 +102,7 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 
 	randEngine := rand.New(rand.NewSource(rand.Int63()))
 	nextTargetIsuIndex := 0
+	// MEMO: シナリオのループで加点しなくなったからいらないと思う
 	scenarioSuccess := false
 	lastSolvedTime := make(map[string]time.Time)
 	for _, isu := range user.IsuListOrderByCreatedAt {
@@ -295,6 +296,75 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 	}
 	step.AddScore(ScoreNormalUserInitialize)
 	return user
+}
+
+//GET /isu/condition/{jia_isu_uuid} を一度見たconditionが出るまでページングする === 全てが新しいなら次のページに行く。補足: LastReadTimestamp は外で更新
+func (s *Scenario) getIsuConditionUntilAlreadyRead(
+	ctx context.Context,
+	user *model.User,
+	targetIsu *model.Isu,
+	request service.GetIndividualIsuConditionRequest,
+) ([]*service.GetIsuConditionResponse, []error) {
+	// 今回のこの関数で取得した condition の配列
+	conditions := []*service.GetIsuConditionResponse{}
+
+	// GET condition/{jia_isu_uuid} を取得してバリデーション
+	_, firstPageConditions, errs := browserGetIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
+		request,
+		func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
+			// TODO: validation は引数に渡さず関数の結果からやる
+			//conditionの検証
+			err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request, conditions)
+			if err != nil {
+				return []error{err}
+			}
+			return []error{}
+		},
+	)
+	if len(errs) > 0 {
+		return nil, errs
+	}
+	conditions = append(conditions, firstPageConditions...)
+
+	// limit を指定しているならそれに合わせて、指定してないならデフォルトの値を使う
+	limit := conditionLimit
+	if request.Limit != nil {
+		limit = *request.Limit
+	}
+
+	// 続きがあり、なおかつ今取得した condition が全て新しい時はスクロールする
+	for {
+		request = service.GetIndividualIsuConditionRequest{
+			StartTime:        request.StartTime,
+			CursorEndTime:    conditions[len(conditions)-1].Timestamp,
+			ConditionLevel:   request.ConditionLevel,
+			Limit:            request.Limit,
+		}
+		tmpConditions, _, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
+		if err != nil {
+			return nil, []error{err}
+		}
+		// TODO: validation
+
+		for _, cond := range tmpConditions {
+			// 新しいやつだけなら append
+			if isAlreadyRead(targetIsu, cond) {
+				conditions = append(conditions, cond)
+			} else {
+				// timestamp順なのは vaidation で保証しているので読んだやつが出てきたタイミングで return
+				return conditions, nil
+			}
+		}
+
+		// 最後のページまで見ちゃってるならやめる
+		if len(tmpConditions) != limit {
+			return conditions, nil
+		}
+	}
+}
+
+func isAlreadyRead(isu *model.Isu, condition *service.GetIsuConditionResponse) bool {
+	return condition.Timestamp > isu.LastReadTimestamp
 }
 
 //GET /isu/condition/{jia_isu_uuid} をスクロール付きで取り、バリデーションする
