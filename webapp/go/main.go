@@ -1124,8 +1124,8 @@ func postIsuCondition(c echo.Context) error {
 
 	// MEMO(isucon11-q実装者) 以下のTODOコメントはヒントにするため，予選本番でも残す
 	// TODO: これ良くないので後でなんとかする
-	DROP_PROBABILITY := 0.1
-	if rand.Float64() <= DROP_PROBABILITY {
+	dropProbability := 0.1
+	if rand.Float64() <= dropProbability {
 		c.Logger().Warnf("drop post isu condition request")
 		return c.NoContent(http.StatusCreated)
 	}
