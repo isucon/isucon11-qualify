@@ -17,7 +17,6 @@ import (
 const (
 	PostInterval      = 5 * time.Minute //Virtual Timeでのpost間隔
 	PostContentNum    = 100             //一回のpostで何要素postするか
-	ConditionTagCount = 100             //condition 100件ごとに1タグ
 )
 
 type posterState struct {
@@ -57,10 +56,6 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 	targetURL := fmt.Sprintf("%s/api/condition/%s", targetBaseURL, jiaIsuUUID)
 	httpClient := http.Client{}
 	httpClient.Timeout = postConditionTimeout
-
-	conditionInfoCount := 0
-	conditionWarningCount := 0
-	conditionCriticalCount := 0
 
 	//post isuの待ち
 	select {
@@ -147,36 +142,11 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 			// この else ブロックで validation するのは timeout 時 res.Body が nil だから
 		}
 
-		for _, condition := range conditions {
-			switch condition.ConditionLevel {
-			case model.ConditionLevelInfo:
-				conditionInfoCount++
-			case model.ConditionLevelWarning:
-				conditionWarningCount++
-			case model.ConditionLevelCritical:
-				conditionCriticalCount++
-			}
-		}
-
 		//TODO: ユーザー Goroutineが詰まると詰まるのでいや
 		select {
 		case <-ctx.Done():
 			return
 		case scenarioChan.ConditionChan <- conditions:
-		}
-
-		//TODO: スレッドを終了する際に、端数をグローバル変数に逃がして、後で集計できるようにする
-		for conditionInfoCount >= ConditionTagCount {
-			step.AddScore(ScorePostConditionInfo)
-			conditionInfoCount -= ConditionTagCount
-		}
-		for conditionWarningCount >= ConditionTagCount {
-			step.AddScore(ScorePostConditionWarning)
-			conditionWarningCount -= ConditionTagCount
-		}
-		for conditionCriticalCount >= ConditionTagCount {
-			step.AddScore(ScorePostConditionCritical)
-			conditionCriticalCount -= ConditionTagCount
 		}
 	}
 }

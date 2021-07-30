@@ -35,9 +35,6 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 	//TODO: 得点調整
 	step.Result().Score.Set(ScoreNormalUserInitialize, 10)
 	step.Result().Score.Set(ScoreNormalUserLoop, 10)
-	step.Result().Score.Set(ScorePostConditionInfo, 2)
-	step.Result().Score.Set(ScorePostConditionWarning, 1)
-	step.Result().Score.Set(ScorePostConditionCritical, 0)
 
 	//初期データの生成
 	s.InitializeData()
