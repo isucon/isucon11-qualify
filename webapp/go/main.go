@@ -784,38 +784,10 @@ func getIsuGraph(c echo.Context) error {
 		return c.String(http.StatusNotFound, "isu not found")
 	}
 
-	graphList, err := getGraphDataList(tx, jiaIsuUUID, date)
+	res, err := getGraphDataList(tx, jiaIsuUUID, date)
 	if err != nil {
 		c.Logger().Errorf("cannot get graph: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	res := []GraphResponse{}
-	index := 0
-	tmpTime := date
-	var tmpGraph Graph
-
-	// dateから24時間分のグラフ用データを1時間単位で作成
-	for tmpTime.Before(date.Add(time.Hour * 24)) {
-		inRange := index < len(graphList)
-		if inRange {
-			tmpGraph = graphList[index]
-		}
-
-		var data *GraphData
-		if inRange && tmpGraph.StartAt.Equal(tmpTime) {
-			data = &tmpGraph.Data
-
-			index++
-		}
-
-		graphResponse := GraphResponse{
-			StartAt: tmpTime.Unix(),
-			EndAt:   tmpTime.Add(time.Hour).Unix(),
-			Data:    data,
-		}
-		res = append(res, graphResponse)
-		tmpTime = tmpTime.Add(time.Hour)
 	}
 
 	// TODO: 必要以上に長めにトランザクションを取っているので後で検討
@@ -828,8 +800,8 @@ func getIsuGraph(c echo.Context) error {
 	return c.JSON(http.StatusOK, res)
 }
 
-func getGraphDataList(tx *sqlx.Tx, jiaIsuUUID string, date time.Time) ([]Graph, error) {
-	// IsuConditionを一時間ごとの区切りに分け、区切りごとにスコアを計算する
+// IsuConditionを一時間ごとの区切りに分け、区切りごとにスコアを計算する
+func getGraphDataList(tx *sqlx.Tx, jiaIsuUUID string, date time.Time) ([]GraphResponse, error) {
 	IsuConditionCluster := []IsuCondition{} // 一時間ごとの纏まり
 	var tmpIsuCondition IsuCondition
 	rows, err := tx.Queryx("SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` ASC", jiaIsuUUID)
@@ -882,14 +854,46 @@ func getGraphDataList(tx *sqlx.Tx, jiaIsuUUID string, date time.Time) ([]Graph, 
 			endNextIndex = i
 		}
 	}
+
+	var graphList []Graph
 	if endNextIndex < startIndex {
-		return []Graph{}, nil
+		graphList = []Graph{}
+	} else {
+		graphList = graphDatas[startIndex:endNextIndex]
 	}
 
-	return graphDatas[startIndex:endNextIndex], nil
+	res := []GraphResponse{}
+	index := 0
+	tmpTime := date
+	var tmpGraph Graph
+
+	// dateから24時間分のグラフ用データを1時間単位で作成
+	for tmpTime.Before(date.Add(time.Hour * 24)) {
+		inRange := index < len(graphList)
+		if inRange {
+			tmpGraph = graphList[index]
+		}
+
+		var data *GraphData
+		if inRange && tmpGraph.StartAt.Equal(tmpTime) {
+			data = &tmpGraph.Data
+
+			index++
+		}
+
+		graphResponse := GraphResponse{
+			StartAt: tmpTime.Unix(),
+			EndAt:   tmpTime.Add(time.Hour).Unix(),
+			Data:    data,
+		}
+		res = append(res, graphResponse)
+		tmpTime = tmpTime.Add(time.Hour)
+	}
+
+	return res, nil
 }
 
-//スコア計算をする関数
+// スコア計算をする関数
 func calculateGraphData(IsuConditionCluster []IsuCondition) (GraphData, error) {
 	graph := GraphData{}
 
