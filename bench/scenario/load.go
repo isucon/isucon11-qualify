@@ -108,7 +108,6 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 		lastSolvedTime[isu.JIAIsuUUID] = s.virtualTimeStart
 	}
 	scenarioLoopStopper := time.After(1 * time.Millisecond) //ループ頻度調整
-scenarioLoop:
 	for {
 		<-scenarioLoopStopper
 		scenarioLoopStopper = time.After(50 * time.Millisecond) //TODO: 頻度調整
@@ -192,10 +191,10 @@ scenarioLoop:
 			conditions := s.getIsuConditionWithScroll(ctx, step, user, targetIsu, request, 2)
 			if conditions == nil {
 				scenarioSuccess = false
-				continue scenarioLoop
+				continue
 			}
 			if len(conditions) == 0 {
-				continue scenarioLoop
+				continue
 			}
 
 			//conditionを確認して、椅子状態を改善
@@ -253,7 +252,7 @@ scenarioLoop:
 				}
 				conditions := s.getIsuConditionWithScroll(ctx, step, user, targetIsu, request, 0)
 				if conditions == nil {
-					continue scenarioLoop
+					continue
 				}
 
 				//状態改善
