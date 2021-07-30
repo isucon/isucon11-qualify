@@ -89,18 +89,18 @@ type IsuCondition struct {
 	CreatedAt  time.Time `db:"created_at"`
 }
 
-//グラフ表示用  一時間のsummry 詳細
-type GraphData struct {
+// グラフにおける一つのデータ点の情報
+type GraphDataPoint struct {
 	Score   int            `json:"score"`
 	Sitting int            `json:"sitting"`
 	Detail  map[string]int `json:"detail"`
 }
 
-//グラフ表示用  一時間のsummry
-type Graph struct {
+// グラフ作成の計算に使用
+type GraphDataPointWithInfo struct {
 	JIAIsuUUID string
 	StartAt    time.Time
-	Data       GraphData
+	Data       GraphDataPoint
 }
 
 type User struct {
@@ -129,9 +129,9 @@ type GetMeResponse struct {
 }
 
 type GraphResponse struct {
-	StartAt int64      `json:"start_at"`
-	EndAt   int64      `json:"end_at"`
-	Data    *GraphData `json:"data"`
+	StartAt int64           `json:"start_at"`
+	EndAt   int64           `json:"end_at"`
+	Data    *GraphDataPoint `json:"data"`
 }
 
 type GetIsuConditionResponse struct {
@@ -784,7 +784,7 @@ func getIsuGraph(c echo.Context) error {
 		return c.String(http.StatusNotFound, "isu not found")
 	}
 
-	res, err := getGraphDataList(tx, jiaIsuUUID, date)
+	res, err := generateIsuGraphResponse(tx, jiaIsuUUID, date)
 	if err != nil {
 		c.Logger().Errorf("cannot get graph: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -800,15 +800,16 @@ func getIsuGraph(c echo.Context) error {
 	return c.JSON(http.StatusOK, res)
 }
 
-// IsuConditionを一時間ごとの区切りに分け、区切りごとにスコアを計算する
-func getGraphDataList(tx *sqlx.Tx, jiaIsuUUID string, date time.Time) ([]GraphResponse, error) {
+// GET /api/isu/{jia_isu_uuid}/graph のレスポンス作成のため，
+// グラフのデータ点を一日分生成
+func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, date time.Time) ([]GraphResponse, error) {
 	IsuConditionCluster := []IsuCondition{} // 一時間ごとの纏まり
 	var tmpIsuCondition IsuCondition
 	rows, err := tx.Queryx("SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` ASC", jiaIsuUUID)
 	if err != nil {
 		return nil, err
 	}
-	graphDatas := []Graph{}
+	graphDatas := []GraphDataPointWithInfo{}
 	//一時間ごとに区切る
 	var startTime time.Time
 	for rows.Next() {
@@ -820,11 +821,11 @@ func getGraphDataList(tx *sqlx.Tx, jiaIsuUUID string, date time.Time) ([]GraphRe
 		if startTime != tmpTime {
 			if len(IsuConditionCluster) > 0 {
 				//tmpTimeは次の一時間なので、それ以外を使ってスコア計算
-				data, err := calculateGraphData(IsuConditionCluster)
+				data, err := calculateGraphDataPoint(IsuConditionCluster)
 				if err != nil {
 					return nil, fmt.Errorf("failed to calculate graph: %v", err)
 				}
-				graphDatas = append(graphDatas, Graph{JIAIsuUUID: jiaIsuUUID, StartAt: startTime, Data: data})
+				graphDatas = append(graphDatas, GraphDataPointWithInfo{JIAIsuUUID: jiaIsuUUID, StartAt: startTime, Data: data})
 			}
 
 			//次の一時間の探索
@@ -835,11 +836,11 @@ func getGraphDataList(tx *sqlx.Tx, jiaIsuUUID string, date time.Time) ([]GraphRe
 	}
 	if len(IsuConditionCluster) > 0 {
 		//最後の一時間分
-		data, err := calculateGraphData(IsuConditionCluster)
+		data, err := calculateGraphDataPoint(IsuConditionCluster)
 		if err != nil {
 			return nil, fmt.Errorf("failed to calculate graph: %v", err)
 		}
-		graphDatas = append(graphDatas, Graph{JIAIsuUUID: jiaIsuUUID, StartAt: startTime, Data: data})
+		graphDatas = append(graphDatas, GraphDataPointWithInfo{JIAIsuUUID: jiaIsuUUID, StartAt: startTime, Data: data})
 	}
 
 	// 24時間分のグラフデータだけを取り出す処理
@@ -855,9 +856,9 @@ func getGraphDataList(tx *sqlx.Tx, jiaIsuUUID string, date time.Time) ([]GraphRe
 		}
 	}
 
-	var graphList []Graph
+	var graphList []GraphDataPointWithInfo
 	if endNextIndex < startIndex {
-		graphList = []Graph{}
+		graphList = []GraphDataPointWithInfo{}
 	} else {
 		graphList = graphDatas[startIndex:endNextIndex]
 	}
@@ -865,7 +866,7 @@ func getGraphDataList(tx *sqlx.Tx, jiaIsuUUID string, date time.Time) ([]GraphRe
 	res := []GraphResponse{}
 	index := 0
 	tmpTime := date
-	var tmpGraph Graph
+	var tmpGraph GraphDataPointWithInfo
 
 	// dateから24時間分のグラフ用データを1時間単位で作成
 	for tmpTime.Before(date.Add(time.Hour * 24)) {
@@ -874,7 +875,7 @@ func getGraphDataList(tx *sqlx.Tx, jiaIsuUUID string, date time.Time) ([]GraphRe
 			tmpGraph = graphList[index]
 		}
 
-		var data *GraphData
+		var data *GraphDataPoint
 		if inRange && tmpGraph.StartAt.Equal(tmpTime) {
 			data = &tmpGraph.Data
 
@@ -893,18 +894,18 @@ func getGraphDataList(tx *sqlx.Tx, jiaIsuUUID string, date time.Time) ([]GraphRe
 	return res, nil
 }
 
-// スコア計算をする関数
-func calculateGraphData(IsuConditionCluster []IsuCondition) (GraphData, error) {
-	graph := GraphData{}
+// グラフの一つのデータ点を，複数のISU conditionを与えて計算
+func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, error) {
+	graph := GraphDataPoint{}
 
 	//sitting
 	sittingCount := 0
-	for _, log := range IsuConditionCluster {
+	for _, log := range isuConditions {
 		if log.IsSitting {
 			sittingCount++
 		}
 	}
-	graph.Sitting = sittingCount * 100 / len(IsuConditionCluster)
+	graph.Sitting = sittingCount * 100 / len(isuConditions)
 
 	//score&detail
 	graph.Score = 100
@@ -913,7 +914,7 @@ func calculateGraphData(IsuConditionCluster []IsuCondition) (GraphData, error) {
 	for key := range scorePerCondition {
 		graph.Detail[key] = 0
 	}
-	for _, log := range IsuConditionCluster {
+	for _, log := range isuConditions {
 		conditions := map[string]bool{}
 		//DB上にある is_dirty=true/false,is_overweight=true/false,... 形式のデータを
 		//map[string]bool形式に変換
@@ -943,8 +944,8 @@ func calculateGraphData(IsuConditionCluster []IsuCondition) (GraphData, error) {
 		}
 	}
 	//個数減点
-	if len(IsuConditionCluster) < 50 {
-		minus := -(50 - len(IsuConditionCluster)) * 2
+	if len(isuConditions) < 50 {
+		minus := -(50 - len(isuConditions)) * 2
 		graph.Score += minus
 		graph.Detail["missing_data"] = minus
 	}
