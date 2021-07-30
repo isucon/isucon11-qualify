@@ -47,7 +47,7 @@ type StreamsForScenario struct {
 //IsuはISU協会 Goroutineからも読み込まれる
 type Isu struct {
 	Owner              *User
-	ID                 int64
+	ID                 int
 	JIAIsuUUID         string
 	Name               string
 	ImageHash          [md5.Size]byte
@@ -145,6 +145,7 @@ func init() {
 
 func (isu *Isu) ToService() *service.Isu {
 	return &service.Isu{
+		ID:         isu.ID,
 		JIAIsuUUID: isu.JIAIsuUUID,
 		Name:       isu.Name,
 		Character:  isu.Character,

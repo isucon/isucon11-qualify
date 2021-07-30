@@ -13,6 +13,7 @@ import (
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
 	"github.com/isucon/isucon11-qualify/bench/random"
+	"github.com/isucon/isucon11-qualify/bench/scenario/util"
 	"github.com/isucon/isucon11-qualify/bench/service"
 )
 
@@ -180,9 +181,13 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 		isuResponse.Character != isu.Character {
 		step.AddError(errorMissmatch(res, "レスポンスBodyが正しくありません"))
 	}
+
 	// POST isu のレスポンスより ID を取得して isu モデルに代入する
 	isu.ID = isuResponse.ID
+	// poster にて jiaIsuUUID から isuID を引くために、map に key/value を登録
+	util.SetKeyValue(isu.JIAIsuUUID, isu.ID)
 
+	// poster に isu model の初期化終了を伝える
 	isu.StreamsForScenario.StateChan <- model.IsuStateChangeNone
 
 	//並列に生成する場合は後でgetにより正しい順番を得て、その順序でaddする。企業ユーザーは並列にaddしないと回らない

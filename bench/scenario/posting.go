@@ -11,6 +11,7 @@ import (
 	"github.com/isucon/isucandar"
 	"github.com/isucon/isucandar/failure"
 	"github.com/isucon/isucon11-qualify/bench/model"
+	"github.com/isucon/isucon11-qualify/bench/scenario/util"
 	"github.com/isucon/isucon11-qualify/bench/service"
 )
 
@@ -193,6 +194,10 @@ func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChan
 		}
 	}
 
+	// TODO: エラーハンドリングする
+	// MEMO: この処理に入る前に scenario.NewIsu で map の set がされるので大丈夫なはず
+	isuID, _ := util.GetIsuIDFromJIAIsuUUID(jiaIsuUUID)
+
 	//新しいConditionを生成
 	var condition model.IsuCondition
 	if state.isuStateDelete {
@@ -208,6 +213,7 @@ func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChan
 			Message:        "",
 			TimestampUnix:  timeStamp.Unix(),
 			OwnerIsuUUID:   jiaIsuUUID,
+			OwnerIsuID:     isuID,
 		}
 	} else {
 		//新しいConditionを生成
@@ -221,6 +227,7 @@ func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChan
 			Message:       "",
 			TimestampUnix: timeStamp.Unix(),
 			OwnerIsuUUID:  jiaIsuUUID,
+			OwnerIsuID:    isuID,
 		}
 		// TODO: over_weight が true のときは sitting を false にしないように
 		//sitting
