@@ -802,20 +802,14 @@ func getIsuGraph(c echo.Context) error {
 			tmpGraph = graphList[index]
 		}
 
-		var data *GraphData
 		if inRange && tmpGraph.StartAt.Equal(tmpTime) {
-			err = json.Unmarshal([]byte(tmpGraph.Data), &data)
-			if err != nil {
-				c.Logger().Errorf("failed to unmarshal json: %v", err)
-				return c.NoContent(http.StatusInternalServerError)
-			}
 			index++
 		}
 
 		graphResponse := GraphResponse{
 			StartAt: tmpTime.Unix(),
 			EndAt:   tmpTime.Add(time.Hour).Unix(),
-			Data:    data,
+			Data:    tmpGraph.Data,
 		}
 		res = append(res, graphResponse)
 		tmpTime = tmpTime.Add(time.Hour)
@@ -1217,7 +1211,7 @@ func getGraphDataList(tx *sqlx.Tx, jiaIsuUUID string, date time.Time) ([]Graph, 
 				if err != nil {
 					return nil, fmt.Errorf("failed to calculate graph: %v", err)
 				}
-				graphDatas = append(graphDatas, Graph{JIAIsuUUID: jiaIsuUUID, StartAt: startTime, Data: string(data)})
+				graphDatas = append(graphDatas, Graph{JIAIsuUUID: jiaIsuUUID, StartAt: startTime, Data: data})
 			}
 
 			//次の一時間の探索
@@ -1232,7 +1226,7 @@ func getGraphDataList(tx *sqlx.Tx, jiaIsuUUID string, date time.Time) ([]Graph, 
 		if err != nil {
 			return nil, fmt.Errorf("failed to calculate graph: %v", err)
 		}
-		graphDatas = append(graphDatas, Graph{JIAIsuUUID: jiaIsuUUID, StartAt: startTime, Data: string(data)})
+		graphDatas = append(graphDatas, Graph{JIAIsuUUID: jiaIsuUUID, StartAt: startTime, Data: data})
 	}
 
 	// 24時間分のグラフデータだけを取り出す処理
