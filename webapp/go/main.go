@@ -1126,7 +1126,7 @@ func postIsuCondition(c echo.Context) error {
 	// TODO: これ良くないので後でなんとかする
 	DROP_PROBABILITY := 0.1
 	if rand.Float64() <= DROP_PROBABILITY {
-		c.Logger().Infof("drop post isu condition request")
+		c.Logger().Warnf("drop post isu condition request")
 		return c.NoContent(http.StatusCreated)
 	}
 
