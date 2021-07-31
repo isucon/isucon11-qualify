@@ -21,12 +21,12 @@ type IsuCondition struct {
 	TimestampUnix int64 `json:"timestamp"`
 	IsSitting     bool  `json:"is_sitting"`
 	//Condition      string         `json:"condition"`
-	IsDirty        bool
-	IsOverweight   bool
-	IsBroken       bool
-	ConditionLevel ConditionLevel `json:"-"`
+	IsDirty        bool           `json:"is_dirty"`
+	IsOverweight   bool           `json:"is_overweight"`
+	IsBroken       bool           `json:"is_broken"`
+	ConditionLevel ConditionLevel `json:"condition_level"`
 	Message        string         `json:"message"`
-	OwnerIsuUUID   string
+	OwnerIsuUUID   string         `json:"owner_isu_uuid"`
 	//	Owner          *Isu
 }
 

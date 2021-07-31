@@ -3,9 +3,10 @@ package model
 import (
 	"context"
 	"crypto/md5"
+	"github.com/isucon/isucon11-qualify/bench/service"
 	"io/ioutil"
 	"log"
-	"github.com/isucon/isucon11-qualify/bench/service"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/isucon/isucon11-qualify/bench/random"
@@ -45,16 +46,17 @@ type StreamsForScenario struct {
 //一つのIsuにつき、一つの送信用 Goroutineがある
 //IsuはISU協会 Goroutineからも読み込まれる
 type Isu struct {
-	Owner              *User
-	JIAIsuUUID         string
-	Name               string
-	ImageHash          [md5.Size]byte
-	JIACatalogID       string
-	Character          string
-	IsWantDeactivated  bool                //シナリオ上でDeleteリクエストを送ったかどうか
-	isDeactivated      bool                //実際にdeactivateされているか
-	StreamsForScenario *StreamsForScenario //poster Goroutineとの通信
-	Conditions         IsuConditionArray   //シナリオ Goroutineからのみ参照
+	Owner              *User               `json:"-"`
+	JIAIsuUUID         string              `json:"jia_isu_uuid"`
+	Name               string              `json:"name"`
+	ImageHash          [md5.Size]byte      `json:"image_file_hash"`
+	JIACatalogID       string              `json:"-"`
+	Character          string              `json:"character"`
+	IsWantDeactivated  bool                `json:"-"`          //シナリオ上でDeleteリクエストを送ったかどうか
+	isDeactivated      bool                `json:"-"`          //実際にdeactivateされているか
+	StreamsForScenario *StreamsForScenario `json:"-"`          //poster Goroutineとの通信
+	Conditions         IsuConditionArray   `json:"conditions"` //シナリオ Goroutineからのみ参照
+	CreatedAt          time.Time           `json:"created_at"`
 }
 
 //新しいISUの生成

@@ -30,7 +30,7 @@ type IsuListById map[string]JsonIsuInfo
 
 type JsonIsuInfo struct {
 	Name          string         `json:"name"`
-	ImageFileHash string         `json:"image_file_hash"`
+	ImageFileHash [md5.Size]byte `json:"image_file_hash"`
 	Character     string         `json:"character"`
 	Conditions    JsonConditions `json:"conditions"`
 	CreatedAt     time.Time      `json:"created_at"`
@@ -39,7 +39,7 @@ type JsonIsuInfo struct {
 func ToJsonIsuInfo(isu Isu, conditions JsonConditions) JsonIsuInfo {
 	return JsonIsuInfo{
 		isu.Name,
-		fmt.Sprintf("%x", md5.Sum(isu.Image)),
+		md5.Sum(isu.Image),
 		isu.Character,
 		conditions,
 		isu.CreatedAt,
@@ -53,13 +53,15 @@ type JsonConditions struct {
 }
 
 type JsonCondition struct {
-	Timestamp    int64     `json:"timestamp"`
-	IsSitting    bool      `json:"is_sitting"`
-	IsDirty      bool      `json:"is_dirty"`
-	IsOverweight bool      `json:"is_overweight"`
-	IsBroken     bool      `json:"is_broken"`
-	Message      string    `json:"message"`
-	CreatedAt    time.Time `json:"created_at"`
+	Timestamp      int64          `json:"timestamp"`
+	IsSitting      bool           `json:"is_sitting"`
+	IsDirty        bool           `json:"is_dirty"`
+	IsOverweight   bool           `json:"is_overweight"`
+	IsBroken       bool           `json:"is_broken"`
+	Message        string         `json:"message"`
+	CreatedAt      time.Time      `json:"created_at"`
+	OwnerIsuUUID   string         `json:"owner_isu_uuid"`
+	ConditionLevel ConditionLevel `json:"condition_level"`
 }
 
 func (j *JsonConditions) AddCondition(condition Condition) error {
@@ -71,6 +73,8 @@ func (j *JsonConditions) AddCondition(condition Condition) error {
 		condition.IsBroken,
 		condition.Message,
 		condition.CreatedAt,
+		condition.Isu.JIAIsuUUID,
+		condition.ConditionLevel(),
 	}
 	switch condition.ConditionLevel() {
 	case ConditionLevelInfo:
