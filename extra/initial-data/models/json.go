@@ -29,6 +29,7 @@ type Json struct {
 type IsuListById map[string]JsonIsuInfo
 
 type JsonIsuInfo struct {
+	Id            int            `json:"id"`
 	Name          string         `json:"name"`
 	ImageFileHash [md5.Size]byte `json:"image_file_hash"`
 	Character     string         `json:"character"`
@@ -36,8 +37,9 @@ type JsonIsuInfo struct {
 	CreatedAt     time.Time      `json:"created_at"`
 }
 
-func ToJsonIsuInfo(isu Isu, conditions JsonConditions) JsonIsuInfo {
+func ToJsonIsuInfo(id int, isu Isu, conditions JsonConditions) JsonIsuInfo {
 	return JsonIsuInfo{
+		id,
 		isu.Name,
 		md5.Sum(isu.Image),
 		isu.Character,

@@ -23,6 +23,7 @@ func init() {
 
 func main() {
 	jsonArray := models.JsonArray{}
+	var isuCounter int
 	{ // insert data for isucon user
 		data := []struct {
 			user                     models.User
@@ -89,7 +90,8 @@ func main() {
 						log.Fatal(err)
 					}
 				}
-				isuListById[isu.JIAIsuUUID] = models.ToJsonIsuInfo(isu, jsonConditions)
+				isuCounter += 1
+				isuListById[isu.JIAIsuUUID] = models.ToJsonIsuInfo(isuCounter, isu, jsonConditions)
 			}
 			jsonData := models.Json{
 				JiaUserId:   d.user.JIAUserID,
@@ -159,7 +161,8 @@ func main() {
 						log.Fatal(err)
 					}
 				}
-				isuListById[isu.JIAIsuUUID] = models.ToJsonIsuInfo(isu, jsonConditions)
+				isuCounter += 1
+				isuListById[isu.JIAIsuUUID] = models.ToJsonIsuInfo(isuCounter, isu, jsonConditions)
 			}
 			jsonData := models.Json{
 				JiaUserId:   user.JIAUserID,

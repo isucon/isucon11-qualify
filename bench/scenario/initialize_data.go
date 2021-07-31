@@ -78,7 +78,7 @@ func (s *Scenario) InitializeData() {
 		s.normalUsers = append(s.normalUsers, &user)
 	}
 
-	// for debug
+	//for debug
 	//{
 	//	for _, user := range s.normalUsers {
 	//		logger.AdminLogger.Printf("user: %#v\n", user)
@@ -88,7 +88,7 @@ func (s *Scenario) InitializeData() {
 	//
 	//		for id, isu := range user.IsuListByID {
 	//			logger.AdminLogger.Printf("isu_id: %#v\n", id)
-	//			logger.AdminLogger.Printf("isu_info: %v %v %v %v\n", isu.Name, fmt.Sprintf("%x", isu.ImageHash), isu.Character, isu.CreatedAt)
+	//			logger.AdminLogger.Printf("isu_info: %v %v %v %v %v\n", isu.ID, isu.Name, fmt.Sprintf("%x", isu.ImageHash), isu.Character, isu.CreatedAt)
 	//			logger.AdminLogger.Printf("info len: %#v\n", len(isu.Conditions.Info))
 	//			for _, cond := range isu.Conditions.Info {
 	//				logger.AdminLogger.Printf("cond: %#v\n", cond)
