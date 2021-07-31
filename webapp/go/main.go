@@ -767,6 +767,7 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 
 			startTimeInThisHour = truncatedConditionTime
 			conditionsInThisHour = []IsuCondition{}
+			timestampsInThisHour = []int64{}
 		}
 		conditionsInThisHour = append(conditionsInThisHour, condition)
 		timestampsInThisHour = append(timestampsInThisHour, condition.Timestamp.Unix())
