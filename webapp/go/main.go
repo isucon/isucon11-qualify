@@ -1175,7 +1175,7 @@ func getIsuConditionsFromDB(jiaIsuUUID string, cursorEndTime time.Time, conditio
 	//condition_levelでの絞り込み
 	conditionsResponse := []*GetIsuConditionResponse{}
 	for _, c := range conditions {
-		cLevel, err := calcConditionLevel(c.Condition)
+		cLevel, err := getConditionLevel(c.Condition)
 		if err != nil {
 			continue
 		}
@@ -1203,7 +1203,8 @@ func getIsuConditionsFromDB(jiaIsuUUID string, cursorEndTime time.Time, conditio
 	return conditionsResponse, nil
 }
 
-func calcConditionLevel(condition string) (string, error) {
+// conditionのcsvからcondition levelを計算
+func getConditionLevel(condition string) (string, error) {
 	var conditionLevel string
 
 	warnCount := strings.Count(condition, "=true")
