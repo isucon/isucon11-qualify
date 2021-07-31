@@ -640,8 +640,8 @@ func getIsu(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	cond := IsuCondition{}
-	err = tx.Get(&cond, "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` DESC LIMIT 1",
+	lastCondition := IsuCondition{}
+	err = tx.Get(&lastCondition, "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` DESC LIMIT 1",
 		isu.JIAIsuUUID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -658,16 +658,16 @@ func getIsu(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	formatedCond := GetIsuConditionResponse{
-		JIAIsuUUID:     cond.JIAIsuUUID,
+	formatedCondition := GetIsuConditionResponse{
+		JIAIsuUUID:     lastCondition.JIAIsuUUID,
 		IsuName:        isu.Name,
-		Timestamp:      cond.Timestamp.Unix(),
-		IsSitting:      cond.IsSitting,
-		Condition:      cond.Condition,
+		Timestamp:      lastCondition.Timestamp.Unix(),
+		IsSitting:      lastCondition.IsSitting,
+		Condition:      lastCondition.Condition,
 		ConditionLevel: "", // FIXME
-		Message:        cond.Message,
+		Message:        lastCondition.Message,
 	}
-	res := GetIsuResponse{Isu: isu, LatestIsuCondition: &formatedCond}
+	res := GetIsuResponse{Isu: isu, LatestIsuCondition: &formatedCondition}
 	return c.JSON(http.StatusOK, res)
 }
 
