@@ -41,7 +41,6 @@ type IsuConditionPosterRequest struct {
 //ISU協会 Goroutineとposterの通信
 type JiaAPI2PosterData struct {
 	activated  bool
-	closeWait  <-chan struct{}
 	cancelFunc context.CancelFunc
 }
 
@@ -70,7 +69,6 @@ func (s *Scenario) JiaAPIService(ctx context.Context, step *isucandar.BenchmarkS
 
 	// Initialize
 	e.POST("/api/activate", func(c echo.Context) error { return s.postActivate(c) })
-	e.POST("/api/deactivate", postDeactivate)
 
 	// Start
 	var bindPort string
@@ -118,7 +116,6 @@ func (s *Scenario) postActivate(c echo.Context) error {
 	//poster Goroutineの起動
 	var isu *model.Isu
 	var scenarioChan *model.StreamsForPoster
-	closeWait := make(chan struct{})
 	posterContext, cancelFunc := context.WithCancel(jiaAPIContext)
 	err = func() error {
 		var ok bool
@@ -138,7 +135,6 @@ func (s *Scenario) postActivate(c echo.Context) error {
 		isuIsActivated[state.IsuUUID] = JiaAPI2PosterData{
 			activated:  true,
 			cancelFunc: cancelFunc,
-			closeWait:  closeWait,
 		}
 		isuTargetBaseUrl[state.IsuUUID] = targetBaseURL
 		// リクエストされた JIA_ISU_UUID が事前に scenario.NewIsu にて作成された isu と紐付かない場合 403 を返す
@@ -155,33 +151,9 @@ func (s *Scenario) postActivate(c echo.Context) error {
 	s.loadWaitGroup.Add(1)
 	go func() {
 		defer s.loadWaitGroup.Done()
-		s.keepPosting(posterContext, jiaAPIStep, targetBaseURL, isu, scenarioChan, closeWait)
+		s.keepPosting(posterContext, jiaAPIStep, targetBaseURL, isu, scenarioChan)
 	}()
 
 	time.Sleep(50 * time.Millisecond)
 	return c.JSON(http.StatusAccepted, IsuDetailInfomation{isu.JIACatalogID, isu.Character})
-}
-
-func postDeactivate(c echo.Context) error {
-	state := &IsuConditionPosterRequest{}
-	err := c.Bind(state)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest)
-	}
-	if !(0 <= state.TargetPort && state.TargetPort < 0x1000) {
-		return echo.NewHTTPError(http.StatusBadRequest)
-	}
-
-	streamsForPosterMutex.Lock()
-	defer streamsForPosterMutex.Unlock()
-	v, ok := isuIsActivated[state.IsuUUID]
-	if !(ok && v.activated) {
-		return echo.NewHTTPError(http.StatusNotFound)
-	}
-	v.cancelFunc()
-	v.activated = false
-	<-v.closeWait //posterの終了を待機
-
-	time.Sleep(50 * time.Millisecond)
-	return c.NoContent(http.StatusNoContent)
 }
