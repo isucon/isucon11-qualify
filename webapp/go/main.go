@@ -823,8 +823,8 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 			return nil, err
 		}
 
-		truncedConditionTime := truncateAfterHours(condition.Timestamp)
-		if truncedConditionTime != startTimeInThisHour {
+		truncatedConditionTime := truncateAfterHours(condition.Timestamp)
+		if truncatedConditionTime != startTimeInThisHour {
 			if len(conditionsInThisHour) > 0 {
 				data, err := calculateGraphDataPoint(conditionsInThisHour)
 				if err != nil {
@@ -834,7 +834,7 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 					GraphDataPointWithInfo{JIAIsuUUID: jiaIsuUUID, StartAt: startTimeInThisHour, Data: data})
 			}
 
-			startTimeInThisHour = truncedConditionTime
+			startTimeInThisHour = truncatedConditionTime
 			conditionsInThisHour = []IsuCondition{}
 		}
 		conditionsInThisHour = append(conditionsInThisHour, condition)
