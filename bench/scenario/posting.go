@@ -35,8 +35,6 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 	}()
 
 	postConditionTimeout := 50 * time.Millisecond //MEMO: timeout は気にせずにズバズバ投げる
-	userTimer, userTimerCancel := context.WithDeadline(ctx, s.realTimeLoadFinishedAt.Add(-postConditionTimeout))
-	defer userTimerCancel()
 
 	nowTimeStamp := s.ToVirtualTime(time.Now())
 	state := posterState{
@@ -61,8 +59,6 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 	select {
 	case <-ctx.Done():
 		return
-	case <-userTimer.Done():
-		return
 	case stateChange := <-scenarioChan.StateChan:
 		if stateChange == model.IsuStateChangeDelete {
 			return
@@ -72,8 +68,6 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 	for {
 		select {
 		case <-ctx.Done():
-			return
-		case <-userTimer.Done():
 			return
 		default:
 		}
