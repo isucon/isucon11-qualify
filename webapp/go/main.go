@@ -1215,30 +1215,9 @@ func truncateAfterHours(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), 0, 0, 0, t.Location())
 }
 
-// POST /api/trend?datetime=t&limit=n
-// ある時刻tにおけるISUの性格毎の最新n件のコンディション情報
+// POST /api/trend
+// ISUの性格毎の最新のコンディション情報
 func getTrend(c echo.Context) error {
-	dateTimeStr := c.QueryParam("datetime")
-	if dateTimeStr == "" {
-		c.Logger().Errorf("datetime is required")
-		return c.String(http.StatusBadRequest, "missing: datetime")
-	}
-	dateTime, err := strconv.ParseInt(dateTimeStr, 10, 64)
-	if err != nil {
-		c.Logger().Errorf("datetime is invalid format")
-		return c.String(http.StatusBadRequest, "bad format: datetime")
-	}
-
-	limitStr := c.QueryParam("limit")
-	var limit int
-	if limitStr != "" {
-		limit, err = strconv.Atoi(limitStr)
-		if err != nil || limit <= 0 {
-			c.Logger().Errorf("bad format: limit: limit = %v, %v", limit, err)
-			return c.String(http.StatusBadRequest, "bad format: limit")
-		}
-	}
-
 	// トランザクション開始
 	tx, err := db.Beginx()
 	if err != nil {
@@ -1271,8 +1250,8 @@ func getTrend(c echo.Context) error {
 		for _, isu := range isuList {
 			conditions := []IsuCondition{}
 			err = tx.Select(&conditions,
-				"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? AND `timestamp` >= ? ORDER BY timestamp DESC",
-				isu.JIAIsuUUID, dateTime,
+				"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY timestamp DESC",
+				isu.JIAIsuUUID,
 			)
 			if err != nil {
 				c.Logger().Errorf("db error: %v", err)
@@ -1287,7 +1266,7 @@ func getTrend(c echo.Context) error {
 					return c.NoContent(http.StatusInternalServerError)
 				}
 				trendCondition := TrendCondition{
-					ID:             isuLastCondition.ID,
+					ID:             isu.ID,
 					Timestamp:      isuLastCondition.Timestamp.Unix(),
 					ConditionLevel: conditionLevel,
 				}
@@ -1300,7 +1279,7 @@ func getTrend(c echo.Context) error {
 			return characterIsuConditions[i].Timestamp > characterIsuConditions[j].Timestamp
 		})
 		res = append(res,
-			TrendResponse{Character: character.Character, Conditions: characterIsuConditions[:limit]})
+			TrendResponse{Character: character.Character, Conditions: characterIsuConditions})
 	}
 
 	// トランザクション終了
