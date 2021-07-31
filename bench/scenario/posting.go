@@ -69,17 +69,13 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		}
 	}
 
-	//TODO: 頻度はちゃんと検討して変える
-	// TODO: ここを投げっぱなしにしてPOSTする前から5msまつ、みたいな風にする
-	timer := time.NewTicker(PostInterval * PostContentNum / s.virtualTimeMulti)
-	defer timer.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-userTimer.Done():
 			return
-		case <-timer.C:
+		default:
 		}
 		nowTimeStamp = s.ToVirtualTime(time.Now())
 
