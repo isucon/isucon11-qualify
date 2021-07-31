@@ -30,6 +30,7 @@ func verifyStatusCodes(res *http.Response, allowedStatusCodes []int) error {
 	for _, c := range allowedStatusCodes {
 		if res.StatusCode == c {
 			invalidStatusCode = false
+			break
 		}
 	}
 	if invalidStatusCode {
