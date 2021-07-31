@@ -169,9 +169,9 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 		req.Img = img.Img
 	}
 	isuResponse, res, err := postIsuAction(ctx, owner.Agent, req) //TODO:画像
+	// TODO: err のとき retry
 	if err != nil {
-		addErrorWithContext(ctx, step, err)
-		isu.StreamsForScenario.StateChan <- model.IsuStateChangeDelete
+		step.AddError(err)
 		return nil
 	}
 	// TODO: これは validate でやるべきなきがする
@@ -193,6 +193,8 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 		//戻り値をownerに追加する
 		owner.AddIsu(isu)
 	}
+	//投げた時間を
+	isu.PostTime = s.ToVirtualTime(time.Now())
 
 	return isu
 }
