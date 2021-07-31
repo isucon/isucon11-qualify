@@ -1271,7 +1271,7 @@ func getTrend(c echo.Context) error {
 		for _, isu := range isuList {
 			conditions := []IsuCondition{}
 			err = tx.Select(&conditions,
-				"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? AND `timestamp` >= ? ORDER BY timestamp",
+				"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? AND `timestamp` >= ? ORDER BY timestamp DESC",
 				isu.JIAIsuUUID, dateTime,
 			)
 			if err != nil {
@@ -1280,11 +1280,16 @@ func getTrend(c echo.Context) error {
 			}
 
 			if len(conditions) > 0 {
-				isuLastCondition := conditions[len(conditions)-1]
+				isuLastCondition := conditions[0]
+				conditionLevel, err := calcConditionLevel(isuLastCondition.Condition)
+				if err != nil {
+					c.Logger().Errorf("failed to get condition level: %v", err)
+					return c.NoContent(http.StatusInternalServerError)
+				}
 				trendCondition := TrendCondition{
 					ID:             isuLastCondition.ID,
 					Timestamp:      isuLastCondition.Timestamp.Unix(),
-					ConditionLevel: calcConditionLevel(isuLastCondition.Condition),
+					ConditionLevel: conditionLevel,
 				}
 				characterIsuConditions = append(characterIsuConditions, trendCondition)
 			}
