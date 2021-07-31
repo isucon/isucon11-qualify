@@ -658,7 +658,7 @@ func getIsu(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	conditionLevel, err := getConditionLevel(lastCondition.Condition)
+	conditionLevel, err := calcConditionLevel(lastCondition.Condition)
 	if err != nil {
 		c.Logger().Errorf("failed to get condition level: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -1181,7 +1181,7 @@ func getIsuConditionsFromDB(jiaIsuUUID string, cursorEndTime time.Time, conditio
 	//condition_levelでの絞り込み
 	conditionsResponse := []*GetIsuConditionResponse{}
 	for _, c := range conditions {
-		cLevel, err := getConditionLevel(c.Condition)
+		cLevel, err := calcConditionLevel(c.Condition)
 		if err != nil {
 			continue
 		}
@@ -1210,7 +1210,7 @@ func getIsuConditionsFromDB(jiaIsuUUID string, cursorEndTime time.Time, conditio
 }
 
 // conditionのcsvからcondition levelを計算
-func getConditionLevel(condition string) (string, error) {
+func calcConditionLevel(condition string) (string, error) {
 	var conditionLevel string
 
 	warnCount := strings.Count(condition, "=true")
