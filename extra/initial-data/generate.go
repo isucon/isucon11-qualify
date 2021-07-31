@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/google/uuid"
 	"log"
 	"math/rand"
 	"time"
@@ -19,6 +20,7 @@ const (
 func init() {
 	t, _ := time.Parse(time.RFC3339, "2021-07-01T00:00:00+07:00")
 	rand.Seed(t.UnixNano())
+	uuid.SetRand(rand.New(rand.NewSource(t.UnixNano())))
 }
 
 func main() {
