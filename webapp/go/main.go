@@ -907,7 +907,7 @@ func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, erro
 
 	//sitting
 	sittingCount := 0
-	for _, condition := range isuConditions {
+	for _, log := range isuConditions {
 		if log.IsSitting {
 			sittingCount++
 		}
