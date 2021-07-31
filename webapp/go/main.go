@@ -803,10 +803,10 @@ func getIsuGraph(c echo.Context) error {
 // GET /api/isu/{jia_isu_uuid}/graph のレスポンス作成のため，
 // グラフのデータ点を一日分生成
 func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Time) ([]GraphResponse, error) {
+
 	//
 	// 指定されたISUについて，グラフにおける一時間ごとのデータ点を計算
 	//
-
 	dataPoints := []GraphDataPointWithInfo{}
 	conditionsInThisHour := []IsuCondition{}
 	var startTimeInThisHour time.Time
