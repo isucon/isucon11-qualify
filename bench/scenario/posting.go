@@ -4,12 +4,10 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"net"
 	"net/http"
 	"time"
 
 	"github.com/isucon/isucandar"
-	"github.com/isucon/isucandar/failure"
 	"github.com/isucon/isucon11-qualify/bench/model"
 	"github.com/isucon/isucon11-qualify/bench/service"
 )
@@ -29,8 +27,6 @@ type posterState struct {
 //POST /api/condition/{jia_isu_id}をたたく Goroutine
 func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseURL string, isu *model.Isu, scenarioChan *model.StreamsForPoster) {
 	postConditionTimeout := 50 * time.Millisecond //MEMO: timeout は気にせずにズバズバ投げる
-	userTimer, userTimerCancel := context.WithDeadline(ctx, s.realTimeLoadFinishedAt.Add(-postConditionTimeout))
-	defer userTimerCancel()
 
 	nowTimeStamp := s.ToVirtualTime(time.Now())
 	state := posterState{
@@ -54,22 +50,14 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 	select {
 	case <-ctx.Done():
 		return
-	case <-userTimer.Done():
-		return
 	case <-scenarioChan.StateChan:
 	}
 
-	//TODO: 頻度はちゃんと検討して変える
-	// TODO: ここを投げっぱなしにしてPOSTする前から5msまつ、みたいな風にする
-	timer := time.NewTicker(PostInterval * PostContentNum / s.virtualTimeMulti)
-	defer timer.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-userTimer.Done():
-			return
-		case <-timer.C:
+		default:
 		}
 		nowTimeStamp = s.ToVirtualTime(time.Now())
 
@@ -121,23 +109,8 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		case scenarioChan.ConditionChan <- conditions:
 		}
 
-		_, err := postIsuConditionAction(httpClient, targetURL, &conditionsReq)
-		if err != nil {
-			nerr, ok := err.(net.Error)
-			// オリジナルのエラーなら失敗したっていうこと
-			if !ok {
-				addErrorWithContext(ctx, step, failure.NewError(ErrHTTP, err))
-				continue // goto next loop
-			}
-			// タイムアウトなら無視する
-			if !nerr.Timeout() {
-				addErrorWithContext(ctx, step, failure.NewError(ErrHTTP, err))
-				continue // goto next loop
-			}
-		} else {
-			// TODO: validation
-			// この else ブロックで validation するのは timeout 時 res.Body が nil だから
-		}
+		// timeout も無視するので全てのエラーを見ない
+		postIsuConditionAction(httpClient, targetURL, &conditionsReq)
 	}
 }
 
