@@ -65,7 +65,7 @@ type Config struct {
 }
 
 type GetIsuResponse struct {
-	Isu                Isu                      `json:"isu"`
+	Isu
 	LatestIsuCondition *GetIsuConditionResponse `json:"latest_isu_condition"`
 }
 
