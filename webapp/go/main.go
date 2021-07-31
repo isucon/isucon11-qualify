@@ -1215,19 +1215,11 @@ func truncateAfterHours(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), 0, 0, 0, t.Location())
 }
 
-// POST /api/trend
+// GET /api/trend
 // ISUの性格毎の最新のコンディション情報
 func getTrend(c echo.Context) error {
-	// トランザクション開始
-	tx, err := db.Beginx()
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	defer tx.Rollback()
-
 	characterList := []Isu{}
-	err = tx.Select(&characterList, "SELECT * FROM `isu` GROUP BY `character`")
+	err := db.Select(&characterList, "SELECT * FROM `isu` GROUP BY `character`")
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -1237,7 +1229,7 @@ func getTrend(c echo.Context) error {
 
 	for _, character := range characterList {
 		isuList := []Isu{}
-		err = tx.Select(&isuList,
+		err = db.Select(&isuList,
 			"SELECT * FROM `isu` WHERE `character` = ?",
 			character.Character,
 		)
@@ -1249,7 +1241,7 @@ func getTrend(c echo.Context) error {
 		characterIsuConditions := []TrendCondition{}
 		for _, isu := range isuList {
 			conditions := []IsuCondition{}
-			err = tx.Select(&conditions,
+			err = db.Select(&conditions,
 				"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY timestamp DESC",
 				isu.JIAIsuUUID,
 			)
@@ -1280,13 +1272,6 @@ func getTrend(c echo.Context) error {
 		})
 		res = append(res,
 			TrendResponse{Character: character.Character, Conditions: characterIsuConditions})
-	}
-
-	// トランザクション終了
-	err = tx.Commit()
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	return c.JSON(http.StatusOK, res)
