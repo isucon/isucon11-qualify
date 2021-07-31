@@ -28,7 +28,7 @@ type posterState struct {
 }
 
 //POST /api/condition/{jia_isu_id}をたたく Goroutine
-func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseURL string, jiaIsuUUID string, scenarioChan *model.StreamsForPoster, closeWait chan<- struct{}) {
+func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseURL string, isu *model.Isu, scenarioChan *model.StreamsForPoster, closeWait chan<- struct{}) {
 	defer func() {
 		close(closeWait)
 		scenarioChan.ActiveChan <- false //deactivate 容量1で、ここでしか使わないのでブロックしない
@@ -53,7 +53,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		isuStateDelete:       false,
 	}
 	randEngine := rand.New(rand.NewSource(rand.Int63()))
-	targetURL := fmt.Sprintf("%s/api/condition/%s", targetBaseURL, jiaIsuUUID)
+	targetURL := fmt.Sprintf("%s/api/condition/%s", targetBaseURL, isu.JIAIsuUUID)
 	httpClient := http.Client{}
 	httpClient.Timeout = postConditionTimeout
 
@@ -99,8 +99,8 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		conditionsReq := []service.PostIsuConditionRequest{}
 		for state.NextConditionTimestamp().Before(nowTimeStamp) {
 			//次のstateを生成
-			condition := state.GenerateNextCondition(randEngine, stateChange, jiaIsuUUID) //TODO: stateの適用タイミングをちゃんと考える
-			stateChange = model.IsuStateChangeNone                                        //TODO: stateの適用タイミングをちゃんと考える
+			condition := state.GenerateNextCondition(randEngine, stateChange, isu) //TODO: stateの適用タイミングをちゃんと考える
+			stateChange = model.IsuStateChangeNone                                 //TODO: stateの適用タイミングをちゃんと考える
 
 			//リクエスト
 			conditions = append(conditions, condition)
@@ -157,7 +157,7 @@ func (state *posterState) NextConditionTimestamp() time.Time {
 func (state *posterState) NextIsLatestTimestamp(nowTimeStamp time.Time) bool {
 	return nowTimeStamp.Before(time.Unix(state.lastCondition.TimestampUnix, 0).Add(PostInterval * 2))
 }
-func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChange model.IsuStateChange, jiaIsuUUID string) model.IsuCondition {
+func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChange model.IsuStateChange, isu *model.Isu) model.IsuCondition {
 
 	timeStamp := state.NextConditionTimestamp()
 
@@ -207,7 +207,8 @@ func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChan
 			ConditionLevel: model.ConditionLevelCritical,
 			Message:        "",
 			TimestampUnix:  timeStamp.Unix(),
-			OwnerIsuUUID:   jiaIsuUUID,
+			OwnerIsuUUID:   isu.JIAIsuUUID,
+			OwnerIsuID:     isu.ID,
 		}
 	} else {
 		//新しいConditionを生成
@@ -220,7 +221,8 @@ func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChan
 			//ConditionLevel: model.ConditionLevelCritical,
 			Message:       "",
 			TimestampUnix: timeStamp.Unix(),
-			OwnerIsuUUID:  jiaIsuUUID,
+			OwnerIsuUUID:  isu.JIAIsuUUID,
+			OwnerIsuID:    isu.ID,
 		}
 		// TODO: over_weight が true のときは sitting を false にしないように
 		//sitting
