@@ -347,6 +347,7 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 			return []error{}
 		},
 	)
+	// TODO: retry
 	if len(errs) > 0 {
 		return nil, errs
 	}
@@ -373,6 +374,7 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 			Limit:            request.Limit,
 		}
 		tmpConditions, _, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
+		// TODO: retry
 		if err != nil {
 			return nil, []error{err}
 		}
