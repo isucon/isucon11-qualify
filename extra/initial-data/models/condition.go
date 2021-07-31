@@ -17,6 +17,13 @@ type Condition struct {
 	Message      string
 	CreatedAt    time.Time
 }
+type ConditionLevel int
+
+const (
+	ConditionLevelInfo     ConditionLevel = 1
+	ConditionLevelWarning  ConditionLevel = 2
+	ConditionLevelCritical ConditionLevel = 4
+)
 
 func NewCondition(isu Isu) Condition {
 	t := isu.CreatedAt.Add(time.Minute) // 初回 condition は ISU が作成された時間 + 1分後
@@ -54,4 +61,24 @@ func (c Condition) Create() error {
 	}
 
 	return nil
+}
+
+func (c Condition) ConditionLevel() ConditionLevel {
+	warnCount := 0
+	if c.IsDirty {
+		warnCount += 1
+	}
+	if c.IsOverweight {
+		warnCount += 1
+	}
+	if c.IsBroken {
+		warnCount += 1
+	}
+	if warnCount == 0 {
+		return ConditionLevelInfo
+	} else if warnCount == 1 || warnCount == 2 {
+		return ConditionLevelWarning
+	} else {
+		return ConditionLevelCritical
+	}
 }
