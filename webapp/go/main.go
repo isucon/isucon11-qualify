@@ -854,19 +854,19 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 	//
 	endTime := graphDate.Add(time.Hour * 24)
 	startIndex := 0
-	endIndex := len(dataPoints)
+	endNextIndex := len(dataPoints)
 	for i, graph := range dataPoints {
 		if startIndex == 0 && !graph.StartAt.Before(graphDate) {
 			startIndex = i
 		}
-		if endIndex == len(dataPoints) && graph.StartAt.After(endTime) {
-			endIndex = i
+		if endNextIndex == len(dataPoints) && graph.StartAt.After(endTime) {
+			endNextIndex = i
 		}
 	}
 
 	var filteredDataPoints []GraphDataPointWithInfo
-	if startIndex < endIndex  {
-		filteredDataPoints = dataPoints[startIndex:endIndex]
+	if startIndex < endNextIndex {
+		filteredDataPoints = dataPoints[startIndex:endNextIndex]
 	}
 
 	//
