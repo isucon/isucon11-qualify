@@ -480,7 +480,7 @@ func postIsuConditionAction(httpClient http.Client, targetUrl string, req *[]ser
 		return nil, err
 	}
 
-	if err := verifyStatusCode(res, http.StatusCreated); err != nil {
+	if err := verifyStatusCodes(res, []int{http.StatusCreated, http.StatusServiceUnavailable}); err != nil {
 		return nil, err
 	}
 	return res, nil
