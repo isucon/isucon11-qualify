@@ -32,7 +32,6 @@ type JsonIsuInfo struct {
 	Name          string         `json:"name"`
 	ImageFileHash string         `json:"image_file_hash"`
 	Character     string         `json:"character"`
-	IsDeleted     bool           `json:"is_deleted"`
 	Conditions    JsonConditions `json:"conditions"`
 	CreatedAt     time.Time      `json:"created_at"`
 }
@@ -42,7 +41,6 @@ func ToJsonIsuInfo(isu Isu, conditions JsonConditions) JsonIsuInfo {
 		isu.Name,
 		fmt.Sprintf("%x", md5.Sum(isu.Image)),
 		isu.Character,
-		isu.IsDeleted,
 		conditions,
 		isu.CreatedAt,
 	}
