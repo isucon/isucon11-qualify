@@ -18,7 +18,6 @@ type IsuStateChange int
 const (
 	IsuStateChangeNone IsuStateChange = iota
 	IsuStateChangeBad
-	IsuStateChangeDelete           //椅子を削除する
 	IsuStateChangeClear            = 1 << 3
 	IsuStateChangeDetectOverweight = 1 << 4
 	IsuStateChangeRepair           = 1 << 5
@@ -53,7 +52,6 @@ type Isu struct {
 	ImageHash          [md5.Size]byte
 	JIACatalogID       string
 	Character          string
-	IsWantDeactivated  bool                //シナリオ上でDeleteリクエストを送ったかどうか
 	isDeactivated      bool                //実際にdeactivateされているか
 	StreamsForScenario *StreamsForScenario //poster Goroutineとの通信
 	Conditions         IsuConditionArray   //シナリオ Goroutineからのみ参照
@@ -80,7 +78,6 @@ func NewRandomIsuRaw(owner *User) (*Isu, *StreamsForPoster, error) {
 		ImageHash:         defaultIconHash,
 		JIACatalogID:      "550e8400-e29b-41d4-a716-446655440000", //TODO:
 		Character:         random.Character(),
-		IsWantDeactivated: false,
 		isDeactivated:     true,
 		StreamsForScenario: &StreamsForScenario{
 			activeChan:    activeChan,

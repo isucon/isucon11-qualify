@@ -24,7 +24,6 @@ type posterState struct {
 	lastCondition        model.IsuCondition
 	lastClean            time.Time
 	lastDetectOverweight time.Time
-	isuStateDelete       bool //椅子を削除する(正の点数が出るpostを行わない)
 }
 
 //POST /api/condition/{jia_isu_id}をたたく Goroutine
@@ -50,7 +49,6 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		},
 		lastClean:            nowTimeStamp,
 		lastDetectOverweight: nowTimeStamp,
-		isuStateDelete:       false,
 	}
 	randEngine := rand.New(rand.NewSource(rand.Int63()))
 	targetURL := fmt.Sprintf("%s/api/condition/%s", targetBaseURL, isu.JIAIsuUUID)
@@ -63,10 +61,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		return
 	case <-userTimer.Done():
 		return
-	case stateChange := <-scenarioChan.StateChan:
-		if stateChange == model.IsuStateChangeDelete {
-			return
-		}
+	case <-scenarioChan.StateChan:
 	}
 
 	//TODO: 頻度はちゃんと検討して変える
@@ -176,8 +171,6 @@ func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChan
 			lastConditionIsDirty = true
 			lastConditionIsBroken = true
 		}
-	} else if stateChange == model.IsuStateChangeDelete {
-		state.isuStateDelete = true
 	} else {
 		//各種状態改善クエリ
 		if stateChange&model.IsuStateChangeClear != 0 {
@@ -194,71 +187,52 @@ func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChan
 	}
 
 	//新しいConditionを生成
-	var condition model.IsuCondition
-	if state.isuStateDelete {
-		//削除された椅子のConditionは0点固定
-		// TODO: 削除当たりの処理を消す
-		condition = model.IsuCondition{
-			StateChange:    model.IsuStateChangeDelete,
-			IsSitting:      true,
-			IsDirty:        true,
-			IsOverweight:   true,
-			IsBroken:       true,
-			ConditionLevel: model.ConditionLevelCritical,
-			Message:        "",
-			TimestampUnix:  timeStamp.Unix(),
-			OwnerIsuUUID:   isu.JIAIsuUUID,
-			OwnerIsuID:     isu.ID,
+	condition := model.IsuCondition{
+		StateChange:  stateChange,
+		IsSitting:    state.lastCondition.IsSitting,
+		IsDirty:      lastConditionIsDirty,
+		IsOverweight: lastConditionIsOverweight,
+		IsBroken:     lastConditionIsBroken,
+		//ConditionLevel: model.ConditionLevelCritical,
+		Message:       "",
+		TimestampUnix: timeStamp.Unix(),
+		OwnerIsuUUID:  isu.JIAIsuUUID,
+		OwnerIsuID:    isu.ID,
+	}
+	// TODO: over_weight が true のときは sitting を false にしないように
+	//sitting
+	if condition.IsSitting {
+		if randEngine.Intn(100) <= 10 {
+			condition.IsSitting = false
+			condition.IsOverweight = false
 		}
 	} else {
-		//新しいConditionを生成
-		condition = model.IsuCondition{
-			StateChange:  stateChange,
-			IsSitting:    state.lastCondition.IsSitting,
-			IsDirty:      lastConditionIsDirty,
-			IsOverweight: lastConditionIsOverweight,
-			IsBroken:     lastConditionIsBroken,
-			//ConditionLevel: model.ConditionLevelCritical,
-			Message:       "",
-			TimestampUnix: timeStamp.Unix(),
-			OwnerIsuUUID:  isu.JIAIsuUUID,
-			OwnerIsuID:    isu.ID,
+		if randEngine.Intn(100) <= 10 {
+			condition.IsSitting = true
 		}
-		// TODO: over_weight が true のときは sitting を false にしないように
-		//sitting
-		if condition.IsSitting {
-			if randEngine.Intn(100) <= 10 {
-				condition.IsSitting = false
-				condition.IsOverweight = false
-			}
-		} else {
-			if randEngine.Intn(100) <= 10 {
-				condition.IsSitting = true
-			}
-		}
-		//overweight
-		if condition.IsSitting && timeStamp.Sub(state.lastDetectOverweight) > 60*time.Minute {
-			if randEngine.Intn(100) <= 5 {
-				condition.IsOverweight = true
-			}
-		}
-		//dirty
-		if timeStamp.Sub(state.lastClean) > 75*time.Minute {
-			if randEngine.Intn(100) <= 5 {
-				condition.IsDirty = true
-			}
-		}
-		//broken
-		if randEngine.Intn(1000) <= 1 {
-			condition.IsBroken = true
-		}
-
-		//message
-		condition.Message = "今日もいい天気" //TODO: メッセージをちゃんと生成
-
-		//conditionLevel
-		condition.ConditionLevel = calcConditionLevel(condition)
 	}
+	//overweight
+	if condition.IsSitting && timeStamp.Sub(state.lastDetectOverweight) > 60*time.Minute {
+		if randEngine.Intn(100) <= 5 {
+			condition.IsOverweight = true
+		}
+	}
+	//dirty
+	if timeStamp.Sub(state.lastClean) > 75*time.Minute {
+		if randEngine.Intn(100) <= 5 {
+			condition.IsDirty = true
+		}
+	}
+	//broken
+	if randEngine.Intn(1000) <= 1 {
+		condition.IsBroken = true
+	}
+
+	//message
+	condition.Message = "今日もいい天気" //TODO: メッセージをちゃんと生成
+
+	//conditionLevel
+	condition.ConditionLevel = calcConditionLevel(condition)
 
 	//last更新
 	state.lastCondition = condition
