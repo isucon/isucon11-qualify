@@ -74,11 +74,6 @@ func (i Isu) WithUpdateImage() Isu {
 	i.UpdatedAt = random.TimeAfterArg(i.UpdatedAt)
 	return i
 }
-func (i Isu) WithDelete() Isu {
-	i.IsDeleted = true
-	i.UpdatedAt = random.TimeAfterArg(i.UpdatedAt)
-	return i
-}
 
 func (i Isu) Create() error {
 	if _, err := db.Exec("INSERT INTO isu(`jia_isu_uuid`,`name`,`image`,`character`,`jia_user_id`,`created_at`,`updated_at`) VALUES (?,?,?,?,?,?,?,?)",
