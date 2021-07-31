@@ -13,7 +13,6 @@ import (
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
 	"github.com/isucon/isucon11-qualify/bench/random"
-	"github.com/isucon/isucon11-qualify/bench/scenario/util"
 	"github.com/isucon/isucon11-qualify/bench/service"
 )
 
@@ -157,7 +156,7 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 	}
 
 	//ISU協会にIsu*を登録する必要あり
-	RegisterToJiaAPI(isu.JIAIsuUUID, &IsuDetailInfomation{CatalogID: isu.JIACatalogID, Character: isu.Character}, streamsForPoster)
+	RegisterToJiaAPI(isu.JIAIsuUUID, isu, streamsForPoster)
 
 	//backendにpostする
 	//TODO: 確率で失敗してリトライする
@@ -185,7 +184,7 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 	// POST isu のレスポンスより ID を取得して isu モデルに代入する
 	isu.ID = isuResponse.ID
 	// poster にて jiaIsuUUID から isuID を引くために、map に key/value を登録
-	util.SetKeyValue(isu.JIAIsuUUID, isu.ID)
+	//util.SetKeyValue(isu.JIAIsuUUID, isu.ID)
 
 	// poster に isu model の初期化終了を伝える
 	isu.StreamsForScenario.StateChan <- model.IsuStateChangeNone
