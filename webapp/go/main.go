@@ -566,7 +566,7 @@ func postIsu(c echo.Context) error {
 
 	resBody, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		c.Logger().Errorf("error occured while reading JIA response: %v", err)
+		c.Logger().Errorf("error occurred while reading JIA response: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
