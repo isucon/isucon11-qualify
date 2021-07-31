@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -143,8 +144,6 @@ type GraphDataPointWithInfo struct {
 	Data                GraphDataPoint
 	ConditionTimestamps []int64
 }
-
-type ConditionLevel string
 
 type GetIsuConditionResponse struct {
 	JIAIsuUUID     string `json:"jia_isu_uuid"`
@@ -1216,87 +1215,19 @@ func truncateAfterHours(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), 0, 0, 0, t.Location())
 }
 
-//スコア計算をする関数
-func calculateGraphData(IsuConditionCluster []IsuCondition) ([]byte, error) {
-	graph := &GraphData{}
-
-	//sitting
-	sittingCount := 0
-	for _, log := range IsuConditionCluster {
-		if log.IsSitting {
-			sittingCount++
-		}
-	}
-	graph.Sitting = sittingCount * 100 / len(IsuConditionCluster)
-
-	//score&detail
-	graph.Score = 100
-	//condition要因の減点
-	graph.Detail = map[string]int{}
-	for key := range scorePerCondition {
-		graph.Detail[key] = 0
-	}
-	for _, log := range IsuConditionCluster {
-		conditions := map[string]bool{}
-		//DB上にある is_dirty=true/false,is_overweight=true/false,... 形式のデータを
-		//map[string]bool形式に変換
-		for _, cond := range strings.Split(log.Condition, ",") {
-			keyValue := strings.Split(cond, "=")
-			if len(keyValue) != 2 {
-				continue //形式に従っていないものは無視
-			}
-			conditions[keyValue[0]] = (keyValue[1] != "false")
-		}
-
-		//trueになっているものは減点
-		for key, enabled := range conditions {
-			if enabled {
-				score, ok := scorePerCondition[key]
-				if ok {
-					graph.Score += score
-					graph.Detail[key] += score
-				}
-			}
-		}
-	}
-	//スコアに影響がないDetailを削除
-	for key := range scorePerCondition {
-		if graph.Detail[key] == 0 {
-			delete(graph.Detail, key)
-		}
-	}
-	//個数減点
-	if len(IsuConditionCluster) < 50 {
-		minus := -(50 - len(IsuConditionCluster)) * 2
-		graph.Score += minus
-		graph.Detail["missing_data"] = minus
-	}
-	if graph.Score < 0 {
-		graph.Score = 0
-	}
-
-	//JSONに変換
-	graphJSON, err := json.Marshal(graph)
-	if err != nil {
-		return nil, err
-	}
-	return graphJSON, nil
-}
-
-// POST /api/trend?date=t&limit=n
+// POST /api/trend?datetime=t&limit=n
 // ある時刻tにおけるISUの性格毎の最新n件のコンディション情報
 func getTrend(c echo.Context) error {
-	dateStr := c.QueryParam("date")
-	if dateStr == "" {
-		c.Logger().Errorf("date is required")
-		return c.String(http.StatusBadRequest, "date is required")
+	dateTimeStr := c.QueryParam("datetime")
+	if dateTimeStr == "" {
+		c.Logger().Errorf("datetime is required")
+		return c.String(http.StatusBadRequest, "missing: datetime")
 	}
-	dateInt64, err := strconv.ParseInt(dateStr, 10, 64)
+	dateTime, err := strconv.ParseInt(dateTimeStr, 10, 64)
 	if err != nil {
-		c.Logger().Errorf("date is invalid format")
-		return c.String(http.StatusBadRequest, "date is invalid format")
+		c.Logger().Errorf("datetime is invalid format")
+		return c.String(http.StatusBadRequest, "bad format: datetime")
 	}
-	date := truncateAfterDays(time.Unix(dateInt64, 0))
 
 	limitStr := c.QueryParam("limit")
 	var limit int
@@ -1328,7 +1259,7 @@ func getTrend(c echo.Context) error {
 	for _, character := range characterList {
 		isuList := []Isu{}
 		err = tx.Select(&isuList,
-			"SELECT * FROM `isu` WHERE `character` = ? AND `is_deleted` = false",
+			"SELECT * FROM `isu` WHERE `character` = ?",
 			character.Character,
 		)
 		if err != nil {
@@ -1341,27 +1272,30 @@ func getTrend(c echo.Context) error {
 			conditions := []IsuCondition{}
 			err = tx.Select(&conditions,
 				"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? AND `timestamp` >= ? ORDER BY timestamp",
-				isu.JIAIsuUUID, date,
+				isu.JIAIsuUUID, dateTime,
 			)
 			if err != nil {
 				c.Logger().Errorf("db error: %v", err)
 				return c.NoContent(http.StatusInternalServerError)
 			}
 
-			isuLastCondition := conditions[len(conditions)-1]
-			trendCondition := TrendCondition{
-				ID:             isuLastCondition.ID,
-				Timestamp:      isuLastCondition.Timestamp.Unix(),
-				ConditionLevel: calcConditionLevel(isuLastCondition.Condition),
+			if len(conditions) > 0 {
+				isuLastCondition := conditions[len(conditions)-1]
+				trendCondition := TrendCondition{
+					ID:             isuLastCondition.ID,
+					Timestamp:      isuLastCondition.Timestamp.Unix(),
+					ConditionLevel: calcConditionLevel(isuLastCondition.Condition),
+				}
+				characterIsuConditions = append(characterIsuConditions, trendCondition)
 			}
-			characterIsuConditions = append(characterIsuConditions, trendCondition)
+
 		}
 		// timestampを降順ソート
 		sort.Slice(characterIsuConditions, func(i, j int) bool {
 			return characterIsuConditions[i].Timestamp > characterIsuConditions[j].Timestamp
 		})
 		res = append(res,
-			TrendResponse{Character: character.Character, Conditions: characterIsuConditions[0:limit]})
+			TrendResponse{Character: character.Character, Conditions: characterIsuConditions[:limit]})
 	}
 
 	// トランザクション終了
