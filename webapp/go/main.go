@@ -1175,15 +1175,9 @@ func getIsuConditionsFromDB(jiaIsuUUID string, cursorEndTime time.Time, conditio
 	//condition_levelでの絞り込み
 	conditionsResponse := []*GetIsuConditionResponse{}
 	for _, c := range conditions {
-		var cLevel string
-		warnCount := strings.Count(c.Condition, "=true")
-		switch warnCount {
-		case 0:
-			cLevel = "info"
-		case 1, 2:
-			cLevel = "warning"
-		case 3:
-			cLevel = "critical"
+		cLevel, err := calcConditionLevel(c.Condition)
+		if err != nil {
+			continue
 		}
 
 		if _, ok := conditionLevel[cLevel]; ok {
@@ -1207,6 +1201,24 @@ func getIsuConditionsFromDB(jiaIsuUUID string, cursorEndTime time.Time, conditio
 	}
 
 	return conditionsResponse, nil
+}
+
+func calcConditionLevel(condition string) (string, error) {
+	var conditionLevel string
+
+	warnCount := strings.Count(condition, "=true")
+	switch warnCount {
+	case 0:
+		conditionLevel = "info"
+	case 1, 2:
+		conditionLevel = "warning"
+	case 3:
+		conditionLevel = "critical"
+	default:
+		return "", fmt.Errorf("unexpected warn count")
+	}
+
+	return conditionLevel, nil
 }
 
 // POST /api/condition/{jia_isu_uuid}
