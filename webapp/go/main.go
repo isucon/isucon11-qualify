@@ -65,6 +65,7 @@ type Config struct {
 }
 
 type Isu struct {
+	ID         int       `db:"id" json:"id"`
 	JIAIsuUUID string    `db:"jia_isu_uuid" json:"jia_isu_uuid"`
 	Name       string    `db:"name" json:"name"`
 	Image      []byte    `db:"image" json:"-"`
