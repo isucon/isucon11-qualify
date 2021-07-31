@@ -12,7 +12,6 @@ import (
 
 	"github.com/isucon/isucandar"
 	"github.com/isucon/isucandar/agent"
-	"github.com/isucon/isucandar/worker"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
 	"github.com/isucon/isucon11-qualify/bench/service"
@@ -275,22 +274,9 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 	isuCount := rand.Intn(isuCountMax) + 1
 	for i := 0; i < isuCount; i++ {
 		isu := s.NewIsu(ctx, step, user, true, nil)
+		// TODO: retry
 		if isu == nil {
-			//deactivate
-			for _, isu := range user.IsuListOrderByCreatedAt {
-				go func(isu *model.Isu) { isu.StreamsForScenario.StateChan <- model.IsuStateChangeDelete }(isu)
-			}
-			for _, isu := range user.IsuListOrderByCreatedAt {
-				res, err := deleteIsuAction(ctx, user.Agent, isu.JIAIsuUUID)
-				if err != nil {
-					step.AddError(err)
-				} else if !isu.IsDeactivated() {
-					step.AddError(errorInvalid(res, "deactivateが完了していません"))
-				}
-			}
-
-			//logger.AdminLogger.Println("Normal User fail: NewIsu(initialize)")
-			return nil //致命的でないエラー
+			return nil
 		}
 	}
 	step.AddScore(ScoreNormalUserInitialize)
@@ -444,7 +430,7 @@ func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.Benchmar
 	logger.AdminLogger.Println("Company User start")
 	defer logger.AdminLogger.Println("Company User END")
 
-	user, userAgents := s.initCompanyUser(ctx, step)
+	user, _ := s.initCompanyUser(ctx, step)
 	if user == nil {
 		return //致命的でないエラー
 	}
@@ -452,52 +438,12 @@ func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.Benchmar
 	//椅子作成
 	//const isuCountMax = 1000
 	isuCount := rand.Intn(10) + 500
-	newIsuOK := true
 	for i := 0; i < isuCount; i++ {
 		isu := s.NewIsu(ctx, step, user, true, nil)
+		// TODO: retry
 		if isu == nil {
-			newIsuOK = false
-			break
+			return
 		}
-	}
-	if !newIsuOK {
-		//並列にdeactivate
-		isuChan := make(chan *model.Isu, len(user.IsuListOrderByCreatedAt))
-		for _, isu := range user.IsuListOrderByCreatedAt {
-			go func(isu *model.Isu) { isu.StreamsForScenario.StateChan <- model.IsuStateChangeDelete }(isu)
-			isuChan <- isu
-		}
-		close(isuChan)
-		w, err := worker.NewWorker(func(ctx context.Context, index int) {
-			agent := userAgents[index]
-			_, errs := authAction(ctx, agent, user.UserID)
-			for _, err := range errs {
-				step.AddError(err)
-				return
-			}
-			for isu := range isuChan {
-				select {
-				case <-ctx.Done():
-					return
-				default:
-				}
-				res, err := deleteIsuAction(ctx, agent, isu.JIAIsuUUID)
-				if err != nil {
-					step.AddError(err)
-				} else if !isu.IsDeactivated() {
-					step.AddError(errorInvalid(res, "deactivateが完了していません"))
-				}
-			}
-		}, worker.WithLoopCount(int32(len(userAgents))))
-		if err != nil {
-			logger.AdminLogger.Panicln(err)
-		}
-		w.Process(ctx)
-		//w.Wait()
-		//MEMO: ctx.Done()の場合は、プロセスが終了していない可能性がある。
-
-		logger.AdminLogger.Println("Company User fail: NewIsu(initialize)")
-		return //致命的でないエラー
 	}
 
 	step.AddScore(ScoreCompanyUserInitialize)
@@ -508,9 +454,6 @@ func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.Benchmar
 	for _, isu := range user.IsuListOrderByCreatedAt {
 		lastSolvedTime[isu.JIAIsuUUID] = s.virtualTimeStart
 	}
-	// const breakNum = 100                          //一度に壊れるISUの数
-	// breakTime := time.Now().Add(20 * time.Second) //大量のISUの状態が悪化するタイミング
-	// breakDelete := false                          //大量修理シナリオか、大量交換シナリオか
 	scenarioLoopStopper := time.After(1 * time.Millisecond)
 	for {
 		<-scenarioLoopStopper
@@ -570,17 +513,7 @@ func (s *Scenario) loadCompanyUser(ctx context.Context, step *isucandar.Benchmar
 			continue
 		}
 
-		// if breakTime.Before(time.Now()) {
-		// 	if breakDelete {
-		// 		scenarioSuccess = s.exchangeCompanyIsu()
-		// 	} else {
-		// 		scenarioSuccess = s.repairCompanyIsu()
-		// 	}
-		// 	breakDelete = !breakDelete
-		// 	breakTime = time.Now().Add(20 * time.Second)
-		// } else {
 		scenarioSuccess = s.checkCompanyConditionScenario(ctx, step, user, lastSolvedTime)
-		//}
 	}
 }
 
@@ -608,52 +541,12 @@ func (s *Scenario) initCompanyUser(ctx context.Context, step *isucandar.Benchmar
 	//椅子作成
 	//const isuCountMax = 1000
 	isuCount := rand.Intn(10) + 500
-	newIsuOK := true
 	for i := 0; i < isuCount; i++ {
 		isu := s.NewIsu(ctx, step, user, true, nil)
+		// TODO: retry
 		if isu == nil {
-			newIsuOK = false
-			break
+			return nil, nil
 		}
-	}
-	if !newIsuOK {
-		//並列にdeactivate
-		isuChan := make(chan *model.Isu, len(user.IsuListOrderByCreatedAt))
-		for _, isu := range user.IsuListOrderByCreatedAt {
-			go func(isu *model.Isu) { isu.StreamsForScenario.StateChan <- model.IsuStateChangeDelete }(isu)
-			isuChan <- isu
-		}
-		close(isuChan)
-		w, err := worker.NewWorker(func(ctx context.Context, index int) {
-			agent := userAgents[index]
-			_, errs := authAction(ctx, agent, user.UserID)
-			for _, err := range errs {
-				step.AddError(err)
-				return
-			}
-			for isu := range isuChan {
-				select {
-				case <-ctx.Done():
-					return
-				default:
-				}
-				res, err := deleteIsuAction(ctx, agent, isu.JIAIsuUUID)
-				if err != nil {
-					step.AddError(err)
-				} else if !isu.IsDeactivated() {
-					addErrorWithContext(ctx, step, errorInvalid(res, "deactivateが完了していません"))
-				}
-			}
-		}, worker.WithLoopCount(int32(len(userAgents))))
-		if err != nil {
-			logger.AdminLogger.Panicln(err)
-		}
-		w.Process(ctx)
-		//w.Wait()
-		//MEMO: ctx.Done()の場合は、プロセスが終了していない可能性がある。
-
-		logger.AdminLogger.Println("Company User fail: NewIsu(initialize)")
-		return nil, nil
 	}
 
 	step.AddScore(ScoreCompanyUserInitialize)
