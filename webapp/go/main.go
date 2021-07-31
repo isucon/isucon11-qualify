@@ -203,8 +203,6 @@ func init() {
 	if err != nil {
 		log.Fatalf("Unable to parse ECDSA public key: %v", err)
 	}
-
-	rand.Seed(42)
 }
 
 func main() {
