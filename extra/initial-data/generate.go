@@ -135,9 +135,6 @@ func main() {
 				if rand.Intn(10) < 9 { // 9/10
 					isu = isu.WithUpdateImage()
 				}
-				if rand.Intn(10) < 1 { // 1/10
-					isu = isu.WithDelete()
-				}
 				// INSERT isu
 				if err := isu.Create(); err != nil {
 					log.Fatal(err)
