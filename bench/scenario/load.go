@@ -188,7 +188,8 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 	}()
 
 	//椅子作成
-	const isuCountMax = 4 //ルートページに表示する最大数
+	// TODO: 実際に解いてみてこの isu 数の上限がいい感じに働いているか検証する
+	const isuCountMax = 15
 	isuCount := rand.Intn(isuCountMax) + 1
 	for i := 0; i < isuCount; i++ {
 		isu := s.NewIsu(ctx, step, user, true, nil)
