@@ -115,9 +115,10 @@ type GetMeResponse struct {
 }
 
 type GraphResponse struct {
-	StartAt int64           `json:"start_at"`
-	EndAt   int64           `json:"end_at"`
-	Data    *GraphDataPoint `json:"data"`
+	StartAt             int64           `json:"start_at"`
+	EndAt               int64           `json:"end_at"`
+	Data                *GraphDataPoint `json:"data"`
+	ConditionTimestamps []int64         `json:"condition_timestamps"`
 }
 
 // グラフにおける一つのデータ点の情報
@@ -129,9 +130,10 @@ type GraphDataPoint struct {
 
 // グラフ作成の計算に使用
 type GraphDataPointWithInfo struct {
-	JIAIsuUUID string
-	StartAt    time.Time
-	Data       GraphDataPoint
+	JIAIsuUUID          string
+	StartAt             time.Time
+	Data                GraphDataPoint
+	ConditionTimestamps []int64
 }
 
 type GetIsuConditionResponse struct {
@@ -733,6 +735,7 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 	//
 	dataPoints := []GraphDataPointWithInfo{}
 	conditionsInThisHour := []IsuCondition{}
+	timestampsInThisHour := []int64{}
 	var startTimeInThisHour time.Time
 	var condition IsuCondition
 
@@ -755,13 +758,18 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 					return nil, fmt.Errorf("failed to calculate graph: %v", err)
 				}
 				dataPoints = append(dataPoints,
-					GraphDataPointWithInfo{JIAIsuUUID: jiaIsuUUID, StartAt: startTimeInThisHour, Data: data})
+					GraphDataPointWithInfo{
+						JIAIsuUUID:          jiaIsuUUID,
+						StartAt:             startTimeInThisHour,
+						Data:                data,
+						ConditionTimestamps: timestampsInThisHour})
 			}
 
 			startTimeInThisHour = truncatedConditionTime
 			conditionsInThisHour = []IsuCondition{}
 		}
 		conditionsInThisHour = append(conditionsInThisHour, condition)
+		timestampsInThisHour = append(timestampsInThisHour, condition.Timestamp.Unix())
 	}
 	// 残った一時間分を計算
 	if len(conditionsInThisHour) > 0 {
@@ -770,7 +778,11 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 			return nil, fmt.Errorf("failed to calculate graph: %v", err)
 		}
 		dataPoints = append(dataPoints,
-			GraphDataPointWithInfo{JIAIsuUUID: jiaIsuUUID, StartAt: startTimeInThisHour, Data: data})
+			GraphDataPointWithInfo{
+				JIAIsuUUID:          jiaIsuUUID,
+				StartAt:             startTimeInThisHour,
+				Data:                data,
+				ConditionTimestamps: timestampsInThisHour})
 	}
 
 	//
@@ -802,20 +814,23 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 
 	for thisTime.Before(graphDate.Add(time.Hour * 24)) {
 		var data *GraphDataPoint
+		timestamps := []int64{}
 
 		if index < len(filteredDataPoints) {
 			dataWithInfo := filteredDataPoints[index]
 
 			if dataWithInfo.StartAt.Equal(thisTime) {
 				data = &dataWithInfo.Data
+				timestamps = dataWithInfo.ConditionTimestamps
 				index++
 			}
 		}
 
 		resp := GraphResponse{
-			StartAt: thisTime.Unix(),
-			EndAt:   thisTime.Add(time.Hour).Unix(),
-			Data:    data,
+			StartAt:             thisTime.Unix(),
+			EndAt:               thisTime.Add(time.Hour).Unix(),
+			Data:                data,
+			ConditionTimestamps: timestamps,
 		}
 		responseList = append(responseList, resp)
 
