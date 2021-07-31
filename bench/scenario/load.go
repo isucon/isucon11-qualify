@@ -371,7 +371,7 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 
 		for _, cond := range tmpConditions {
 			// 新しいやつだけなら append
-			if isAlreadyRead(targetIsu, cond) {
+			if isNewData(targetIsu, cond) {
 				conditions = append(conditions, cond)
 			} else {
 				// timestamp順なのは vaidation で保証しているので読んだやつが出てきたタイミングで return
@@ -386,7 +386,7 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 	}
 }
 
-func isAlreadyRead(isu *model.Isu, condition *service.GetIsuConditionResponse) bool {
+func isNewData(isu *model.Isu, condition *service.GetIsuConditionResponse) bool {
 	return condition.Timestamp > isu.LastReadTimestamp
 }
 
