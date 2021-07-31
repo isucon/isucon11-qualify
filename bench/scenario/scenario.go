@@ -193,6 +193,8 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 		//戻り値をownerに追加する
 		owner.AddIsu(isu)
 	}
+	//投げた時間を
+	isu.PostTime = s.ToVirtualTime(time.Now())
 
 	return isu
 }

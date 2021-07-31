@@ -12,6 +12,7 @@ import (
 
 	"github.com/isucon/isucandar"
 	"github.com/isucon/isucandar/agent"
+	"github.com/isucon/isucandar/score"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
 	"github.com/isucon/isucon11-qualify/bench/service"
@@ -168,51 +169,7 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 		} else if route < 2 {
 			s.requestLastBadConditionScenario(ctx, step, user, targetIsu)
 		} else {
-
-			// 割り算で切り捨てを発生させている(day単位)
-			virtualToday := (dataExistTimestamp / (24 * 60 * 60)) * (24 * 60 * 60)
-			virtualToday -= 24 * 60 * 60
-			graph := getIsuGraphWithPaging(ctx, step, user, targetIsu, virtualToday, 10)
-
-			//悪いものを探す
-			var errorEndAtUnix int64 = 0
-			for _, g := range graph {
-				// TODO: 状態が悪いスコアの条件を切り出す
-				if g.Data != nil && g.Data.Score < 100 {
-					errorEndAtUnix = g.StartAt
-				}
-			}
-
-			//悪いものがあれば、そのconditionを取る
-			if errorEndAtUnix != 0 {
-				startTime := errorEndAtUnix - 60*60
-				//MEMO: 本来は必ず1時間幅だが、検証のためにdataExistTimestampで抑える
-				cursorEndTime := errorEndAtUnix
-				if dataExistTimestamp < cursorEndTime {
-					cursorEndTime = dataExistTimestamp
-				}
-				request := service.GetIndividualIsuConditionRequest{
-					StartTime:        &startTime,
-					CursorEndTime:    cursorEndTime,
-					ConditionLevel:   "warning,critical",
-					Limit:            nil,
-				}
-				conditions := s.getIsuConditionWithScroll(ctx, step, user, targetIsu, request, 0)
-				if conditions == nil {
-					continue
-				}
-
-				//状態改善
-				solveCondition, findTimestamp := findBadIsuState(conditions)
-				if solveCondition != model.IsuStateChangeNone && lastSolvedTime[targetIsu.JIAIsuUUID].Before(time.Unix(findTimestamp, 0)) {
-					lastSolvedTime[targetIsu.JIAIsuUUID] = time.Unix(findTimestamp, 0)
-					select {
-					case <-ctx.Done():
-						return
-					case targetIsu.StreamsForScenario.StateChan <- solveCondition: //バッファがあるのでブロック率は低い読みで直列に投げる
-					}
-				}
-			}
+			s.requestGraphScenario(ctx, step, user, targetIsu, randEngine)
 		}
 	}
 }
@@ -440,6 +397,181 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 
 func isNewData(isu *model.Isu, condition *service.GetIsuConditionResponse) bool {
 	return condition.Timestamp > isu.LastReadConditionTimestamp
+}
+
+// あるISUのグラフを見に行くシナリオ
+func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User, targetIsu *model.Isu, randEngine *rand.Rand) {
+	// 最新の condition から、一度見た condition が帰ってくるまで condition のページングをする
+	nowVirtualTime := s.ToVirtualTime(time.Now())
+	// 割り算で切り捨てを発生させている(day単位にしている)
+	virtualToday := trancateTimestampToDate(nowVirtualTime.Unix())
+	virtualToday -= OneDay
+
+	graphResponses, errs := getIsuGraphUntilLastViewed(ctx, user, targetIsu, virtualToday)
+	if errs != nil {
+		if len(errs) > 0 {
+			for _, err := range errs {
+				addErrorWithContext(ctx, step, err)
+			}
+			return
+		}
+	}
+
+	// LastCompletedGraphTime を更新
+	newLastCompletedGraphTime := getNewLastCompletedGraphTime(graphResponses, virtualToday)
+	if targetIsu.LastCompletedGraphTime < newLastCompletedGraphTime {
+		targetIsu.LastCompletedGraphTime = newLastCompletedGraphTime
+	}
+
+	// AddScoreはconditionのGETまで待つためここでタグを持っておく
+	scoreTags := []score.ScoreTag{}
+
+	// scoreの計算
+	for behindDay, gr := range graphResponses {
+		minTimestampCount := int(^uint(0) >> 1) 
+		for _, _ = range gr {			
+			// TODO: backend側が graph のレスポンスに根拠timestampを追加したらここで以下のコードを実行する
+			// if len(g.timestamps) < minTimestampCount {
+			// 	minTimestampCount = len(g.timestamps)
+			// }
+			// ↓こっちの方は消す
+			minTimestampCount = 0
+
+		}
+		// 「今日のグラフじゃない」&「完成しているグラフ」なら加点
+		if behindDay != 0 && targetIsu.LastCompletedGraphTime <= virtualToday - (int64(behindDay) * OneDay) {
+			// AddScoreはconditionのGETまで待つためここでタグを入れておく
+			scoreTags = append(scoreTags, getGraphScoreTag(minTimestampCount))
+		}
+	}
+
+	// データが入ってるレスポンスから、ランダムで見る condition を選ぶ
+	if len(graphResponses) != 0 {
+		// ユーザーが今見ているグラフ
+		nowViewingGraph := graphResponses[len(graphResponses) - 1]
+		// チェックする時間
+		checkHour := getCheckHour(nowViewingGraph, randEngine)
+		request := service.GetIndividualIsuConditionRequest{
+			StartTime: &nowViewingGraph[checkHour].StartAt,
+			CursorEndTime: nowViewingGraph[checkHour].EndAt,
+			ConditionLevel: "info,warning,critical",
+		}
+		_, _ , err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
+		// TODO: retry
+		if err != nil {
+			addErrorWithContext(ctx, step, err)
+			return
+		}
+		// TODO: validation
+	}
+
+	// graph の加点分を計算
+	for _, scoreTag := range scoreTags {
+		step.AddScore(scoreTag)
+	}
+}
+
+// unix timeのtimestampをその「日」に切り捨てる
+func trancateTimestampToDate(timestamp int64) int64 {
+	return (timestamp / OneDay) * OneDay
+}
+
+// 新しい LastCompletedGraphTime を得る。
+func getNewLastCompletedGraphTime(graphResponses [][]*service.GraphResponse, virtualToday int64) int64 {
+	var lastCompletedGraphTime int64 = 0
+	for behindDay, gr := range graphResponses {
+		for hour, g := range gr {
+			// 12時以降のデータがあるならその前日のグラフは完成している
+			if hour >= 12 && g.Data != nil {
+				completedDay := virtualToday - (OneDay * int64(behindDay))
+				if lastCompletedGraphTime < completedDay {
+					lastCompletedGraphTime = completedDay
+				}
+			}
+		}
+	}
+	return lastCompletedGraphTime
+}
+
+// データが入ってる graph のレスポンスから、ランダムでユーザがチェックする condition を選ぶ
+func getCheckHour(nowViewingGraph []*service.GraphResponse, randEngine *rand.Rand) int {
+	dataExistIndexes := []int{}
+	for i, g := range nowViewingGraph {
+		if g.Data != nil {
+			dataExistIndexes = append(dataExistIndexes, i)
+		}
+	}
+	if len(dataExistIndexes) == 0 {
+		return 0
+	}
+	return randEngine.Intn(len(dataExistIndexes))
+}
+
+func getGraphScoreTag(minTimestampCount int) score.ScoreTag {
+	if minTimestampCount > ScoreGraphTimestampCount.Excellent {
+		return ScoreGraphExcellent
+	}
+	if minTimestampCount > ScoreGraphTimestampCount.Good {
+		return ScoreGraphGood
+	}
+	if minTimestampCount > ScoreGraphTimestampCount.Normal {
+		return ScoreGraphNormal
+	}
+	if minTimestampCount > ScoreGraphTimestampCount.Bad {
+		return ScoreGraphBad
+	}
+	return ScoreGraphWorst
+}
+
+// GET /isu/{jia_isu_uuid}/graph を、「一度見たgraphの次のgraph」or「ベンチがisuの作成を投げた仮想時間の日」まで。補足: LastViewedGraphは外で更新
+func getIsuGraphUntilLastViewed(
+	ctx context.Context,
+	user *model.User,
+	targetIsu *model.Isu,
+	virtualDay int64,
+) ([][]*service.GraphResponse, []error) {
+	graph := [][]*service.GraphResponse{}
+
+	// これで今日のグラフを取る
+	_, todayGraph, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, virtualDay,
+		func(res *http.Response, graph []*service.GraphResponse) []error {
+			// TODO: validationは下でやるべき
+			//検証前にデータ取得
+			user.GetConditionFromChan(ctx)
+			return []error{} //TODO: 検証
+		},
+	)
+	if len(errs) > 0 {
+		// TODO: timeout 時 retry
+		return nil, errs
+	}
+
+	graph = append(graph, todayGraph)
+
+	// 見たグラフまでを見に行く
+	for {
+		// 一日前
+		virtualDay -= 24 * 60 * 60
+		// すでに見たグラフなら終わる
+		if virtualDay == targetIsu.LastCompletedGraphTime {
+			return graph, nil
+		}
+
+		tmpGraph, _, err := getIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, virtualDay)
+		if err != nil {
+			return nil, []error{err}
+		}
+		// TODO: timeoutしたときretry
+
+		// TODO: validation
+
+		graph = append(graph, tmpGraph)
+
+		// 作成した時間まで戻ったら終わる
+		if targetIsu.PostTime.Unix() > virtualDay {
+			return graph, nil
+		}
+	}
 }
 
 //GET /isu/condition/{jia_isu_uuid} をスクロール付きで取り、バリデーションする
