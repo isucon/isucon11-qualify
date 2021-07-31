@@ -89,20 +89,6 @@ type IsuCondition struct {
 	CreatedAt  time.Time `db:"created_at"`
 }
 
-// グラフにおける一つのデータ点の情報
-type GraphDataPoint struct {
-	Score   int            `json:"score"`
-	Sitting int            `json:"sitting"`
-	Detail  map[string]int `json:"detail"`
-}
-
-// グラフ作成の計算に使用
-type GraphDataPointWithInfo struct {
-	JIAIsuUUID string
-	StartAt    time.Time
-	Data       GraphDataPoint
-}
-
 type User struct {
 	JIAUserID string    `db:"jia_user_id"`
 	CreatedAt time.Time `db:"created_at"`
@@ -132,6 +118,20 @@ type GraphResponse struct {
 	StartAt int64           `json:"start_at"`
 	EndAt   int64           `json:"end_at"`
 	Data    *GraphDataPoint `json:"data"`
+}
+
+// グラフにおける一つのデータ点の情報
+type GraphDataPoint struct {
+	Score   int            `json:"score"`
+	Sitting int            `json:"sitting"`
+	Detail  map[string]int `json:"detail"`
+}
+
+// グラフ作成の計算に使用
+type GraphDataPointWithInfo struct {
+	JIAIsuUUID string
+	StartAt    time.Time
+	Data       GraphDataPoint
 }
 
 type GetIsuConditionResponse struct {
