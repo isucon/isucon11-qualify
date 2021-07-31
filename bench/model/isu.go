@@ -44,7 +44,7 @@ type StreamsForScenario struct {
 //IsuはISU協会 Goroutineからも読み込まれる
 type Isu struct {
 	Owner                         *User
-	ID                 int
+	ID                            int
 	JIAIsuUUID                    string
 	Name                          string
 	ImageHash                     [md5.Size]byte
@@ -71,13 +71,13 @@ func NewRandomIsuRaw(owner *User) (*Isu, *StreamsForPoster, error) {
 		return nil, nil, err
 	}
 	isu := &Isu{
-		Owner:             owner,
-		JIAIsuUUID:        id.String(),
-		Name:              random.IsuName(),
-		ImageHash:         defaultIconHash,
-		JIACatalogID:      "550e8400-e29b-41d4-a716-446655440000", //TODO:
-		Character:         random.Character(),
-		isDeactivated:     true,
+		Owner:         owner,
+		JIAIsuUUID:    id.String(),
+		Name:          random.IsuName(),
+		ImageHash:     defaultIconHash,
+		JIACatalogID:  "550e8400-e29b-41d4-a716-446655440000", //TODO:
+		Character:     random.Character(),
+		isDeactivated: true,
 		StreamsForScenario: &StreamsForScenario{
 			StateChan:     stateChan,
 			ConditionChan: conditionChan,
