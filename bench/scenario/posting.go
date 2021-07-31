@@ -4,12 +4,10 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"net"
 	"net/http"
 	"time"
 
 	"github.com/isucon/isucandar"
-	"github.com/isucon/isucandar/failure"
 	"github.com/isucon/isucon11-qualify/bench/model"
 	"github.com/isucon/isucon11-qualify/bench/service"
 )
@@ -121,23 +119,8 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		case scenarioChan.ConditionChan <- conditions:
 		}
 
-		_, err := postIsuConditionAction(httpClient, targetURL, &conditionsReq)
-		if err != nil {
-			nerr, ok := err.(net.Error)
-			// オリジナルのエラーなら失敗したっていうこと
-			if !ok {
-				addErrorWithContext(ctx, step, failure.NewError(ErrHTTP, err))
-				continue // goto next loop
-			}
-			// タイムアウトなら無視する
-			if !nerr.Timeout() {
-				addErrorWithContext(ctx, step, failure.NewError(ErrHTTP, err))
-				continue // goto next loop
-			}
-		} else {
-			// TODO: validation
-			// この else ブロックで validation するのは timeout 時 res.Body が nil だから
-		}
+		// timeout も無視するので全てのエラーを見ない
+		postIsuConditionAction(httpClient, targetURL, &conditionsReq)
 	}
 }
 
