@@ -3,9 +3,9 @@ package model
 import (
 	"context"
 	"crypto/md5"
+	"github.com/isucon/isucon11-qualify/bench/service"
 	"io/ioutil"
 	"log"
-	"github.com/isucon/isucon11-qualify/bench/service"
 
 	"github.com/google/uuid"
 	"github.com/isucon/isucon11-qualify/bench/random"
@@ -45,17 +45,18 @@ type StreamsForScenario struct {
 //一つのIsuにつき、一つの送信用 Goroutineがある
 //IsuはISU協会 Goroutineからも読み込まれる
 type Isu struct {
-	Owner              *User
-	JIAIsuUUID         string
-	Name               string
-	ImageHash          [md5.Size]byte
-	JIACatalogID       string
-	Character          string
-	IsWantDeactivated  bool                //シナリオ上でDeleteリクエストを送ったかどうか
-	isDeactivated      bool                //実際にdeactivateされているか
-	StreamsForScenario *StreamsForScenario //poster Goroutineとの通信
-	Conditions         IsuConditionArray   //シナリオ Goroutineからのみ参照
-	LastReadTimestamp  int64               //シナリオ Goroutineからのみ参照
+	Owner                         *User
+	JIAIsuUUID                    string
+	Name                          string
+	ImageHash                     [md5.Size]byte
+	JIACatalogID                  string
+	Character                     string
+	IsWantDeactivated             bool                //シナリオ上でDeleteリクエストを送ったかどうか
+	isDeactivated                 bool                //実際にdeactivateされているか
+	StreamsForScenario            *StreamsForScenario //poster Goroutineとの通信
+	Conditions                    IsuConditionArray   //シナリオ Goroutineからのみ参照
+	LastReadConditionTimestamp    int64               //シナリオ Goroutineからのみ参照
+	LastReadBadConditionTimestamp int64               //シナリオ Goroutineからのみ参照
 }
 
 //新しいISUの生成
@@ -148,8 +149,4 @@ func (isu *Isu) ToService() *service.Isu {
 		Name:       isu.Name,
 		Character:  isu.Character,
 	}
-}
-
-func (isu *Isu) ReadCondition(timestamp int64) {
-	isu.LastReadTimestamp = timestamp
 }
