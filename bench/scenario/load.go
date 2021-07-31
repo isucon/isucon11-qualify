@@ -416,6 +416,7 @@ func getIsuGraphUntilLastViewed(
 		if err != nil {
 			return nil, []error{err}
 		}
+		// TODO: timeoutしたときretry
 
 		// TODO: validation
 
