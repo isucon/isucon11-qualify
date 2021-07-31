@@ -76,7 +76,7 @@ func (i Isu) WithUpdateImage() Isu {
 }
 
 func (i Isu) Create() error {
-	if _, err := db.Exec("INSERT INTO isu(`jia_isu_uuid`,`name`,`image`,`character`,`jia_user_id`,`created_at`,`updated_at`) VALUES (?,?,?,?,?,?,?,?)",
+	if _, err := db.Exec("INSERT INTO isu(`jia_isu_uuid`,`name`,`image`,`character`,`jia_user_id`,`created_at`,`updated_at`) VALUES (?,?,?,?,?,?,?)",
 		i.JIAIsuUUID, i.Name, i.Image, i.Character, i.User.JIAUserID,
 		i.CreatedAt, i.UpdatedAt,
 	); err != nil {
