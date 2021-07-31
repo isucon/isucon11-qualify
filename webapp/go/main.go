@@ -64,6 +64,11 @@ type Config struct {
 	URL  string `db:"url"`
 }
 
+type GetIsuResponse struct {
+	Isu          Isu
+	IsuCondition IsuCondition
+}
+
 type Isu struct {
 	ID         int       `db:"id" json:"id"`
 	JIAIsuUUID string    `db:"jia_isu_uuid" json:"jia_isu_uuid"`
@@ -628,7 +633,8 @@ func getIsu(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	return c.JSON(http.StatusOK, isu)
+	res := GetIsuResponse{Isu: isu}
+	return c.JSON(http.StatusOK, res)
 }
 
 //  GET /api/isu/{jia_isu_uuid}/icon
