@@ -47,17 +47,18 @@ type StreamsForScenario struct {
 //一つのIsuにつき、一つの送信用 Goroutineがある
 //IsuはISU協会 Goroutineからも読み込まれる
 type Isu struct {
-	Owner              *User
-	JIAIsuUUID         string
-	Name               string
-	ImageHash          [md5.Size]byte
-	JIACatalogID       string
-	Character          string
-	IsWantDeactivated  bool                //シナリオ上でDeleteリクエストを送ったかどうか
-	isDeactivated      bool                //実際にdeactivateされているか
-	StreamsForScenario *StreamsForScenario //poster Goroutineとの通信
-	Conditions         IsuConditionArray   //シナリオ Goroutineからのみ参照
-	PostTime           time.Time           //POST /isu/:id を叩いた仮想時間
+	Owner                  *User
+	JIAIsuUUID             string
+	Name                   string
+	ImageHash              [md5.Size]byte
+	JIACatalogID           string
+	Character              string
+	IsWantDeactivated      bool                //シナリオ上でDeleteリクエストを送ったかどうか
+	isDeactivated          bool                //実際にdeactivateされているか
+	StreamsForScenario     *StreamsForScenario //poster Goroutineとの通信
+	Conditions             IsuConditionArray   //シナリオ Goroutineからのみ参照
+	LastCompletedGraphTime int64               //シナリオ Goroutineからのみ参照
+	PostTime               time.Time           //POST /isu/:id を叩いた仮想時間
 }
 
 //新しいISUの生成
