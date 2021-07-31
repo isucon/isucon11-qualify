@@ -921,20 +921,20 @@ func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, erro
 	for key := range scorePerCondition {
 		dataPoint.Detail[key] = 0
 	}
-	for _, log := range isuConditions {
-		conditions := map[string]bool{}
+	for _, condition := range isuConditions {
+		conditionMapList := map[string]bool{}
 		//DB上にある is_dirty=true/false,is_overweight=true/false,... 形式のデータを
 		//map[string]bool形式に変換
-		for _, cond := range strings.Split(log.Condition, ",") {
-			keyValue := strings.Split(cond, "=")
+		for _, condStr := range strings.Split(condition.Condition, ",") {
+			keyValue := strings.Split(condStr, "=")
 			if len(keyValue) != 2 {
 				continue //形式に従っていないものは無視
 			}
-			conditions[keyValue[0]] = (keyValue[1] != "false")
+			conditionMapList[keyValue[0]] = (keyValue[1] != "false")
 		}
 
 		//trueになっているものは減点
-		for key, enabled := range conditions {
+		for key, enabled := range conditionMapList {
 			if enabled {
 				score, ok := scorePerCondition[key]
 				if ok {
