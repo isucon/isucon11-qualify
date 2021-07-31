@@ -426,24 +426,6 @@ func getIsuIdErrorAction(ctx context.Context, a *agent.Agent, id string) (string
 	return text, res, nil
 }
 
-func deleteIsuAction(ctx context.Context, a *agent.Agent, id string) (*http.Response, error) {
-	reqUrl := fmt.Sprintf("/api/isu/%s", id)
-	res, err := reqNoContentResNoContent(ctx, a, http.MethodDelete, reqUrl, []int{http.StatusNoContent})
-	if err != nil {
-		return nil, err
-	}
-	return res, nil
-}
-
-func deleteIsuErrorAction(ctx context.Context, a *agent.Agent, id string) (string, *http.Response, error) {
-	reqUrl := fmt.Sprintf("/api/isu/%s", id)
-	res, text, err := reqNoContentResError(ctx, a, http.MethodDelete, reqUrl, []int{http.StatusUnauthorized, http.StatusNotFound})
-	if err != nil {
-		return "", nil, err
-	}
-	return text, res, nil
-}
-
 func getIsuIconAction(ctx context.Context, a *agent.Agent, id string, allowNotModified bool) ([]byte, *http.Response, error) {
 	reqUrl := fmt.Sprintf("/api/isu/%s/icon", id)
 	allowedStatusCodes := []int{http.StatusOK}
