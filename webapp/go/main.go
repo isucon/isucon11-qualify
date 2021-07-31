@@ -865,9 +865,7 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 	}
 
 	var filteredDataPoints []GraphDataPointWithInfo
-	if endIndex < startIndex {
-		filteredDataPoints = []GraphDataPointWithInfo{}
-	} else {
+	if startIndex < endIndex  {
 		filteredDataPoints = dataPoints[startIndex:endIndex]
 	}
 
