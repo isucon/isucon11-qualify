@@ -328,6 +328,12 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 	// 今回のこの関数で取得した condition の配列
 	conditions := []*service.GetIsuConditionResponse{}
 
+	// limit を指定しているならそれに合わせて、指定してないならデフォルトの値を使う
+	limit := conditionLimit
+	if request.Limit != nil {
+		limit = *request.Limit
+	}
+
 	// GET condition/{jia_isu_uuid} を取得してバリデーション
 	_, firstPageConditions, errs := browserGetIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
 		request,
@@ -344,15 +350,18 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 	if len(errs) > 0 {
 		return nil, errs
 	}
-	if len(firstPageConditions) == 0 {
-		return conditions, nil
+	for _, cond := range firstPageConditions {
+		// 新しいやつだけなら append
+		if isNewData(targetIsu, cond) {
+			conditions = append(conditions, cond)
+		} else {
+			// timestamp順なのは vaidation で保証しているので読んだやつが出てきたタイミングで return
+			return conditions, nil
+		}
 	}
-	conditions = append(conditions, firstPageConditions...)
-
-	// limit を指定しているならそれに合わせて、指定してないならデフォルトの値を使う
-	limit := conditionLimit
-	if request.Limit != nil {
-		limit = *request.Limit
+	// 最初のページが最後のページならやめる
+	if len(firstPageConditions) != limit {
+		return conditions, nil
 	}
 
 	// 続きがあり、なおかつ今取得した condition が全て新しい時はスクロールする
