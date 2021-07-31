@@ -3,9 +3,10 @@ package model
 import (
 	"context"
 	"crypto/md5"
-	"github.com/isucon/isucon11-qualify/bench/service"
 	"io/ioutil"
 	"log"
+
+	"github.com/isucon/isucon11-qualify/bench/service"
 
 	"github.com/google/uuid"
 	"github.com/isucon/isucon11-qualify/bench/random"
@@ -17,7 +18,6 @@ type IsuStateChange int
 const (
 	IsuStateChangeNone IsuStateChange = iota
 	IsuStateChangeBad
-	IsuStateChangeDelete           //椅子を削除する
 	IsuStateChangeClear            = 1 << 3
 	IsuStateChangeDetectOverweight = 1 << 4
 	IsuStateChangeRepair           = 1 << 5
@@ -28,7 +28,6 @@ const (
 //複数回poster Goroutineが起動するかもしれないのでcloseしない
 //当然リソースリークするがベンチマーカーは毎回落とすので問題ない
 type StreamsForPoster struct {
-	ActiveChan    chan<- bool
 	StateChan     <-chan IsuStateChange
 	ConditionChan chan<- []IsuCondition
 }
@@ -37,7 +36,6 @@ type StreamsForPoster struct {
 //複数回poster Goroutineが起動するかもしれないのでcloseしない
 //当然リソースリークするがベンチマーカーは毎回落とすので問題ない
 type StreamsForScenario struct {
-	activeChan    <-chan bool
 	StateChan     chan<- IsuStateChange
 	ConditionChan <-chan []IsuCondition
 }
@@ -46,12 +44,12 @@ type StreamsForScenario struct {
 //IsuはISU協会 Goroutineからも読み込まれる
 type Isu struct {
 	Owner                         *User
+	ID                 int
 	JIAIsuUUID                    string
 	Name                          string
 	ImageHash                     [md5.Size]byte
 	JIACatalogID                  string
 	Character                     string
-	IsWantDeactivated             bool                //シナリオ上でDeleteリクエストを送ったかどうか
 	isDeactivated                 bool                //実際にdeactivateされているか
 	StreamsForScenario            *StreamsForScenario //poster Goroutineとの通信
 	Conditions                    IsuConditionArray   //シナリオ Goroutineからのみ参照
@@ -65,7 +63,6 @@ type Isu struct {
 //戻り値をISU協会にIsu*を登録する必要あり
 //戻り値をownerに追加する必要あり
 func NewRandomIsuRaw(owner *User) (*Isu, *StreamsForPoster, error) {
-	activeChan := make(chan bool, 1) //容量1以上ないとposterがブロックするので、必ず1以上
 	stateChan := make(chan IsuStateChange, 1)
 	conditionChan := make(chan []IsuCondition, 10)
 
@@ -80,10 +77,8 @@ func NewRandomIsuRaw(owner *User) (*Isu, *StreamsForPoster, error) {
 		ImageHash:         defaultIconHash,
 		JIACatalogID:      "550e8400-e29b-41d4-a716-446655440000", //TODO:
 		Character:         random.Character(),
-		IsWantDeactivated: false,
 		isDeactivated:     true,
 		StreamsForScenario: &StreamsForScenario{
-			activeChan:    activeChan,
 			StateChan:     stateChan,
 			ConditionChan: conditionChan,
 		},
@@ -91,21 +86,10 @@ func NewRandomIsuRaw(owner *User) (*Isu, *StreamsForPoster, error) {
 	}
 
 	streamsForPoster := &StreamsForPoster{
-		ActiveChan:    activeChan,
 		StateChan:     stateChan,
 		ConditionChan: conditionChan,
 	}
 	return isu, streamsForPoster, nil
-}
-
-//シナリオ Goroutineからのみ参照
-func (isu *Isu) IsDeactivated() bool {
-	select {
-	case v, ok := <-isu.StreamsForScenario.activeChan:
-		isu.isDeactivated = !ok || !v //Isu協会 Goroutineの終了 || deactivateされた
-	default:
-	}
-	return isu.isDeactivated
 }
 
 func (isu *Isu) getConditionFromChan(ctx context.Context, userConditionBuffer *IsuConditionTreeSet) {
@@ -145,6 +129,7 @@ func init() {
 
 func (isu *Isu) ToService() *service.Isu {
 	return &service.Isu{
+		ID:         isu.ID,
 		JIAIsuUUID: isu.JIAIsuUUID,
 		Name:       isu.Name,
 		Character:  isu.Character,

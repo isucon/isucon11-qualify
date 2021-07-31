@@ -25,6 +25,8 @@ RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSI
     && rm dockerize-alpine-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
     && go get -u github.com/cosmtrek/air
 
+RUN ln -sf /usr/share/zoneinfo/Asia/Tokyo /etc/localtime
+
 COPY webapp/go/go.mod .
 COPY webapp/go/go.sum .
 
