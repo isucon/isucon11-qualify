@@ -387,11 +387,9 @@ func verifyGraph(
 		lastStartAt = graphOne.StartAt
 
 		// 特定の ISU における expected な conditions を新しい順に取得するイテレータを生成
-		// TODO: 最新の expected condition を指すイテレータを取得している
-		//    → GET graph のレスポンスに合わせた時間の expected condition を指すイテレータを取得したほうが良さそう
 		targetIsu := targetUser.IsuListByID[targetIsuUUID]
 		filter := model.ConditionLevelInfo | model.ConditionLevelWarning | model.ConditionLevelCritical
-		baseIter := targetIsu.Conditions.End(filter)
+		baseIter := targetIsu.Conditions.LowerBound(filter, graphOne.EndAt, targetIsu.JIAIsuUUID)
 
 		var conditionsBaseOfScore []*model.IsuCondition
 		var lastSort model.IsuConditionCursor
