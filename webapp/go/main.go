@@ -1115,19 +1115,19 @@ func postIsuCondition(c echo.Context) error {
 	//  * message
 	//	* timestamp（秒まで）
 
-	//TODO: 記法の統一
-	jiaIsuUUID := c.Param("jia_isu_uuid")
-	if jiaIsuUUID == "" {
-		c.Logger().Errorf("jia_isu_uuid is missing")
-		return c.String(http.StatusBadRequest, "jia_isu_uuid is missing")
-	}
-
 	// MEMO(isucon11-q実装者) 以下のTODOコメントはヒントにするため，予選本番でも残す
 	// TODO: これ良くないので後でなんとかする
 	dropProbability := 0.1
 	if rand.Float64() <= dropProbability {
 		c.Logger().Warnf("drop post isu condition request")
 		return c.NoContent(http.StatusServiceUnavailable)
+	}
+
+	//TODO: 記法の統一
+	jiaIsuUUID := c.Param("jia_isu_uuid")
+	if jiaIsuUUID == "" {
+		c.Logger().Errorf("jia_isu_uuid is missing")
+		return c.String(http.StatusBadRequest, "jia_isu_uuid is missing")
 	}
 
 	var req []PostIsuConditionRequest
