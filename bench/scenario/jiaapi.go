@@ -46,11 +46,11 @@ type JiaAPI2PosterData struct {
 }
 
 //シナリオ Goroutineからの呼び出し
-func RegisterToJiaAPI(jiaIsuUUID string, isu *model.Isu, streams *model.StreamsForPoster) {
+func RegisterToJiaAPI(isu *model.Isu, streams *model.StreamsForPoster) {
 	streamsForPosterMutex.Lock()
 	defer streamsForPosterMutex.Unlock()
-	isuFromUUID[jiaIsuUUID] = isu
-	streamsForPoster[jiaIsuUUID] = streams
+	isuFromUUID[isu.JIAIsuUUID] = isu
+	streamsForPoster[isu.JIAIsuUUID] = streams
 }
 
 func (s *Scenario) JiaAPIService(ctx context.Context, step *isucandar.BenchmarkStep) {

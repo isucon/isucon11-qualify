@@ -156,7 +156,7 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 	}
 
 	//ISU協会にIsu*を登録する必要あり
-	RegisterToJiaAPI(isu.JIAIsuUUID, isu, streamsForPoster)
+	RegisterToJiaAPI(isu, streamsForPoster)
 
 	//backendにpostする
 	//TODO: 確率で失敗してリトライする
