@@ -9,4 +9,9 @@ const (
 	ScoreNormalUserLoop        score.ScoreTag = "NormalUserLoop       "
 	ScoreCompanyUserInitialize score.ScoreTag = "CompanyUserInitialize"
 	ScoreCompanyUserLoop       score.ScoreTag = "CompanyUserLoop      "
+	ScoreGraphExcellent        score.ScoreTag = "ScoreGraphExcellent  "
+	ScoreGraphGood             score.ScoreTag = "ScoreGraphGood       "
+	ScoreGraphNormal           score.ScoreTag = "ScoreGraphNormal     "
+	ScoreGraphBad              score.ScoreTag = "ScoreGraphBad        "
+	ScoreGraphWorst            score.ScoreTag = "ScoreGraphWorst      "
 )
