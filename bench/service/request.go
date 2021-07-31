@@ -53,6 +53,6 @@ type GetGraphRequest struct {
 }
 
 type GetTrendRequest struct {
-	Date int64 `json:"date"` //unixtime
-	Num  int   `json:"num"`
+	DateTime int64 `json:"datetime"` //unixtime
+	Num      int   `json:"num"`
 }

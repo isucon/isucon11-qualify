@@ -564,7 +564,7 @@ func (s *Scenario) verifyTrend(
 			isu.Owner.GetConditionFromChan(ctx)
 			// condition を最新順に取得するイテレータを生成
 			filter := model.ConditionLevelInfo | model.ConditionLevelWarning | model.ConditionLevelCritical
-			baseIter := isu.Conditions.LowerBound(filter, trendReq.Date, isu.JIAIsuUUID)
+			baseIter := isu.Conditions.LowerBound(filter, trendReq.DateTime, isu.JIAIsuUUID)
 
 			// condition.timestamp と condition.condition の値を検証
 			for {
