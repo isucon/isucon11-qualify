@@ -33,7 +33,7 @@ const (
 	isuListLimit              = 200 // TODO 修正が必要なら変更
 	frontendContentsPath      = "../public"
 	jwtVerificationKeyPath    = "../ec256-public.pem"
-	defaultIconFilePath       = "../NoImage.png"
+	defaultIconFilePath       = "../NoImage.jpg"
 	defaultJIAServiceURL      = "http://localhost:5000"
 	mysqlErrNumDuplicateEntry = 1062
 )
@@ -65,6 +65,7 @@ type Config struct {
 }
 
 type Isu struct {
+	ID         int       `db:"id" json:"id"`
 	JIAIsuUUID string    `db:"jia_isu_uuid" json:"jia_isu_uuid"`
 	Name       string    `db:"name" json:"name"`
 	Image      []byte    `db:"image" json:"-"`
@@ -128,10 +129,6 @@ type GetMeResponse struct {
 	JIAUserID string `json:"jia_user_id"`
 }
 
-type PutIsuRequest struct {
-	Name string `json:"name"`
-}
-
 type GraphResponse struct {
 	StartAt int64      `json:"start_at"`
 	EndAt   int64      `json:"end_at"`
@@ -146,6 +143,11 @@ type GetIsuConditionResponse struct {
 	Condition      string `json:"condition"`
 	ConditionLevel string `json:"condition_level"`
 	Message        string `json:"message"`
+}
+
+type TrendResponse struct {
+	Character string
+	Score     uint
 }
 
 type PostIsuConditionRequest struct {
@@ -221,8 +223,6 @@ func main() {
 	e.GET("/api/isu", getIsuList)
 	e.POST("/api/isu", postIsu)
 	e.GET("/api/isu/:jia_isu_uuid", getIsu)
-	e.PUT("/api/isu/:jia_isu_uuid", putIsu)
-	e.DELETE("/api/isu/:jia_isu_uuid", deleteIsu)
 	e.GET("/api/isu/:jia_isu_uuid/icon", getIsuIcon)
 	e.GET("/api/isu/:jia_isu_uuid/graph", getIsuGraph)
 	e.GET("/api/condition", getAllIsuConditions)
@@ -432,6 +432,16 @@ func getIsuList(c echo.Context) error {
 		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 
+	pageStr := c.QueryParam("page")
+	page := 1
+	if pageStr != "" {
+		page, err = strconv.Atoi(pageStr)
+		if err != nil || page <= 0 {
+			c.Logger().Errorf("bad format: page: page = %s, %v", pageStr, err)
+			return c.String(http.StatusBadRequest, "bad format: page")
+		}
+	}
+
 	limitStr := c.QueryParam("limit")
 	limit := isuListLimit
 	if limitStr != "" {
@@ -442,11 +452,13 @@ func getIsuList(c echo.Context) error {
 		}
 	}
 
+	offset := (page - 1) * limit
+
 	isuList := []Isu{}
 	err = db.Select(
 		&isuList,
-		"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = false ORDER BY `created_at` DESC LIMIT ?",
-		jiaUserID, limit)
+		"SELECT * FROM `isu` WHERE `jia_user_id` = ? ORDER BY `created_at` DESC LIMIT ? OFFSET ?",
+		jiaUserID, limit, offset)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -575,7 +587,7 @@ func postIsu(c echo.Context) error {
 	var isu Isu
 	err = tx.Get(
 		&isu,
-		"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
+		"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
 		jiaUserID, jiaIsuUUID)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
@@ -589,7 +601,7 @@ func postIsu(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	return c.JSON(http.StatusOK, isu)
+	return c.JSON(http.StatusCreated, isu)
 }
 
 //  GET /api/isu/{jia_isu_uuid}
@@ -605,7 +617,7 @@ func getIsu(c echo.Context) error {
 
 	// TODO: jia_user_id 判別はクエリに入れずその後のロジックとする？ (一通り完成した後に要考慮)
 	var isu Isu
-	err = db.Get(&isu, "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
+	err = db.Get(&isu, "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
 		jiaUserID, jiaIsuUUID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -618,141 +630,6 @@ func getIsu(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, isu)
-}
-
-//  PUT /api/isu/{jia_isu_uuid}
-// 自分の所有しているISUの情報を変更する
-func putIsu(c echo.Context) error {
-	jiaUserID, err := getUserIDFromSession(c.Request())
-	if err != nil {
-		c.Logger().Errorf("you are not signed in: %v", err)
-		return c.String(http.StatusUnauthorized, "you are not signed in")
-	}
-
-	jiaIsuUUID := c.Param("jia_isu_uuid")
-
-	var req PutIsuRequest
-	err = c.Bind(&req)
-	if err != nil {
-		c.Logger().Errorf("invalid request: %v", err)
-		return c.String(http.StatusBadRequest, "invalid request")
-	}
-
-	tx, err := db.Beginx()
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	defer tx.Rollback()
-
-	var count int
-	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
-		jiaUserID, jiaIsuUUID)
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	if count == 0 {
-		c.Logger().Errorf("isu not found")
-		return c.String(http.StatusNotFound, "isu not found")
-	}
-
-	_, err = tx.Exec("UPDATE `isu` SET `name` = ? WHERE `jia_isu_uuid` = ?", req.Name, jiaIsuUUID)
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	var isu Isu
-	err = tx.Get(&isu, "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
-		jiaUserID, jiaIsuUUID)
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	return c.JSON(http.StatusOK, isu)
-}
-
-//  DELETE /api/isu/{jia_isu_uuid}
-// 所有しているISUを削除する
-func deleteIsu(c echo.Context) error {
-	jiaUserID, err := getUserIDFromSession(c.Request())
-	if err != nil {
-		c.Logger().Errorf("you are not signed in: %v", err)
-		return c.String(http.StatusUnauthorized, "you are not signed in")
-	}
-
-	jiaIsuUUID := c.Param("jia_isu_uuid")
-
-	tx, err := db.Beginx()
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	defer tx.Rollback()
-
-	var count int
-	err = tx.Get(
-		&count,
-		"SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
-		jiaUserID, jiaIsuUUID)
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	if count == 0 {
-		c.Logger().Errorf("isu not found")
-		return c.String(http.StatusNotFound, "not found: isu")
-	}
-
-	_, err = tx.Exec("UPDATE `isu` SET `is_deleted` = true WHERE `jia_isu_uuid` = ?", jiaIsuUUID)
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	// JIAにisuのdeactivateをリクエスト
-	targetURL := getJIAServiceURL(tx) + "/api/deactivate"
-	body := JIAServiceRequest{isuConditionPublicAddress, isuConditionPublicPort, jiaIsuUUID}
-	bodyJSON, err := json.Marshal(body)
-	if err != nil {
-		c.Logger().Errorf("failed to marshal data: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	req, err := http.NewRequest(http.MethodPost, targetURL, bytes.NewBuffer(bodyJSON))
-	if err != nil {
-		c.Logger().Errorf("failed to build request: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		c.Logger().Errorf("failed to request to JIAService: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode != http.StatusNoContent {
-		c.Logger().Errorf("JIAService returned error: status code %v", res.StatusCode)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	return c.NoContent(http.StatusNoContent)
 }
 
 //  GET /api/isu/{jia_isu_uuid}/icon
@@ -771,7 +648,7 @@ func getIsuIcon(c echo.Context) error {
 	jiaIsuUUID := c.Param("jia_isu_uuid")
 
 	var image []byte
-	err = db.Get(&image, "SELECT `image` FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
+	err = db.Get(&image, "SELECT `image` FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
 		jiaUserID, jiaIsuUUID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -821,7 +698,7 @@ func getIsuGraph(c echo.Context) error {
 	defer tx.Rollback()
 
 	var count int
-	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
+	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
 		jiaUserID, jiaIsuUUID)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
@@ -948,7 +825,7 @@ func getAllIsuConditions(c echo.Context) error {
 	// ユーザの所持椅子取得
 	isuList := []Isu{}
 	err = db.Select(&isuList,
-		"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = false",
+		"SELECT * FROM `isu` WHERE `jia_user_id` = ?",
 		jiaUserID,
 	)
 	if err != nil {
@@ -1075,7 +952,7 @@ func getIsuConditions(c echo.Context) error {
 	// isu_id存在確認、ユーザの所持椅子か確認
 	var isuName string
 	err = db.Get(&isuName,
-		"SELECT name FROM `isu` WHERE `jia_isu_uuid` = ? AND `jia_user_id` = ? AND `is_deleted` = false",
+		"SELECT name FROM `isu` WHERE `jia_isu_uuid` = ? AND `jia_user_id` = ?",
 		jiaIsuUUID, jiaUserID,
 	)
 	if err != nil {
@@ -1198,7 +1075,7 @@ func postIsuCondition(c echo.Context) error {
 
 	// jia_isu_uuid が存在するかを確認
 	var count int
-	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_isu_uuid` = ?  and `is_deleted` = false", jiaIsuUUID) //TODO: 記法の統一
+	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_isu_uuid` = ?", jiaIsuUUID) //TODO: 記法の統一
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -1225,13 +1102,6 @@ func postIsuCondition(c echo.Context) error {
 				"	VALUES (?, ?, ?, ?, ?)",
 			jiaIsuUUID, timestamp, cond.IsSitting, cond.Condition, cond.Message)
 		if err != nil {
-			mysqlErr, ok := err.(*mysql.MySQLError)
-
-			if ok && mysqlErr.Number == uint16(mysqlErrNumDuplicateEntry) {
-				c.Logger().Errorf("duplicated condition: %v", err)
-				return c.String(http.StatusConflict, "duplicated: condition")
-			}
-
 			c.Logger().Errorf("db error: %v", err)
 			return c.NoContent(http.StatusInternalServerError)
 		}

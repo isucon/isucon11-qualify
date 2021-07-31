@@ -9,7 +9,4 @@ const (
 	ScoreNormalUserLoop        score.ScoreTag = "NormalUserLoop       "
 	ScoreCompanyUserInitialize score.ScoreTag = "CompanyUserInitialize"
 	ScoreCompanyUserLoop       score.ScoreTag = "CompanyUserLoop      "
-	ScorePostConditionInfo     score.ScoreTag = "PostConditionInfo    "
-	ScorePostConditionWarning  score.ScoreTag = "PostConditionWarning "
-	ScorePostConditionCritical score.ScoreTag = "PostConditionCritical"
 )

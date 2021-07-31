@@ -9,6 +9,7 @@ import (
 
 	"github.com/isucon/isucandar"
 	"github.com/isucon/isucandar/agent"
+	"github.com/isucon/isucandar/failure"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
 	"github.com/isucon/isucon11-qualify/bench/random"
@@ -135,7 +136,7 @@ func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a
 	//TODO: 確率で失敗してリトライする
 	_, errs := authAction(ctx, a, user.UserID)
 	for _, err := range errs {
-		step.AddError(err)
+		addErrorWithContext(ctx, step, err)
 	}
 	if len(errs) > 0 {
 		return nil
@@ -147,7 +148,7 @@ func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a
 
 //新しい登録済みISUの生成
 //失敗したらnilを返す
-func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, owner *model.User, addToUser bool) *model.Isu {
+func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, owner *model.User, addToUser bool, img *service.IsuImg) *model.Isu {
 	isu, streamsForPoster, err := model.NewRandomIsuRaw(owner)
 	if err != nil {
 		logger.AdminLogger.Panic(err)
@@ -163,12 +164,17 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 		JIAIsuUUID: isu.JIAIsuUUID,
 		IsuName:    isu.Name,
 	}
-	isuResponse, res, err := postIsuAction(ctx, owner.Agent, req)
+	if img != nil {
+		req.ImgName = img.ImgName
+		req.Img = img.Img
+	}
+	isuResponse, res, err := postIsuAction(ctx, owner.Agent, req) //TODO:画像
 	if err != nil {
-		step.AddError(err)
+		addErrorWithContext(ctx, step, err)
 		isu.StreamsForScenario.StateChan <- model.IsuStateChangeDelete
 		return nil
 	}
+	// TODO: これは validate でやるべきなきがする
 	if isuResponse.JIAIsuUUID != isu.JIAIsuUUID ||
 		isuResponse.Name != isu.Name ||
 		isuResponse.Character != isu.Character {
@@ -176,7 +182,7 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 	}
 	isu.StreamsForScenario.StateChan <- model.IsuStateChangeNone
 
-	//並列に生成する場合は後でgetにより正しい順番を得て、その順序でaddする
+	//並列に生成する場合は後でgetにより正しい順番を得て、その順序でaddする。企業ユーザーは並列にaddしないと回らない
 	//その場合はaddToUser==falseになる
 	if addToUser {
 		//戻り値をownerに追加する
@@ -186,6 +192,11 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 	return isu
 }
 
+// あるユーザーに対して、所有しているISUの
+// 送信が完了したconditionをlevelごとに分け、それぞれの最後に成功したもののうち一番(仮想時間的に)最初のもののうち、
+// 最初のものを返す
+// TODO: これ一つのISUだけ全然conditionを返さなかったらベンチマークハックできない？ -> 直す
+// MEMO: ここで「絶対にそこまではあるtimestamp」を保証する必要がなくなるので使わなくなるはず
 func GetConditionDataExistTimestamp(s *Scenario, user *model.User) int64 {
 	if len(user.IsuListOrderByCreatedAt) == 0 {
 		return s.virtualTimeStart.Unix()
@@ -201,4 +212,15 @@ func GetConditionDataExistTimestamp(s *Scenario, user *model.User) int64 {
 		}
 	}
 	return timestamp
+}
+
+func addErrorWithContext(ctx context.Context, step *isucandar.BenchmarkStep, err error) {
+	select {
+	case <-ctx.Done():
+		if !failure.IsCode(err, ErrHTTP) {
+			step.AddError(err)
+		}
+	default:
+		step.AddError(err)
+	}
 }

@@ -243,12 +243,12 @@ func main() {
 
 	errorCount := int64(0)
 	b.OnError(func(err error, step *isucandar.BenchmarkStep) {
+		critical, timeout, deduction := checkError(err)
+
 		// Load 中の timeout のみログから除外
-		if failure.IsCode(err, failure.TimeoutErrorCode) && failure.IsCode(err, isucandar.ErrLoad) {
+		if timeout && failure.IsCode(err, isucandar.ErrLoad) {
 			return
 		}
-
-		critical, _, deduction := checkError(err)
 
 		if critical || (deduction && atomic.AddInt64(&errorCount, 1) > FAIL_ERROR_COUNT) {
 			step.Cancel()

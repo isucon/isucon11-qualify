@@ -6,10 +6,18 @@ package scenario
 // シナリオのstructがあれば文脈無しで検証できるもの
 
 import (
+	"crypto/md5"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"strings"
+
+	"github.com/isucon/isucandar/agent"
+	"github.com/isucon/isucandar/failure"
+	"github.com/isucon/isucon11-qualify/bench/logger"
 
 	"github.com/isucon/isucon11-qualify/bench/model"
 	"github.com/isucon/isucon11-qualify/bench/service"
@@ -50,7 +58,7 @@ func verify4xxError(res *http.Response, text string, expectedText string, expect
 		return errorInvalidStatusCode(res, expectedCode)
 	}
 	if text != expectedText {
-		return errorMissmatch(res, "エラーメッセージが不正確です: `%s` (expected: `%s`)", text, expectedCode)
+		return errorMissmatch(res, "エラーメッセージが不正確です: `%s` (expected: `%s`)", text, expectedText)
 	}
 	return nil
 }
@@ -114,8 +122,8 @@ func verifyIsuOrderByCreatedAt(res *http.Response, expectedReverse []*model.Isu,
 //
 //mustExistUntil: この値以下のtimestampを持つものは全て反映されているべき
 func verifyIsuConditions(res *http.Response,
-	targetUser *model.User, targetIsuUUID string, request *service.GetIsuConditionRequest,
-	backendData []*service.GetIsuConditionResponse, mustExistUntil int64) error {
+	targetUser *model.User, targetIsuUUID string, request *service.GetIndividualIsuConditionRequest,
+	backendData []*service.GetIsuConditionResponse) error {
 
 	//limitを超えているかチェック
 	var limit int
@@ -144,20 +152,16 @@ func verifyIsuConditions(res *http.Response,
 			filter |= model.ConditionLevelCritical
 		}
 	}
-	var baseIter model.IsuConditionIterator
-	if targetIsuUUID != "" {
-		targetIsu := targetUser.IsuListByID[targetIsuUUID]
-		iterTmp := targetIsu.Conditions.LowerBound(filter, request.CursorEndTime, request.CursorJIAIsuUUID)
-		baseIter = &iterTmp
-	} else {
-		iterTmp := targetUser.Conditions.LowerBound(filter, request.CursorEndTime, request.CursorJIAIsuUUID)
-		baseIter = &iterTmp
-	}
 
-	//backendDataの先頭からチェック
+	targetIsu := targetUser.IsuListByID[targetIsuUUID]
+	iterTmp := targetIsu.Conditions.LowerBound(filter, request.CursorEndTime, targetIsuUUID)
+	baseIter := &iterTmp
+
+	//backendDataは新しい順にソートされているはずなので、先頭からチェック
 	var lastSort model.IsuConditionCursor
 	for i, c := range backendData {
-		nowSort := model.IsuConditionCursor{TimestampUnix: c.Timestamp, OwnerID: c.JIAIsuUUID}
+		//backendDataが新しい順にソートされていることの検証
+		nowSort := model.IsuConditionCursor{TimestampUnix: c.Timestamp, OwnerIsuUUID: c.JIAIsuUUID}
 		if i != 0 && !nowSort.Less(&lastSort) {
 			return errorInvalid(res, "整列順が正しくありません")
 		}
@@ -169,15 +173,13 @@ func verifyIsuConditions(res *http.Response,
 				return errorMissmatch(res, "POSTに成功していない時刻のデータが返されました")
 			}
 
-			if expected.TimestampUnix == c.Timestamp && expected.OwnerID == c.JIAIsuUUID {
+			if expected.TimestampUnix == c.Timestamp && expected.OwnerIsuUUID == c.JIAIsuUUID {
 				break //ok
 			}
 
-			if mustExistUntil < expected.TimestampUnix {
-				//反映されていないことが許可されているので、無視して良い
-				continue
+			if expected.TimestampUnix < c.Timestamp {
+				return errorMissmatch(res, "POSTに成功していない時刻のデータが返されました")
 			}
-			return errorMissmatch(res, "POSTに成功していない時刻のデータが返されました")
 		}
 
 		//等価チェック
@@ -208,12 +210,11 @@ func verifyIsuConditions(res *http.Response,
 		if c.Condition != expectedCondition ||
 			c.ConditionLevel != expectedConditionLevelStr ||
 			c.IsSitting != expected.IsSitting ||
-			c.JIAIsuUUID != expected.OwnerID ||
+			c.JIAIsuUUID != expected.OwnerIsuUUID ||
 			c.Message != expected.Message ||
 			c.IsuName != targetUser.IsuListByID[c.JIAIsuUUID].Name {
 			return errorMissmatch(res, "データが正しくありません")
 		}
-
 		lastSort = nowSort
 	}
 
@@ -225,5 +226,127 @@ func verifyIsuConditions(res *http.Response,
 		}
 	}
 
+	return nil
+}
+
+// TODO: 実装する
+func verifyAllConditions(res *http.Response,
+	targetUser *model.User, request *service.GetIsuConditionRequest,
+	backendData []*service.GetIsuConditionResponse, mustExistUntil int64) error {
+	return nil
+}
+func joinURL(base *url.URL, target string) string {
+	b := *base
+	t, _ := url.Parse(target)
+	u := b.ResolveReference(t).String()
+	return u
+}
+
+// TODO: vendor.****.jsで取得処理が記述されているlogo_white, logo_orangeも取得できてない
+func verifyResources(page string, res *http.Response, resources agent.Resources) []error {
+	base := res.Request.URL.String()
+
+	faviconSvg := resourcesMap["/favicon.svg"]
+	indexCss := resourcesMap["/index.css"]
+	indexJs := resourcesMap["/index.js"]
+	//logoOrange := resourcesMap["/logo_orange.svg"]
+	//logoWhite := resourcesMap["/logo_white.svg"]
+	vendorJs := resourcesMap["/vendor.js"]
+
+	var checks []error
+	switch page {
+	case "/signup":
+		checks = []error{
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+faviconSvg)], faviconSvg),
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexCss)], indexCss),
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexJs)], indexJs),
+			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+logoWhite)], logoWhite),
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+vendorJs)], vendorJs),
+		}
+	case "/condition":
+		checks = []error{
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+faviconSvg)], faviconSvg),
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexCss)], indexCss),
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexJs)], indexJs),
+			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+logoWhite)], logoWhite),
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+vendorJs)], vendorJs),
+		}
+	case "/isu":
+		checks = []error{
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+faviconSvg)], faviconSvg),
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexCss)], indexCss),
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexJs)], indexJs),
+			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+logoWhite)], logoWhite),
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+vendorJs)], vendorJs),
+		}
+	case "/register":
+		checks = []error{
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+faviconSvg)], faviconSvg),
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexCss)], indexCss),
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexJs)], indexJs),
+			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+logoWhite)], logoWhite),
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+vendorJs)], vendorJs),
+		}
+	case "/login":
+		checks = []error{
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+faviconSvg)], faviconSvg),
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexCss)], indexCss),
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexJs)], indexJs),
+			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+logoOrange)], logoOrange),
+			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+logoWhite)], logoWhite),
+			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+vendorJs)], vendorJs),
+		}
+	}
+	errs := []error{}
+	for _, err := range checks {
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	return errs
+}
+
+func errorChecksum(base string, resource *agent.Resource, name string) error {
+	if resource == nil {
+		logger.AdminLogger.Printf("resource not found: %s on %s\n", name, base)
+		return errorCheckSum("期待するリソースが読み込まれませんでした: %s", name)
+	}
+
+	if resource.Error != nil {
+		var nerr net.Error
+		if failure.As(resource.Error, &nerr) {
+			if nerr.Timeout() || nerr.Temporary() {
+				return nerr
+			}
+		}
+		return errorCheckSum("リソースの取得に失敗しました: %s: %v", name, resource.Error)
+	}
+
+	res := resource.Response
+	defer res.Body.Close()
+	if res.StatusCode == 304 {
+		return nil
+	}
+
+	if err := verifyStatusCode(res, http.StatusOK); err != nil {
+		return err
+	}
+
+	// md5でリソースの比較
+	path := res.Request.URL.Path
+	expected := resourcesHash[path]
+	if expected == "" {
+		return nil
+	}
+	hash := md5.New()
+	if _, err := io.Copy(hash, res.Body); err != nil {
+		logger.AdminLogger.Printf("resource checksum: %v", err)
+		return errorCheckSum("リソースの取得に失敗しました: %s", path)
+	}
+	actual := fmt.Sprintf("%x", hash.Sum(nil))
+	if expected != actual {
+		return errorCheckSum("期待するチェックサムと一致しません: %s", path)
+	}
 	return nil
 }

@@ -33,7 +33,7 @@ github.com/google/go-cmp v0.4.0/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/
 github.com/google/go-cmp v0.5.0/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/gNBxE=
 github.com/google/uuid v1.2.0 h1:qJYtXnJRWmpe7m/3XlyhrsLrEURqHRM2kxzoxXqyUDs=
 github.com/google/uuid v1.2.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
-github.com/isucon/isucandar v0.0.0-20210706075559-501b2c3ed1da/go.mod h1:B9L4o5rIoL2dKdHHVOFih3sZN1EfUFPtteVcSR5z1xw=
+github.com/isucon/isucandar v0.0.0-20210720111100-eb5e03ab1e8c/go.mod h1:B9L4o5rIoL2dKdHHVOFih3sZN1EfUFPtteVcSR5z1xw=
 github.com/isucon/isucon10-portal v0.0.0-20201008112716-8c0b637e1bd8/go.mod h1:4hdJ/uFyj4jMNPfKq8KkrsrPyw5nV7B/5JRcAu1sgQM=
 github.com/jmoiron/sqlx v1.3.4 h1:wv+0IJZfL5z0uZoUjlpKgHkgaFSYD+r9CfrXjEXsO7w=
 github.com/jmoiron/sqlx v1.3.4/go.mod h1:2BljVx/86SuTyjE+aPYlHCTNvZrnJXghYGpNiXLBMCQ=
