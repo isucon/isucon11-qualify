@@ -101,7 +101,7 @@ type GraphData struct {
 type Graph struct {
 	JIAIsuUUID string
 	StartAt    time.Time
-	Data       string
+	Data       GraphData
 }
 
 type User struct {
@@ -729,11 +729,8 @@ func getIsuGraph(c echo.Context) error {
 
 		var data *GraphData
 		if inRange && tmpGraph.StartAt.Equal(tmpTime) {
-			err = json.Unmarshal([]byte(tmpGraph.Data), &data)
-			if err != nil {
-				c.Logger().Errorf("failed to unmarshal json: %v", err)
-				return c.NoContent(http.StatusInternalServerError)
-			}
+			data = &tmpGraph.Data
+
 			index++
 		}
 
@@ -1142,7 +1139,7 @@ func getGraphDataList(tx *sqlx.Tx, jiaIsuUUID string, date time.Time) ([]Graph, 
 				if err != nil {
 					return nil, fmt.Errorf("failed to calculate graph: %v", err)
 				}
-				graphDatas = append(graphDatas, Graph{JIAIsuUUID: jiaIsuUUID, StartAt: startTime, Data: string(data)})
+				graphDatas = append(graphDatas, Graph{JIAIsuUUID: jiaIsuUUID, StartAt: startTime, Data: data})
 			}
 
 			//次の一時間の探索
@@ -1157,7 +1154,7 @@ func getGraphDataList(tx *sqlx.Tx, jiaIsuUUID string, date time.Time) ([]Graph, 
 		if err != nil {
 			return nil, fmt.Errorf("failed to calculate graph: %v", err)
 		}
-		graphDatas = append(graphDatas, Graph{JIAIsuUUID: jiaIsuUUID, StartAt: startTime, Data: string(data)})
+		graphDatas = append(graphDatas, Graph{JIAIsuUUID: jiaIsuUUID, StartAt: startTime, Data: data})
 	}
 
 	// 24時間分のグラフデータだけを取り出す処理
@@ -1185,8 +1182,8 @@ func truncateAfterHours(t time.Time) time.Time {
 }
 
 //スコア計算をする関数
-func calculateGraphData(IsuConditionCluster []IsuCondition) ([]byte, error) {
-	graph := &GraphData{}
+func calculateGraphData(IsuConditionCluster []IsuCondition) (GraphData, error) {
+	graph := GraphData{}
 
 	//sitting
 	sittingCount := 0
@@ -1243,10 +1240,5 @@ func calculateGraphData(IsuConditionCluster []IsuCondition) ([]byte, error) {
 		graph.Score = 0
 	}
 
-	//JSONに変換
-	graphJSON, err := json.Marshal(graph)
-	if err != nil {
-		return nil, err
-	}
-	return graphJSON, nil
+	return graph, nil
 }
