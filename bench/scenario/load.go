@@ -440,7 +440,7 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 			if isNewData(targetIsu, cond) {
 				conditions = append(conditions, cond)
 			} else {
-				// timestamp順なのは vaidation で保証しているので読んだやつが出てきたタイミングで return
+				// timestamp順なのは validation で保証しているので読んだやつが出てきたタイミングで return
 				return conditions, nil
 			}
 		}
