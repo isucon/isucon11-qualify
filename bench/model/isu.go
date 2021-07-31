@@ -43,16 +43,18 @@ type StreamsForScenario struct {
 //一つのIsuにつき、一つの送信用 Goroutineがある
 //IsuはISU協会 Goroutineからも読み込まれる
 type Isu struct {
-	Owner              *User
-	ID                 int
-	JIAIsuUUID         string
-	Name               string
-	ImageHash          [md5.Size]byte
-	JIACatalogID       string
-	Character          string
-	isDeactivated      bool                //実際にdeactivateされているか
-	StreamsForScenario *StreamsForScenario //poster Goroutineとの通信
-	Conditions         IsuConditionArray   //シナリオ Goroutineからのみ参照
+	Owner                         *User
+	ID                            int
+	JIAIsuUUID                    string
+	Name                          string
+	ImageHash                     [md5.Size]byte
+	JIACatalogID                  string
+	Character                     string
+	isDeactivated                 bool                //実際にdeactivateされているか
+	StreamsForScenario            *StreamsForScenario //poster Goroutineとの通信
+	Conditions                    IsuConditionArray   //シナリオ Goroutineからのみ参照
+	LastReadConditionTimestamp    int64               //シナリオ Goroutineからのみ参照
+	LastReadBadConditionTimestamp int64               //シナリオ Goroutineからのみ参照
 }
 
 //新しいISUの生成
@@ -69,13 +71,13 @@ func NewRandomIsuRaw(owner *User) (*Isu, *StreamsForPoster, error) {
 		return nil, nil, err
 	}
 	isu := &Isu{
-		Owner:             owner,
-		JIAIsuUUID:        id.String(),
-		Name:              random.IsuName(),
-		ImageHash:         defaultIconHash,
-		JIACatalogID:      "550e8400-e29b-41d4-a716-446655440000", //TODO:
-		Character:         random.Character(),
-		isDeactivated:     true,
+		Owner:         owner,
+		JIAIsuUUID:    id.String(),
+		Name:          random.IsuName(),
+		ImageHash:     defaultIconHash,
+		JIACatalogID:  "550e8400-e29b-41d4-a716-446655440000", //TODO:
+		Character:     random.Character(),
+		isDeactivated: true,
 		StreamsForScenario: &StreamsForScenario{
 			StateChan:     stateChan,
 			ConditionChan: conditionChan,

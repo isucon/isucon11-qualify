@@ -101,6 +101,7 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 
 	randEngine := rand.New(rand.NewSource(rand.Int63()))
 	nextTargetIsuIndex := 0
+	// MEMO: シナリオのループで加点しなくなったからいらないと思う
 	scenarioSuccess := false
 	lastSolvedTime := make(map[string]time.Time)
 	for _, isu := range user.IsuListOrderByCreatedAt {
@@ -159,48 +160,13 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 			addErrorWithContext(ctx, step, err)
 		}
 
+		// TODO: 確定的に
+		route := randEngine.Intn(3)
 		// 1 / 2
-		if randEngine.Intn(2) < 1 {
-			//TODO: リロード
-
-			//定期的にconditionを見に行くシナリオ
-			request := service.GetIndividualIsuConditionRequest{
-				StartTime:        nil,
-				CursorEndTime:    dataExistTimestamp,
-				ConditionLevel:   "info,warning,critical",
-				Limit:            nil,
-			}
-			conditions := s.getIsuConditionWithScroll(ctx, step, user, targetIsu, request, 2)
-			if conditions == nil {
-				scenarioSuccess = false
-				continue
-			}
-			if len(conditions) == 0 {
-				continue
-			}
-
-			//conditionを確認して、椅子状態を改善
-			solveCondition, findTimestamp := findBadIsuState(conditions)
-			if solveCondition != model.IsuStateChangeNone && lastSolvedTime[targetIsu.JIAIsuUUID].Before(time.Unix(findTimestamp, 0)) {
-				//graphを見る
-				//TODO: これたぶん最新のconditionを見ているので検証コケる
-				// kiku: これってなんで悪かったらグラフを見るの？ -> 詳しいところをみたい / Graphが全体でConditionが詳細な気がする？たぶちさんにもきく
-				virtualDay := (findTimestamp / (24 * 60 * 60)) * (24 * 60 * 60)
-				_ = getIsuGraphWithPaging(ctx, step, user, targetIsu, virtualDay, 10)
-				for _, err := range errs {
-					scenarioSuccess = false
-					addErrorWithContext(ctx, step, err)
-				}
-
-				//状態改善
-				lastSolvedTime[targetIsu.JIAIsuUUID] = time.Unix(findTimestamp, 0)
-				//バッファがあるのでブロック率は低い読みで直列に投げる
-				select {
-				case <-ctx.Done():
-					return
-				case targetIsu.StreamsForScenario.StateChan <- solveCondition:
-				}
-			}
+		if route < 1 {
+			s.requestNewConditionScenario(ctx, step, user, targetIsu)
+		} else if route < 2 {
+			s.requestLastBadConditionScenario(ctx, step, user, targetIsu)
 		} else {
 
 			// 割り算で切り捨てを発生させている(day単位)
@@ -281,6 +247,199 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 	}
 	step.AddScore(ScoreNormalUserInitialize)
 	return user
+}
+
+// あるISUの新しいconditionを見に行くシナリオ。
+func (s *Scenario) requestNewConditionScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User, targetIsu *model.Isu) {
+	// 最新の condition から、一度見た condition が帰ってくるまで condition のページングをする
+	nowVirtualTime := s.ToVirtualTime(time.Now())
+	request := service.GetIndividualIsuConditionRequest{
+		StartTime:        nil,
+		CursorEndTime:    nowVirtualTime.Unix(),
+		ConditionLevel:   "info,warning,critical",
+		Limit:            nil,
+	}
+	conditions, errs := s.getIsuConditionUntilAlreadyRead(ctx, user, targetIsu, request)
+	if len(errs) != 0 {
+		for _, err := range errs {
+			addErrorWithContext(ctx, step, err)
+		}
+		return
+	}
+	if len(conditions) == 0  {
+		return
+	}
+
+	// GETに成功したのでその分を加点
+	for _, cond := range conditions {
+		// TODO: 点数調整考える。ここ読むたびじゃなくて、何件読んだにするとか
+		switch cond.ConditionLevel {
+		case "info":
+			step.AddScore(ScoreReadInfoCondition)
+		case "warning":
+			step.AddScore(ScoreReadWarningCondition)
+		case "critical":
+			step.AddScore(ScoreReadCriticalCondition)
+		default:
+			// validate でここに入らないことは保証されている
+		}
+	}
+
+	// LastReadConditionTimestamp を更新
+	// condition の順番保障はされてる
+	targetIsu.LastReadConditionTimestamp = conditions[0].Timestamp
+
+	// このシナリオでは修理しない
+}
+
+// あるISUの、悪い最新のconditionを見に行くシナリオ。
+func (s *Scenario) requestLastBadConditionScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User, targetIsu *model.Isu) {
+	// ConditionLevel最新の condition から、一度見た condition が帰ってくるまで condition のページングをする
+	nowVirtualTime := s.ToVirtualTime(time.Now())
+	request := service.GetIndividualIsuConditionRequest{
+		StartTime:        nil,
+		CursorEndTime:    nowVirtualTime.Unix(),
+		ConditionLevel:   "warning,critical",
+		Limit:            nil,
+	}
+	// GET condition/{jia_isu_uuid} を取得してバリデーション
+	_, conditions, errs := browserGetIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
+		request,
+		func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
+			// poster で送ったものの同期
+			user.GetConditionFromChan(ctx)
+
+			// TODO: validation は引数に渡さず関数の結果からやる
+			//conditionの検証
+			err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request, conditions)
+			if err != nil {
+				return []error{err}
+			}
+			return []error{}
+		},
+	)
+	// TODO: retry
+	if len(errs) > 0 {
+		for _, err := range errs {
+			addErrorWithContext(ctx, step, err)
+			return
+		}
+	}
+	if len(conditions) == 0 {
+		return
+	}
+
+	// こっちでは加点しない
+
+	// 新しい condition を確認して、椅子状態を改善
+	solveCondition, targetTimestamp := findBadIsuState(conditions)
+
+	// すでに改善してるなら修理とかはしない
+	if targetTimestamp <= targetIsu.LastReadBadConditionTimestamp {
+		return
+	}
+	if solveCondition != model.IsuStateChangeNone {
+		// 状態改善
+		// バッファがあるのでブロック率は低い読みで直列に投げる
+		select {
+		case <-ctx.Done():
+			return
+		case targetIsu.StreamsForScenario.StateChan <- solveCondition:
+		}
+	}
+	
+	// LastReadBadConditionTimestamp を更新
+	// condition の順番保障はされてる
+	targetIsu.LastReadBadConditionTimestamp = conditions[0].Timestamp
+}
+
+//GET /isu/condition/{jia_isu_uuid} を一度見たconditionが出るまでページングする === 全てが新しいなら次のページに行く。補足: LastReadTimestamp は外で更新
+func (s *Scenario) getIsuConditionUntilAlreadyRead(
+	ctx context.Context,
+	user *model.User,
+	targetIsu *model.Isu,
+	request service.GetIndividualIsuConditionRequest,
+) ([]*service.GetIsuConditionResponse, []error) {
+	// 今回のこの関数で取得した condition の配列
+	conditions := []*service.GetIsuConditionResponse{}
+
+	// limit を指定しているならそれに合わせて、指定してないならデフォルトの値を使う
+	limit := conditionLimit
+	if request.Limit != nil {
+		limit = *request.Limit
+	}
+
+	// GET condition/{jia_isu_uuid} を取得してバリデーション
+	_, firstPageConditions, errs := browserGetIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
+		request,
+		func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
+			// poster で送ったものの同期
+			user.GetConditionFromChan(ctx)
+
+			// TODO: validation は引数に渡さず関数の結果からやる
+			//conditionの検証
+			err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request, conditions)
+			if err != nil {
+				return []error{err}
+			}
+			return []error{}
+		},
+	)
+	// TODO: retry
+	if len(errs) > 0 {
+		return nil, errs
+	}
+	for i, cond := range firstPageConditions {
+		// 新しいやつだけなら append
+		if isNewData(targetIsu, cond) {
+			conditions = append(conditions, cond)
+		} else {
+			logger.AdminLogger.Printf("is not new data in firstPageConditions. index: %v", i)
+			// timestamp順なのは vaidation で保証しているので読んだやつが出てきたタイミングで return
+			return conditions, nil
+		}
+	}
+	// 最初のページが最後のページならやめる
+	if len(firstPageConditions) != limit {
+		return conditions, nil
+	}
+
+	// 続きがあり、なおかつ今取得した condition が全て新しい時はスクロールする
+	for {
+		request = service.GetIndividualIsuConditionRequest{
+			StartTime:        request.StartTime,
+			CursorEndTime:    conditions[len(conditions)-1].Timestamp,
+			ConditionLevel:   request.ConditionLevel,
+			Limit:            request.Limit,
+		}
+		tmpConditions, _, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
+		// poster で送ったものの同期
+		user.GetConditionFromChan(ctx)
+		// TODO: retry
+		if err != nil {
+			return nil, []error{err}
+		}
+		// TODO: validation
+
+		for _, cond := range tmpConditions {
+			// 新しいやつだけなら append
+			if isNewData(targetIsu, cond) {
+				conditions = append(conditions, cond)
+			} else {
+				// timestamp順なのは validation で保証しているので読んだやつが出てきたタイミングで return
+				return conditions, nil
+			}
+		}
+
+		// 最後のページまで見ちゃってるならやめる
+		if len(tmpConditions) != limit {
+			return conditions, nil
+		}
+	}
+}
+
+func isNewData(isu *model.Isu, condition *service.GetIsuConditionResponse) bool {
+	return condition.Timestamp > isu.LastReadConditionTimestamp
 }
 
 //GET /isu/condition/{jia_isu_uuid} をスクロール付きで取り、バリデーションする
@@ -407,7 +566,7 @@ func findBadIsuState(conditions []*service.GetIsuConditionResponse) (model.IsuSt
 				}
 			}
 		}
-		// TODO: これ == 0 で大丈夫？一度 virtualTimestamp に値を入れた時点で break したほうが良さそう(braekすると)
+		// TODO: これ == 0 で大丈夫？一度 virtualTimestamp に値を入れた時点で break したほうが良さそう(is_overweight も解消されないようにするなら braek させる)
 		if bad && virtualTimestamp == 0 {
 			virtualTimestamp = c.Timestamp
 		}
