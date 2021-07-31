@@ -30,7 +30,6 @@ type posterState struct {
 func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseURL string, isu *model.Isu, scenarioChan *model.StreamsForPoster, closeWait chan<- struct{}) {
 	defer func() {
 		close(closeWait)
-		scenarioChan.ActiveChan <- false //deactivate 容量1で、ここでしか使わないのでブロックしない
 	}()
 
 	postConditionTimeout := 50 * time.Millisecond //MEMO: timeout は気にせずにズバズバ投げる

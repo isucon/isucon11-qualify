@@ -28,7 +28,6 @@ const (
 //複数回poster Goroutineが起動するかもしれないのでcloseしない
 //当然リソースリークするがベンチマーカーは毎回落とすので問題ない
 type StreamsForPoster struct {
-	ActiveChan    chan<- bool
 	StateChan     <-chan IsuStateChange
 	ConditionChan chan<- []IsuCondition
 }
@@ -37,7 +36,6 @@ type StreamsForPoster struct {
 //複数回poster Goroutineが起動するかもしれないのでcloseしない
 //当然リソースリークするがベンチマーカーは毎回落とすので問題ない
 type StreamsForScenario struct {
-	activeChan    <-chan bool
 	StateChan     chan<- IsuStateChange
 	ConditionChan <-chan []IsuCondition
 }
@@ -63,7 +61,6 @@ type Isu struct {
 //戻り値をISU協会にIsu*を登録する必要あり
 //戻り値をownerに追加する必要あり
 func NewRandomIsuRaw(owner *User) (*Isu, *StreamsForPoster, error) {
-	activeChan := make(chan bool, 1) //容量1以上ないとposterがブロックするので、必ず1以上
 	stateChan := make(chan IsuStateChange, 1)
 	conditionChan := make(chan []IsuCondition, 10)
 
@@ -80,7 +77,6 @@ func NewRandomIsuRaw(owner *User) (*Isu, *StreamsForPoster, error) {
 		Character:         random.Character(),
 		isDeactivated:     true,
 		StreamsForScenario: &StreamsForScenario{
-			activeChan:    activeChan,
 			StateChan:     stateChan,
 			ConditionChan: conditionChan,
 		},
@@ -88,21 +84,10 @@ func NewRandomIsuRaw(owner *User) (*Isu, *StreamsForPoster, error) {
 	}
 
 	streamsForPoster := &StreamsForPoster{
-		ActiveChan:    activeChan,
 		StateChan:     stateChan,
 		ConditionChan: conditionChan,
 	}
 	return isu, streamsForPoster, nil
-}
-
-//シナリオ Goroutineからのみ参照
-func (isu *Isu) IsDeactivated() bool {
-	select {
-	case v, ok := <-isu.StreamsForScenario.activeChan:
-		isu.isDeactivated = !ok || !v //Isu協会 Goroutineの終了 || deactivateされた
-	default:
-	}
-	return isu.isDeactivated
 }
 
 func (isu *Isu) getConditionFromChan(ctx context.Context, userConditionBuffer *IsuConditionTreeSet) {
