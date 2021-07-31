@@ -64,6 +64,11 @@ type Config struct {
 	URL  string `db:"url"`
 }
 
+type GetIsuResponse struct {
+	Isu
+	LatestIsuCondition *GetIsuConditionResponse `json:"latest_isu_condition"`
+}
+
 type Isu struct {
 	ID         int       `db:"id" json:"id"`
 	JIAIsuUUID string    `db:"jia_isu_uuid" json:"jia_isu_uuid"`
@@ -615,9 +620,16 @@ func getIsu(c echo.Context) error {
 
 	jiaIsuUUID := c.Param("jia_isu_uuid")
 
+	tx, err := db.Beginx()
+	if err != nil {
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	defer tx.Rollback()
+
 	// TODO: jia_user_id 判別はクエリに入れずその後のロジックとする？ (一通り完成した後に要考慮)
 	var isu Isu
-	err = db.Get(&isu, "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
+	err = tx.Get(&isu, "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
 		jiaUserID, jiaIsuUUID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -629,7 +641,41 @@ func getIsu(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	return c.JSON(http.StatusOK, isu)
+	lastCondition := IsuCondition{}
+	err = tx.Get(&lastCondition, "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` DESC",
+		isu.JIAIsuUUID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// conditionが無かったらlatestConditionをnilのままにする
+		} else {
+			c.Logger().Errorf("db error: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	conditionLevel, err := calcConditionLevel(lastCondition.Condition)
+	if err != nil {
+		c.Logger().Errorf("failed to get condition level: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	formatedCondition := GetIsuConditionResponse{
+		JIAIsuUUID:     lastCondition.JIAIsuUUID,
+		IsuName:        isu.Name,
+		Timestamp:      lastCondition.Timestamp.Unix(),
+		IsSitting:      lastCondition.IsSitting,
+		Condition:      lastCondition.Condition,
+		ConditionLevel: conditionLevel,
+		Message:        lastCondition.Message,
+	}
+	res := GetIsuResponse{Isu: isu, LatestIsuCondition: &formatedCondition}
+	return c.JSON(http.StatusOK, res)
 }
 
 //  GET /api/isu/{jia_isu_uuid}/icon
@@ -1017,15 +1063,9 @@ func getIsuConditionsFromDB(jiaIsuUUID string, cursorEndTime time.Time, conditio
 	//condition_levelでの絞り込み
 	conditionsResponse := []*GetIsuConditionResponse{}
 	for _, c := range conditions {
-		var cLevel string
-		warnCount := strings.Count(c.Condition, "=true")
-		switch warnCount {
-		case 0:
-			cLevel = "info"
-		case 1, 2:
-			cLevel = "warning"
-		case 3:
-			cLevel = "critical"
+		cLevel, err := calcConditionLevel(c.Condition)
+		if err != nil {
+			continue
 		}
 
 		if _, ok := conditionLevel[cLevel]; ok {
@@ -1049,6 +1089,25 @@ func getIsuConditionsFromDB(jiaIsuUUID string, cursorEndTime time.Time, conditio
 	}
 
 	return conditionsResponse, nil
+}
+
+// conditionのcsvからcondition levelを計算
+func calcConditionLevel(condition string) (string, error) {
+	var conditionLevel string
+
+	warnCount := strings.Count(condition, "=true")
+	switch warnCount {
+	case 0:
+		conditionLevel = "info"
+	case 1, 2:
+		conditionLevel = "warning"
+	case 3:
+		conditionLevel = "critical"
+	default:
+		return "", fmt.Errorf("unexpected warn count")
+	}
+
+	return conditionLevel, nil
 }
 
 // POST /api/condition/{jia_isu_uuid}
