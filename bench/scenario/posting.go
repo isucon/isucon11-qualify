@@ -1,26 +1,22 @@
 package scenario
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"math/rand"
+	"net"
 	"net/http"
 	"time"
 
 	"github.com/isucon/isucandar"
-	"github.com/isucon/isucandar/agent"
 	"github.com/isucon/isucandar/failure"
-	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
 	"github.com/isucon/isucon11-qualify/bench/service"
 )
 
 const (
-	PostInterval      = 5 * time.Minute //Virtual Timeでのpost間隔
-	PostContentNum    = 100             //一回のpostで何要素postするか
-	ConditionTagCount = 100             //condition 100件ごとに1タグ
+	PostInterval   = 5 * time.Minute //Virtual Timeでのpost間隔
+	PostContentNum = 100             //一回のpostで何要素postするか
 )
 
 type posterState struct {
@@ -32,13 +28,14 @@ type posterState struct {
 }
 
 //POST /api/condition/{jia_isu_id}をたたく Goroutine
-func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseURL string, jiaIsuUUID string, scenarioChan *model.StreamsForPoster, closeWait chan<- struct{}) {
+func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseURL string, isu *model.Isu, scenarioChan *model.StreamsForPoster, closeWait chan<- struct{}) {
 	defer func() {
 		close(closeWait)
 		scenarioChan.ActiveChan <- false //deactivate 容量1で、ここでしか使わないのでブロックしない
 	}()
 
-	userTimer, userTimerCancel := context.WithDeadline(ctx, s.realTimeLoadFinishedAt.Add(-agent.DefaultRequestTimeout-1*time.Second))
+	postConditionTimeout := 50 * time.Millisecond //MEMO: timeout は気にせずにズバズバ投げる
+	userTimer, userTimerCancel := context.WithDeadline(ctx, s.realTimeLoadFinishedAt.Add(-postConditionTimeout))
 	defer userTimerCancel()
 
 	nowTimeStamp := s.ToVirtualTime(time.Now())
@@ -56,13 +53,9 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		isuStateDelete:       false,
 	}
 	randEngine := rand.New(rand.NewSource(rand.Int63()))
-	targetURL := fmt.Sprintf("%s/api/condition/%s", targetBaseURL, jiaIsuUUID)
+	targetURL := fmt.Sprintf("%s/api/condition/%s", targetBaseURL, isu.JIAIsuUUID)
 	httpClient := http.Client{}
-	httpClient.Timeout = agent.DefaultRequestTimeout + 5*time.Second //MEMO: post conditionがtimeoutすると付随してたくさんエラーが出るので、timeoutしにくいようにする
-
-	conditionInfoCount := 0
-	conditionWarningCount := 0
-	conditionCriticalCount := 0
+	httpClient.Timeout = postConditionTimeout
 
 	//post isuの待ち
 	select {
@@ -77,6 +70,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 	}
 
 	//TODO: 頻度はちゃんと検討して変える
+	// TODO: ここを投げっぱなしにしてPOSTする前から5msまつ、みたいな風にする
 	timer := time.NewTicker(PostInterval * PostContentNum / s.virtualTimeMulti)
 	defer timer.Stop()
 	for {
@@ -105,8 +99,8 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		conditionsReq := []service.PostIsuConditionRequest{}
 		for state.NextConditionTimestamp().Before(nowTimeStamp) {
 			//次のstateを生成
-			condition := state.GenerateNextCondition(randEngine, stateChange, jiaIsuUUID) //TODO: stateの適用タイミングをちゃんと考える
-			stateChange = model.IsuStateChangeNone                                        //TODO: stateの適用タイミングをちゃんと考える
+			condition := state.GenerateNextCondition(randEngine, stateChange, isu) //TODO: stateの適用タイミングをちゃんと考える
+			stateChange = model.IsuStateChangeNone                                 //TODO: stateの適用タイミングをちゃんと考える
 
 			//リクエスト
 			conditions = append(conditions, condition)
@@ -130,59 +124,30 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 			continue
 		}
 
-		conditionByte, err := json.Marshal(conditionsReq)
-		if err != nil {
-			logger.AdminLogger.Panic(err)
+		//TODO: ユーザー Goroutineが詰まると詰まるのでいや
+		select {
+		case <-ctx.Done():
+			return
+		case scenarioChan.ConditionChan <- conditions:
 		}
-		res, err := httpClient.Post(
-			targetURL, "application/json",
-			bytes.NewBuffer(conditionByte),
-		)
+
+		_, err := postIsuConditionAction(httpClient, targetURL, &conditionsReq)
 		if err != nil {
-			step.AddError(failure.NewError(ErrHTTP, err))
-			continue // goto next loop
+			nerr, ok := err.(net.Error)
+			// オリジナルのエラーなら失敗したっていうこと
+			if !ok {
+				addErrorWithContext(ctx, step, failure.NewError(ErrHTTP, err))
+				continue // goto next loop
+			}
+			// タイムアウトなら無視する
+			if !nerr.Timeout() {
+				addErrorWithContext(ctx, step, failure.NewError(ErrHTTP, err))
+				continue // goto next loop
+			}
+		} else {
+			// TODO: validation
+			// この else ブロックで validation するのは timeout 時 res.Body が nil だから
 		}
-		func() {
-			defer res.Body.Close()
-
-			err = verifyStatusCode(res, http.StatusCreated)
-			if err != nil {
-				step.AddError(err)
-				return // goto next loop
-			}
-
-			for _, condition := range conditions {
-				switch condition.ConditionLevel {
-				case model.ConditionLevelInfo:
-					conditionInfoCount++
-				case model.ConditionLevelWarning:
-					conditionWarningCount++
-				case model.ConditionLevelCritical:
-					conditionCriticalCount++
-				}
-			}
-
-			//TODO: ユーザー Goroutineが詰まると詰まるのでいや
-			select {
-			case <-ctx.Done():
-				return
-			case scenarioChan.ConditionChan <- conditions:
-			}
-
-			//TODO: スレッドを終了する際に、端数をグローバル変数に逃がして、後で集計できるようにする
-			for conditionInfoCount >= ConditionTagCount {
-				step.AddScore(ScorePostConditionInfo)
-				conditionInfoCount -= ConditionTagCount
-			}
-			for conditionWarningCount >= ConditionTagCount {
-				step.AddScore(ScorePostConditionWarning)
-				conditionWarningCount -= ConditionTagCount
-			}
-			for conditionCriticalCount >= ConditionTagCount {
-				step.AddScore(ScorePostConditionCritical)
-				conditionCriticalCount -= ConditionTagCount
-			}
-		}()
 	}
 }
 
@@ -192,7 +157,7 @@ func (state *posterState) NextConditionTimestamp() time.Time {
 func (state *posterState) NextIsLatestTimestamp(nowTimeStamp time.Time) bool {
 	return nowTimeStamp.Before(time.Unix(state.lastCondition.TimestampUnix, 0).Add(PostInterval * 2))
 }
-func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChange model.IsuStateChange, jiaIsuUUID string) model.IsuCondition {
+func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChange model.IsuStateChange, isu *model.Isu) model.IsuCondition {
 
 	timeStamp := state.NextConditionTimestamp()
 
@@ -202,6 +167,7 @@ func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChan
 	lastConditionIsBroken := state.lastCondition.IsBroken
 	if stateChange == model.IsuStateChangeBad {
 		randV := randEngine.Intn(100)
+		// TODO: 70% なら 69 じゃない, 対して影響はない
 		if randV <= 70 {
 			lastConditionIsDirty = true
 		} else if randV <= 90 {
@@ -231,6 +197,7 @@ func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChan
 	var condition model.IsuCondition
 	if state.isuStateDelete {
 		//削除された椅子のConditionは0点固定
+		// TODO: 削除当たりの処理を消す
 		condition = model.IsuCondition{
 			StateChange:    model.IsuStateChangeDelete,
 			IsSitting:      true,
@@ -240,7 +207,8 @@ func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChan
 			ConditionLevel: model.ConditionLevelCritical,
 			Message:        "",
 			TimestampUnix:  timeStamp.Unix(),
-			OwnerID:        jiaIsuUUID,
+			OwnerIsuUUID:   isu.JIAIsuUUID,
+			OwnerIsuID:     isu.ID,
 		}
 	} else {
 		//新しいConditionを生成
@@ -253,8 +221,10 @@ func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChan
 			//ConditionLevel: model.ConditionLevelCritical,
 			Message:       "",
 			TimestampUnix: timeStamp.Unix(),
-			OwnerID:       jiaIsuUUID,
+			OwnerIsuUUID:  isu.JIAIsuUUID,
+			OwnerIsuID:    isu.ID,
 		}
+		// TODO: over_weight が true のときは sitting を false にしないように
 		//sitting
 		if condition.IsSitting {
 			if randEngine.Intn(100) <= 10 {
@@ -268,18 +238,18 @@ func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChan
 		}
 		//overweight
 		if condition.IsSitting && timeStamp.Sub(state.lastDetectOverweight) > 60*time.Minute {
-			if randEngine.Intn(100) <= 50 {
+			if randEngine.Intn(100) <= 5 {
 				condition.IsOverweight = true
 			}
 		}
 		//dirty
 		if timeStamp.Sub(state.lastClean) > 75*time.Minute {
-			if randEngine.Intn(100) <= 50 {
+			if randEngine.Intn(100) <= 5 {
 				condition.IsDirty = true
 			}
 		}
 		//broken
-		if randEngine.Intn(100) <= 1 {
+		if randEngine.Intn(1000) <= 1 {
 			condition.IsBroken = true
 		}
 
@@ -287,27 +257,31 @@ func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChan
 		condition.Message = "今日もいい天気" //TODO: メッセージをちゃんと生成
 
 		//conditionLevel
-		warnCount := 0
-		if condition.IsDirty {
-			warnCount += 1
-		}
-		if condition.IsOverweight {
-			warnCount += 1
-		}
-		if condition.IsBroken {
-			warnCount += 1
-		}
-		if warnCount == 0 {
-			condition.ConditionLevel = model.ConditionLevelInfo
-		} else if warnCount == 1 || warnCount == 2 {
-			condition.ConditionLevel = model.ConditionLevelWarning
-		} else {
-			condition.ConditionLevel = model.ConditionLevelCritical
-		}
+		condition.ConditionLevel = calcConditionLevel(condition)
 	}
 
 	//last更新
 	state.lastCondition = condition
 
 	return condition
+}
+
+func calcConditionLevel(condition model.IsuCondition) model.ConditionLevel {
+	warnCount := 0
+	if condition.IsDirty {
+		warnCount += 1
+	}
+	if condition.IsOverweight {
+		warnCount += 1
+	}
+	if condition.IsBroken {
+		warnCount += 1
+	}
+	if warnCount == 0 {
+		return model.ConditionLevelInfo
+	} else if warnCount == 1 || warnCount == 2 {
+		return model.ConditionLevelWarning
+	} else {
+		return model.ConditionLevelCritical
+	}
 }

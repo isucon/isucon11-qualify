@@ -19,8 +19,9 @@ var (
 	streamsForPosterMutex sync.Mutex
 	isuIsActivated        = map[string]JiaAPI2PosterData{}
 	streamsForPoster      = map[string]*model.StreamsForPoster{}
-	isuDetailInfomation   = map[string]*IsuDetailInfomation{}
-	isuTargetBaseUrl      = map[string]string{} // 本当はISUに紐付けたい
+	//isuDetailInfomation   = map[string]*IsuDetailInfomation{}
+	isuFromUUID      = map[string]*model.Isu{}
+	isuTargetBaseUrl = map[string]string{} // 本当はISUに紐付けたい
 
 	jiaAPIContext context.Context
 	jiaAPIStep    *isucandar.BenchmarkStep
@@ -45,11 +46,11 @@ type JiaAPI2PosterData struct {
 }
 
 //シナリオ Goroutineからの呼び出し
-func RegisterToJiaAPI(jiaIsuUUID string, detail *IsuDetailInfomation, streams *model.StreamsForPoster) {
+func RegisterToJiaAPI(isu *model.Isu, streams *model.StreamsForPoster) {
 	streamsForPosterMutex.Lock()
 	defer streamsForPosterMutex.Unlock()
-	isuDetailInfomation[jiaIsuUUID] = detail
-	streamsForPoster[jiaIsuUUID] = streams
+	isuFromUUID[isu.JIAIsuUUID] = isu
+	streamsForPoster[isu.JIAIsuUUID] = streams
 }
 
 func (s *Scenario) JiaAPIService(ctx context.Context, step *isucandar.BenchmarkStep) {
@@ -108,13 +109,14 @@ func (s *Scenario) postActivate(c echo.Context) error {
 	if !(0 <= state.TargetPort && state.TargetPort < 0x1000) {
 		return echo.NewHTTPError(http.StatusBadRequest)
 	}
+
 	targetBaseURL := fmt.Sprintf(
 		"http://%s:%d",
 		state.TargetIP, state.TargetPort,
 	)
 
 	//poster Goroutineの起動
-	var isuDetail *IsuDetailInfomation
+	var isu *model.Isu
 	var scenarioChan *model.StreamsForPoster
 	closeWait := make(chan struct{})
 	posterContext, cancelFunc := context.WithCancel(jiaAPIContext)
@@ -122,21 +124,28 @@ func (s *Scenario) postActivate(c echo.Context) error {
 		var ok bool
 		streamsForPosterMutex.Lock()
 		defer streamsForPosterMutex.Unlock()
+		// scenario goroutine とやり取りするためのチャネルを受け取る
 		scenarioChan, ok = streamsForPoster[state.IsuUUID]
 		if !ok {
 			return echo.NewHTTPError(http.StatusNotFound)
 		}
+		// activate 済みであれば 403 を返す
 		v, ok := isuIsActivated[state.IsuUUID]
 		if ok && v.activated {
 			return echo.NewHTTPError(http.StatusForbidden)
 		}
+		// activate 済みフラグを立てる
 		isuIsActivated[state.IsuUUID] = JiaAPI2PosterData{
 			activated:  true,
 			cancelFunc: cancelFunc,
 			closeWait:  closeWait,
 		}
 		isuTargetBaseUrl[state.IsuUUID] = targetBaseURL
-		isuDetail = isuDetailInfomation[state.IsuUUID]
+		// リクエストされた JIA_ISU_UUID が事前に scenario.NewIsu にて作成された isu と紐付かない場合 403 を返す
+		isu, ok = isuFromUUID[state.IsuUUID]
+		if !ok {
+			return echo.NewHTTPError(http.StatusForbidden)
+		}
 
 		return nil
 	}()
@@ -146,11 +155,11 @@ func (s *Scenario) postActivate(c echo.Context) error {
 	s.loadWaitGroup.Add(1)
 	go func() {
 		defer s.loadWaitGroup.Done()
-		s.keepPosting(posterContext, jiaAPIStep, targetBaseURL, state.IsuUUID, scenarioChan, closeWait)
+		s.keepPosting(posterContext, jiaAPIStep, targetBaseURL, isu, scenarioChan, closeWait)
 	}()
 
 	time.Sleep(50 * time.Millisecond)
-	return c.JSON(http.StatusAccepted, isuDetail)
+	return c.JSON(http.StatusAccepted, IsuDetailInfomation{isu.JIACatalogID, isu.Character})
 }
 
 func postDeactivate(c echo.Context) error {
