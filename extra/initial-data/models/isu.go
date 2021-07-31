@@ -18,7 +18,6 @@ type Isu struct {
 	Image        []byte
 	JIACatalogID string
 	Character    string
-	IsDeleted    bool
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }
@@ -36,7 +35,6 @@ func NewIsu(user User) Isu {
 		image,
 		random.CatalogID(),
 		random.Character(),
-		false,
 		createdAt,
 		createdAt,
 	}
@@ -53,7 +51,6 @@ func NewIsuWithCreatedAt(user User, createdAt time.Time) Isu {
 		image,
 		random.CatalogID(),
 		random.Character(),
-		false,
 		createdAt,
 		createdAt,
 	}
@@ -84,9 +81,9 @@ func (i Isu) WithDelete() Isu {
 }
 
 func (i Isu) Create() error {
-	if _, err := db.Exec("INSERT INTO isu(`jia_isu_uuid`,`name`,`image`,`character`,`jia_user_id`,`is_deleted`,`created_at`,`updated_at`) VALUES (?,?,?,?,?,?,?,?)",
+	if _, err := db.Exec("INSERT INTO isu(`jia_isu_uuid`,`name`,`image`,`character`,`jia_user_id`,`created_at`,`updated_at`) VALUES (?,?,?,?,?,?,?,?)",
 		i.JIAIsuUUID, i.Name, i.Image, i.Character, i.User.JIAUserID,
-		i.IsDeleted, i.CreatedAt, i.UpdatedAt,
+		i.CreatedAt, i.UpdatedAt,
 	); err != nil {
 		return fmt.Errorf("insert isu: %w", err)
 	}
