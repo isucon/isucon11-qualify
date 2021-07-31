@@ -35,6 +35,14 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 	//TODO: 得点調整
 	step.Result().Score.Set(ScoreNormalUserInitialize, 10)
 	step.Result().Score.Set(ScoreNormalUserLoop, 10)
+	step.Result().Score.Set(ScoreGraphExcellent, 5)
+	step.Result().Score.Set(ScoreGraphGood, 4)
+	step.Result().Score.Set(ScoreGraphNormal, 3)
+	step.Result().Score.Set(ScoreGraphBad, 2)
+	step.Result().Score.Set(ScoreGraphWorst, 1)
+	step.Result().Score.Set(ScoreReadInfoCondition, 3)
+	step.Result().Score.Set(ScoreReadWarningCondition, 2)
+	step.Result().Score.Set(ScoreReadCriticalCondition, 1)
 
 	//初期データの生成
 	s.InitializeData()
@@ -127,9 +135,10 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	s.prepareCheckGetIsu(ctx, loginUser, noIsuUser, guestAgent, step)
 	s.prepareCheckGetIsuIcon(ctx, loginUser, noIsuUser, guestAgent, step)
 	s.prepareCheckGetIsuGraph(ctx, loginUser, noIsuUser, guestAgent, step)
-	s.prepareCheckGetAllIsuConditions(ctx, loginUser, noIsuUser, guestAgent, step)
+	//s.prepareCheckGetAllIsuConditions(ctx, loginUser, noIsuUser, guestAgent, step)
 	s.prepareCheckGetIsuConditions(ctx, loginUser, noIsuUser, guestAgent, step)
-	s.prepareCheckPostIsuCondition(ctx, loginUser, noIsuUser, guestAgent, step)
+	// TODO: 確率で失敗するようになったので一旦prepareCheckを行わないようにする。方針決まり次第消すか復活させるかする
+	//s.prepareCheckPostIsuCondition(ctx, loginUser, noIsuUser, guestAgent, step)
 
 	return nil
 }
