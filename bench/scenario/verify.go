@@ -25,6 +25,20 @@ import (
 
 //汎用関数
 
+func verifyStatusCodes(res *http.Response, allowedStatusCodes []int) error {
+	invalidStatusCode := true
+	for _, c := range allowedStatusCodes {
+		if res.StatusCode == c {
+			invalidStatusCode = false
+			break
+		}
+	}
+	if invalidStatusCode {
+		return errorInvalidStatusCodes(res, allowedStatusCodes)
+	}
+	return nil
+}
+
 func verifyStatusCode(res *http.Response, code int) error {
 	if res.StatusCode != code {
 		return errorInvalidStatusCode(res, code)
