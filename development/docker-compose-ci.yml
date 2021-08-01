@@ -49,6 +49,7 @@ services:
     volumes:
       - "../bench/images:/images"
       - "../bench/key:/key"
+      - "../bench/data:/data"
     depends_on:
       - mysql-backend
       - backend
