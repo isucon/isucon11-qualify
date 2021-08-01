@@ -20,7 +20,6 @@ type JIAServiceRequest struct {
 type PostIsuRequest struct {
 	JIAIsuUUID string `json:"jia_isu_uuid"`
 	IsuName    string `json:"isu_name"`
-	ImgName    string
 	Img        []byte
 }
 
