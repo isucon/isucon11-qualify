@@ -522,18 +522,17 @@ func getIsuGraphUntilLastViewed(
 ) ([]*service.GraphResponse, []error) {
 	graph := []*service.GraphResponse{}
 
-	// これで今日のグラフを取る
-	_, todayGraph, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, virtualDay,
-		func(res *http.Response, graph service.GraphResponse) []error {
-			//検証前にデータ取得
-			user.GetConditionFromChan(ctx)
-			err := verifyGraph(res, user, targetIsu.JIAIsuUUID, &service.GetGraphRequest{Date: virtualDay}, graph)
-			return []error{err} //TODO: 検証
-		},
-	)
-	if len(errs) > 0 {
-		// TODO: timeout 時 retry
-		return nil, errs
+	todayRequest := service.GetGraphRequest{Date: virtualDay}
+	todayGraph, hres, err := getIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, todayRequest)
+	if err != nil {
+		return nil, []error{err}
+	}
+
+	//検証前にデータ取得
+	user.GetConditionFromChan(ctx)
+	err = verifyGraph(hres, user, targetIsu.JIAIsuUUID, &todayRequest, todayGraph)
+	if err != nil {
+		return nil, []error{err}
 	}
 
 	graph = append(graph, &todayGraph)
@@ -555,6 +554,8 @@ func getIsuGraphUntilLastViewed(
 		}
 		// TODO: timeoutしたときretry
 
+		//検証前にデータ取得
+		user.GetConditionFromChan(ctx)
 		err = verifyGraph(hres, user, targetIsu.JIAIsuUUID, &request, tmpGraph)
 		if err != nil {
 			return nil, []error{err}
