@@ -98,6 +98,7 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 
 	randEngine := rand.New(rand.NewSource(rand.Int63()))
 	nextTargetIsuIndex := 0
+	nextScenarioIndex := 0
 	scenarioLoopStopper := time.After(1 * time.Millisecond) //ループ頻度調整
 	for {
 		<-scenarioLoopStopper
@@ -118,10 +119,14 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 		default:
 		}
 
-		//conditionを見るISUを選択
-		//TODO: 乱数にする
-		nextTargetIsuIndex += 1
-		nextTargetIsuIndex %= len(user.IsuListOrderByCreatedAt)
+		// 一つのISUに対するシナリオが終わっているとき
+		if nextScenarioIndex > 2 {
+			//conditionを見るISUを選択
+			//TODO: 乱数にする
+			nextTargetIsuIndex += 1
+			nextTargetIsuIndex %= len(user.IsuListOrderByCreatedAt)
+			nextScenarioIndex = 0
+		}
 		targetIsu := user.IsuListOrderByCreatedAt[nextTargetIsuIndex]
 
 		//GET /
@@ -151,16 +156,15 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 			continue
 		}
 
-		// TODO: 確定的に
-		route := randEngine.Intn(3)
-		// 1 / 2
-		if route < 1 {
+		if nextScenarioIndex == 0 {
 			s.requestNewConditionScenario(ctx, step, user, targetIsu)
-		} else if route < 2 {
+		} else if nextScenarioIndex == 1 {
 			s.requestLastBadConditionScenario(ctx, step, user, targetIsu)
 		} else {
 			s.requestGraphScenario(ctx, step, user, targetIsu, randEngine)
 		}
+		// 次のシナリオに
+		nextScenarioIndex += 1
 	}
 }
 
