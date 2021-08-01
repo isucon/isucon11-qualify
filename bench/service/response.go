@@ -56,6 +56,6 @@ type GetTrendResponseOne struct {
 
 type TrendCondition struct {
 	IsuID          int    `json:"isu_id"`
-	Timestamp      int64  `json:"timpestamp"`
+	Timestamp      int64  `json:"timestamp"`
 	ConditionLevel string `json:"condition_level"`
 }

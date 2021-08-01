@@ -603,6 +603,23 @@ func getIsuGraphErrorAction(ctx context.Context, a *agent.Agent, id string, quer
 	return text, res, nil
 }
 
+func getTrendAction(ctx context.Context, a *agent.Agent) (service.GetTrendResponse, *http.Response, error) {
+	trend := service.GetTrendResponse{}
+	reqUrl := "/api/trend"
+	res, err := reqJSONResJSON(ctx, a, http.MethodGet, reqUrl, nil, &trend, []int{http.StatusOK})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	//TODO: バリデーション
+	// res, text, err := reqJSONResError(ctx, a, http.MethodPost, reqUrl, bytes.NewReader(body), []int{http.StatusNotFound, http.StatusBadRequest})
+	// if err != nil {
+	// 	return "", nil, err
+	// }
+
+	return trend, res, nil
+}
+
 func browserGetHomeAction(ctx context.Context, a *agent.Agent,
 	virtualNowUnix int64,
 	allowNotModified bool,
@@ -627,6 +644,7 @@ func browserGetHomeAction(ctx context.Context, a *agent.Agent,
 		}
 		errors = append(errors, validateIsu(hres, isuList)...)
 	}
+
 	return isuList, errors
 }
 

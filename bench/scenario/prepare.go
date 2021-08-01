@@ -43,7 +43,7 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 
 	//初期データの生成
 	logger.AdminLogger.Println("start: load initial data")
-	s.InitializeData()
+	s.InitializeData(ctx)
 	logger.AdminLogger.Println("finish: load initial data")
 	s.realTimePrepareStartedAt = time.Now()
 
@@ -653,7 +653,9 @@ func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model
 	// check: 正常系
 	for _, isu := range loginUser.IsuListOrderByCreatedAt {
 		// TODO: 2日分くらいconditionある初期データ作る
+		isu.CondMutex.RLock()
 		lastCond := isu.Conditions.Back()
+		isu.CondMutex.RUnlock()
 		// prepare中に追加したISUはconditionが無いためチェックしない
 		if lastCond == nil {
 			continue
@@ -758,13 +760,18 @@ func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model
 
 // TODO: 一部実装途中
 func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
-	lastTime := loginUser.IsuListOrderByCreatedAt[0].Conditions.Back().TimestampUnix
+	isu := loginUser.IsuListOrderByCreatedAt[0]
+	isu.CondMutex.RLock()
+	lastTime := isu.Conditions.Back().TimestampUnix
+	isu.CondMutex.RUnlock()
 	//ISUコンディションの取得 e.GET("/api/condition/:jia_isu_uuid", getIsuConditions)
 	//- 正常系
 	//	- option無し
 	for jiaIsuUUID, isu := range loginUser.IsuListByID {
 		cursorEndTime := lastTime
+		isu.CondMutex.RLock()
 		lastCond := isu.Conditions.Back()
+		isu.CondMutex.RUnlock()
 		if lastCond != nil {
 			cursorEndTime = lastCond.TimestampUnix
 		}
@@ -796,7 +803,9 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 	limit := 10
 	for jiaIsuUUID, isu := range loginUser.IsuListByID {
 		cursorEndTime := lastTime
+		isu.CondMutex.RLock()
 		lastCond := isu.Conditions.Back()
+		isu.CondMutex.RUnlock()
 		if lastCond != nil {
 			cursorEndTime = lastCond.TimestampUnix
 		}
@@ -825,7 +834,7 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 	query.Set("condition_level", "info,warning,critical")
 
 	// TODO: 初期データにisuを持たないユーザがいたらダメなので、数ユーザは固定ユーザ作ったほうが良い
-	isu := loginUser.IsuListOrderByCreatedAt[0]
+	isu = loginUser.IsuListOrderByCreatedAt[0]
 	resBody, res, err := getIsuConditionErrorAction(ctx, guestAgent, isu.JIAIsuUUID, query)
 	if err != nil {
 		step.AddError(err)

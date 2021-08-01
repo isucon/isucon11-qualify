@@ -27,7 +27,6 @@ type posterState struct {
 
 //POST /api/condition/{jia_isu_id}をたたく Goroutine
 func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseURL string, isu *model.Isu, scenarioChan *model.StreamsForPoster) {
-	defer close(scenarioChan.ConditionChan)
 	postConditionTimeout := 50 * time.Millisecond //MEMO: timeout は気にせずにズバズバ投げる
 
 	nowTimeStamp := s.ToVirtualTime(time.Now())
@@ -72,7 +71,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 
 		//TODO: 検証可能な生成方法にする
 		//TODO: stateの適用タイミングをちゃんと考える
-		conditions := []model.IsuCondition{}
+		conditions := []*model.IsuCondition{}
 		conditionsReq := []service.PostIsuConditionRequest{}
 		for state.NextConditionTimestamp().Before(nowTimeStamp) {
 			//次のstateを生成
@@ -80,7 +79,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 			stateChange = model.IsuStateChangeNone                                 //TODO: stateの適用タイミングをちゃんと考える
 
 			//リクエスト
-			conditions = append(conditions, condition)
+			conditions = append(conditions, &condition)
 			conditionsReq = append(conditionsReq, service.PostIsuConditionRequest{
 				IsSitting: condition.IsSitting,
 				Condition: fmt.Sprintf("is_dirty=%v,is_overweight=%v,is_broken=%v",
@@ -91,6 +90,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 				Message:   condition.Message,
 				Timestamp: condition.TimestampUnix,
 			})
+
 		}
 		//postし損ねたconditionの数を制限
 		if len(conditions) > PostContentNum {
@@ -105,8 +105,12 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		select {
 		case <-ctx.Done():
 			return
-		case scenarioChan.ConditionChan <- conditions:
+		default:
 		}
+		isu.AddIsuConditions(conditions)
+
+		// TODO: sleep しないとレスポンスが来てすぐにループが回るので POST condition が高頻度過ぎてベンチが死ぬ (#728)
+		time.Sleep(400 * time.Millisecond)
 
 		// timeout も無視するので全てのエラーを見ない
 		postIsuConditionAction(httpClient, targetURL, &conditionsReq)
@@ -164,7 +168,6 @@ func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChan
 		Message:       "",
 		TimestampUnix: timeStamp.Unix(),
 		OwnerIsuUUID:  isu.JIAIsuUUID,
-		OwnerIsuID:    isu.ID,
 	}
 	// TODO: over_weight が true のときは sitting を false にしないように
 	//sitting
