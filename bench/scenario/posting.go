@@ -13,7 +13,8 @@ import (
 )
 
 const (
-	PostInterval   = 5 * time.Minute //Virtual Timeでのpost間隔
+	// MEMO: 最大でも一秒に一件しか送れないので点数上限になるが、解決できるとは思えないので良い
+	PostInterval   = 1 * time.Second //Virtual Timeでのpost間隔
 	PostContentNum = 100             //一回のpostで何要素postするか
 )
 
