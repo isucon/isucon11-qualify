@@ -404,13 +404,11 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 	virtualToday -= OneDay
 
 	graphResponses, errs := getIsuGraphUntilLastViewed(ctx, user, targetIsu, virtualToday)
-	if errs != nil {
-		if len(errs) > 0 {
-			for _, err := range errs {
-				addErrorWithContext(ctx, step, err)
-			}
-			return
+	if len(errs) > 0 {
+		for _, err := range errs {
+			addErrorWithContext(ctx, step, err)
 		}
+		return
 	}
 
 	// LastCompletedGraphTime を更新
@@ -425,14 +423,10 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 	// scoreの計算
 	for behindDay, gr := range graphResponses {
 		minTimestampCount := int(^uint(0) >> 1)
-		for _, _ = range *gr {
-			// TODO: backend側が graph のレスポンスに根拠timestampを追加したらここで以下のコードを実行する
-			// if len(g.timestamps) < minTimestampCount {
-			// 	minTimestampCount = len(g.timestamps)
-			// }
-			// ↓こっちの方は消す
-			minTimestampCount = 0
-
+		for _, g := range *gr {
+			if len(g.ConditionTimestamps) < minTimestampCount {
+				minTimestampCount = len(g.ConditionTimestamps)
+			}
 		}
 		// 「今日のグラフじゃない」&「完成しているグラフ」なら加点
 		if behindDay != 0 && targetIsu.LastCompletedGraphTime <= virtualToday-(int64(behindDay)*OneDay) {
@@ -528,18 +522,17 @@ func getIsuGraphUntilLastViewed(
 ) ([]*service.GraphResponse, []error) {
 	graph := []*service.GraphResponse{}
 
-	// これで今日のグラフを取る
-	_, todayGraph, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, virtualDay,
-		func(res *http.Response, graph service.GraphResponse) []error {
-			// TODO: validationは下でやるべき
-			//検証前にデータ取得
-			user.GetConditionFromChan(ctx)
-			return []error{} //TODO: 検証
-		},
-	)
-	if len(errs) > 0 {
-		// TODO: timeout 時 retry
-		return nil, errs
+	todayRequest := service.GetGraphRequest{Date: virtualDay}
+	todayGraph, hres, err := getIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, todayRequest)
+	if err != nil {
+		return nil, []error{err}
+	}
+
+	//検証前にデータ取得
+	user.GetConditionFromChan(ctx)
+	err = verifyGraph(hres, user, targetIsu.JIAIsuUUID, &todayRequest, todayGraph)
+	if err != nil {
+		return nil, []error{err}
 	}
 
 	graph = append(graph, &todayGraph)
@@ -553,13 +546,20 @@ func getIsuGraphUntilLastViewed(
 			return graph, nil
 		}
 
-		tmpGraph, _, err := getIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, service.GetGraphRequest{Date: virtualDay})
+		request := service.GetGraphRequest{Date: virtualDay}
+
+		tmpGraph, hres, err := getIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
 		if err != nil {
 			return nil, []error{err}
 		}
 		// TODO: timeoutしたときretry
 
-		// TODO: validation
+		//検証前にデータ取得
+		user.GetConditionFromChan(ctx)
+		err = verifyGraph(hres, user, targetIsu.JIAIsuUUID, &request, tmpGraph)
+		if err != nil {
+			return nil, []error{err}
+		}
 
 		graph = append(graph, &tmpGraph)
 
