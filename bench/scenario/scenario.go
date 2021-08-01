@@ -45,7 +45,6 @@ type Scenario struct {
 	//内部状態
 	normalUsersMtx  sync.Mutex
 	normalUsers     []*model.User
-	Catalogs        map[string]*model.IsuCatalog
 }
 
 func NewScenario(jiaServiceURL *url.URL, loadTimeout time.Duration) (*Scenario, error) {

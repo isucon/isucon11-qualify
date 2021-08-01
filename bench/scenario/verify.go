@@ -127,13 +127,6 @@ func verifyIsuOrderByCreatedAt(res *http.Response, expectedReverse []*model.Isu,
 	return errs
 }
 
-//TODO:
-// func verifyCatalog(res *http.Response, expected *model.Catalog, catalog *service.Catalog) []error {
-// 	errs := []error{}
-// 	return errs
-// }
-
-//
 //mustExistUntil: この値以下のtimestampを持つものは全て反映されているべき
 func verifyIsuConditions(res *http.Response,
 	targetUser *model.User, targetIsuUUID string, request *service.GetIndividualIsuConditionRequest,

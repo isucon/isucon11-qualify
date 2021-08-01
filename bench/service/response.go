@@ -22,16 +22,6 @@ type Isu struct {
 	Icon []byte `json:"-"`
 }
 
-type Catalog struct {
-	JIACatalogID string `json:"jia_catalog_id"`
-	Name         string `json:"name"`
-	LimitWeight  int    `json:"limit_weight"`
-	Weight       int    `json:"weight"`
-	Size         string `json:"size"`
-	Maker        string `json:"maker"`
-	Tags         string `json:"tags"`
-}
-
 type GetIsuConditionResponse struct {
 	JIAIsuUUID     string `json:"jia_isu_uuid"`
 	IsuName        string `json:"isu_name"`

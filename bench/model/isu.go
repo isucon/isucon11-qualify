@@ -49,7 +49,6 @@ type Isu struct {
 	JIAIsuUUID                    string              `json:"jia_isu_uuid"`
 	Name                          string              `json:"name"`
 	ImageHash                     [md5.Size]byte      `json:"image_file_hash"` // 画像の検証用
-	JIACatalogID                  string              `json:"-"`
 	Character                     string              `json:"character"`
 	StreamsForScenario            *StreamsForScenario `json:"-"`          //poster Goroutineとの通信
 	Conditions                    IsuConditionArray   `json:"conditions"` //シナリオ Goroutineからのみ参照
@@ -78,7 +77,6 @@ func NewRandomIsuRaw(owner *User) (*Isu, *StreamsForPoster, error) {
 		JIAIsuUUID:    id.String(),
 		Name:          random.IsuName(),
 		ImageHash:     defaultIconHash,
-		JIACatalogID:  "550e8400-e29b-41d4-a716-446655440000", //TODO:
 		Character:     random.Character(),
 		StreamsForScenario: &StreamsForScenario{
 			StateChan:     stateChan,
