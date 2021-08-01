@@ -243,6 +243,105 @@ func verifyIsuConditions(res *http.Response,
 	return nil
 }
 
+func verifyPrepareIsuConditions(res *http.Response,
+	targetUser *model.User, targetIsuUUID string, request *service.GetIndividualIsuConditionRequest,
+	backendData []*service.GetIsuConditionResponse) error {
+
+	//limitを超えているかチェック
+	var limit int
+	if request.Limit != nil {
+		limit = int(*request.Limit)
+	} else {
+		limit = conditionLimit
+	}
+	if limit < len(backendData) {
+		return errorInvalid(res, "要素数が正しくありません")
+	}
+
+	//レスポンス側のstartTimeのチェック
+	if request.StartTime != nil && len(backendData) != 0 && backendData[len(backendData)-1].Timestamp < *request.StartTime {
+		return errorInvalid(res, "データが正しくありません")
+	}
+
+	//expectedの開始位置を探す
+	filter := model.ConditionLevelNone
+	for _, level := range strings.Split(request.ConditionLevel, ",") {
+		switch level[0] {
+		case 'i':
+			filter |= model.ConditionLevelInfo
+		case 'w':
+			filter |= model.ConditionLevelWarning
+		case 'c':
+			filter |= model.ConditionLevelCritical
+		}
+	}
+
+	targetIsu := targetUser.IsuListByID[targetIsuUUID]
+	iterTmp := targetIsu.Conditions.LowerBound(filter, request.CursorEndTime, targetIsuUUID)
+	baseIter := &iterTmp
+
+	//backendDataは新しい順にソートされているはずなので、先頭からチェック
+	var lastSort model.IsuConditionCursor
+	for i, c := range backendData {
+		//backendDataが新しい順にソートされていることの検証
+		nowSort := model.IsuConditionCursor{TimestampUnix: c.Timestamp, OwnerIsuUUID: c.JIAIsuUUID}
+		if i != 0 && !nowSort.Less(&lastSort) {
+			return errorInvalid(res, "整列順が正しくありません")
+		}
+
+		expected := baseIter.Prev()
+		if expected != nil && expected.TimestampUnix == c.Timestamp && expected.OwnerIsuUUID == c.JIAIsuUUID {
+		} else {
+			return errorMissmatch(res, "存在するはずのデータが返されていません")
+		}
+
+		//等価チェック
+		expectedCondition := fmt.Sprintf("is_dirty=%v,is_overweight=%v,is_broken=%v",
+			expected.IsDirty,
+			expected.IsOverweight,
+			expected.IsBroken,
+		)
+		var expectedConditionLevelStr string
+		warnCount := 0
+		if expected.IsDirty {
+			warnCount++
+		}
+		if expected.IsOverweight {
+			warnCount++
+		}
+		if expected.IsBroken {
+			warnCount++
+		}
+		switch warnCount {
+		case 0:
+			expectedConditionLevelStr = "info"
+		case 1, 2:
+			expectedConditionLevelStr = "warning"
+		case 3:
+			expectedConditionLevelStr = "critical"
+		}
+		if c.Condition != expectedCondition ||
+			c.ConditionLevel != expectedConditionLevelStr ||
+			c.IsSitting != expected.IsSitting ||
+			c.JIAIsuUUID != expected.OwnerIsuUUID ||
+			c.Message != expected.Message ||
+			c.IsuName != targetUser.IsuListByID[c.JIAIsuUUID].Name {
+			return errorMissmatch(res, "データが正しくありません")
+		}
+		lastSort = nowSort
+	}
+
+	//limitの検証
+	if len(backendData) < limit && baseIter.Prev() != nil {
+		prev := baseIter.Prev()
+		if prev != nil && request.StartTime != nil && *request.StartTime <= prev.TimestampUnix {
+			return errorInvalid(res, "要素数が正しくありません")
+		}
+	}
+
+	return nil
+}
+
 func joinURL(base *url.URL, target string) string {
 	b := *base
 	t, _ := url.Parse(target)

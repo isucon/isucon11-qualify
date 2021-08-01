@@ -144,7 +144,12 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 		return nil
 	}
 	randomUser.Agent = agt
+
+	// TODO: for debug
 	logger.AdminLogger.Printf("user: %#v, isu: %#v", randomUser.UserID, len(randomUser.IsuListOrderByCreatedAt))
+	for _, i := range randomUser.IsuListOrderByCreatedAt {
+		logger.AdminLogger.Printf("isu: %#v", i.JIAIsuUUID)
+	}
 
 	s.prepareCheckPostSignout(ctx, step)
 	s.prepareCheckGetMe(ctx, randomUser, guestAgent, step)
@@ -767,11 +772,12 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 	//	- option無し
 	dataExistTimestamp := GetConditionDataExistTimestamp(s, loginUser)
 
+	limit := 5
 	req := service.GetIndividualIsuConditionRequest{
 		StartTime:      nil,
 		CursorEndTime:  dataExistTimestamp,
 		ConditionLevel: "info,warning,critical",
-		Limit:          nil,
+		Limit:          &limit,
 	}
 
 	for jiaIsuUUID, _ := range loginUser.IsuListByID {
@@ -780,8 +786,8 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 			step.AddError(err)
 			return
 		}
-		//検証 (TODO: これprepare用に正確な検証に変更する）
-		err = verifyIsuConditions(res, loginUser, jiaIsuUUID, &req, conditionsTmp)
+		//検証
+		err = verifyPrepareIsuConditions(res, loginUser, jiaIsuUUID, &req, conditionsTmp)
 		if err != nil {
 			step.AddError(err)
 			return
