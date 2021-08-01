@@ -1227,7 +1227,8 @@ func getTrend(c echo.Context) error {
 
 	res := []TrendResponse{}
 
-	// ToDo: 処理が重すぎるのでなんとかする
+	// MEMO(isucon11-q実装者) 以下のTODOコメントはヒントにするため，予選本番でも残す
+	// TODO: 処理が重すぎるのでなんとかする
 	for _, character := range characterList {
 		isuList := []Isu{}
 		err = db.Select(&isuList,
