@@ -232,14 +232,6 @@ func verifyIsuConditions(res *http.Response,
 		lastSort = nowSort
 	}
 
-	//limitの検証
-	if len(backendData) < limit && baseIter.Prev() != nil {
-		prev := baseIter.Prev()
-		if prev != nil && request.StartTime != nil && *request.StartTime <= prev.TimestampUnix {
-			return errorInvalid(res, "要素数が正しくありません")
-		}
-	}
-
 	return nil
 }
 
