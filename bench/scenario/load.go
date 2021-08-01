@@ -36,14 +36,14 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	*/
 
 	//通常ユーザー
-	s.AddNormalUser(ctx, step, 100)
+	s.AddNormalUser(ctx, step, 2)
 
-	//ユーザーを増やす
-	s.loadWaitGroup.Add(1)
-	go func() {
-		defer s.loadWaitGroup.Done()
-		s.userAdder(ctx, step)
-	}()
+	// //ユーザーを増やす
+	// s.loadWaitGroup.Add(1)
+	// go func() {
+	// 	defer s.loadWaitGroup.Done()
+	// 	s.userAdder(ctx, step)
+	// }()
 
 	<-ctx.Done()
 	s.jiaCancel()
