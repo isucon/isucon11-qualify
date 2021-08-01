@@ -27,7 +27,7 @@ type IsuCondition struct {
 	ConditionLevel ConditionLevel `json:"condition_level"`
 	Message        string         `json:"message"`
 	OwnerIsuUUID   string         `json:"owner_isu_uuid"`
-	OwnerIsuID     int
+	OwnerIsuID     int            `json:"owner_isu_id"`
 }
 
 //left < right
