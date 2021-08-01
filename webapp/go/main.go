@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -36,6 +37,9 @@ const (
 	defaultIconFilePath       = "../NoImage.jpg"
 	defaultJIAServiceURL      = "http://localhost:5000"
 	mysqlErrNumDuplicateEntry = 1062
+	conditionLevelInfo        = "info"
+	conditionLevelWarning     = "warning"
+	conditionLevelCritical    = "critical"
 )
 
 var scorePerCondition = map[string]int{
@@ -152,8 +156,14 @@ type GetIsuConditionResponse struct {
 }
 
 type TrendResponse struct {
-	Character string
-	Score     uint
+	Character  string           `json:"character"`
+	Conditions []TrendCondition `json:"conditions"`
+}
+
+type TrendCondition struct {
+	ID             int    `json:"isu_id"`
+	Timestamp      int64  `json:"timestamp"`
+	ConditionLevel string `json:"condition_level"`
 }
 
 type PostIsuConditionRequest struct {
@@ -232,6 +242,7 @@ func main() {
 	e.GET("/api/isu/:jia_isu_uuid/icon", getIsuIcon)
 	e.GET("/api/isu/:jia_isu_uuid/graph", getIsuGraph)
 	e.GET("/api/condition/:jia_isu_uuid", getIsuConditions)
+	e.GET("/api/trend", getTrend)
 	// API for Isu
 	e.POST("/api/condition/:jia_isu_uuid", postIsuCondition)
 	// Frontend
@@ -1098,11 +1109,11 @@ func calcConditionLevel(condition string) (string, error) {
 	warnCount := strings.Count(condition, "=true")
 	switch warnCount {
 	case 0:
-		conditionLevel = "info"
+		conditionLevel = conditionLevelInfo
 	case 1, 2:
-		conditionLevel = "warning"
+		conditionLevel = conditionLevelWarning
 	case 3:
-		conditionLevel = "critical"
+		conditionLevel = conditionLevelCritical
 	default:
 		return "", fmt.Errorf("unexpected warn count")
 	}
@@ -1202,4 +1213,68 @@ func postIsuCondition(c echo.Context) error {
 //分以下を切り捨て、一時間単位にする関数
 func truncateAfterHours(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), 0, 0, 0, t.Location())
+}
+
+// GET /api/trend
+// ISUの性格毎の最新のコンディション情報
+func getTrend(c echo.Context) error {
+	characterList := []Isu{}
+	err := db.Select(&characterList, "SELECT `character` FROM `isu` GROUP BY `character`")
+	if err != nil {
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	res := []TrendResponse{}
+
+	// MEMO(isucon11-q実装者) 以下のTODOコメントはヒントにするため，予選本番でも残す
+	// TODO: 処理が重すぎるのでなんとかする
+	for _, character := range characterList {
+		isuList := []Isu{}
+		err = db.Select(&isuList,
+			"SELECT * FROM `isu` WHERE `character` = ?",
+			character.Character,
+		)
+		if err != nil {
+			c.Logger().Errorf("db error: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+
+		characterIsuConditions := []TrendCondition{}
+		for _, isu := range isuList {
+			conditions := []IsuCondition{}
+			err = db.Select(&conditions,
+				"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY timestamp DESC",
+				isu.JIAIsuUUID,
+			)
+			if err != nil {
+				c.Logger().Errorf("db error: %v", err)
+				return c.NoContent(http.StatusInternalServerError)
+			}
+
+			if len(conditions) > 0 {
+				isuLastCondition := conditions[0]
+				conditionLevel, err := calcConditionLevel(isuLastCondition.Condition)
+				if err != nil {
+					c.Logger().Errorf("failed to get condition level: %v", err)
+					return c.NoContent(http.StatusInternalServerError)
+				}
+				trendCondition := TrendCondition{
+					ID:             isu.ID,
+					Timestamp:      isuLastCondition.Timestamp.Unix(),
+					ConditionLevel: conditionLevel,
+				}
+				characterIsuConditions = append(characterIsuConditions, trendCondition)
+			}
+
+		}
+		// timestampを降順ソート
+		sort.Slice(characterIsuConditions, func(i, j int) bool {
+			return characterIsuConditions[i].Timestamp > characterIsuConditions[j].Timestamp
+		})
+		res = append(res,
+			TrendResponse{Character: character.Character, Conditions: characterIsuConditions})
+	}
+
+	return c.JSON(http.StatusOK, res)
 }
