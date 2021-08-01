@@ -94,6 +94,7 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 	if user == nil {
 		return
 	}
+	defer user.CloseAllIsuStateChan()
 
 	randEngine := rand.New(rand.NewSource(rand.Int63()))
 	nextTargetIsuIndex := 0
@@ -189,6 +190,7 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 		isu := s.NewIsu(ctx, step, user, true, nil)
 		// TODO: retry
 		if isu == nil {
+			user.CloseAllIsuStateChan()
 			return nil
 		}
 	}
