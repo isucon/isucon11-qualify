@@ -34,7 +34,8 @@
     group: isucon
     mode: "0644"
 
-- name: "roles/contestant/tasks/isucondition: Initialize isucondition Database"
+- name: "roles/contestant/tasks/isucondition: Initialize isucondition database"
   become_user: isucon
   shell: |
     mysql -uisucon -pisucon -e 'CREATE DATABASE isucondition'
+    bash /home/isucon/webapp/sql/init.sh
