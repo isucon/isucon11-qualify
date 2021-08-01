@@ -271,7 +271,6 @@ func (s *Scenario) requestLastBadConditionScenario(ctx context.Context, step *is
 			return []error{}
 		},
 	)
-	// TODO: retry
 	if len(errs) > 0 {
 		for _, err := range errs {
 			addErrorWithContext(ctx, step, err)
@@ -338,16 +337,14 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 			return []error{}
 		},
 	)
-	// TODO: retry
 	if len(errs) > 0 {
 		return nil, errs
 	}
-	for i, cond := range firstPageConditions {
+	for _, cond := range firstPageConditions {
 		// 新しいやつだけなら append
 		if isNewData(targetIsu, cond) {
 			conditions = append(conditions, cond)
 		} else {
-			logger.AdminLogger.Printf("is not new data in firstPageConditions. index: %v", i)
 			// timestamp順なのは vaidation で保証しているので読んだやつが出てきたタイミングで return
 			return conditions, nil
 		}
@@ -368,7 +365,6 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 		tmpConditions, _, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
 		// poster で送ったものの同期
 		user.GetConditionFromChan(ctx)
-		// TODO: retry
 		if err != nil {
 			return nil, []error{err}
 		}
@@ -447,7 +443,6 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 			ConditionLevel: "info,warning,critical",
 		}
 		_, _, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
-		// TODO: retry
 		if err != nil {
 			addErrorWithContext(ctx, step, err)
 			return
@@ -552,7 +547,6 @@ func getIsuGraphUntilLastViewed(
 		if err != nil {
 			return nil, []error{err}
 		}
-		// TODO: timeoutしたときretry
 
 		//検証前にデータ取得
 		user.GetConditionFromChan(ctx)
