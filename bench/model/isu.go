@@ -48,7 +48,7 @@ type Isu struct {
 	ID                            int                 `json:"id"`
 	JIAIsuUUID                    string              `json:"jia_isu_uuid"`
 	Name                          string              `json:"name"`
-	ImageHash                     [md5.Size]byte      `json:"image_file_hash"`
+	ImageHash                     [md5.Size]byte      `json:"image_file_hash"` // 画像の検証用
 	JIACatalogID                  string              `json:"-"`
 	Character                     string              `json:"character"`
 	isDeactivated                 bool                `json:"-"`          //実際にdeactivateされているか
@@ -138,4 +138,8 @@ func (isu *Isu) ToService() *service.Isu {
 		Name:       isu.Name,
 		Character:  isu.Character,
 	}
+}
+
+func (isu *Isu) SetImage(image []byte) {
+	isu.ImageHash = md5.Sum(image)
 }

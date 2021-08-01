@@ -45,8 +45,6 @@ type Scenario struct {
 	//内部状態
 	normalUsersMtx  sync.Mutex
 	normalUsers     []*model.User
-	companyUsersMtx sync.Mutex
-	companyUsers    []*model.User
 	Catalogs        map[string]*model.IsuCatalog
 }
 
@@ -60,7 +58,6 @@ func NewScenario(jiaServiceURL *url.URL, loadTimeout time.Duration) (*Scenario, 
 		jiaServiceURL:     jiaServiceURL,
 		initializeTimeout: 20 * time.Second,
 		normalUsers:       []*model.User{},
-		companyUsers:      []*model.User{},
 	}, nil
 }
 
@@ -104,21 +101,6 @@ func (s *Scenario) AddManiacUser(ctx context.Context, step *isucandar.BenchmarkS
 		go func(ctx context.Context, step *isucandar.BenchmarkStep) {
 			defer s.loadWaitGroup.Done()
 			//s.loadManiacUser(ctx, step) //TODO:
-		}(ctx, step)
-	}
-}
-
-//load用
-//企業ユーザーのシナリオ Goroutineを追加する
-func (s *Scenario) AddCompanyUser(ctx context.Context, step *isucandar.BenchmarkStep, count int) {
-	if count <= 0 {
-		return
-	}
-	s.loadWaitGroup.Add(count)
-	for i := 0; i < count; i++ {
-		go func(ctx context.Context, step *isucandar.BenchmarkStep) {
-			defer s.loadWaitGroup.Done()
-			s.loadCompanyUser(ctx, step)
 		}(ctx, step)
 	}
 }
@@ -167,6 +149,7 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 	if img != nil {
 		req.ImgName = img.ImgName
 		req.Img = img.Img
+		isu.SetImage(req.Img)
 	}
 	isuResponse, res, err := postIsuAction(ctx, owner.Agent, req) //TODO:画像
 	// TODO: err のとき retry

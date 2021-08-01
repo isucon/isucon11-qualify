@@ -12,8 +12,6 @@ type UserType int
 
 const (
 	UserTypeNormal UserType = iota
-	UserTypeMania
-	UserTypeCompany
 )
 
 //基本的には一つのシナリオ Goroutineが一つのユーザーを占有する
