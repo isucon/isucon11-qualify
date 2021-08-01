@@ -349,6 +349,7 @@ func postIsuAction(ctx context.Context, a *agent.Agent, req service.PostIsuReque
 	}
 
 	if req.Img != nil && req.ImgName != "" {
+		// TODO: tabuchiさんに意図を聞く
 		part, err := writer.CreateFormFile("image", filepath.Base(req.ImgName))
 		if err != nil {
 			logger.AdminLogger.Panic(err)
