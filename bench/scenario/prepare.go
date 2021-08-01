@@ -126,7 +126,13 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 
 	// TODO: 初期データからランダムに選択してるが、テスト用に想定どおりの値をもつinitialdataを生成する必要がありそう
 	userNum := len(s.normalUsers)
-	randomUser := s.normalUsers[rand.Intn(userNum)]
+	var randomUser *model.User
+	for {
+		randomUser = s.normalUsers[rand.Intn(userNum)]
+		if len(randomUser.IsuListOrderByCreatedAt) >= 2 {
+			break
+		}
+	}
 
 	agt, err := s.NewAgent()
 	if err != nil {
@@ -138,12 +144,12 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 		return nil
 	}
 	randomUser.Agent = agt
+	logger.AdminLogger.Printf("user: %#v, isu: %#v", randomUser.UserID, len(randomUser.IsuListOrderByCreatedAt))
 
 	s.prepareCheckPostSignout(ctx, step)
 	s.prepareCheckGetMe(ctx, randomUser, guestAgent, step)
 	s.prepareCheckGetIsuList(ctx, randomUser, noIsuUser, guestAgent, step)
 	s.prepareCheckPostIsu(ctx, randomUser, noIsuUser, guestAgent, step)
-	return nil
 	s.prepareCheckGetIsu(ctx, randomUser, noIsuUser, guestAgent, step)
 	s.prepareCheckGetIsuIcon(ctx, randomUser, noIsuUser, guestAgent, step)
 	s.prepareCheckGetIsuGraph(ctx, randomUser, noIsuUser, guestAgent, step)
@@ -508,25 +514,24 @@ func (s *Scenario) prepareCheckGetIsu(ctx context.Context, loginUser *model.User
 
 	//Isuの詳細情報取得 e.GET("/api/isu/:jia_isu_uuid", getIsu)
 	// check: 正常系
-	isu := s.NewIsu(ctx, step, loginUser, true, nil)
-	if isu == nil {
-		return
-	}
-	if err := BrowserAccess(ctx, loginUser.Agent, "/isu/"+isu.JIAIsuUUID); err != nil {
-		step.AddError(err)
-		return
-	}
-	expected := isu.ToService()
-	resIsu, res, err := getIsuIdAction(ctx, loginUser.Agent, isu.JIAIsuUUID)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	if !reflect.DeepEqual(*resIsu, *expected) {
-		step.AddError(errorInvalid(res, "ユーザが所持している椅子が取得できません。"))
-		return
+	for _, isu := range loginUser.IsuListOrderByCreatedAt {
+		if err := BrowserAccess(ctx, loginUser.Agent, "/isu/"+isu.JIAIsuUUID); err != nil {
+			step.AddError(err)
+			return
+		}
+		expected := isu.ToService()
+		resIsu, res, err := getIsuIdAction(ctx, loginUser.Agent, isu.JIAIsuUUID)
+		if err != nil {
+			step.AddError(err)
+			return
+		}
+		if !reflect.DeepEqual(*resIsu, *expected) {
+			step.AddError(errorInvalid(res, "ユーザが所持している椅子が取得できません。"))
+			return
+		}
 	}
 
+	isu := loginUser.IsuListOrderByCreatedAt[0]
 	// check: 未ログイン状態
 	resBody, res, err := getIsuIdErrorAction(ctx, guestAgent, isu.JIAIsuUUID)
 	if err != nil {
@@ -573,39 +578,36 @@ func (s *Scenario) prepareCheckGetIsu(ctx context.Context, loginUser *model.User
 func (s *Scenario) prepareCheckGetIsuIcon(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
 	// check: ISUのアイコン取得 e.GET("/api/isu/:jia_isu_uuid/icon", getIsuIcon)
 	//- 正常系（初回はnot modified許可しない）
-	isu := s.NewIsu(ctx, step, loginUser, true, nil)
-	if isu == nil {
-		return
+	for _, isu := range loginUser.IsuListOrderByCreatedAt {
+		imgByte, res, err := getIsuIconAction(ctx, loginUser.Agent, isu.JIAIsuUUID, false)
+		if err != nil {
+			step.AddError(err)
+			return
+		}
+		if err := verifyStatusCode(res, http.StatusOK); err != nil {
+			step.AddError(err)
+			return
+		}
+		expected := isu.ImageHash
+		actual := md5.Sum(imgByte)
+		if expected != actual {
+			step.AddError(errorInvalid(res, "期待するISUアイコンと一致しません"))
+			return
+		}
+
+		imgByte, res, err = getIsuIconAction(ctx, loginUser.Agent, isu.JIAIsuUUID, true)
+		if err != nil {
+			step.AddError(err)
+			return
+		}
+		actual = md5.Sum(imgByte)
+		if expected != actual {
+			step.AddError(errorInvalid(res, "期待するISUアイコンと一致しません"))
+			return
+		}
 	}
 
-	imgByte, res, err := getIsuIconAction(ctx, loginUser.Agent, isu.JIAIsuUUID, false)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyStatusCode(res, http.StatusOK); err != nil {
-		step.AddError(err)
-		return
-	}
-	// TODO: postIsuの修正時に画像登録を追加し、その画像のmd5チェックサムを取得する
-	expected := md5.Sum(imgByte)
-	actual := md5.Sum(imgByte)
-	if expected != actual {
-		step.AddError(errorInvalid(res, "期待するISUアイコンと一致しません"))
-		return
-	}
-
-	imgByte, res, err = getIsuIconAction(ctx, loginUser.Agent, isu.JIAIsuUUID, true)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	actual = md5.Sum(imgByte)
-	if expected != actual {
-		step.AddError(errorInvalid(res, "期待するISUアイコンと一致しません"))
-		return
-	}
-
+	isu := loginUser.IsuListOrderByCreatedAt[0]
 	// check: 未ログイン状態
 	resBody, res, err := getIsuIconErrorAction(ctx, guestAgent, isu.JIAIsuUUID)
 	if err != nil {
@@ -650,24 +652,31 @@ func (s *Scenario) prepareCheckGetIsuIcon(ctx context.Context, loginUser *model.
 
 }
 
-// TODO: 一部実装途中
 func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
 	//ISUグラフの取得 e.GET("/api/isu/:jia_isu_uuid/graph", getIsuGraph)
-	// TODO: check: 正常系
-	//for _, isu := range loginUser.IsuListOrderByCreatedAt {
-	//	// TODO: 椅子のコンディションがある一番古い期間、中間期間、一番新しい期間をチェック
-	//	date := time.Now().Unix()
-	//	graph, res, err := getIsuGraphAction(ctx, loginUser.Agent, isu.JIAIsuUUID, date)
-	//	if err != nil {
-	//		step.AddError(err)
-	//		return
-	//	}
-	//	if err := verifyStatusCode(res, http.StatusOK); err != nil {
-	//		step.AddError(err)
-	//		return
-	//	}
-	//	// graphの検証
-	//}
+	// check: 正常系
+	for _, isu := range loginUser.IsuListOrderByCreatedAt {
+		// TODO: 2日分くらいconditionある初期データ作る
+		lastCond := isu.Conditions.Back()
+		// prepare中に追加したISUはconditionが無いためチェックしない
+		if lastCond == nil {
+			continue
+		}
+		graph, res, err := getIsuGraphAction(ctx, loginUser.Agent, isu.JIAIsuUUID, service.GetGraphRequest{Date: lastCond.TimestampUnix})
+		if err != nil {
+			step.AddError(err)
+			return
+		}
+		if err := verifyStatusCode(res, http.StatusOK); err != nil {
+			step.AddError(err)
+			return
+		}
+		// graphの検証
+		if err := verifyPrepareGraph(res, loginUser, isu.JIAIsuUUID, graph); err != nil {
+			step.AddError(err)
+			return
+		}
+	}
 
 	// check: 未ログイン状態
 	isu := loginUser.IsuListOrderByCreatedAt[0]

@@ -51,7 +51,7 @@ type Isu struct {
 	ImageHash                     [md5.Size]byte      `json:"image_file_hash"` // 画像の検証用
 	JIACatalogID                  string              `json:"-"`
 	Character                     string              `json:"character"`
-	isDeactivated                 bool                `json:"-"`          //実際にdeactivateされているか
+	isDeactivated                 bool                //実際にdeactivateされているか
 	StreamsForScenario            *StreamsForScenario `json:"-"`          //poster Goroutineとの通信
 	Conditions                    IsuConditionArray   `json:"conditions"` //シナリオ Goroutineからのみ参照
 	LastCompletedGraphTime        int64               //シナリオ Goroutineからのみ参照

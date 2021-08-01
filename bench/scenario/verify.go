@@ -243,12 +243,6 @@ func verifyIsuConditions(res *http.Response,
 	return nil
 }
 
-// TODO: 実装する
-func verifyAllConditions(res *http.Response,
-	targetUser *model.User, request *service.GetIsuConditionRequest,
-	backendData []*service.GetIsuConditionResponse, mustExistUntil int64) error {
-	return nil
-}
 func joinURL(base *url.URL, target string) string {
 	b := *base
 	t, _ := url.Parse(target)
@@ -433,6 +427,79 @@ func verifyGraph(
 		// conditionsBaseOfScore から組み立てた data が actual と等値であることの検証
 		expectedGraph := model.NewGraph(conditionsBaseOfScore)
 
+		if graphOne.Data.Score != expectedGraph.Score() ||
+			graphOne.Data.Sitting != expectedGraph.Sitting() ||
+			graphOne.Data.Detail["is_broken"] != expectedGraph.IsBroken() ||
+			graphOne.Data.Detail["is_dirty"] != expectedGraph.IsDirty() ||
+			graphOne.Data.Detail["is_overweight"] != expectedGraph.IsOverweight() ||
+			graphOne.Data.Detail["missing_data"] != expectedGraph.MissingData() {
+			return errorMissmatch(res, "graphのデータが正しくありません")
+		}
+	}
+
+	return nil
+}
+
+func verifyPrepareGraph(res *http.Response, targetUser *model.User, targetIsuUUID string,
+	getGraphResp service.GraphResponse) error {
+
+	// graphResp の配列は必ず 24 つ (24時間分) である
+	if len(getGraphResp) != 24 {
+		return errorInvalid(res, "要素数が正しくありません")
+	}
+
+	var lastStartAt int64
+	// getGraphResp を逆順 (timestamp が新しい順) にloop
+	for idxGraphResp := len(getGraphResp) - 1; idxGraphResp >= 0; idxGraphResp-- {
+		graphOne := getGraphResp[idxGraphResp]
+
+		// getGraphResp の要素が古い順に連続して並んでいることの検証
+		if idxGraphResp != len(getGraphResp)-1 && !(graphOne.EndAt == lastStartAt) {
+			return errorInvalid(res, "整列順が正しくありません")
+		}
+		lastStartAt = graphOne.StartAt
+
+		// 特定の ISU における expected な conditions を新しい順に取得するイテレータを生成
+		targetIsu := targetUser.IsuListByID[targetIsuUUID]
+		filter := model.ConditionLevelInfo | model.ConditionLevelWarning | model.ConditionLevelCritical
+		baseIter := targetIsu.Conditions.LowerBound(filter, graphOne.EndAt, targetIsu.JIAIsuUUID)
+
+		var conditionsBaseOfScore []*model.IsuCondition
+		var lastSort model.IsuConditionCursor
+		// graphOne.ConditionTimestamps を逆順 (timestamp が新しい順) に loop
+		for idxTimestamps := len(graphOne.ConditionTimestamps) - 1; idxTimestamps >= 0; idxTimestamps-- {
+			timestamp := graphOne.ConditionTimestamps[idxTimestamps]
+
+			// graphOne.start_at <= graphOne.condition_timestamps < graphOne.end_at であることの検証
+			if !(graphOne.StartAt <= timestamp && timestamp < graphOne.EndAt) {
+				return errorInvalid(res, "condition_timestampsがstart_atからend_atの中に収まっていません")
+			}
+
+			// graphOne.ConditionTimestamps の要素が古い順に並んでいることの検証
+			nowSort := model.IsuConditionCursor{TimestampUnix: timestamp}
+			if idxTimestamps != len(graphOne.ConditionTimestamps)-1 && !nowSort.Less(&lastSort) {
+				return errorInvalid(res, "整列順が正しくありません")
+			}
+			lastSort = nowSort
+
+			// ここだけPostConditionが保証できてないLoad時のチェックと異なり全て存在する前提でチェックする
+			// expectedの内容がgraphOne.ConditionTimestamps[*]に必ず存在することの検証
+			expected := baseIter.Prev()
+			if expected != nil && expected.TimestampUnix == timestamp {
+				// graphOne.ConditionTimestamps[n] から condition を取得
+				conditionsBaseOfScore = append(conditionsBaseOfScore, expected)
+			} else {
+				return errorMissmatch(res, "GraphのTimestampデータが正しくありません")
+			}
+		}
+
+		// actual の data が空の場合 verify skip
+		if graphOne.Data == nil {
+			continue
+		}
+
+		// conditionsBaseOfScore から組み立てた data が actual と等値であることの検証
+		expectedGraph := model.NewGraph(conditionsBaseOfScore)
 		if graphOne.Data.Score != expectedGraph.Score() ||
 			graphOne.Data.Sitting != expectedGraph.Sitting() ||
 			graphOne.Data.Detail["is_broken"] != expectedGraph.IsBroken() ||
