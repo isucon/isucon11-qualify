@@ -102,10 +102,6 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 
 	randEngine := rand.New(rand.NewSource(rand.Int63()))
 	nextTargetIsuIndex := 0
-	lastSolvedTime := make(map[string]time.Time)
-	for _, isu := range user.IsuListOrderByCreatedAt {
-		lastSolvedTime[isu.JIAIsuUUID] = s.virtualTimeStart
-	}
 	scenarioLoopStopper := time.After(1 * time.Millisecond) //ループ頻度調整
 	for {
 		<-scenarioLoopStopper
