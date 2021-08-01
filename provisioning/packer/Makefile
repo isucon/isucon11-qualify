@@ -16,6 +16,10 @@ files-generated/initial-data.sql:
 	mkdir -p files-generated/
 	aws s3 cp s3://isucon11-qualify-dev/initial-data.sql files-generated/initial-data.sql
 
+files-generated/initialize.json:
+	mkdir -p files-generated/
+	aws s3 cp s3://isucon11-qualify-dev/initialize.json files-generated/initialize.json
+
 generate: output target/contestant.json target/bench.json target/standalone.json
 
 output:
