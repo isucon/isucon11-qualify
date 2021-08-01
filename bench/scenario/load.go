@@ -97,12 +97,6 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 
 	randEngine := rand.New(rand.NewSource(rand.Int63()))
 	nextTargetIsuIndex := 0
-	// MEMO: シナリオのループで加点しなくなったからいらないと思う
-	scenarioSuccess := false
-	lastSolvedTime := make(map[string]time.Time)
-	for _, isu := range user.IsuListOrderByCreatedAt {
-		lastSolvedTime[isu.JIAIsuUUID] = s.virtualTimeStart
-	}
 	scenarioLoopStopper := time.After(1 * time.Millisecond) //ループ頻度調整
 	for {
 		<-scenarioLoopStopper
@@ -114,10 +108,6 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 			return
 		default:
 		}
-		if scenarioSuccess {
-			step.AddScore(ScoreNormalUserLoop) //TODO: 得点条件の修正
-		}
-		scenarioSuccess = true
 
 		//posterからconditionの取得
 		user.GetConditionFromChan(ctx)
@@ -145,15 +135,19 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 			},
 		)
 		for _, err := range errs {
-			scenarioSuccess = false
 			addErrorWithContext(ctx, step, err)
+		}
+		if len(errs) > 0 {
+			continue
 		}
 
 		//GET /isu/{jia_isu_uuid}
 		_, errs = browserGetIsuDetailAction(ctx, user.Agent, targetIsu.JIAIsuUUID, true)
 		for _, err := range errs {
-			scenarioSuccess = false
 			addErrorWithContext(ctx, step, err)
+		}
+		if len(errs) > 0 {
+			continue
 		}
 
 		// TODO: 確定的に
