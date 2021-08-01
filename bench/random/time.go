@@ -15,6 +15,7 @@ var (
 func Time() time.Time {
 	subFrom := BaseTime.Unix()
 	subValue := rand.Int63n(60 * 60 * 24 * 365 / 2) // 0 ~ 半年
+	// ここでTimeZone情報落ちてLocalTimeZoneになってそう
 	return time.Unix(subFrom-subValue, 0)
 }
 

@@ -63,12 +63,16 @@ type JsonCondition struct {
 	Message        string         `json:"message"`
 	CreatedAt      time.Time      `json:"created_at"`
 	OwnerIsuUUID   string         `json:"owner_isu_uuid"`
+	OwnerIsuID     int            `json:"owner_isu_id"`
 	ConditionLevel ConditionLevel `json:"condition_level"`
 }
 
-func (j *JsonConditions) AddCondition(condition Condition) error {
+func (j *JsonConditions) AddCondition(condition Condition, isuId int) error {
 	jsonCondition := JsonCondition{
-		condition.Timestamp.Unix(),
+		// JST分マイナスすると何故かちょうどよい
+		// DB上はJSTなのでUnixtimeはJST時間に変換されている（UTC時間+9表記）
+		// JST時間なのにどこかでTimezone情報なくなって時刻表記だけになる→UTCとして解釈される→JST環境では更に+9時間されて本来より9時間多い値になるとか？
+		condition.Timestamp.Add(-9 * time.Hour).Unix(),
 		condition.IsSitting,
 		condition.IsDirty,
 		condition.IsOverweight,
@@ -76,6 +80,7 @@ func (j *JsonConditions) AddCondition(condition Condition) error {
 		condition.Message,
 		condition.CreatedAt,
 		condition.Isu.JIAIsuUUID,
+		isuId,
 		condition.ConditionLevel(),
 	}
 	switch condition.ConditionLevel() {
