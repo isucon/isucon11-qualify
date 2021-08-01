@@ -46,19 +46,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 	httpClient := http.Client{}
 	httpClient.Timeout = postConditionTimeout
 
-	//post isuの待ち
-	select {
-	case <-ctx.Done():
-		return
-	default:
-	}
-
 	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
 		nowTimeStamp = s.ToVirtualTime(time.Now())
 
 		//状態変化
