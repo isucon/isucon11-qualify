@@ -65,6 +65,7 @@ func main() {
 			}
 			isuListById := map[string]models.JsonIsuInfo{}
 			for j := 0; j < d.isuNum; j++ {
+				isuCounter += 1
 				isu := models.NewIsu(d.user)
 				isu.CreatedAt = d.user.CreatedAt.Add(time.Minute) // ISU は User 作成の1分後に作成される
 				isu = isu.WithUpdateName()
@@ -88,11 +89,10 @@ func main() {
 						log.Fatal(err)
 					}
 					// json用データ追加
-					if err := jsonConditions.AddCondition(condition); err != nil {
+					if err := jsonConditions.AddCondition(condition, isuCounter); err != nil {
 						log.Fatal(err)
 					}
 				}
-				isuCounter += 1
 				isuListById[isu.JIAIsuUUID] = models.ToJsonIsuInfo(isuCounter, isu, jsonConditions)
 			}
 			jsonData := models.Json{
@@ -131,6 +131,7 @@ func main() {
 
 			// User の所持する ISU 分だけ loop
 			for j := 0; j < isuNum; j++ {
+				isuCounter += 1
 				isu := models.NewIsu(user)
 				// 確率で ISU を更新
 				if rand.Intn(4) < 1 { // 1/4
@@ -159,11 +160,10 @@ func main() {
 						log.Fatal(err)
 					}
 					// json用データ追加
-					if err := jsonConditions.AddCondition(condition); err != nil {
+					if err := jsonConditions.AddCondition(condition, isuCounter); err != nil {
 						log.Fatal(err)
 					}
 				}
-				isuCounter += 1
 				isuListById[isu.JIAIsuUUID] = models.ToJsonIsuInfo(isuCounter, isu, jsonConditions)
 			}
 			jsonData := models.Json{
