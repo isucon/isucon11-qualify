@@ -21,7 +21,10 @@ services:
       - "../webapp/go:/webapp/go"
       - "../webapp/ec256-public.pem:/webapp/ec256-public.pem"
       - "../webapp/NoImage.jpg:/webapp/NoImage.jpg"
-      - "../webapp/sql:/webapp/sql"
+      # SQLs
+      - "../webapp/sql/init.sh:/webapp/sql/init.sh"
+      - "../webapp/sql/0_Schema.sql:/webapp/sql/0_Schema.sql"
+      - "../development/mysql-backend/2_Init.sql:/webapp/sql/1_InitData.sql"
     depends_on:
       - mysql-backend
   # MEMO: 各言語用のコンテナをここ以下に列挙
@@ -39,10 +42,10 @@ services:
       MYSQL_PASSWORD: isucon
       MYSQL_ROOT_PASSWORD: root
     volumes:
-      - "../webapp/sql/0_Schema.sql:/docker-entrypoint-initdb.d/0_Schema.sql"
-      - "../webapp/sql/1_InitData.sql:/docker-entrypoint-initdb.d/1_InitData.sql"
       # 開発環境用のものを使って初期化
+      - "../webapp/sql/0_Schema.sql:/docker-entrypoint-initdb.d/0_Schema.sql"
       - "../development/mysql-backend/1_Constraint.sql:/docker-entrypoint-initdb.d/1_Constraint.sql"
+      - "../development/mysql-backend/2_Init.sql:/docker-entrypoint-initdb.d/2_Init.sql"
     expose:
       - "3306"
     ports:
