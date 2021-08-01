@@ -48,7 +48,7 @@ type Isu struct {
 	ID                            int
 	JIAIsuUUID             string
 	Name                   string
-	ImageHash              [md5.Size]byte
+	ImageHash              [md5.Size]byte // 画像の検証用
 	JIACatalogID           string
 	Character              string
 	isDeactivated          bool                //実際にdeactivateされているか
