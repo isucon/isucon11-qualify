@@ -50,7 +50,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 	select {
 	case <-ctx.Done():
 		return
-	case <-scenarioChan.StateChan:
+	default:
 	}
 
 	for {
