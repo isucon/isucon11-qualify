@@ -60,6 +60,7 @@ jobs:
 
 
       - name: Download init-data.sql
+        working-directory: .
         run: |
           ${HOME}/work/_tool/isucon11-qualify/aws s3 cp s3://isucon11-qualify-dev/initial-data.sql webapp/sql/1_InitData.sql
           ${HOME}/work/_tool/isucon11-qualify/aws s3 cp s3://isucon11-qualify-dev/initialize.json bench/data/initialize.json
