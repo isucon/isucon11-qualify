@@ -6,12 +6,12 @@ init: init-common init-zone-a init-zone-d init-zone-c
 
 init-common: common/aws.tf common/backend.tf common/versions.tf
 	terraform -chdir=common init
-init-zone-a: zones/a/aws.tf zones/a/backend.tf zones/a/versions.tf
+init-zone-a: zones/a/aws.tf zones/a/backend.tf zones/a/versions.tf zones/a/teams.json
 	terraform -chdir=zones/a init
-init-zone-c: zones/c/aws.tf zones/c/backend.tf zones/c/versions.tf
+init-zone-c: zones/c/aws.tf zones/c/backend.tf zones/c/versions.tf zones/c/teams.json
 	terraform -chdir=zones/c init
-init-zone-d: zones/d/aws.tf zones/d/backend.tf zones/d/versions.tf
-	terraform -chdir=zones/d init
+init-zone-d: zones/d/aws.tf zones/d/backend.tf zones/d/versions.tf zones/d/teams.json
+	 terraform -chdir=zones/d init
 
 .PHONY: apply apply-common apply-zone-a apply-zone-c apply-zone-d
 apply: apply-common apply-zone-a apply-zone-c apply-zone-d
@@ -78,17 +78,17 @@ destroy-common:
 	terraform -chdir=common destroy
 destroy-zone-a:
 	terraform -chdir=zones/a destroy \
-		-var="git_tag=" \
+		-var="git_tag=$(GIT_TAG)" \
 		-var="isuxportal_supervisor_endpoint_url=" \
 		-var="isuxportal_supervisor_token="
 destroy-zone-c:
 	terraform -chdir=zones/c destroy \
-		-var="git_tag=" \
+		-var="git_tag=$(GIT_TAG)" \
 		-var="isuxportal_supervisor_endpoint_url=" \
 		-var="isuxportal_supervisor_token="
 destroy-zone-d:
 	terraform -chdir=zones/d destroy \
-		-var="git_tag=" \
+		-var="git_tag=$(GIT_TAG)" \
 		-var="isuxportal_supervisor_endpoint_url=" \
 		-var="isuxportal_supervisor_token="
 

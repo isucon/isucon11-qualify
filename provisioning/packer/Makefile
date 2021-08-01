@@ -1,6 +1,6 @@
 default: generate
 
-files-generated:  files-generated/REVISION files-generated/isucon11-qualify.tar files-generated/initial-data.sql
+files-generated:  files-generated/REVISION files-generated/isucon11-qualify.tar files-generated/initial-data.sql files-generated/initialize.json
 
 files-generated/REVISION:
 	mkdir -p files-generated/
