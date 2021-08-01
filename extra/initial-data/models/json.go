@@ -69,10 +69,7 @@ type JsonCondition struct {
 
 func (j *JsonConditions) AddCondition(condition Condition, isuId int) error {
 	jsonCondition := JsonCondition{
-		// JST分マイナスすると何故かちょうどよい
-		// DB上はJSTなのでUnixtimeはJST時間に変換されている（UTC時間+9表記）
-		// JST時間なのにどこかでTimezone情報なくなって時刻表記だけになる→UTCとして解釈される→JST環境では更に+9時間されて本来より9時間多い値になるとか？
-		condition.Timestamp.Add(-9 * time.Hour).Unix(),
+		condition.Timestamp.Unix(),
 		condition.IsSitting,
 		condition.IsDirty,
 		condition.IsOverweight,
