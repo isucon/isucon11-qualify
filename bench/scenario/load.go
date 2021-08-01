@@ -527,8 +527,8 @@ func getIsuGraphUntilLastViewed(
 		func(res *http.Response, graph service.GraphResponse) []error {
 			//検証前にデータ取得
 			user.GetConditionFromChan(ctx)
-			verifyGraph(res, user, targetIsu.JIAIsuUUID, &service.GetGraphRequest{Date: virtualDay}, graph)
-			return []error{} //TODO: 検証
+			err := verifyGraph(res, user, targetIsu.JIAIsuUUID, &service.GetGraphRequest{Date: virtualDay}, graph)
+			return []error{err} //TODO: 検証
 		},
 	)
 	if len(errs) > 0 {
