@@ -167,6 +167,7 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 	if img != nil {
 		req.ImgName = img.ImgName
 		req.Img = img.Img
+		isu.SetImage(req.Img)
 	}
 	isuResponse, res, err := postIsuAction(ctx, owner.Agent, req) //TODO:画像
 	// TODO: err のとき retry

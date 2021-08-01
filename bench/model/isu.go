@@ -138,3 +138,7 @@ func (isu *Isu) ToService() *service.Isu {
 		Character:  isu.Character,
 	}
 }
+
+func (isu *Isu) SetImage(image []byte) {
+	isu.ImageHash = md5.Sum(image)
+}
