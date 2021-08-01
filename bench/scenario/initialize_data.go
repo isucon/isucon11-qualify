@@ -66,7 +66,7 @@ func (s *Scenario) InitializeData() {
 			return user.IsuListOrderByCreatedAt[i].CreatedAt.Before(user.IsuListOrderByCreatedAt[j].CreatedAt)
 		})
 		sort.Slice(userConditions, func(i, j int) bool {
-			return userConditions[i].TimestampUnix < userConditions[i].TimestampUnix
+			return userConditions[i].TimestampUnix < userConditions[j].TimestampUnix
 		})
 
 		user.Conditions = model.NewIsuConditionTreeSet()
