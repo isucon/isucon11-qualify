@@ -200,6 +200,7 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 		isu := s.NewIsu(ctx, step, user, true, nil)
 		// TODO: retry
 		if isu == nil {
+			user.CloseAllIsuStateChan()
 			return nil
 		}
 	}
