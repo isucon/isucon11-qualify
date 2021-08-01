@@ -207,10 +207,10 @@ func (s *Scenario) requestNewConditionScenario(ctx context.Context, step *isucan
 	// 最新の condition から、一度見た condition が帰ってくるまで condition のページングをする
 	nowVirtualTime := s.ToVirtualTime(time.Now())
 	request := service.GetIndividualIsuConditionRequest{
-		StartTime:        nil,
-		CursorEndTime:    nowVirtualTime.Unix(),
-		ConditionLevel:   "info,warning,critical",
-		Limit:            nil,
+		StartTime:      nil,
+		CursorEndTime:  nowVirtualTime.Unix(),
+		ConditionLevel: "info,warning,critical",
+		Limit:          nil,
 	}
 	conditions, errs := s.getIsuConditionUntilAlreadyRead(ctx, user, targetIsu, request)
 	if len(errs) != 0 {
@@ -219,7 +219,7 @@ func (s *Scenario) requestNewConditionScenario(ctx context.Context, step *isucan
 		}
 		return
 	}
-	if len(conditions) == 0  {
+	if len(conditions) == 0 {
 		return
 	}
 
@@ -250,10 +250,10 @@ func (s *Scenario) requestLastBadConditionScenario(ctx context.Context, step *is
 	// ConditionLevel最新の condition から、一度見た condition が帰ってくるまで condition のページングをする
 	nowVirtualTime := s.ToVirtualTime(time.Now())
 	request := service.GetIndividualIsuConditionRequest{
-		StartTime:        nil,
-		CursorEndTime:    nowVirtualTime.Unix(),
-		ConditionLevel:   "warning,critical",
-		Limit:            nil,
+		StartTime:      nil,
+		CursorEndTime:  nowVirtualTime.Unix(),
+		ConditionLevel: "warning,critical",
+		Limit:          nil,
 	}
 	// GET condition/{jia_isu_uuid} を取得してバリデーション
 	_, conditions, errs := browserGetIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
@@ -300,7 +300,7 @@ func (s *Scenario) requestLastBadConditionScenario(ctx context.Context, step *is
 		case targetIsu.StreamsForScenario.StateChan <- solveCondition:
 		}
 	}
-	
+
 	// LastReadBadConditionTimestamp を更新
 	// condition の順番保障はされてる
 	targetIsu.LastReadBadConditionTimestamp = conditions[0].Timestamp
@@ -360,10 +360,10 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 	// 続きがあり、なおかつ今取得した condition が全て新しい時はスクロールする
 	for {
 		request = service.GetIndividualIsuConditionRequest{
-			StartTime:        request.StartTime,
-			CursorEndTime:    conditions[len(conditions)-1].Timestamp,
-			ConditionLevel:   request.ConditionLevel,
-			Limit:            request.Limit,
+			StartTime:      request.StartTime,
+			CursorEndTime:  conditions[len(conditions)-1].Timestamp,
+			ConditionLevel: request.ConditionLevel,
+			Limit:          request.Limit,
 		}
 		tmpConditions, _, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
 		// poster で送ったものの同期
@@ -424,8 +424,8 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 
 	// scoreの計算
 	for behindDay, gr := range graphResponses {
-		minTimestampCount := int(^uint(0) >> 1) 
-		for _, _ = range gr {			
+		minTimestampCount := int(^uint(0) >> 1)
+		for _, _ = range *gr {
 			// TODO: backend側が graph のレスポンスに根拠timestampを追加したらここで以下のコードを実行する
 			// if len(g.timestamps) < minTimestampCount {
 			// 	minTimestampCount = len(g.timestamps)
@@ -435,7 +435,7 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 
 		}
 		// 「今日のグラフじゃない」&「完成しているグラフ」なら加点
-		if behindDay != 0 && targetIsu.LastCompletedGraphTime <= virtualToday - (int64(behindDay) * OneDay) {
+		if behindDay != 0 && targetIsu.LastCompletedGraphTime <= virtualToday-(int64(behindDay)*OneDay) {
 			// AddScoreはconditionのGETまで待つためここでタグを入れておく
 			scoreTags = append(scoreTags, getGraphScoreTag(minTimestampCount))
 		}
@@ -444,15 +444,15 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 	// データが入ってるレスポンスから、ランダムで見る condition を選ぶ
 	if len(graphResponses) != 0 {
 		// ユーザーが今見ているグラフ
-		nowViewingGraph := graphResponses[len(graphResponses) - 1]
+		nowViewingGraph := graphResponses[len(graphResponses)-1]
 		// チェックする時間
-		checkHour := getCheckHour(nowViewingGraph, randEngine)
+		checkHour := getCheckHour(*nowViewingGraph, randEngine)
 		request := service.GetIndividualIsuConditionRequest{
-			StartTime: &nowViewingGraph[checkHour].StartAt,
-			CursorEndTime: nowViewingGraph[checkHour].EndAt,
+			StartTime:      &(*nowViewingGraph)[checkHour].StartAt,
+			CursorEndTime:  (*nowViewingGraph)[checkHour].EndAt,
 			ConditionLevel: "info,warning,critical",
 		}
-		_, _ , err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
+		_, _, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
 		// TODO: retry
 		if err != nil {
 			addErrorWithContext(ctx, step, err)
@@ -473,10 +473,10 @@ func trancateTimestampToDate(timestamp int64) int64 {
 }
 
 // 新しい LastCompletedGraphTime を得る。
-func getNewLastCompletedGraphTime(graphResponses [][]*service.GraphResponse, virtualToday int64) int64 {
+func getNewLastCompletedGraphTime(graphResponses []*service.GraphResponse, virtualToday int64) int64 {
 	var lastCompletedGraphTime int64 = 0
 	for behindDay, gr := range graphResponses {
-		for hour, g := range gr {
+		for hour, g := range *gr {
 			// 12時以降のデータがあるならその前日のグラフは完成している
 			if hour >= 12 && g.Data != nil {
 				completedDay := virtualToday - (OneDay * int64(behindDay))
@@ -490,7 +490,7 @@ func getNewLastCompletedGraphTime(graphResponses [][]*service.GraphResponse, vir
 }
 
 // データが入ってる graph のレスポンスから、ランダムでユーザがチェックする condition を選ぶ
-func getCheckHour(nowViewingGraph []*service.GraphResponse, randEngine *rand.Rand) int {
+func getCheckHour(nowViewingGraph service.GraphResponse, randEngine *rand.Rand) int {
 	dataExistIndexes := []int{}
 	for i, g := range nowViewingGraph {
 		if g.Data != nil {
@@ -525,12 +525,12 @@ func getIsuGraphUntilLastViewed(
 	user *model.User,
 	targetIsu *model.Isu,
 	virtualDay int64,
-) ([][]*service.GraphResponse, []error) {
-	graph := [][]*service.GraphResponse{}
+) ([]*service.GraphResponse, []error) {
+	graph := []*service.GraphResponse{}
 
 	// これで今日のグラフを取る
 	_, todayGraph, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, virtualDay,
-		func(res *http.Response, graph []*service.GraphResponse) []error {
+		func(res *http.Response, graph service.GraphResponse) []error {
 			// TODO: validationは下でやるべき
 			//検証前にデータ取得
 			user.GetConditionFromChan(ctx)
@@ -542,7 +542,7 @@ func getIsuGraphUntilLastViewed(
 		return nil, errs
 	}
 
-	graph = append(graph, todayGraph)
+	graph = append(graph, &todayGraph)
 
 	// 見たグラフまでを見に行く
 	for {
@@ -553,7 +553,7 @@ func getIsuGraphUntilLastViewed(
 			return graph, nil
 		}
 
-		tmpGraph, _, err := getIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, virtualDay)
+		tmpGraph, _, err := getIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, service.GetGraphRequest{Date: virtualDay})
 		if err != nil {
 			return nil, []error{err}
 		}
@@ -561,7 +561,7 @@ func getIsuGraphUntilLastViewed(
 
 		// TODO: validation
 
-		graph = append(graph, tmpGraph)
+		graph = append(graph, &tmpGraph)
 
 		// 作成した時間まで戻ったら終わる
 		if targetIsu.PostTime.Unix() > virtualDay {
