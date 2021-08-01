@@ -49,3 +49,9 @@ func (user *User) GetConditionFromChan(ctx context.Context) {
 		isu.getConditionFromChan(ctx, &user.Conditions)
 	}
 }
+
+func (user *User) CloseAllIsuStateChan() {
+	for _, isu := range user.IsuListByID {
+		close(isu.StreamsForScenario.StateChan)
+	}
+}

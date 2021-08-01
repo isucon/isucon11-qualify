@@ -6,7 +6,6 @@ import "github.com/isucon/isucandar/score"
 
 const (
 	ScoreNormalUserInitialize  score.ScoreTag = "NormalUserInitialize      "
-	ScoreNormalUserLoop        score.ScoreTag = "NormalUserLoop            "
 	ScoreGraphExcellent        score.ScoreTag = "ScoreGraphExcellent       "
 	ScoreGraphGood             score.ScoreTag = "ScoreGraphGood            "
 	ScoreGraphNormal           score.ScoreTag = "ScoreGraphNormal          "

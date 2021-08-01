@@ -94,15 +94,10 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 	if user == nil {
 		return
 	}
+	defer user.CloseAllIsuStateChan()
 
 	randEngine := rand.New(rand.NewSource(rand.Int63()))
 	nextTargetIsuIndex := 0
-	// MEMO: シナリオのループで加点しなくなったからいらないと思う
-	scenarioSuccess := false
-	lastSolvedTime := make(map[string]time.Time)
-	for _, isu := range user.IsuListOrderByCreatedAt {
-		lastSolvedTime[isu.JIAIsuUUID] = s.virtualTimeStart
-	}
 	scenarioLoopStopper := time.After(1 * time.Millisecond) //ループ頻度調整
 	for {
 		<-scenarioLoopStopper
@@ -114,10 +109,6 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 			return
 		default:
 		}
-		if scenarioSuccess {
-			step.AddScore(ScoreNormalUserLoop) //TODO: 得点条件の修正
-		}
-		scenarioSuccess = true
 
 		//posterからconditionの取得
 		user.GetConditionFromChan(ctx)
@@ -145,15 +136,19 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 			},
 		)
 		for _, err := range errs {
-			scenarioSuccess = false
 			addErrorWithContext(ctx, step, err)
+		}
+		if len(errs) > 0 {
+			continue
 		}
 
 		//GET /isu/{jia_isu_uuid}
 		_, errs = browserGetIsuDetailAction(ctx, user.Agent, targetIsu.JIAIsuUUID, true)
 		for _, err := range errs {
-			scenarioSuccess = false
 			addErrorWithContext(ctx, step, err)
+		}
+		if len(errs) > 0 {
+			continue
 		}
 
 		// TODO: 確定的に
@@ -195,6 +190,7 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 		isu := s.NewIsu(ctx, step, user, true, nil)
 		// TODO: retry
 		if isu == nil {
+			user.CloseAllIsuStateChan()
 			return nil
 		}
 	}
@@ -271,7 +267,6 @@ func (s *Scenario) requestLastBadConditionScenario(ctx context.Context, step *is
 			return []error{}
 		},
 	)
-	// TODO: retry
 	if len(errs) > 0 {
 		for _, err := range errs {
 			addErrorWithContext(ctx, step, err)
@@ -338,16 +333,14 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 			return []error{}
 		},
 	)
-	// TODO: retry
 	if len(errs) > 0 {
 		return nil, errs
 	}
-	for i, cond := range firstPageConditions {
+	for _, cond := range firstPageConditions {
 		// 新しいやつだけなら append
 		if isNewData(targetIsu, cond) {
 			conditions = append(conditions, cond)
 		} else {
-			logger.AdminLogger.Printf("is not new data in firstPageConditions. index: %v", i)
 			// timestamp順なのは vaidation で保証しているので読んだやつが出てきたタイミングで return
 			return conditions, nil
 		}
@@ -368,7 +361,6 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 		tmpConditions, _, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
 		// poster で送ったものの同期
 		user.GetConditionFromChan(ctx)
-		// TODO: retry
 		if err != nil {
 			return nil, []error{err}
 		}
@@ -404,13 +396,11 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 	virtualToday -= OneDay
 
 	graphResponses, errs := getIsuGraphUntilLastViewed(ctx, user, targetIsu, virtualToday)
-	if errs != nil {
-		if len(errs) > 0 {
-			for _, err := range errs {
-				addErrorWithContext(ctx, step, err)
-			}
-			return
+	if len(errs) > 0 {
+		for _, err := range errs {
+			addErrorWithContext(ctx, step, err)
 		}
+		return
 	}
 
 	// LastCompletedGraphTime を更新
@@ -425,14 +415,10 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 	// scoreの計算
 	for behindDay, gr := range graphResponses {
 		minTimestampCount := int(^uint(0) >> 1)
-		for _, _ = range *gr {
-			// TODO: backend側が graph のレスポンスに根拠timestampを追加したらここで以下のコードを実行する
-			// if len(g.timestamps) < minTimestampCount {
-			// 	minTimestampCount = len(g.timestamps)
-			// }
-			// ↓こっちの方は消す
-			minTimestampCount = 0
-
+		for _, g := range *gr {
+			if len(g.ConditionTimestamps) < minTimestampCount {
+				minTimestampCount = len(g.ConditionTimestamps)
+			}
 		}
 		// 「今日のグラフじゃない」&「完成しているグラフ」なら加点
 		if behindDay != 0 && targetIsu.LastCompletedGraphTime <= virtualToday-(int64(behindDay)*OneDay) {
@@ -453,7 +439,6 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 			ConditionLevel: "info,warning,critical",
 		}
 		_, _, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
-		// TODO: retry
 		if err != nil {
 			addErrorWithContext(ctx, step, err)
 			return
@@ -528,18 +513,17 @@ func getIsuGraphUntilLastViewed(
 ) ([]*service.GraphResponse, []error) {
 	graph := []*service.GraphResponse{}
 
-	// これで今日のグラフを取る
-	_, todayGraph, errs := browserGetIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, virtualDay,
-		func(res *http.Response, graph service.GraphResponse) []error {
-			// TODO: validationは下でやるべき
-			//検証前にデータ取得
-			user.GetConditionFromChan(ctx)
-			return []error{} //TODO: 検証
-		},
-	)
-	if len(errs) > 0 {
-		// TODO: timeout 時 retry
-		return nil, errs
+	todayRequest := service.GetGraphRequest{Date: virtualDay}
+	todayGraph, hres, err := getIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, todayRequest)
+	if err != nil {
+		return nil, []error{err}
+	}
+
+	//検証前にデータ取得
+	user.GetConditionFromChan(ctx)
+	err = verifyGraph(hres, user, targetIsu.JIAIsuUUID, &todayRequest, todayGraph)
+	if err != nil {
+		return nil, []error{err}
 	}
 
 	graph = append(graph, &todayGraph)
@@ -553,13 +537,19 @@ func getIsuGraphUntilLastViewed(
 			return graph, nil
 		}
 
-		tmpGraph, _, err := getIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, service.GetGraphRequest{Date: virtualDay})
+		request := service.GetGraphRequest{Date: virtualDay}
+
+		tmpGraph, hres, err := getIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
 		if err != nil {
 			return nil, []error{err}
 		}
-		// TODO: timeoutしたときretry
 
-		// TODO: validation
+		//検証前にデータ取得
+		user.GetConditionFromChan(ctx)
+		err = verifyGraph(hres, user, targetIsu.JIAIsuUUID, &request, tmpGraph)
+		if err != nil {
+			return nil, []error{err}
+		}
 
 		graph = append(graph, &tmpGraph)
 
