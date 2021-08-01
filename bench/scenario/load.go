@@ -99,6 +99,7 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 	if user == nil {
 		return
 	}
+	defer user.CloseAllIsuStateChan()
 
 	randEngine := rand.New(rand.NewSource(rand.Int63()))
 	nextTargetIsuIndex := 0

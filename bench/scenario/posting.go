@@ -26,6 +26,7 @@ type posterState struct {
 
 //POST /api/condition/{jia_isu_id}をたたく Goroutine
 func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseURL string, isu *model.Isu, scenarioChan *model.StreamsForPoster) {
+	defer close(scenarioChan.ConditionChan)
 	postConditionTimeout := 50 * time.Millisecond //MEMO: timeout は気にせずにズバズバ投げる
 
 	nowTimeStamp := s.ToVirtualTime(time.Now())
@@ -67,6 +68,9 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		case nextState, ok := <-scenarioChan.StateChan:
 			if ok {
 				stateChange = nextState
+			} else {
+				// StateChan が閉じられるときは load が終了したとき
+				return
 			}
 		default:
 		}
