@@ -31,9 +31,7 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	logger.AdminLogger.Printf("LOAD INFO\n  Language: %s\n  Campaign: None\n", s.Language)
 	defer logger.AdminLogger.Println("<=== LOAD END")
 
-	/*
-		TODO: 実際の負荷走行シナリオ
-	*/
+	// 実際の負荷走行シナリオ
 
 	//通常ユーザー
 	s.AddNormalUser(ctx, step, 2)
@@ -133,6 +131,8 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 		dataExistTimestamp := GetConditionDataExistTimestamp(s, user)
 		_, errs := browserGetHomeAction(ctx, user.Agent, dataExistTimestamp, true,
 			func(res *http.Response, isuList []*service.Isu) []error {
+				// poster で送ったものの同期
+				user.GetConditionFromChan(ctx)
 				expected := user.IsuListOrderByCreatedAt
 				if homeIsuLimit < len(expected) { //limit
 					expected = expected[len(expected)-homeIsuLimit:]
@@ -254,8 +254,6 @@ func (s *Scenario) requestLastBadConditionScenario(ctx context.Context, step *is
 			// poster で送ったものの同期
 			user.GetConditionFromChan(ctx)
 
-			// TODO: validation は引数に渡さず関数の結果からやる
-			//conditionの検証
 			err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request, conditions)
 			if err != nil {
 				return []error{err}
@@ -324,8 +322,6 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 			// poster で送ったものの同期
 			user.GetConditionFromChan(ctx)
 
-			// TODO: validation は引数に渡さず関数の結果からやる
-			//conditionの検証
 			err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request, conditions)
 			if err != nil {
 				return []error{err}
@@ -372,13 +368,16 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 			conditions = conditions[:0]
 		}
 
-		tmpConditions, _, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
-		// poster で送ったものの同期
-		user.GetConditionFromChan(ctx)
+		tmpConditions, hres, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
 		if err != nil {
 			return nil, newLastReadConditionTimestamp, []error{err}
 		}
-		// TODO: validation
+		// poster で送ったものの同期
+		user.GetConditionFromChan(ctx)
+		err = verifyIsuConditions(hres, user, targetIsu.JIAIsuUUID, &request, tmpConditions)
+		if err != nil {
+			return nil, newLastReadConditionTimestamp, []error{err}
+		}
 
 		for _, cond := range tmpConditions {
 			// 新しいやつだけなら append
@@ -465,12 +464,18 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 			CursorEndTime:  (*nowViewingGraph)[checkHour].EndAt,
 			ConditionLevel: "info,warning,critical",
 		}
-		_, _, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
+		conditions, hres, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
 		if err != nil {
 			addErrorWithContext(ctx, step, err)
 			return
 		}
-		// TODO: validation
+		// poster で送ったものの同期
+		user.GetConditionFromChan(ctx)
+		err = verifyIsuConditions(hres, user, targetIsu.JIAIsuUUID, &request, conditions)
+		if err != nil {
+			addErrorWithContext(ctx, step, err)
+			return
+		}
 	}
 
 	// graph の加点分を計算
