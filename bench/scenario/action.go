@@ -19,6 +19,7 @@ import (
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"net/url"
 	"strconv"
 	"time"
@@ -348,7 +349,11 @@ func postIsuAction(ctx context.Context, a *agent.Agent, req service.PostIsuReque
 	}
 
 	if req.Img != nil {
-		part, err := writer.CreateFormFile("image", "image.jpeg")
+		partHeader := textproto.MIMEHeader{}
+		partHeader.Set("Content-Type", "image/jpeg")
+		partHeader.Set("Content-Disposition", `form-data; name="image"; filename="image.jpeg"`)
+
+		part, err := writer.CreatePart(partHeader)
 		if err != nil {
 			logger.AdminLogger.Panic(err)
 		}
