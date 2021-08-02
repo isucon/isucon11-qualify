@@ -59,19 +59,6 @@ class Apis {
     return data
   }
 
-  async putIsu(
-    jiaIsuUuid: string,
-    putIsuRequest: PutIsuRequest,
-    axiosConfig?: AxiosRequestConfig
-  ) {
-    const { data } = await axios.put<Isu>(
-      `/api/isu/${jiaIsuUuid}`,
-      putIsuRequest,
-      axiosConfig
-    )
-    return data
-  }
-
   async deleteIsu(jiaIsuUuid: string, axiosConfig?: AxiosRequestConfig) {
     await axios.delete<Isu>(`/api/isu/${jiaIsuUuid}`, axiosConfig)
   }
@@ -205,10 +192,6 @@ export interface IsuSearchRequest {
 }
 
 export const DEFAULT_SEARCH_LIMIT = 20
-
-export interface PutIsuRequest {
-  name: string
-}
 
 export interface PostIsuRequest {
   jia_isu_uuid: string
