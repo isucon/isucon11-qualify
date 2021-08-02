@@ -15,7 +15,6 @@ interface UseGraphResult {
   transitionData: number[]
   sittingData: number[]
   timeCategories: string[]
-  score: number
   day: string
   tooltipData: Tooltip[]
 }
@@ -26,7 +25,6 @@ const useGraph = (getGraphs: (req: GraphRequest) => Promise<Graph[]>) => {
     transitionData: [],
     sittingData: [],
     timeCategories: [],
-    score: 0,
     day: '',
     tooltipData: []
   })
@@ -44,7 +42,6 @@ const useGraph = (getGraphs: (req: GraphRequest) => Promise<Graph[]>) => {
         transitionData: graphData.transitionData,
         sittingData: graphData.sittingData,
         timeCategories: graphData.timeCategories,
-        score: graphData.score,
         day: day.toLocaleDateString(),
         tooltipData: graphData.tooltipData
       }))
@@ -69,7 +66,6 @@ const useGraph = (getGraphs: (req: GraphRequest) => Promise<Graph[]>) => {
       transitionData: graphData.transitionData,
       sittingData: graphData.sittingData,
       timeCategories: graphData.timeCategories,
-      score: graphData.score,
       day: payload.day,
       tooltipData: graphData.tooltipData
     }))
@@ -82,14 +78,12 @@ const genGraphData = (graphs: Graph[]) => {
   const transitionData: number[] = []
   const sittingData: number[] = []
   const timeCategories: string[] = []
-  let score = 0
   const tooltipData: Tooltip[] = []
 
   graphs.forEach(graph => {
     if (graph.data) {
       transitionData.push(graph.data.score)
       sittingData.push(graph.data.sitting)
-      score += graph.data.score
       tooltipData.push({
         score: graph.data.score.toString(),
         is_dirty: graph.data.detail['is_dirty']
@@ -125,13 +119,10 @@ const genGraphData = (graphs: Graph[]) => {
     )
   })
 
-  score = Math.floor(score / graphs.length)
-
   return {
     transitionData,
     sittingData,
     timeCategories,
-    score,
     tooltipData
   }
 }
