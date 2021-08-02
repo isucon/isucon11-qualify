@@ -391,19 +391,10 @@ func postIsuErrorAction(ctx context.Context, a *agent.Agent, req service.PostIsu
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 	}
-
-	// 画像指定
-	if req.Img != nil {
-		part, err := writer.CreateFormFile("image", "isu.jpg")
-		if err != nil {
-			logger.AdminLogger.Panic(err)
-		}
-		_, err = part.Write(req.Img)
-		if err != nil {
-			logger.AdminLogger.Panic(err)
-		}
-	}
-
+	// TODO: 画像も追加する
+	// TODO: file.Nameを正しく渡すと不正出来そうなので、拡張子残すくらいにしておきたい
+	//part, err := writer.CreateFormFile("image", filepath.Base(file.Name()))
+	//io.Copy(part, file)
 	err = writer.Close()
 	if err != nil {
 		logger.AdminLogger.Panic(err)
