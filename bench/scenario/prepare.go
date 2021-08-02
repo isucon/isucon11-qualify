@@ -700,7 +700,7 @@ func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model
 		step.AddError(err)
 		return
 	}
-	if err := verifyText(res, resBody, "date is invalid format"); err != nil {
+	if err := verifyText(res, resBody, "bad format: date"); err != nil {
 		step.AddError(err)
 		return
 	}
