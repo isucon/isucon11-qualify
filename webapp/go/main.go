@@ -45,12 +45,6 @@ const (
 	ScoreConditionLevelCritical = 0
 )
 
-var scorePerCondition = map[string]int{
-	"is_dirty":      -1,
-	"is_overweight": -1,
-	"is_broken":     -5,
-}
-
 //"is_dirty=true/false,is_overweight=true/false,..."
 var conditionFormat = regexp.MustCompile(`^[-a-zA-Z_]+=(true|false)(,[-a-zA-Z_]+=(true|false))*$`)
 
