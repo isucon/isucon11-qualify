@@ -129,9 +129,16 @@ type GraphResponse struct {
 
 // グラフにおける一つのデータ点の情報
 type GraphDataPoint struct {
-	Score   int            `json:"score"`
-	Sitting int            `json:"sitting"`
-	Detail  map[string]int `json:"detail"`
+	Score      int                  `json:"score"`
+	Percentage ConditionsPercentage `json:"percentage"`
+}
+
+// 一つのデータ点における各conditionの割合
+type ConditionsPercentage struct {
+	Sitting      int `json:"sitting"`
+	IsBroken     int `json:"is_broken"`
+	IsDirty      int `json:"is_dirty"`
+	IsOverweight int `json:"is_overweight"`
 }
 
 // グラフ作成の計算に使用
