@@ -38,6 +38,8 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	//通常ユーザー
 	s.AddNormalUser(ctx, step, 2)
 
+	//非ログインユーザーを増やす
+	s.AddViewer(ctx, step, 1)
 	// //ユーザーを増やす
 	// s.loadWaitGroup.Add(1)
 	// go func() {
@@ -168,6 +170,37 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 	}
 }
 
+func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep) {
+
+	viewerTimer, viewerTimerCancel := context.WithDeadline(ctx, s.realTimeLoadFinishedAt.Add(-agent.DefaultRequestTimeout))
+	defer viewerTimerCancel()
+	select {
+	case <-ctx.Done():
+		return
+	case <-viewerTimer.Done():
+		return
+	default:
+	}
+
+	_ = s.initViewer(ctx)
+	scenarioLoopStopper := time.After(1 * time.Millisecond) //ループ頻度調整
+	for {
+		<-scenarioLoopStopper
+		scenarioLoopStopper = time.After(5 * time.Second) //TODO: 頻度調整(絶対変える今は5秒)
+		select {
+		case <-ctx.Done():
+			return
+		case <-viewerTimer.Done(): //TODO: GETリクエスト系も早めに終わるかは要検討
+			return
+		default:
+		}
+		logger.AdminLogger.Println("viewer load")
+	
+		// trends, err := getTrendAction()
+		// updatedTimestampCount, err := verifyTrend(trends)
+	}
+}
+
 //ユーザーとISUの作成
 func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.BenchmarkStep) *model.User {
 	//ユーザー作成
@@ -200,6 +233,23 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 	}
 	step.AddScore(ScoreNormalUserInitialize)
 	return user
+}
+
+//ユーザーとISUの作成
+func (s *Scenario) initViewer(ctx context.Context) model.Viewer {
+	//ユーザー作成
+	viewerAgent, err := s.NewAgent()
+	if err != nil {
+		logger.AdminLogger.Panicln(err)
+	}
+	viewer := model.NewViewer(viewerAgent)
+	func() {
+		s.viewerMtx.Lock()
+		defer s.viewerMtx.Unlock()
+		s.viewers = append(s.viewers, viewer)
+	}()
+
+	return viewer
 }
 
 // あるISUの新しいconditionを見に行くシナリオ。
