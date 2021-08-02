@@ -288,11 +288,9 @@ func verifyPrepareIsuConditions(res *http.Response,
 		if i != 0 && !nowSort.Less(&lastSort) {
 			return errorInvalid(res, "整列順が正しくありません")
 		}
-
 		expected := baseIter.Prev()
-		if expected != nil && expected.TimestampUnix == c.Timestamp && expected.OwnerIsuUUID == c.JIAIsuUUID {
-		} else {
-			return errorMissmatch(res, "存在するはずのデータが返されていません")
+		if expected == nil {
+			return errorMissmatch(res, "存在しないはずのデータが返却されています")
 		}
 
 		//等価チェック
@@ -320,21 +318,24 @@ func verifyPrepareIsuConditions(res *http.Response,
 		case 3:
 			expectedConditionLevelStr = "critical"
 		}
+
 		if c.Condition != expectedCondition ||
 			c.ConditionLevel != expectedConditionLevelStr ||
 			c.IsSitting != expected.IsSitting ||
 			c.JIAIsuUUID != expected.OwnerIsuUUID ||
 			c.Message != expected.Message ||
-			c.IsuName != targetUser.IsuListByID[c.JIAIsuUUID].Name {
+			c.IsuName != targetUser.IsuListByID[c.JIAIsuUUID].Name ||
+			c.Timestamp != expected.TimestampUnix {
 			return errorMissmatch(res, "データが正しくありません")
 		}
 		lastSort = nowSort
 	}
 
-	//limitの検証
-	if len(backendData) < limit && baseIter.Prev() != nil {
-		prev := baseIter.Prev()
-		if prev != nil && request.StartTime != nil && *request.StartTime <= prev.TimestampUnix {
+	// limitの検証
+	// response件数がlimitの数より少ないときは、bench側で条件に合うデータを更にもっていなければ正しい
+	prev := baseIter.Prev()
+	if len(backendData) < limit && prev != nil {
+		if request.StartTime != nil && *request.StartTime <= prev.TimestampUnix {
 			return errorInvalid(res, "要素数が正しくありません")
 		}
 	}
