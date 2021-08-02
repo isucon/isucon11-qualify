@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/google/uuid"
 	"log"
 	"math/rand"
 	"time"
@@ -17,11 +18,16 @@ const (
 )
 
 func init() {
+	loc, _ := time.LoadLocation("Asia/Tokyo")
+	time.Local = loc
 	t, _ := time.Parse(time.RFC3339, "2021-07-01T00:00:00+07:00")
 	rand.Seed(t.UnixNano())
+	uuid.SetRand(rand.New(rand.NewSource(t.UnixNano())))
 }
 
 func main() {
+	jsonArray := models.JsonArray{}
+	var isuCounter int
 	{ // insert data for isucon user
 		data := []struct {
 			user                     models.User
@@ -59,7 +65,9 @@ func main() {
 			if err := d.user.Create(); err != nil {
 				log.Fatal(err)
 			}
+			isuListById := map[string]models.JsonIsuInfo{}
 			for j := 0; j < d.isuNum; j++ {
+				isuCounter += 1
 				isu := models.NewIsu(d.user)
 				isu.CreatedAt = d.user.CreatedAt.Add(time.Minute) // ISU は User 作成の1分後に作成される
 				isu = isu.WithUpdateName()
@@ -69,6 +77,7 @@ func main() {
 					log.Fatal(err)
 				}
 
+				var jsonConditions models.JsonConditions
 				// ISU の Condition 分だけ loop
 				var condition models.Condition
 				for k := 0; k < d.conditionNum; k++ {
@@ -81,8 +90,18 @@ func main() {
 					if err := condition.Create(); err != nil {
 						log.Fatal(err)
 					}
+					// json用データ追加
+					if err := jsonConditions.AddCondition(condition, isuCounter); err != nil {
+						log.Fatal(err)
+					}
 				}
+				isuListById[isu.JIAIsuUUID] = models.ToJsonIsuInfo(isuCounter, isu, jsonConditions)
 			}
+			jsonData := models.Json{
+				JiaUserId:   d.user.JIAUserID,
+				IsuListById: isuListById,
+			}
+			jsonArray = append(jsonArray, &jsonData)
 		}
 	}
 
@@ -92,6 +111,7 @@ func main() {
 			if err := user.Create(); err != nil {
 				log.Fatal(err)
 			}
+			isuListById := map[string]models.JsonIsuInfo{}
 
 			// user の特性を乱数で決定
 			var isuNum, conditionDurationMinutes, conditionNum int
@@ -113,6 +133,7 @@ func main() {
 
 			// User の所持する ISU 分だけ loop
 			for j := 0; j < isuNum; j++ {
+				isuCounter += 1
 				isu := models.NewIsu(user)
 				// 確率で ISU を更新
 				if rand.Intn(4) < 1 { // 1/4
@@ -121,14 +142,12 @@ func main() {
 				if rand.Intn(10) < 9 { // 9/10
 					isu = isu.WithUpdateImage()
 				}
-				if rand.Intn(10) < 1 { // 1/10
-					isu = isu.WithDelete()
-				}
 				// INSERT isu
 				if err := isu.Create(); err != nil {
 					log.Fatal(err)
 				}
 
+				var jsonConditions models.JsonConditions
 				// ISU の Condition 分だけ loop
 				var condition models.Condition
 				for k := 0; k < conditionNum; k++ {
@@ -142,8 +161,22 @@ func main() {
 					if err := condition.Create(); err != nil {
 						log.Fatal(err)
 					}
+					// json用データ追加
+					if err := jsonConditions.AddCondition(condition, isuCounter); err != nil {
+						log.Fatal(err)
+					}
 				}
+				isuListById[isu.JIAIsuUUID] = models.ToJsonIsuInfo(isuCounter, isu, jsonConditions)
 			}
+			jsonData := models.Json{
+				JiaUserId:   user.JIAUserID,
+				IsuListById: isuListById,
+			}
+			jsonArray = append(jsonArray, &jsonData)
 		}
+	}
+	// ファイル出力
+	if err := jsonArray.Commit(); err != nil {
+		log.Fatal(err)
 	}
 }

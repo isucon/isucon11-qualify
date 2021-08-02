@@ -20,7 +20,6 @@ type JIAServiceRequest struct {
 type PostIsuRequest struct {
 	JIAIsuUUID string `json:"jia_isu_uuid"`
 	IsuName    string `json:"isu_name"`
-	ImgName    string
 	Img        []byte
 }
 
@@ -53,8 +52,12 @@ type GetIsuConditionRequest struct {
 }
 
 type GetIndividualIsuConditionRequest struct {
-	StartTime        *int64
-	CursorEndTime    int64
-	ConditionLevel   string
-	Limit            *int
+	StartTime      *int64
+	CursorEndTime  int64
+	ConditionLevel string
+	Limit          *int
+}
+
+type GetGraphRequest struct {
+	Date int64 // unixtime
 }

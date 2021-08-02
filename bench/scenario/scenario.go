@@ -45,8 +45,6 @@ type Scenario struct {
 	//内部状態
 	normalUsersMtx  sync.Mutex
 	normalUsers     []*model.User
-	companyUsersMtx sync.Mutex
-	companyUsers    []*model.User
 	Catalogs        map[string]*model.IsuCatalog
 }
 
@@ -60,7 +58,6 @@ func NewScenario(jiaServiceURL *url.URL, loadTimeout time.Duration) (*Scenario, 
 		jiaServiceURL:     jiaServiceURL,
 		initializeTimeout: 20 * time.Second,
 		normalUsers:       []*model.User{},
-		companyUsers:      []*model.User{},
 	}, nil
 }
 
@@ -108,21 +105,6 @@ func (s *Scenario) AddManiacUser(ctx context.Context, step *isucandar.BenchmarkS
 	}
 }
 
-//load用
-//企業ユーザーのシナリオ Goroutineを追加する
-func (s *Scenario) AddCompanyUser(ctx context.Context, step *isucandar.BenchmarkStep, count int) {
-	if count <= 0 {
-		return
-	}
-	s.loadWaitGroup.Add(count)
-	for i := 0; i < count; i++ {
-		go func(ctx context.Context, step *isucandar.BenchmarkStep) {
-			defer s.loadWaitGroup.Done()
-			s.loadCompanyUser(ctx, step)
-		}(ctx, step)
-	}
-}
-
 //新しい登録済みUserの生成
 //失敗したらnilを返す
 func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a *agent.Agent, userType model.UserType) *model.User {
@@ -156,7 +138,7 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 	}
 
 	//ISU協会にIsu*を登録する必要あり
-	RegisterToJiaAPI(isu.JIAIsuUUID, &IsuDetailInfomation{CatalogID: isu.JIACatalogID, Character: isu.Character}, streamsForPoster)
+	RegisterToJiaAPI(isu, streamsForPoster)
 
 	//backendにpostする
 	//TODO: 確率で失敗してリトライする
@@ -165,13 +147,13 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 		IsuName:    isu.Name,
 	}
 	if img != nil {
-		req.ImgName = img.ImgName
 		req.Img = img.Img
+		isu.SetImage(req.Img)
 	}
 	isuResponse, res, err := postIsuAction(ctx, owner.Agent, req) //TODO:画像
+	// TODO: err のとき retry
 	if err != nil {
-		addErrorWithContext(ctx, step, err)
-		isu.StreamsForScenario.StateChan <- model.IsuStateChangeDelete
+		step.AddError(err)
 		return nil
 	}
 	// TODO: これは validate でやるべきなきがする
@@ -180,6 +162,11 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 		isuResponse.Character != isu.Character {
 		step.AddError(errorMissmatch(res, "レスポンスBodyが正しくありません"))
 	}
+
+	// POST isu のレスポンスより ID を取得して isu モデルに代入する
+	isu.ID = isuResponse.ID
+
+	// poster に isu model の初期化終了を伝える
 	isu.StreamsForScenario.StateChan <- model.IsuStateChangeNone
 
 	//並列に生成する場合は後でgetにより正しい順番を得て、その順序でaddする。企業ユーザーは並列にaddしないと回らない
@@ -188,6 +175,8 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 		//戻り値をownerに追加する
 		owner.AddIsu(isu)
 	}
+	//投げた時間を
+	isu.PostTime = s.ToVirtualTime(time.Now())
 
 	return isu
 }

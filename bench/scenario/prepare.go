@@ -34,10 +34,19 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 	//TODO: 他の得点源
 	//TODO: 得点調整
 	step.Result().Score.Set(ScoreNormalUserInitialize, 10)
-	step.Result().Score.Set(ScoreNormalUserLoop, 10)
+	step.Result().Score.Set(ScoreGraphExcellent, 5)
+	step.Result().Score.Set(ScoreGraphGood, 4)
+	step.Result().Score.Set(ScoreGraphNormal, 3)
+	step.Result().Score.Set(ScoreGraphBad, 2)
+	step.Result().Score.Set(ScoreGraphWorst, 1)
+	step.Result().Score.Set(ScoreReadInfoCondition, 3)
+	step.Result().Score.Set(ScoreReadWarningCondition, 2)
+	step.Result().Score.Set(ScoreReadCriticalCondition, 1)
 
 	//初期データの生成
+	logger.AdminLogger.Println("start: load initial data")
 	s.InitializeData()
+	logger.AdminLogger.Println("finish: load initial data")
 	s.realTimePrepareStartedAt = time.Now()
 
 	//jiaの起動
@@ -127,9 +136,10 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	s.prepareCheckGetIsu(ctx, loginUser, noIsuUser, guestAgent, step)
 	s.prepareCheckGetIsuIcon(ctx, loginUser, noIsuUser, guestAgent, step)
 	s.prepareCheckGetIsuGraph(ctx, loginUser, noIsuUser, guestAgent, step)
-	s.prepareCheckGetAllIsuConditions(ctx, loginUser, noIsuUser, guestAgent, step)
+	//s.prepareCheckGetAllIsuConditions(ctx, loginUser, noIsuUser, guestAgent, step)
 	s.prepareCheckGetIsuConditions(ctx, loginUser, noIsuUser, guestAgent, step)
-	s.prepareCheckPostIsuCondition(ctx, loginUser, noIsuUser, guestAgent, step)
+	// TODO: 確率で失敗するようになったので一旦prepareCheckを行わないようにする。方針決まり次第消すか復活させるかする
+	//s.prepareCheckPostIsuCondition(ctx, loginUser, noIsuUser, guestAgent, step)
 
 	return nil
 }
@@ -273,7 +283,14 @@ func (s *Scenario) prepareCheckGetIsuList(ctx context.Context, loginUser *model.
 
 	// check: 登録したISUがlimit分取得できる
 	isu2 := s.NewIsu(ctx, step, loginUser, true, nil)
+	if isu2 == nil {
+		return
+	}
+
 	isu3 := s.NewIsu(ctx, step, loginUser, true, nil)
+	if isu3 == nil {
+		return
+	}
 
 	isuList, res, err = getIsuAction(ctx, loginUser.Agent, 2)
 	if err != nil {
@@ -341,6 +358,9 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 	//Isuの登録 e.POST("/api/isu", postIsu)
 	// check: 椅子の登録が成功する（デフォルト画像）
 	isu := s.NewIsu(ctx, step, loginUser, true, nil)
+	if isu == nil {
+		return
+	}
 
 	expected := isu.ToService()
 	actual, res, err := getIsuIdAction(ctx, loginUser.Agent, isu.JIAIsuUUID)
@@ -384,6 +404,9 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 		Img:     img,
 	}
 	isuWithImg := s.NewIsu(ctx, step, loginUser, true, isuImg)
+	if isuWithImg == nil {
+		return
+	}
 
 	expected = isuWithImg.ToService()
 	actual, res, err = getIsuIdAction(ctx, loginUser.Agent, isuWithImg.JIAIsuUUID)
@@ -437,7 +460,7 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 		step.AddError(err)
 		return
 	}
-	if err := verifyText(res, resBody, "duplicated isu"); err != nil {
+	if err := verifyText(res, resBody, "duplicated: isu"); err != nil {
 		step.AddError(err)
 		return
 	}
@@ -453,7 +476,7 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 		step.AddError(err)
 		return
 	}
-	if err := verifyText(res, resBody, "duplicated isu"); err != nil {
+	if err := verifyText(res, resBody, "duplicated: isu"); err != nil {
 		step.AddError(err)
 		return
 	}
@@ -486,6 +509,9 @@ func (s *Scenario) prepareCheckGetIsu(ctx context.Context, loginUser *model.User
 	//Isuの詳細情報取得 e.GET("/api/isu/:jia_isu_uuid", getIsu)
 	// check: 正常系
 	isu := s.NewIsu(ctx, step, loginUser, true, nil)
+	if isu == nil {
+		return
+	}
 	if err := BrowserAccess(ctx, loginUser.Agent, "/isu/"+isu.JIAIsuUUID); err != nil {
 		step.AddError(err)
 		return
@@ -522,7 +548,7 @@ func (s *Scenario) prepareCheckGetIsu(ctx context.Context, loginUser *model.User
 		step.AddError(err)
 		return
 	}
-	if err := verifyText(res, resBody, "isu not found"); err != nil {
+	if err := verifyText(res, resBody, "not found: isu"); err != nil {
 		step.AddError(err)
 		return
 	}
@@ -537,7 +563,7 @@ func (s *Scenario) prepareCheckGetIsu(ctx context.Context, loginUser *model.User
 		step.AddError(err)
 		return
 	}
-	if err := verifyText(res, resBody, "isu not found"); err != nil {
+	if err := verifyText(res, resBody, "not found: isu"); err != nil {
 		step.AddError(err)
 		return
 	}
@@ -548,6 +574,9 @@ func (s *Scenario) prepareCheckGetIsuIcon(ctx context.Context, loginUser *model.
 	// check: ISUのアイコン取得 e.GET("/api/isu/:jia_isu_uuid/icon", getIsuIcon)
 	//- 正常系（初回はnot modified許可しない）
 	isu := s.NewIsu(ctx, step, loginUser, true, nil)
+	if isu == nil {
+		return
+	}
 
 	imgByte, res, err := getIsuIconAction(ctx, loginUser.Agent, isu.JIAIsuUUID, false)
 	if err != nil {
@@ -599,7 +628,7 @@ func (s *Scenario) prepareCheckGetIsuIcon(ctx context.Context, loginUser *model.
 		step.AddError(err)
 		return
 	}
-	if err := verifyText(res, resBody, "isu not found"); err != nil {
+	if err := verifyText(res, resBody, "not found: isu"); err != nil {
 		step.AddError(err)
 		return
 	}
@@ -614,7 +643,7 @@ func (s *Scenario) prepareCheckGetIsuIcon(ctx context.Context, loginUser *model.
 		step.AddError(err)
 		return
 	}
-	if err := verifyText(res, resBody, "isu not found"); err != nil {
+	if err := verifyText(res, resBody, "not found: isu"); err != nil {
 		step.AddError(err)
 		return
 	}
@@ -626,6 +655,9 @@ func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model
 	//ISUグラフの取得 e.GET("/api/isu/:jia_isu_uuid/graph", getIsuGraph)
 	// TODO: check: 正常系
 	isu := s.NewIsu(ctx, step, loginUser, true, nil)
+	if isu == nil {
+		return
+	}
 
 	// check: 未ログイン状態
 	query := url.Values{}
@@ -651,7 +683,7 @@ func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model
 		step.AddError(err)
 		return
 	}
-	if err := verifyText(res, resBody, "date is required"); err != nil {
+	if err := verifyText(res, resBody, "missing: date"); err != nil {
 		step.AddError(err)
 		return
 	}
@@ -668,7 +700,7 @@ func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model
 		step.AddError(err)
 		return
 	}
-	if err := verifyText(res, resBody, "date is invalid format"); err != nil {
+	if err := verifyText(res, resBody, "bad format: date"); err != nil {
 		step.AddError(err)
 		return
 	}
@@ -685,7 +717,7 @@ func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model
 		step.AddError(err)
 		return
 	}
-	if err := verifyText(res, resBody, "isu not found"); err != nil {
+	if err := verifyText(res, resBody, "not found: isu"); err != nil {
 		step.AddError(err)
 		return
 	}
@@ -702,7 +734,7 @@ func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model
 		step.AddError(err)
 		return
 	}
-	if err := verifyText(res, resBody, "isu not found"); err != nil {
+	if err := verifyText(res, resBody, "not found: isu"); err != nil {
 		step.AddError(err)
 		return
 	}
@@ -821,7 +853,7 @@ func (s *Scenario) prepareCheckGetAllIsuConditions(ctx context.Context, loginUse
 		step.AddError(err)
 		return
 	}
-	if err := verifyText(res, resBody, "condition_level is missing"); err != nil {
+	if err := verifyText(res, resBody, "missing: condition_level"); err != nil {
 		step.AddError(err)
 		return
 	}
@@ -912,6 +944,10 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 	//- 正常系
 	//	- option無し
 	isu := s.NewIsu(ctx, step, loginUser, true, nil)
+	if isu == nil {
+		return
+	}
+
 	// ある程度conditionが溜まるまで待つが3秒は適当
 	select {
 	case <-time.After(3 * time.Second):
@@ -921,10 +957,10 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 	dataExistTimestamp := GetConditionDataExistTimestamp(s, loginUser)
 
 	req := service.GetIndividualIsuConditionRequest{
-		StartTime:        nil,
-		CursorEndTime:    dataExistTimestamp,
-		ConditionLevel:   "info,warning,critical",
-		Limit:            nil,
+		StartTime:      nil,
+		CursorEndTime:  dataExistTimestamp,
+		ConditionLevel: "info,warning,critical",
+		Limit:          nil,
 	}
 
 	conditionsTmp, res, err := getIsuConditionAction(ctx, loginUser.Agent, isu.JIAIsuUUID, req)
@@ -1009,7 +1045,7 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 		step.AddError(err)
 		return
 	}
-	if err := verifyText(res, resBody, "condition_level is missing"); err != nil {
+	if err := verifyText(res, resBody, "missing: condition_level"); err != nil {
 		step.AddError(err)
 		return
 	}
@@ -1084,7 +1120,7 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 		step.AddError(err)
 		return
 	}
-	if err := verifyText(res, resBody, "isu not found"); err != nil {
+	if err := verifyText(res, resBody, "not found: isu"); err != nil {
 		step.AddError(err)
 		return
 	}
@@ -1102,7 +1138,7 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 		step.AddError(err)
 		return
 	}
-	if err := verifyText(res, resBody, "isu not found"); err != nil {
+	if err := verifyText(res, resBody, "not found: isu"); err != nil {
 		step.AddError(err)
 		return
 	}
@@ -1112,6 +1148,9 @@ func (s *Scenario) prepareCheckPostIsuCondition(ctx context.Context, loginUser *
 	// ISUからのcondition送信 e.POST("/api/isu/:jia_isu_uuid/condition", postIsuCondition)
 	// - 正常系
 	isu := s.NewIsu(ctx, step, loginUser, true, nil)
+	if isu == nil {
+		return
+	}
 
 	// 通常のisu condition送信とかぶらないように未来の日付にしてる
 	// TODO: ここは時間表現ではなく、prepare中はkeepPostingさせないなどして制御するか、keepPostingした上で厳し目チェックに
@@ -1165,10 +1204,10 @@ func (s *Scenario) prepareCheckPostIsuCondition(ctx context.Context, loginUser *
 
 	limit := len(expected)
 	getReq := service.GetIndividualIsuConditionRequest{
-		StartTime:        nil,
-		CursorEndTime:    baseTime.Add(11 * time.Minute).Unix(),
-		ConditionLevel:   "info,warning,critical",
-		Limit:            &limit,
+		StartTime:      nil,
+		CursorEndTime:  baseTime.Add(11 * time.Minute).Unix(),
+		ConditionLevel: "info,warning,critical",
+		Limit:          &limit,
 	}
 	conditionsRes, res, err := getIsuConditionAction(ctx, loginUser.Agent, isu.JIAIsuUUID, getReq)
 	if len(conditionsRes) != len(expected) {
@@ -1199,7 +1238,7 @@ func (s *Scenario) prepareCheckPostIsuCondition(ctx context.Context, loginUser *
 		step.AddError(err)
 		return
 	}
-	if err := verifyText(res, resBody, "isu not found"); err != nil {
+	if err := verifyText(res, resBody, "not found: isu"); err != nil {
 		step.AddError(err)
 		return
 	}

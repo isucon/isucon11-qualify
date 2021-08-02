@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"html/template"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/exec"
@@ -36,6 +37,9 @@ const (
 	defaultIconFilePath       = "../NoImage.jpg"
 	defaultJIAServiceURL      = "http://localhost:5000"
 	mysqlErrNumDuplicateEntry = 1062
+	conditionLevelInfo        = "info"
+	conditionLevelWarning     = "warning"
+	conditionLevelCritical    = "critical"
 )
 
 var scorePerCondition = map[string]int{
@@ -64,13 +68,18 @@ type Config struct {
 	URL  string `db:"url"`
 }
 
+type GetIsuResponse struct {
+	Isu
+	LatestIsuCondition *GetIsuConditionResponse `json:"latest_isu_condition"`
+}
+
 type Isu struct {
+	ID         int       `db:"id" json:"id"`
 	JIAIsuUUID string    `db:"jia_isu_uuid" json:"jia_isu_uuid"`
 	Name       string    `db:"name" json:"name"`
 	Image      []byte    `db:"image" json:"-"`
 	Character  string    `db:"character" json:"character"`
 	JIAUserID  string    `db:"jia_user_id" json:"-"`
-	IsDeleted  bool      `db:"is_deleted" json:"-"`
 	CreatedAt  time.Time `db:"created_at" json:"-"`
 	UpdatedAt  time.Time `db:"updated_at" json:"-"`
 }
@@ -87,20 +96,6 @@ type IsuCondition struct {
 	Condition  string    `db:"condition"`
 	Message    string    `db:"message"`
 	CreatedAt  time.Time `db:"created_at"`
-}
-
-//グラフ表示用  一時間のsummry 詳細
-type GraphData struct {
-	Score   int            `json:"score"`
-	Sitting int            `json:"sitting"`
-	Detail  map[string]int `json:"detail"`
-}
-
-//グラフ表示用  一時間のsummry
-type Graph struct {
-	JIAIsuUUID string
-	StartAt    time.Time
-	Data       string
 }
 
 type User struct {
@@ -129,9 +124,25 @@ type GetMeResponse struct {
 }
 
 type GraphResponse struct {
-	StartAt int64      `json:"start_at"`
-	EndAt   int64      `json:"end_at"`
-	Data    *GraphData `json:"data"`
+	StartAt             int64           `json:"start_at"`
+	EndAt               int64           `json:"end_at"`
+	Data                *GraphDataPoint `json:"data"`
+	ConditionTimestamps []int64         `json:"condition_timestamps"`
+}
+
+// グラフにおける一つのデータ点の情報
+type GraphDataPoint struct {
+	Score   int            `json:"score"`
+	Sitting int            `json:"sitting"`
+	Detail  map[string]int `json:"detail"`
+}
+
+// グラフ作成の計算に使用
+type GraphDataPointWithInfo struct {
+	JIAIsuUUID          string
+	StartAt             time.Time
+	Data                GraphDataPoint
+	ConditionTimestamps []int64
 }
 
 type GetIsuConditionResponse struct {
@@ -145,8 +156,14 @@ type GetIsuConditionResponse struct {
 }
 
 type TrendResponse struct {
-	Character string
-	Score     uint
+	Character  string           `json:"character"`
+	Conditions []TrendCondition `json:"conditions"`
+}
+
+type TrendCondition struct {
+	ID             int    `json:"isu_id"`
+	Timestamp      int64  `json:"timestamp"`
+	ConditionLevel string `json:"condition_level"`
 }
 
 type PostIsuConditionRequest struct {
@@ -222,11 +239,10 @@ func main() {
 	e.GET("/api/isu", getIsuList)
 	e.POST("/api/isu", postIsu)
 	e.GET("/api/isu/:jia_isu_uuid", getIsu)
-	e.DELETE("/api/isu/:jia_isu_uuid", deleteIsu)
 	e.GET("/api/isu/:jia_isu_uuid/icon", getIsuIcon)
 	e.GET("/api/isu/:jia_isu_uuid/graph", getIsuGraph)
-	e.GET("/api/condition", getAllIsuConditions)
 	e.GET("/api/condition/:jia_isu_uuid", getIsuConditions)
+	e.GET("/api/trend", getTrend)
 	// API for Isu
 	e.POST("/api/condition/:jia_isu_uuid", postIsuCondition)
 	// Frontend
@@ -280,7 +296,7 @@ func getUserIDFromSession(r *http.Request) (string, error) {
 }
 
 func getJIAServiceURL(tx *sqlx.Tx) string {
-	config := Config{}
+	var config Config
 	err := tx.Get(&config, "SELECT * FROM `isu_association_config` WHERE `name` = ?", "jia_service_url")
 	if err != nil {
 		if !errors.Is(err, sql.ErrNoRows) {
@@ -301,7 +317,7 @@ func getIndex(c echo.Context) error {
 }
 
 func postInitialize(c echo.Context) error {
-	request := InitializeRequest{}
+	var request InitializeRequest
 	err := c.Bind(&request)
 	if err != nil {
 		c.Logger().Errorf("bad request body: %v", err)
@@ -407,13 +423,6 @@ func postSignout(c echo.Context) error {
 	return c.NoContent(http.StatusOK)
 }
 
-// TODO
-// GET /api/user/{jia_user_id}
-// ユーザ情報を取得
-// day2 実装のため skip
-// func getUser(c echo.Context) error {
-// }
-
 func getMe(c echo.Context) error {
 	userID, err := getUserIDFromSession(c.Request())
 	if err != nil {
@@ -432,6 +441,16 @@ func getIsuList(c echo.Context) error {
 		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 
+	pageStr := c.QueryParam("page")
+	page := 1
+	if pageStr != "" {
+		page, err = strconv.Atoi(pageStr)
+		if err != nil || page <= 0 {
+			c.Logger().Errorf("bad format: page: page = %s, %v", pageStr, err)
+			return c.String(http.StatusBadRequest, "bad format: page")
+		}
+	}
+
 	limitStr := c.QueryParam("limit")
 	limit := isuListLimit
 	if limitStr != "" {
@@ -442,11 +461,13 @@ func getIsuList(c echo.Context) error {
 		}
 	}
 
+	offset := (page - 1) * limit
+
 	isuList := []Isu{}
 	err = db.Select(
 		&isuList,
-		"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = false ORDER BY `created_at` DESC LIMIT ?",
-		jiaUserID, limit)
+		"SELECT * FROM `isu` WHERE `jia_user_id` = ? ORDER BY `created_at` DESC LIMIT ? OFFSET ?",
+		jiaUserID, limit, offset)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -472,7 +493,7 @@ func postIsu(c echo.Context) error {
 	if err != nil {
 		if !errors.Is(err, http.ErrMissingFile) {
 			c.Logger().Errorf("failed to get icon: %v", err)
-			return c.String(http.StatusBadRequest, "failed to get icon")
+			return c.String(http.StatusBadRequest, "bad format: icon")
 		}
 		useDefaultImage = true
 	}
@@ -524,7 +545,7 @@ func postIsu(c echo.Context) error {
 
 		if ok && mysqlErr.Number == uint16(mysqlErrNumDuplicateEntry) {
 			c.Logger().Errorf("duplicated isu: %v", err)
-			return c.String(http.StatusConflict, "duplicated isu")
+			return c.String(http.StatusConflict, "duplicated: isu")
 		}
 
 		c.Logger().Errorf("db error: %v", err)
@@ -561,7 +582,7 @@ func postIsu(c echo.Context) error {
 
 	resBody, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		c.Logger().Errorf("error occured while reading JIA response: %v", err)
+		c.Logger().Errorf("error occurred while reading JIA response: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -581,7 +602,7 @@ func postIsu(c echo.Context) error {
 	var isu Isu
 	err = tx.Get(
 		&isu,
-		"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
+		"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
 		jiaUserID, jiaIsuUUID)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
@@ -609,34 +630,6 @@ func getIsu(c echo.Context) error {
 
 	jiaIsuUUID := c.Param("jia_isu_uuid")
 
-	// TODO: jia_user_id 判別はクエリに入れずその後のロジックとする？ (一通り完成した後に要考慮)
-	var isu Isu
-	err = db.Get(&isu, "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
-		jiaUserID, jiaIsuUUID)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			c.Logger().Errorf("isu not found: %v", err)
-			return c.String(http.StatusNotFound, "isu not found")
-		}
-
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	return c.JSON(http.StatusOK, isu)
-}
-
-//  DELETE /api/isu/{jia_isu_uuid}
-// 所有しているISUを削除する
-func deleteIsu(c echo.Context) error {
-	jiaUserID, err := getUserIDFromSession(c.Request())
-	if err != nil {
-		c.Logger().Errorf("you are not signed in: %v", err)
-		return c.String(http.StatusUnauthorized, "you are not signed in")
-	}
-
-	jiaIsuUUID := c.Param("jia_isu_uuid")
-
 	tx, err := db.Beginx()
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
@@ -644,52 +637,31 @@ func deleteIsu(c echo.Context) error {
 	}
 	defer tx.Rollback()
 
-	var count int
-	err = tx.Get(
-		&count,
-		"SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
+	// TODO: jia_user_id 判別はクエリに入れずその後のロジックとする？ (一通り完成した後に要考慮)
+	var isu Isu
+	err = tx.Get(&isu, "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
 		jiaUserID, jiaIsuUUID)
 	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	if count == 0 {
-		c.Logger().Errorf("isu not found")
-		return c.String(http.StatusNotFound, "isu not found")
-	}
+		if errors.Is(err, sql.ErrNoRows) {
+			c.Logger().Errorf("isu not found: %v", err)
+			return c.String(http.StatusNotFound, "not found: isu")
+		}
 
-	_, err = tx.Exec("UPDATE `isu` SET `is_deleted` = true WHERE `jia_isu_uuid` = ?", jiaIsuUUID)
-	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	// JIAにisuのdeactivateをリクエスト
-	targetURL := getJIAServiceURL(tx) + "/api/deactivate"
-	body := JIAServiceRequest{isuConditionPublicAddress, isuConditionPublicPort, jiaIsuUUID}
-	bodyJSON, err := json.Marshal(body)
+	lastCondition := IsuCondition{}
+	foundLastCondition := true
+	err = tx.Get(&lastCondition, "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` DESC",
+		isu.JIAIsuUUID)
 	if err != nil {
-		c.Logger().Errorf("failed to marshal data: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	req, err := http.NewRequest(http.MethodPost, targetURL, bytes.NewBuffer(bodyJSON))
-	if err != nil {
-		c.Logger().Errorf("failed to build request: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		c.Logger().Errorf("failed to request to JIAService: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode != http.StatusNoContent {
-		c.Logger().Errorf("JIAService returned error: status code %v", res.StatusCode)
-		return c.NoContent(http.StatusInternalServerError)
+		if errors.Is(err, sql.ErrNoRows) {
+			foundLastCondition = false
+		} else {
+			c.Logger().Errorf("db error: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
 	}
 
 	err = tx.Commit()
@@ -698,7 +670,26 @@ func deleteIsu(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	return c.NoContent(http.StatusNoContent)
+	var formatedCondition *GetIsuConditionResponse
+	if foundLastCondition {
+		conditionLevel, err := calcConditionLevel(lastCondition.Condition)
+		if err != nil {
+			c.Logger().Errorf("failed to get condition level: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+
+		formatedCondition = &GetIsuConditionResponse{
+			JIAIsuUUID:     lastCondition.JIAIsuUUID,
+			IsuName:        isu.Name,
+			Timestamp:      lastCondition.Timestamp.Unix(),
+			IsSitting:      lastCondition.IsSitting,
+			Condition:      lastCondition.Condition,
+			ConditionLevel: conditionLevel,
+			Message:        lastCondition.Message,
+		}
+	}
+	res := GetIsuResponse{Isu: isu, LatestIsuCondition: formatedCondition}
+	return c.JSON(http.StatusOK, res)
 }
 
 //  GET /api/isu/{jia_isu_uuid}/icon
@@ -717,12 +708,12 @@ func getIsuIcon(c echo.Context) error {
 	jiaIsuUUID := c.Param("jia_isu_uuid")
 
 	var image []byte
-	err = db.Get(&image, "SELECT `image` FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
+	err = db.Get(&image, "SELECT `image` FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
 		jiaUserID, jiaIsuUUID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			c.Logger().Errorf("isu not found: %v", err)
-			return c.String(http.StatusNotFound, "isu not found")
+			return c.String(http.StatusNotFound, "not found: isu")
 		}
 
 		c.Logger().Errorf("db error: %v", err)
@@ -750,12 +741,12 @@ func getIsuGraph(c echo.Context) error {
 	dateStr := c.QueryParam("date")
 	if dateStr == "" {
 		c.Logger().Errorf("date is required")
-		return c.String(http.StatusBadRequest, "date is required")
+		return c.String(http.StatusBadRequest, "missing: date")
 	}
 	dateInt64, err := strconv.ParseInt(dateStr, 10, 64)
 	if err != nil {
 		c.Logger().Errorf("date is invalid format")
-		return c.String(http.StatusBadRequest, "date is invalid format")
+		return c.String(http.StatusBadRequest, "bad format: date")
 	}
 	date := truncateAfterHours(time.Unix(dateInt64, 0))
 
@@ -767,7 +758,7 @@ func getIsuGraph(c echo.Context) error {
 	defer tx.Rollback()
 
 	var count int
-	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ? AND `is_deleted` = false",
+	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
 		jiaUserID, jiaIsuUUID)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
@@ -775,44 +766,13 @@ func getIsuGraph(c echo.Context) error {
 	}
 	if count == 0 {
 		c.Logger().Errorf("isu not found")
-		return c.String(http.StatusNotFound, "isu not found")
+		return c.String(http.StatusNotFound, "not found: isu")
 	}
 
-	graphList, err := getGraphDataList(tx, jiaIsuUUID, date)
+	res, err := generateIsuGraphResponse(tx, jiaIsuUUID, date)
 	if err != nil {
-		c.Logger().Errorf("cannot get graph: %v", err)
+		c.Logger().Errorf("failed to generating isu graph: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	res := []GraphResponse{}
-	index := 0
-	tmpTime := date
-	var tmpGraph Graph
-
-	// dateから24時間分のグラフ用データを1時間単位で作成
-	for tmpTime.Before(date.Add(time.Hour * 24)) {
-		inRange := index < len(graphList)
-		if inRange {
-			tmpGraph = graphList[index]
-		}
-
-		var data *GraphData
-		if inRange && tmpGraph.StartAt.Equal(tmpTime) {
-			err = json.Unmarshal([]byte(tmpGraph.Data), &data)
-			if err != nil {
-				c.Logger().Errorf("failed to unmarshal json: %v", err)
-				return c.NoContent(http.StatusInternalServerError)
-			}
-			index++
-		}
-
-		graphResponse := GraphResponse{
-			StartAt: tmpTime.Unix(),
-			EndAt:   tmpTime.Add(time.Hour).Unix(),
-			Data:    data,
-		}
-		res = append(res, graphResponse)
-		tmpTime = tmpTime.Add(time.Hour)
 	}
 
 	// TODO: 必要以上に長めにトランザクションを取っているので後で検討
@@ -825,137 +785,181 @@ func getIsuGraph(c echo.Context) error {
 	return c.JSON(http.StatusOK, res)
 }
 
-//  GET /api/condition?
-// 自分の所持椅子の通知を取得する
-func getAllIsuConditions(c echo.Context) error {
-	// input
-	//     * start_time: 開始時間
-	//     * cursor_end_time: 終了時間 (required)
-	//     * cursor_jia_isu_uuid (required)
-	//     * condition_level: critical,warning,info (csv)
-	//               critical: conditionsのうちtrueが3個
-	//               warning: conditionsのうちtrueのものが1 or 2個
-	//               info: warning無し
-	//     * TODO: day2実装: message (文字列検索)
+// GET /api/isu/{jia_isu_uuid}/graph のレスポンス作成のため，
+// グラフのデータ点を一日分生成
+func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Time) ([]GraphResponse, error) {
 
-	jiaUserID, err := getUserIDFromSession(c.Request())
-	if err != nil {
-		c.Logger().Errorf("you are not signed in: %v", err)
-		return c.String(http.StatusUnauthorized, "you are not signed in")
-	}
-	//required query param
-	cursorEndTimeInt64, err := strconv.ParseInt(c.QueryParam("cursor_end_time"), 10, 64)
-	if err != nil {
-		c.Logger().Errorf("bad format: cursor_end_time: %v", err)
-		return c.String(http.StatusBadRequest, "bad format: cursor_end_time")
-	}
-	cursorEndTime := time.Unix(cursorEndTimeInt64, 0)
+	//
+	// 指定されたISUについて，グラフにおける一時間ごとのデータ点を計算
+	//
+	dataPoints := []GraphDataPointWithInfo{}
+	conditionsInThisHour := []IsuCondition{}
+	timestampsInThisHour := []int64{}
+	var startTimeInThisHour time.Time
+	var condition IsuCondition
 
-	cursorJIAIsuUUID := c.QueryParam("cursor_jia_isu_uuid")
-	if cursorJIAIsuUUID == "" {
-		c.Logger().Errorf("cursor_jia_isu_uuid is missing")
-		return c.String(http.StatusBadRequest, "cursor_jia_isu_uuid is missing")
+	rows, err := tx.Queryx("SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` ASC", jiaIsuUUID)
+	if err != nil {
+		return nil, err
 	}
-	cursor := &GetIsuConditionResponse{
-		JIAIsuUUID: cursorJIAIsuUUID,
-		Timestamp:  cursorEndTime.Unix(),
-	}
-	conditionLevelCSV := c.QueryParam("condition_level")
-	if conditionLevelCSV == "" {
-		c.Logger().Errorf("condition_level is missing")
-		return c.String(http.StatusBadRequest, "condition_level is missing")
-	}
-	conditionLevel := map[string]interface{}{}
-	for _, level := range strings.Split(conditionLevelCSV, ",") {
-		conditionLevel[level] = struct{}{}
-	}
-	//optional query param
-	startTimeStr := c.QueryParam("start_time")
-	startTime := time.Time{}
-	if startTimeStr != "" {
-		startTimeInt64, err := strconv.ParseInt(startTimeStr, 10, 64)
+	// isu conditionを順番に読んでいき，一時間ごとにデータ点を計算
+	for rows.Next() {
+		err = rows.StructScan(&condition)
 		if err != nil {
-			c.Logger().Errorf("bad format: start_time: %v", err)
-			return c.String(http.StatusBadRequest, "bad format: start_time")
+			return nil, err
 		}
-		startTime = time.Unix(startTimeInt64, 0)
-	}
 
-	limitStr := c.QueryParam("limit")
-	limit := conditionLimit
-	if limitStr != "" {
-		limit, err = strconv.Atoi(limitStr)
-		if err != nil || limit <= 0 {
-			c.Logger().Errorf("bad format: limit: limit = %v, %v", limit, err)
-			return c.String(http.StatusBadRequest, "bad format: limit")
+		truncatedConditionTime := truncateAfterHours(condition.Timestamp)
+		if truncatedConditionTime != startTimeInThisHour {
+			if len(conditionsInThisHour) > 0 {
+				data, err := calculateGraphDataPoint(conditionsInThisHour)
+				if err != nil {
+					return nil, fmt.Errorf("failed to calculate graph: %v", err)
+				}
+				dataPoints = append(dataPoints,
+					GraphDataPointWithInfo{
+						JIAIsuUUID:          jiaIsuUUID,
+						StartAt:             startTimeInThisHour,
+						Data:                data,
+						ConditionTimestamps: timestampsInThisHour})
+			}
+
+			startTimeInThisHour = truncatedConditionTime
+			conditionsInThisHour = []IsuCondition{}
+			timestampsInThisHour = []int64{}
 		}
+		conditionsInThisHour = append(conditionsInThisHour, condition)
+		timestampsInThisHour = append(timestampsInThisHour, condition.Timestamp.Unix())
 	}
-
-	// ユーザの所持椅子取得
-	isuList := []Isu{}
-	err = db.Select(&isuList,
-		"SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = false",
-		jiaUserID,
-	)
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	if len(isuList) == 0 {
-		return c.JSON(http.StatusOK, isuList)
-	}
-
-	// ユーザの所持椅子毎に DB から引く
-	conditionsResponse := []*GetIsuConditionResponse{}
-	for _, isu := range isuList {
-		//cursorのjia_isu_uuidで決まる部分は、とりあえず全部取得しておく
-		//  cursorEndTime >= timestampを取りたいので、
-		//  cursorEndTime + 1sec > timestampとしてクエリを送る
-		//この一要素はフィルターにかかるかどうか分からないので、limitも+1しておく
-
-		conditionsTmp, err := getIsuConditionsFromDB(isu.JIAIsuUUID, cursorEndTime.Add(1*time.Second),
-			conditionLevel, startTime, limit+1, isu.Name)
+	// 残った一時間分を計算
+	if len(conditionsInThisHour) > 0 {
+		data, err := calculateGraphDataPoint(conditionsInThisHour)
 		if err != nil {
-			c.Logger().Errorf("db error: %v", err)
-			return c.NoContent(http.StatusInternalServerError)
+			return nil, fmt.Errorf("failed to calculate graph: %v", err)
+		}
+		dataPoints = append(dataPoints,
+			GraphDataPointWithInfo{
+				JIAIsuUUID:          jiaIsuUUID,
+				StartAt:             startTimeInThisHour,
+				Data:                data,
+				ConditionTimestamps: timestampsInThisHour})
+	}
+
+	//
+	// graphDateの範囲にデータ点を絞る
+	//
+	endTime := graphDate.Add(time.Hour * 24)
+	startIndex := 0
+	endNextIndex := len(dataPoints)
+	for i, graph := range dataPoints {
+		if startIndex == 0 && !graph.StartAt.Before(graphDate) {
+			startIndex = i
+		}
+		if endNextIndex == len(dataPoints) && graph.StartAt.After(endTime) {
+			endNextIndex = i
+		}
+	}
+
+	var filteredDataPoints []GraphDataPointWithInfo
+	if startIndex < endNextIndex {
+		filteredDataPoints = dataPoints[startIndex:endNextIndex]
+	}
+
+	//
+	// データがない時間を埋めて，24時間分のレスポンスに整形
+	//
+	responseList := []GraphResponse{}
+	index := 0
+	thisTime := graphDate
+
+	for thisTime.Before(graphDate.Add(time.Hour * 24)) {
+		var data *GraphDataPoint
+		timestamps := []int64{}
+
+		if index < len(filteredDataPoints) {
+			dataWithInfo := filteredDataPoints[index]
+
+			if dataWithInfo.StartAt.Equal(thisTime) {
+				data = &dataWithInfo.Data
+				timestamps = dataWithInfo.ConditionTimestamps
+				index++
+			}
 		}
 
-		// ユーザの所持椅子ごとのデータをマージ
-		conditionsResponse = append(conditionsResponse, conditionsTmp...)
-	}
-
-	// (`timestamp`, `jia_isu_uuid`)のペアで降順ソート
-	sort.Slice(conditionsResponse, func(i int, j int) bool { return conditionGreaterThan(conditionsResponse[i], conditionsResponse[j]) })
-	// (cursor_end_time, cursor_jia_isu_uuid) > (`timestamp`, `jia_isu_uuid`)でフィルター
-	removeIndex := 0
-	for removeIndex < len(conditionsResponse) {
-		if conditionGreaterThan(cursor, conditionsResponse[removeIndex]) {
-			break
+		resp := GraphResponse{
+			StartAt:             thisTime.Unix(),
+			EndAt:               thisTime.Add(time.Hour).Unix(),
+			Data:                data,
+			ConditionTimestamps: timestamps,
 		}
-		removeIndex++
-	}
-	//[0,index)は「(cursor_end_time, cursor_jia_isu_uuid) > (`timestamp`, `jia_isu_uuid`)」を満たしていないので取り除く
-	conditionsResponse = conditionsResponse[removeIndex:]
+		responseList = append(responseList, resp)
 
-	//limitを取る
-	if len(conditionsResponse) > limit {
-		conditionsResponse = conditionsResponse[:limit]
+		thisTime = thisTime.Add(time.Hour)
 	}
 
-	return c.JSON(http.StatusOK, conditionsResponse)
+	return responseList, nil
 }
 
-// left > right を計算する関数
-func conditionGreaterThan(left *GetIsuConditionResponse, right *GetIsuConditionResponse) bool {
-	//(`timestamp`, `jia_isu_uuid`)のペアを辞書順に比較
+// 複数のISU conditionからグラフの一つのデータ点を計算
+func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, error) {
+	dataPoint := GraphDataPoint{}
 
-	if left.Timestamp > right.Timestamp {
-		return true
+	//sitting
+	sittingCount := 0
+	for _, condition := range isuConditions {
+		if condition.IsSitting {
+			sittingCount++
+		}
 	}
-	if left.Timestamp == right.Timestamp {
-		return left.JIAIsuUUID > right.JIAIsuUUID
+	dataPoint.Sitting = sittingCount * 100 / len(isuConditions)
+
+	//score&detail
+	dataPoint.Score = 100
+	//condition要因の減点
+	dataPoint.Detail = map[string]int{}
+	for key := range scorePerCondition {
+		dataPoint.Detail[key] = 0
 	}
-	return false
+	for _, condition := range isuConditions {
+		conditionMapList := map[string]bool{}
+		//DB上にある is_dirty=true/false,is_overweight=true/false,... 形式のデータを
+		//map[string]bool形式に変換
+		for _, condStr := range strings.Split(condition.Condition, ",") {
+			keyValue := strings.Split(condStr, "=")
+			if len(keyValue) != 2 {
+				continue //形式に従っていないものは無視
+			}
+			conditionMapList[keyValue[0]] = (keyValue[1] != "false")
+		}
+
+		//trueになっているものは減点
+		for key, enabled := range conditionMapList {
+			if enabled {
+				score, ok := scorePerCondition[key]
+				if ok {
+					dataPoint.Score += score
+					dataPoint.Detail[key] += score
+				}
+			}
+		}
+	}
+	//スコアに影響がないDetailを削除
+	for key := range scorePerCondition {
+		if dataPoint.Detail[key] == 0 {
+			delete(dataPoint.Detail, key)
+		}
+	}
+	//個数減点
+	if len(isuConditions) < 50 {
+		minus := -(50 - len(isuConditions)) * 2
+		dataPoint.Score += minus
+		dataPoint.Detail["missing_data"] = minus
+	}
+	if dataPoint.Score < 0 {
+		dataPoint.Score = 0
+	}
+
+	return dataPoint, nil
 }
 
 //  GET /api/condition/{jia_isu_uuid}?
@@ -969,7 +973,6 @@ func getIsuConditions(c echo.Context) error {
 	//               critical: conditions (is_dirty,is_overweight,is_broken) のうちtrueが3個
 	//               warning: conditionsのうちtrueのものが1 or 2個
 	//               info: warning無し
-	//     * TODO: day2実装: message (文字列検索)
 
 	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
@@ -979,7 +982,7 @@ func getIsuConditions(c echo.Context) error {
 	jiaIsuUUID := c.Param("jia_isu_uuid")
 	if jiaIsuUUID == "" {
 		c.Logger().Errorf("jia_isu_uuid is missing")
-		return c.String(http.StatusBadRequest, "jia_isu_uuid is missing")
+		return c.String(http.StatusBadRequest, "missing: jia_isu_uuid")
 	}
 	//required query param
 	cursorEndTimeInt64, err := strconv.ParseInt(c.QueryParam("cursor_end_time"), 10, 64)
@@ -991,7 +994,7 @@ func getIsuConditions(c echo.Context) error {
 	conditionLevelCSV := c.QueryParam("condition_level")
 	if conditionLevelCSV == "" {
 		c.Logger().Errorf("condition_level is missing")
-		return c.String(http.StatusBadRequest, "condition_level is missing")
+		return c.String(http.StatusBadRequest, "missing: condition_level")
 	}
 	conditionLevel := map[string]interface{}{}
 	for _, level := range strings.Split(conditionLevelCSV, ",") {
@@ -1021,13 +1024,13 @@ func getIsuConditions(c echo.Context) error {
 	// isu_id存在確認、ユーザの所持椅子か確認
 	var isuName string
 	err = db.Get(&isuName,
-		"SELECT name FROM `isu` WHERE `jia_isu_uuid` = ? AND `jia_user_id` = ? AND `is_deleted` = false",
+		"SELECT name FROM `isu` WHERE `jia_isu_uuid` = ? AND `jia_user_id` = ?",
 		jiaIsuUUID, jiaUserID,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			c.Logger().Errorf("isu not found: %v", err)
-			return c.String(http.StatusNotFound, "isu not found")
+			return c.String(http.StatusNotFound, "not found: isu")
 		}
 
 		c.Logger().Errorf("db error: %v", err)
@@ -1073,15 +1076,9 @@ func getIsuConditionsFromDB(jiaIsuUUID string, cursorEndTime time.Time, conditio
 	//condition_levelでの絞り込み
 	conditionsResponse := []*GetIsuConditionResponse{}
 	for _, c := range conditions {
-		var cLevel string
-		warnCount := strings.Count(c.Condition, "=true")
-		switch warnCount {
-		case 0:
-			cLevel = "info"
-		case 1, 2:
-			cLevel = "warning"
-		case 3:
-			cLevel = "critical"
+		cLevel, err := calcConditionLevel(c.Condition)
+		if err != nil {
+			continue
 		}
 
 		if _, ok := conditionLevel[cLevel]; ok {
@@ -1107,6 +1104,25 @@ func getIsuConditionsFromDB(jiaIsuUUID string, cursorEndTime time.Time, conditio
 	return conditionsResponse, nil
 }
 
+// conditionのcsvからcondition levelを計算
+func calcConditionLevel(condition string) (string, error) {
+	var conditionLevel string
+
+	warnCount := strings.Count(condition, "=true")
+	switch warnCount {
+	case 0:
+		conditionLevel = conditionLevelInfo
+	case 1, 2:
+		conditionLevel = conditionLevelWarning
+	case 3:
+		conditionLevel = conditionLevelCritical
+	default:
+		return "", fmt.Errorf("unexpected warn count")
+	}
+
+	return conditionLevel, nil
+}
+
 // POST /api/condition/{jia_isu_uuid}
 // ISUからのセンサデータを受け取る
 func postIsuCondition(c echo.Context) error {
@@ -1118,12 +1134,21 @@ func postIsuCondition(c echo.Context) error {
 	//  * message
 	//	* timestamp（秒まで）
 
+	// MEMO(isucon11-q実装者) 以下のTODOコメントはヒントにするため，予選本番でも残す
+	// TODO: これ良くないので後でなんとかする
+	dropProbability := 0.1
+	if rand.Float64() <= dropProbability {
+		c.Logger().Warnf("drop post isu condition request")
+		return c.NoContent(http.StatusServiceUnavailable)
+	}
+
 	//TODO: 記法の統一
 	jiaIsuUUID := c.Param("jia_isu_uuid")
 	if jiaIsuUUID == "" {
 		c.Logger().Errorf("jia_isu_uuid is missing")
-		return c.String(http.StatusBadRequest, "jia_isu_uuid is missing")
+		return c.String(http.StatusBadRequest, "missing: jia_isu_uuid")
 	}
+
 	var req []PostIsuConditionRequest
 	err := c.Bind(&req)
 	if err != nil {
@@ -1144,14 +1169,14 @@ func postIsuCondition(c echo.Context) error {
 
 	// jia_isu_uuid が存在するかを確認
 	var count int
-	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_isu_uuid` = ?  and `is_deleted` = false", jiaIsuUUID) //TODO: 記法の統一
+	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_isu_uuid` = ?", jiaIsuUUID) //TODO: 記法の統一
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	if count == 0 {
 		c.Logger().Errorf("isu not found")
-		return c.String(http.StatusNotFound, "isu not found")
+		return c.String(http.StatusNotFound, "not found: isu")
 	}
 
 	//isu_conditionに記録
@@ -1171,13 +1196,6 @@ func postIsuCondition(c echo.Context) error {
 				"	VALUES (?, ?, ?, ?, ?)",
 			jiaIsuUUID, timestamp, cond.IsSitting, cond.Condition, cond.Message)
 		if err != nil {
-			mysqlErr, ok := err.(*mysql.MySQLError)
-
-			if ok && mysqlErr.Number == uint16(mysqlErrNumDuplicateEntry) {
-				c.Logger().Errorf("duplicated condition: %v", err)
-				return c.String(http.StatusConflict, "duplicated condition")
-			}
-
 			c.Logger().Errorf("db error: %v", err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
@@ -1194,135 +1212,71 @@ func postIsuCondition(c echo.Context) error {
 	return c.NoContent(http.StatusCreated)
 }
 
-func getGraphDataList(tx *sqlx.Tx, jiaIsuUUID string, date time.Time) ([]Graph, error) {
-	// IsuConditionを一時間ごとの区切りに分け、区切りごとにスコアを計算する
-	IsuConditionCluster := []IsuCondition{} // 一時間ごとの纏まり
-	var tmpIsuCondition IsuCondition
-	rows, err := tx.Queryx("SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` ASC", jiaIsuUUID)
-	if err != nil {
-		return nil, err
-	}
-	graphDatas := []Graph{}
-	//一時間ごとに区切る
-	var startTime time.Time
-	for rows.Next() {
-		err = rows.StructScan(&tmpIsuCondition)
-		if err != nil {
-			return nil, err
-		}
-		tmpTime := truncateAfterHours(tmpIsuCondition.Timestamp)
-		if startTime != tmpTime {
-			if len(IsuConditionCluster) > 0 {
-				//tmpTimeは次の一時間なので、それ以外を使ってスコア計算
-				data, err := calculateGraphData(IsuConditionCluster)
-				if err != nil {
-					return nil, fmt.Errorf("failed to calculate graph: %v", err)
-				}
-				graphDatas = append(graphDatas, Graph{JIAIsuUUID: jiaIsuUUID, StartAt: startTime, Data: string(data)})
-			}
-
-			//次の一時間の探索
-			startTime = tmpTime
-			IsuConditionCluster = []IsuCondition{}
-		}
-		IsuConditionCluster = append(IsuConditionCluster, tmpIsuCondition)
-	}
-	if len(IsuConditionCluster) > 0 {
-		//最後の一時間分
-		data, err := calculateGraphData(IsuConditionCluster)
-		if err != nil {
-			return nil, fmt.Errorf("failed to calculate graph: %v", err)
-		}
-		graphDatas = append(graphDatas, Graph{JIAIsuUUID: jiaIsuUUID, StartAt: startTime, Data: string(data)})
-	}
-
-	// 24時間分のグラフデータだけを取り出す処理
-	endDate := date.Add(time.Hour * 24)
-	startIndex := 0
-	endNextIndex := len(graphDatas)
-	for i, graph := range graphDatas {
-		if startIndex == 0 && !graph.StartAt.Before(date) {
-			startIndex = i
-		}
-		if endNextIndex == len(graphDatas) && graph.StartAt.After(endDate) {
-			endNextIndex = i
-		}
-	}
-	if endNextIndex < startIndex {
-		return []Graph{}, nil
-	}
-
-	return graphDatas[startIndex:endNextIndex], nil
-}
-
 //分以下を切り捨て、一時間単位にする関数
 func truncateAfterHours(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), 0, 0, 0, t.Location())
 }
 
-//スコア計算をする関数
-func calculateGraphData(IsuConditionCluster []IsuCondition) ([]byte, error) {
-	graph := &GraphData{}
-
-	//sitting
-	sittingCount := 0
-	for _, log := range IsuConditionCluster {
-		if log.IsSitting {
-			sittingCount++
-		}
-	}
-	graph.Sitting = sittingCount * 100 / len(IsuConditionCluster)
-
-	//score&detail
-	graph.Score = 100
-	//condition要因の減点
-	graph.Detail = map[string]int{}
-	for key := range scorePerCondition {
-		graph.Detail[key] = 0
-	}
-	for _, log := range IsuConditionCluster {
-		conditions := map[string]bool{}
-		//DB上にある is_dirty=true/false,is_overweight=true/false,... 形式のデータを
-		//map[string]bool形式に変換
-		for _, cond := range strings.Split(log.Condition, ",") {
-			keyValue := strings.Split(cond, "=")
-			if len(keyValue) != 2 {
-				continue //形式に従っていないものは無視
-			}
-			conditions[keyValue[0]] = (keyValue[1] != "false")
-		}
-
-		//trueになっているものは減点
-		for key, enabled := range conditions {
-			if enabled {
-				score, ok := scorePerCondition[key]
-				if ok {
-					graph.Score += score
-					graph.Detail[key] += score
-				}
-			}
-		}
-	}
-	//スコアに影響がないDetailを削除
-	for key := range scorePerCondition {
-		if graph.Detail[key] == 0 {
-			delete(graph.Detail, key)
-		}
-	}
-	//個数減点
-	if len(IsuConditionCluster) < 50 {
-		minus := -(50 - len(IsuConditionCluster)) * 2
-		graph.Score += minus
-		graph.Detail["missing_data"] = minus
-	}
-	if graph.Score < 0 {
-		graph.Score = 0
-	}
-
-	//JSONに変換
-	graphJSON, err := json.Marshal(graph)
+// GET /api/trend
+// ISUの性格毎の最新のコンディション情報
+func getTrend(c echo.Context) error {
+	characterList := []Isu{}
+	err := db.Select(&characterList, "SELECT `character` FROM `isu` GROUP BY `character`")
 	if err != nil {
-		return nil, err
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
-	return graphJSON, nil
+
+	res := []TrendResponse{}
+
+	// MEMO(isucon11-q実装者) 以下のTODOコメントはヒントにするため，予選本番でも残す
+	// TODO: 処理が重すぎるのでなんとかする
+	for _, character := range characterList {
+		isuList := []Isu{}
+		err = db.Select(&isuList,
+			"SELECT * FROM `isu` WHERE `character` = ?",
+			character.Character,
+		)
+		if err != nil {
+			c.Logger().Errorf("db error: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+
+		characterIsuConditions := []TrendCondition{}
+		for _, isu := range isuList {
+			conditions := []IsuCondition{}
+			err = db.Select(&conditions,
+				"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY timestamp DESC",
+				isu.JIAIsuUUID,
+			)
+			if err != nil {
+				c.Logger().Errorf("db error: %v", err)
+				return c.NoContent(http.StatusInternalServerError)
+			}
+
+			if len(conditions) > 0 {
+				isuLastCondition := conditions[0]
+				conditionLevel, err := calcConditionLevel(isuLastCondition.Condition)
+				if err != nil {
+					c.Logger().Errorf("failed to get condition level: %v", err)
+					return c.NoContent(http.StatusInternalServerError)
+				}
+				trendCondition := TrendCondition{
+					ID:             isu.ID,
+					Timestamp:      isuLastCondition.Timestamp.Unix(),
+					ConditionLevel: conditionLevel,
+				}
+				characterIsuConditions = append(characterIsuConditions, trendCondition)
+			}
+
+		}
+		// timestampを降順ソート
+		sort.Slice(characterIsuConditions, func(i, j int) bool {
+			return characterIsuConditions[i].Timestamp > characterIsuConditions[j].Timestamp
+		})
+		res = append(res,
+			TrendResponse{Character: character.Character, Conditions: characterIsuConditions})
+	}
+
+	return c.JSON(http.StatusOK, res)
 }

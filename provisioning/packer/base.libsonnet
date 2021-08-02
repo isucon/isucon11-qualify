@@ -139,6 +139,7 @@
         'sudo cp /dev/shm/files-generated/REVISION /etc/',
         'sudo mv /dev/shm/files-generated/isucon11-qualify.tar /dev/shm/ansible/roles/common/files/',
         'sudo mv /dev/shm/files-generated/initial-data.sql /dev/shm/ansible/roles/contestant/files/',
+        'sudo mv /dev/shm/files-generated/initialize.json /dev/shm/ansible/roles/bench/files/',
         'sudo echo "[target]\n127.0.0.1" >> /dev/shm/ansible/hosts',
         'sudo ssh-keygen -f /root/.ssh/id_rsa -t rsa -N ""',
         'sudo su -c "cat /root/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys"',

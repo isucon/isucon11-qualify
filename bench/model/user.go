@@ -12,8 +12,6 @@ type UserType int
 
 const (
 	UserTypeNormal UserType = iota
-	UserTypeMania
-	UserTypeCompany
 )
 
 //基本的には一つのシナリオ Goroutineが一つのユーザーを占有する
@@ -23,7 +21,7 @@ type User struct {
 	UserID                  string `json:"jia_user_id"`
 	Type                    UserType
 	IsuListOrderByCreatedAt []*Isu          //CreatedAtは厳密にはわからないので、並列postの場合はpostした後にgetをした順番を正とする
-	IsuListByID             map[string]*Isu //IDをkeyにアクセス
+	IsuListByID             map[string]*Isu `json:"isu_list_by_id"` //IDをkeyにアクセス
 	Conditions              IsuConditionTreeSet
 
 	Agent *agent.Agent
@@ -49,5 +47,11 @@ func (u *User) AddIsu(isu *Isu) {
 func (user *User) GetConditionFromChan(ctx context.Context) {
 	for _, isu := range user.IsuListOrderByCreatedAt {
 		isu.getConditionFromChan(ctx, &user.Conditions)
+	}
+}
+
+func (user *User) CloseAllIsuStateChan() {
+	for _, isu := range user.IsuListByID {
+		close(isu.StreamsForScenario.StateChan)
 	}
 }

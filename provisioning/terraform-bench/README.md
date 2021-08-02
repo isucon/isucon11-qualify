@@ -28,7 +28,7 @@ terraform-bench
 * terraform の実行
 
 ```
-export AMI_ID=<bench 用 AMI ID>
+export GIT_TAG=<git tag>
 export ISUXPORTAL_SUPERVISOR_ENDPOINT_URL=<portal の gRPC エンドポイント>
 export ISUXPORTAL_SUPERVISOR_TOKEN=<portal の supervisor 接続用トークン>
 make all
