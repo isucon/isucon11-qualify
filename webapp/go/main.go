@@ -671,14 +671,14 @@ func getIsu(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	conditionLevel, err := calcConditionLevel(lastCondition.Condition)
-	if err != nil {
-		c.Logger().Errorf("failed to get condition level: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
 	var formatedCondition *GetIsuConditionResponse
 	if foundLastCondition {
+		conditionLevel, err := calcConditionLevel(lastCondition.Condition)
+		if err != nil {
+			c.Logger().Errorf("failed to get condition level: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+
 		formatedCondition = &GetIsuConditionResponse{
 			JIAIsuUUID:     lastCondition.JIAIsuUUID,
 			IsuName:        isu.Name,
