@@ -28,7 +28,6 @@ var (
 )
 
 type IsuDetailInfomation struct {
-	CatalogID string `json:"catalog_id"`
 	Character string `json:"character"`
 }
 
@@ -155,5 +154,5 @@ func (s *Scenario) postActivate(c echo.Context) error {
 	}()
 
 	time.Sleep(50 * time.Millisecond)
-	return c.JSON(http.StatusAccepted, IsuDetailInfomation{isu.JIACatalogID, isu.Character})
+	return c.JSON(http.StatusAccepted, IsuDetailInfomation{isu.Character})
 }
