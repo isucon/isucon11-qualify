@@ -647,7 +647,7 @@ func getIsu(c echo.Context) error {
 
 	lastCondition := IsuCondition{}
 	foundLastCondition := true
-	err = tx.Get(&lastCondition, "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` DESC",
+	err = tx.Get(&lastCondition, "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` DESC LIMIT 1",
 		isu.JIAIsuUUID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
