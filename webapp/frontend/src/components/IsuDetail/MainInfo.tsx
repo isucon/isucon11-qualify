@@ -1,14 +1,12 @@
 import { useHistory } from 'react-router-dom'
 import apis, { Isu } from '../../lib/apis'
 import IsuIcon from './IsuIcon'
-import NameEdit from './NameEdit'
 
 interface Props {
   isu: Isu
-  setIsu: React.Dispatch<React.SetStateAction<Isu | null>>
 }
 
-const MainInfo = ({ isu, setIsu }: Props) => {
+const MainInfo = ({ isu }: Props) => {
   const history = useHistory()
 
   const deleteIsu = async () => {
@@ -22,7 +20,7 @@ const MainInfo = ({ isu, setIsu }: Props) => {
     <div className="flex flex-wrap gap-16 justify-center">
       <IsuIcon isu={isu} />
       <div className="flex flex-col min-h-full">
-        <NameEdit isu={isu} setIsu={setIsu} />
+        <div className="text-xl font-bold">{isu.name}</div>
         <div className="flex flex-1 flex-col mt-4 pl-8">
           <div className="flex-1">{isu.character}</div>
           <div className="flex flex-no-wrap gap-4 justify-self-end mt-12">

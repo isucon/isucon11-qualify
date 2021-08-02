@@ -423,13 +423,6 @@ func postSignout(c echo.Context) error {
 	return c.NoContent(http.StatusOK)
 }
 
-// TODO
-// GET /api/user/{jia_user_id}
-// ユーザ情報を取得
-// day2 実装のため skip
-// func getUser(c echo.Context) error {
-// }
-
 func getMe(c echo.Context) error {
 	userID, err := getUserIDFromSession(c.Request())
 	if err != nil {
@@ -500,7 +493,7 @@ func postIsu(c echo.Context) error {
 	if err != nil {
 		if !errors.Is(err, http.ErrMissingFile) {
 			c.Logger().Errorf("failed to get icon: %v", err)
-			return c.String(http.StatusBadRequest, "failed to get icon")
+			return c.String(http.StatusBadRequest, "bad format: icon")
 		}
 		useDefaultImage = true
 	}
@@ -546,7 +539,7 @@ func postIsu(c echo.Context) error {
 
 		if ok && mysqlErr.Number == uint16(mysqlErrNumDuplicateEntry) {
 			c.Logger().Errorf("duplicated isu: %v", err)
-			return c.String(http.StatusConflict, "duplicated isu")
+			return c.String(http.StatusConflict, "duplicated: isu")
 		}
 
 		c.Logger().Errorf("db error: %v", err)
@@ -645,7 +638,7 @@ func getIsu(c echo.Context) error {
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			c.Logger().Errorf("isu not found: %v", err)
-			return c.String(http.StatusNotFound, "isu not found")
+			return c.String(http.StatusNotFound, "not found: isu")
 		}
 
 		c.Logger().Errorf("db error: %v", err)
@@ -653,11 +646,12 @@ func getIsu(c echo.Context) error {
 	}
 
 	lastCondition := IsuCondition{}
-	err = tx.Get(&lastCondition, "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` DESC",
+	foundLastCondition := true
+	err = tx.Get(&lastCondition, "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` DESC LIMIT 1",
 		isu.JIAIsuUUID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			// conditionが無かったらlatestConditionをnilのままにする
+			foundLastCondition = false
 		} else {
 			c.Logger().Errorf("db error: %v", err)
 			return c.NoContent(http.StatusInternalServerError)
@@ -670,22 +664,25 @@ func getIsu(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	conditionLevel, err := calcConditionLevel(lastCondition.Condition)
-	if err != nil {
-		c.Logger().Errorf("failed to get condition level: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
+	var formatedCondition *GetIsuConditionResponse
+	if foundLastCondition {
+		conditionLevel, err := calcConditionLevel(lastCondition.Condition)
+		if err != nil {
+			c.Logger().Errorf("failed to get condition level: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
 
-	formatedCondition := GetIsuConditionResponse{
-		JIAIsuUUID:     lastCondition.JIAIsuUUID,
-		IsuName:        isu.Name,
-		Timestamp:      lastCondition.Timestamp.Unix(),
-		IsSitting:      lastCondition.IsSitting,
-		Condition:      lastCondition.Condition,
-		ConditionLevel: conditionLevel,
-		Message:        lastCondition.Message,
+		formatedCondition = &GetIsuConditionResponse{
+			JIAIsuUUID:     lastCondition.JIAIsuUUID,
+			IsuName:        isu.Name,
+			Timestamp:      lastCondition.Timestamp.Unix(),
+			IsSitting:      lastCondition.IsSitting,
+			Condition:      lastCondition.Condition,
+			ConditionLevel: conditionLevel,
+			Message:        lastCondition.Message,
+		}
 	}
-	res := GetIsuResponse{Isu: isu, LatestIsuCondition: &formatedCondition}
+	res := GetIsuResponse{Isu: isu, LatestIsuCondition: formatedCondition}
 	return c.JSON(http.StatusOK, res)
 }
 
@@ -710,7 +707,7 @@ func getIsuIcon(c echo.Context) error {
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			c.Logger().Errorf("isu not found: %v", err)
-			return c.String(http.StatusNotFound, "isu not found")
+			return c.String(http.StatusNotFound, "not found: isu")
 		}
 
 		c.Logger().Errorf("db error: %v", err)
@@ -735,17 +732,17 @@ func getIsuGraph(c echo.Context) error {
 	}
 
 	jiaIsuUUID := c.Param("jia_isu_uuid")
-	dateStr := c.QueryParam("date")
-	if dateStr == "" {
-		c.Logger().Errorf("date is required")
-		return c.String(http.StatusBadRequest, "date is required")
+	datetimeStr := c.QueryParam("datetime")
+	if datetimeStr == "" {
+		c.Logger().Errorf("datetime is required")
+		return c.String(http.StatusBadRequest, "missing: datetime")
 	}
-	dateInt64, err := strconv.ParseInt(dateStr, 10, 64)
+	datetimeInt64, err := strconv.ParseInt(datetimeStr, 10, 64)
 	if err != nil {
-		c.Logger().Errorf("date is invalid format")
-		return c.String(http.StatusBadRequest, "date is invalid format")
+		c.Logger().Errorf("datetime is invalid format")
+		return c.String(http.StatusBadRequest, "bad format: datetime")
 	}
-	date := truncateAfterHours(time.Unix(dateInt64, 0))
+	date := truncateAfterHours(time.Unix(datetimeInt64, 0))
 
 	tx, err := db.Beginx()
 	if err != nil {
@@ -763,7 +760,7 @@ func getIsuGraph(c echo.Context) error {
 	}
 	if count == 0 {
 		c.Logger().Errorf("isu not found")
-		return c.String(http.StatusNotFound, "isu not found")
+		return c.String(http.StatusNotFound, "not found: isu")
 	}
 
 	res, err := generateIsuGraphResponse(tx, jiaIsuUUID, date)
@@ -970,7 +967,6 @@ func getIsuConditions(c echo.Context) error {
 	//               critical: conditions (is_dirty,is_overweight,is_broken) のうちtrueが3個
 	//               warning: conditionsのうちtrueのものが1 or 2個
 	//               info: warning無し
-	//     * TODO: day2実装: message (文字列検索)
 
 	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
@@ -980,7 +976,7 @@ func getIsuConditions(c echo.Context) error {
 	jiaIsuUUID := c.Param("jia_isu_uuid")
 	if jiaIsuUUID == "" {
 		c.Logger().Errorf("jia_isu_uuid is missing")
-		return c.String(http.StatusBadRequest, "jia_isu_uuid is missing")
+		return c.String(http.StatusBadRequest, "missing: jia_isu_uuid")
 	}
 	//required query param
 	cursorEndTimeInt64, err := strconv.ParseInt(c.QueryParam("cursor_end_time"), 10, 64)
@@ -992,7 +988,7 @@ func getIsuConditions(c echo.Context) error {
 	conditionLevelCSV := c.QueryParam("condition_level")
 	if conditionLevelCSV == "" {
 		c.Logger().Errorf("condition_level is missing")
-		return c.String(http.StatusBadRequest, "condition_level is missing")
+		return c.String(http.StatusBadRequest, "missing: condition_level")
 	}
 	conditionLevel := map[string]interface{}{}
 	for _, level := range strings.Split(conditionLevelCSV, ",") {
@@ -1028,7 +1024,7 @@ func getIsuConditions(c echo.Context) error {
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			c.Logger().Errorf("isu not found: %v", err)
-			return c.String(http.StatusNotFound, "isu not found")
+			return c.String(http.StatusNotFound, "not found: isu")
 		}
 
 		c.Logger().Errorf("db error: %v", err)
@@ -1036,16 +1032,15 @@ func getIsuConditions(c echo.Context) error {
 	}
 
 	// 対象isu_idの通知を取得(limit, cursorで絞り込み）
-	conditionsResponse, err := getIsuConditionsFromDB(jiaIsuUUID, cursorEndTime, conditionLevel, startTime, limit, isuName)
+	conditionsResponse, err := getIsuConditionsFromDB(db, jiaIsuUUID, cursorEndTime, conditionLevel, startTime, limit, isuName)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
-
 	return c.JSON(http.StatusOK, conditionsResponse)
 }
 
-func getIsuConditionsFromDB(jiaIsuUUID string, cursorEndTime time.Time, conditionLevel map[string]interface{}, startTime time.Time,
+func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, cursorEndTime time.Time, conditionLevel map[string]interface{}, startTime time.Time,
 	limit int, isuName string) ([]*GetIsuConditionResponse, error) {
 
 	conditions := []IsuCondition{}
@@ -1144,7 +1139,7 @@ func postIsuCondition(c echo.Context) error {
 	jiaIsuUUID := c.Param("jia_isu_uuid")
 	if jiaIsuUUID == "" {
 		c.Logger().Errorf("jia_isu_uuid is missing")
-		return c.String(http.StatusBadRequest, "jia_isu_uuid is missing")
+		return c.String(http.StatusBadRequest, "missing: jia_isu_uuid")
 	}
 
 	var req []PostIsuConditionRequest
@@ -1174,7 +1169,7 @@ func postIsuCondition(c echo.Context) error {
 	}
 	if count == 0 {
 		c.Logger().Errorf("isu not found")
-		return c.String(http.StatusNotFound, "isu not found")
+		return c.String(http.StatusNotFound, "not found: isu")
 	}
 
 	//isu_conditionに記録
