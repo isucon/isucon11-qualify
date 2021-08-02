@@ -142,12 +142,6 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	}
 	randomUser.Agent = agt
 
-	// TODO: for debug
-	logger.AdminLogger.Printf("user: %#v, isu: %#v", randomUser.UserID, len(randomUser.IsuListOrderByCreatedAt))
-	for _, i := range randomUser.IsuListOrderByCreatedAt {
-		logger.AdminLogger.Printf("isu: %#v", i.JIAIsuUUID)
-	}
-
 	s.prepareCheckPostSignout(ctx, step)
 	s.prepareCheckGetMe(ctx, randomUser, guestAgent, step)
 	s.prepareCheckGetIsuList(ctx, randomUser, noIsuUser, guestAgent, step)
