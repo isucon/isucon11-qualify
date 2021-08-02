@@ -208,7 +208,7 @@ func (s *Scenario) requestNewConditionScenario(ctx context.Context, step *isucan
 	nowVirtualTime := s.ToVirtualTime(time.Now())
 	request := service.GetIsuConditionRequest{
 		StartTime:      nil,
-		CursorEndTime:  nowVirtualTime.Unix(),
+		EndTime:  nowVirtualTime.Unix(),
 		ConditionLevel: "info,warning,critical",
 		Limit:          nil,
 	}
@@ -243,7 +243,7 @@ func (s *Scenario) requestLastBadConditionScenario(ctx context.Context, step *is
 	nowVirtualTime := s.ToVirtualTime(time.Now())
 	request := service.GetIsuConditionRequest{
 		StartTime:      nil,
-		CursorEndTime:  nowVirtualTime.Unix(),
+		EndTime:  nowVirtualTime.Unix(),
 		ConditionLevel: "warning,critical",
 		Limit:          nil,
 	}
@@ -358,7 +358,7 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 	for {
 		request = service.GetIsuConditionRequest{
 			StartTime:      request.StartTime,
-			CursorEndTime:  conditions[len(conditions)-1].Timestamp,
+			EndTime:  conditions[len(conditions)-1].Timestamp,
 			ConditionLevel: request.ConditionLevel,
 			Limit:          request.Limit,
 		}
@@ -462,7 +462,7 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 		checkHour := getCheckHour(*nowViewingGraph, randEngine)
 		request := service.GetIsuConditionRequest{
 			StartTime:      &(*nowViewingGraph)[checkHour].StartAt,
-			CursorEndTime:  (*nowViewingGraph)[checkHour].EndAt,
+			EndTime:  (*nowViewingGraph)[checkHour].EndAt,
 			ConditionLevel: "info,warning,critical",
 		}
 		_, _, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)

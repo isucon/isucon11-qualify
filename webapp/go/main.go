@@ -962,7 +962,7 @@ func getIsuConditions(c echo.Context) error {
 	// input
 	//     * jia_isu_uuid: 椅子の固有番号(path_param)
 	//     * start_time: 開始時間
-	//     * cursor_end_time: 終了時間 (required)
+	//     * end_time: 終了時間 (required)
 	//     * condition_level: critical,warning,info (csv)
 	//               critical: conditions (is_dirty,is_overweight,is_broken) のうちtrueが3個
 	//               warning: conditionsのうちtrueのものが1 or 2個
@@ -979,12 +979,12 @@ func getIsuConditions(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "missing: jia_isu_uuid")
 	}
 	//required query param
-	cursorEndTimeInt64, err := strconv.ParseInt(c.QueryParam("cursor_end_time"), 10, 64)
+	endTimeInt64, err := strconv.ParseInt(c.QueryParam("end_time"), 10, 64)
 	if err != nil {
-		c.Logger().Errorf("bad format: cursor_end_time: %v", err)
-		return c.String(http.StatusBadRequest, "bad format: cursor_end_time")
+		c.Logger().Errorf("bad format: end_time: %v", err)
+		return c.String(http.StatusBadRequest, "bad format: end_time")
 	}
-	cursorEndTime := time.Unix(cursorEndTimeInt64, 0)
+	endTime := time.Unix(endTimeInt64, 0)
 	conditionLevelCSV := c.QueryParam("condition_level")
 	if conditionLevelCSV == "" {
 		c.Logger().Errorf("condition_level is missing")
@@ -1032,7 +1032,7 @@ func getIsuConditions(c echo.Context) error {
 	}
 
 	// 対象isu_idの通知を取得(limit, cursorで絞り込み）
-	conditionsResponse, err := getIsuConditionsFromDB(db, jiaIsuUUID, cursorEndTime, conditionLevel, startTime, limit, isuName)
+	conditionsResponse, err := getIsuConditionsFromDB(db, jiaIsuUUID, endTime, conditionLevel, startTime, limit, isuName)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -1040,7 +1040,7 @@ func getIsuConditions(c echo.Context) error {
 	return c.JSON(http.StatusOK, conditionsResponse)
 }
 
-func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, cursorEndTime time.Time, conditionLevel map[string]interface{}, startTime time.Time,
+func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, endTime time.Time, conditionLevel map[string]interface{}, startTime time.Time,
 	limit int, isuName string) ([]*GetIsuConditionResponse, error) {
 
 	conditions := []IsuCondition{}
@@ -1051,7 +1051,7 @@ func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, cursorEndTime time.T
 			"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ?"+
 				"	AND `timestamp` < ?"+
 				"	ORDER BY `timestamp` DESC",
-			jiaIsuUUID, cursorEndTime,
+			jiaIsuUUID, endTime,
 		)
 	} else {
 		err = db.Select(&conditions,
@@ -1059,7 +1059,7 @@ func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, cursorEndTime time.T
 				"	AND `timestamp` < ?"+
 				"	AND ? <= `timestamp`"+
 				"	ORDER BY `timestamp` DESC",
-			jiaIsuUUID, cursorEndTime, startTime,
+			jiaIsuUUID, endTime, startTime,
 		)
 	}
 	if err != nil {

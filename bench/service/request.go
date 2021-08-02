@@ -44,7 +44,7 @@ type GetIsuSearchRequest struct {
 
 type GetIsuConditionRequest struct {
 	StartTime      *int64
-	CursorEndTime  int64
+	EndTime  int64
 	ConditionLevel string
 	Limit          *int
 }

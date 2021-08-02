@@ -168,7 +168,7 @@ func verifyIsuConditions(res *http.Response,
 	}
 
 	targetIsu := targetUser.IsuListByID[targetIsuUUID]
-	iterTmp := targetIsu.Conditions.LowerBound(filter, request.CursorEndTime, targetIsuUUID)
+	iterTmp := targetIsu.Conditions.LowerBound(filter, request.EndTime, targetIsuUUID)
 	baseIter := &iterTmp
 
 	//backendDataは新しい順にソートされているはずなので、先頭からチェック
@@ -277,7 +277,7 @@ func verifyPrepareIsuConditions(res *http.Response,
 	}
 
 	targetIsu := targetUser.IsuListByID[targetIsuUUID]
-	iterTmp := targetIsu.Conditions.LowerBound(filter, request.CursorEndTime, targetIsuUUID)
+	iterTmp := targetIsu.Conditions.LowerBound(filter, request.EndTime, targetIsuUUID)
 	baseIter := &iterTmp
 
 	//backendDataは新しい順にソートされているはずなので、先頭からチェック
