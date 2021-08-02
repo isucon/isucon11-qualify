@@ -8,7 +8,6 @@ import (
 	"crypto/md5"
 	"fmt"
 	"io/ioutil"
-	"math/rand"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -123,11 +122,10 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	}
 	noIsuUser := s.NewUser(ctx, step, noIsuAgent, model.UserTypeNormal)
 
-	// TODO: 初期データからランダムに選択してるが、テスト用に想定どおりの値をもつinitialdataを生成する必要がありそう
-	userNum := len(s.normalUsers)
+	// TODO: 初期データから適当に選択してるが、テスト用に想定どおりの値をもつinitialdataを生成する必要がありそう
 	var randomUser *model.User
 	for {
-		randomUser = s.normalUsers[rand.Intn(userNum)]
+		randomUser = s.normalUsers[0]
 		if len(randomUser.IsuListOrderByCreatedAt) >= 2 {
 			break
 		}
@@ -766,20 +764,22 @@ func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model
 
 // TODO: 一部実装途中
 func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
+	lastTime := loginUser.IsuListOrderByCreatedAt[0].Conditions.Back().TimestampUnix
 	//ISUコンディションの取得 e.GET("/api/condition/:jia_isu_uuid", getIsuConditions)
 	//- 正常系
 	//	- option無し
-	dataExistTimestamp := GetConditionDataExistTimestamp(s, loginUser)
-
-	limit := 5
-	req := service.GetIndividualIsuConditionRequest{
-		StartTime:      nil,
-		CursorEndTime:  dataExistTimestamp,
-		ConditionLevel: "info,warning,critical",
-		Limit:          &limit,
-	}
-
-	for jiaIsuUUID, _ := range loginUser.IsuListByID {
+	for jiaIsuUUID, isu := range loginUser.IsuListByID {
+		cursorEndTime := lastTime
+		lastCond := isu.Conditions.Back()
+		if lastCond != nil {
+			cursorEndTime = lastCond.TimestampUnix
+		}
+		req := service.GetIndividualIsuConditionRequest{
+			StartTime:      nil,
+			CursorEndTime:  cursorEndTime,
+			ConditionLevel: "info,warning,critical",
+			Limit:          nil,
+		}
 		conditionsTmp, res, err := getIsuConditionAction(ctx, loginUser.Agent, jiaIsuUUID, req)
 		if err != nil {
 			step.AddError(err)
@@ -792,15 +792,42 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 			return
 		}
 	}
+
 	// TODO: オプション検証
-	// condition指定warningのみ
-	// cursor_end_time指定を途中の時間で
-	// start_time指定あり
-	// limit指定あり
+	// check: 正常系
+	// - condition指定infoのみ
+	// - cursor_end_time指定を途中の時間で
+	// - start_time指定あり
+	// - limit指定あり
+	limit := 10
+	for jiaIsuUUID, isu := range loginUser.IsuListByID {
+		cursorEndTime := lastTime
+		lastCond := isu.Conditions.Back()
+		if lastCond != nil {
+			cursorEndTime = lastCond.TimestampUnix
+		}
+		req := service.GetIndividualIsuConditionRequest{
+			StartTime:      nil,
+			CursorEndTime:  cursorEndTime,
+			ConditionLevel: "info",
+			Limit:          &limit,
+		}
+		conditionsTmp, res, err := getIsuConditionAction(ctx, loginUser.Agent, jiaIsuUUID, req)
+		if err != nil {
+			step.AddError(err)
+			return
+		}
+		//検証
+		err = verifyPrepareIsuConditions(res, loginUser, jiaIsuUUID, &req, conditionsTmp)
+		if err != nil {
+			step.AddError(err)
+			return
+		}
+	}
 
 	// check: 未ログイン状態
 	query := url.Values{}
-	query.Set("cursor_end_time", strconv.FormatInt(dataExistTimestamp, 10))
+	query.Set("cursor_end_time", strconv.FormatInt(lastTime, 10))
 	query.Set("condition_level", "info,warning,critical")
 
 	// TODO: 初期データにisuを持たないユーザがいたらダメなので、数ユーザは固定ユーザ作ったほうが良い
@@ -854,7 +881,7 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 
 	// check: condition_levelパラメータ不足(空文字含む)
 	query = url.Values{}
-	query.Set("cursor_end_time", strconv.FormatInt(dataExistTimestamp, 10))
+	query.Set("cursor_end_time", strconv.FormatInt(lastTime, 10))
 	resBody, res, err = getIsuConditionErrorAction(ctx, loginUser.Agent, isu.JIAIsuUUID, query)
 	if err != nil {
 		step.AddError(err)
@@ -871,7 +898,7 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 
 	// check: start_timeフォーマット違反
 	query = url.Values{}
-	query.Set("cursor_end_time", strconv.FormatInt(dataExistTimestamp, 10))
+	query.Set("cursor_end_time", strconv.FormatInt(lastTime, 10))
 	query.Set("condition_level", "info,warning,critical")
 	query.Set("start_time", "start_time")
 	resBody, res, err = getIsuConditionErrorAction(ctx, loginUser.Agent, isu.JIAIsuUUID, query)
@@ -890,7 +917,7 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 
 	// check: limitフォーマット違反
 	query = url.Values{}
-	query.Set("cursor_end_time", strconv.FormatInt(dataExistTimestamp, 10))
+	query.Set("cursor_end_time", strconv.FormatInt(lastTime, 10))
 	query.Set("condition_level", "info,warning,critical")
 	query.Set("limit", "-1")
 	resBody, res, err = getIsuConditionErrorAction(ctx, loginUser.Agent, isu.JIAIsuUUID, query)
@@ -909,7 +936,7 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 
 	// check: limitフォーマット違反2
 	query = url.Values{}
-	query.Set("cursor_end_time", strconv.FormatInt(dataExistTimestamp, 10))
+	query.Set("cursor_end_time", strconv.FormatInt(lastTime, 10))
 	query.Set("condition_level", "info,warning,critical")
 	query.Set("limit", "limit")
 	resBody, res, err = getIsuConditionErrorAction(ctx, loginUser.Agent, isu.JIAIsuUUID, query)
@@ -928,7 +955,7 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 
 	// check: 他ユーザの椅子に対するリクエスト
 	query = url.Values{}
-	query.Set("cursor_end_time", strconv.FormatInt(dataExistTimestamp, 10))
+	query.Set("cursor_end_time", strconv.FormatInt(lastTime, 10))
 	query.Set("condition_level", "info,warning,critical")
 	resBody, res, err = getIsuConditionErrorAction(ctx, noIsuUser.Agent, isu.JIAIsuUUID, query)
 	if err != nil {
@@ -946,7 +973,7 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 
 	// check: 登録されていない椅子に対するリクエスト
 	query = url.Values{}
-	query.Set("cursor_end_time", strconv.FormatInt(dataExistTimestamp, 10))
+	query.Set("cursor_end_time", strconv.FormatInt(lastTime, 10))
 	query.Set("condition_level", "info,warning,critical")
 	resBody, res, err = getIsuConditionErrorAction(ctx, loginUser.Agent, "jiaisuuuid", query)
 	if err != nil {
