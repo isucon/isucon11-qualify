@@ -14,7 +14,8 @@ import (
 
 const (
 	// MEMO: 最大でも一秒に一件しか送れないので点数上限になるが、解決できるとは思えないので良い
-	PostInterval   = 1 * time.Second //Virtual Timeでのpost間隔
+	PostInterval   = 60 * time.Second //Virtual Timeでのpost間隔
+	PostIntervalSecond = 60 //Virtual Timeでのpost間隔
 	PostContentNum = 100             //一回のpostで何要素postするか
 )
 
@@ -23,6 +24,15 @@ type posterState struct {
 	lastCondition        model.IsuCondition
 	lastClean            time.Time
 	lastDetectOverweight time.Time
+
+	lastConditionTimestamp int64
+	lastCleanTimestamp int64
+	lastDetectOverweightTimestamp int64
+	lastRepairTimestamp int64
+	lastConditionIsSitting bool
+	lastConditionIsDirty bool
+	lastConditionIsBroken bool
+	lastConditionIsOverweight bool
 }
 
 //POST /api/condition/{jia_isu_id}をたたく Goroutine
@@ -74,9 +84,14 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		//TODO: stateの適用タイミングをちゃんと考える
 		conditions := []model.IsuCondition{}
 		conditionsReq := []service.PostIsuConditionRequest{}
-		for state.NextConditionTimestamp().Before(nowTimeStamp) {
+		for state.NextConditionTime().Before(nowTimeStamp) {
 			//次のstateを生成
-			condition := state.GenerateNextCondition(randEngine, stateChange, isu) //TODO: stateの適用タイミングをちゃんと考える
+			state.UpdateToNextState(randEngine, stateChange)
+
+			// TODO: ここで append する必要があるかどうか判断
+
+			condition := state.GetNewestCondition(stateChange, isu)
+			// condition := state.GenerateNextCondition(randEngine, stateChange, isu) //TODO: stateの適用タイミングをちゃんと考える
 			stateChange = model.IsuStateChangeNone                                 //TODO: stateの適用タイミングをちゃんと考える
 
 			//リクエスト
@@ -113,15 +128,18 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 	}
 }
 
-func (state *posterState) NextConditionTimestamp() time.Time {
+func (state *posterState) NextConditionTime() time.Time {
 	return time.Unix(state.lastCondition.TimestampUnix, 0).Add(PostInterval)
+}
+func (state *posterState) NextConditionTimeStamp() int64 {
+	return state.lastConditionTimestamp + PostIntervalSecond
 }
 func (state *posterState) NextIsLatestTimestamp(nowTimeStamp time.Time) bool {
 	return nowTimeStamp.Before(time.Unix(state.lastCondition.TimestampUnix, 0).Add(PostInterval * 2))
 }
 func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChange model.IsuStateChange, isu *model.Isu) model.IsuCondition {
 
-	timeStamp := state.NextConditionTimestamp()
+	timeStamp := state.NextConditionTime()
 
 	//状態変化
 	lastConditionIsDirty := state.lastCondition.IsDirty
@@ -205,6 +223,95 @@ func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChan
 	state.lastCondition = condition
 
 	return condition
+}
+
+func (state *posterState) GetNewestCondition(stateChange model.IsuStateChange, isu *model.Isu) model.IsuCondition {
+
+	//新しいConditionを生成
+	condition := model.IsuCondition{
+		StateChange:  stateChange,
+		IsSitting:    state.lastCondition.IsSitting,
+		IsDirty:      state.lastConditionIsDirty,
+		IsOverweight: state.lastConditionIsOverweight,
+		IsBroken:     state.lastConditionIsBroken,
+		//ConditionLevel: model.ConditionLevelCritical,
+		Message:       "",
+		TimestampUnix: state.lastConditionTimestamp,
+		OwnerIsuUUID:  isu.JIAIsuUUID,
+		OwnerIsuID:    isu.ID,
+	}
+
+	//message
+	condition.Message = "今日もいい天気" //TODO: メッセージをちゃんと生成
+
+	//conditionLevel
+	condition.ConditionLevel = calcConditionLevel(condition)
+
+	return condition
+}
+
+func (state *posterState) UpdateToNextState(randEngine *rand.Rand, stateChange model.IsuStateChange) {
+
+	timeStamp := state.NextConditionTimeStamp()
+
+	//状態変化
+	if stateChange == model.IsuStateChangeBad {
+		randV := randEngine.Intn(100)
+		// TODO: 70% なら 69 じゃない, 対して影響はない
+		if randV <= 70 {
+			state.lastConditionIsDirty = true
+		} else if randV <= 90 {
+			state.lastConditionIsBroken = true
+		} else {
+			state.lastConditionIsDirty = true
+			state.lastConditionIsBroken = true
+		}
+	} else {
+		//各種状態改善クエリ
+		if stateChange&model.IsuStateChangeClear != 0 {
+			state.lastConditionIsDirty = false
+			state.lastCleanTimestamp = timeStamp
+		}
+		if stateChange&model.IsuStateChangeDetectOverweight != 0 {
+			state.lastConditionIsDirty = false
+			state.lastCleanTimestamp = timeStamp
+		}
+		if stateChange&model.IsuStateChangeRepair != 0 {
+			state.lastConditionIsBroken = false
+			state.lastRepairTimestamp = timeStamp
+		}
+	}
+
+	// TODO: over_weight が true のときは sitting を false にしないように
+	//sitting
+	if state.lastConditionIsSitting {
+		// sitting が false になるのは over_weight が true じゃないとき
+		if !state.lastConditionIsOverweight {
+			if randEngine.Intn(100) <= 10 {
+				state.lastConditionIsSitting = false
+			}
+		}
+	} else {
+		if randEngine.Intn(100) <= 10 {
+			state.lastConditionIsSitting = true
+		}
+	}
+	//overweight
+	if state.lastConditionIsSitting && timeStamp - state.lastDetectOverweightTimestamp > 60 * 60 {
+		if randEngine.Intn(100) <= 5 {
+			state.lastConditionIsOverweight = true
+		}
+	}
+	//dirty
+	if timeStamp - state.lastCleanTimestamp > 75 * 60 {
+		if randEngine.Intn(100) <= 5 {
+			state.lastConditionIsDirty = true
+		}
+	}
+	//broken
+	if timeStamp - state.lastRepairTimestamp > 120 * 60 {
+		state.lastConditionIsBroken = true
+	}
 }
 
 func calcConditionLevel(condition model.IsuCondition) model.ConditionLevel {
