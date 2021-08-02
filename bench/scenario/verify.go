@@ -243,12 +243,6 @@ func verifyIsuConditions(res *http.Response,
 	return nil
 }
 
-// TODO: 実装する
-func verifyAllConditions(res *http.Response,
-	targetUser *model.User, request *service.GetIsuConditionRequest,
-	backendData []*service.GetIsuConditionResponse, mustExistUntil int64) error {
-	return nil
-}
 func joinURL(base *url.URL, target string) string {
 	b := *base
 	t, _ := url.Parse(target)
