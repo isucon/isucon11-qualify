@@ -21,7 +21,7 @@ type User struct {
 	UserID                  string `json:"jia_user_id"`
 	Type                    UserType
 	IsuListOrderByCreatedAt []*Isu          //CreatedAtは厳密にはわからないので、並列postの場合はpostした後にgetをした順番を正とする
-	IsuListByID             map[string]*Isu //IDをkeyにアクセス
+	IsuListByID             map[string]*Isu `json:"isu_list_by_id"` //IDをkeyにアクセス
 	Conditions              IsuConditionTreeSet
 
 	Agent *agent.Agent

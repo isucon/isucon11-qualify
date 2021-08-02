@@ -22,3 +22,6 @@ var ScoreGraphTimestampCount = IScoreGraphTimestampCount{
 
 // 一日の秒数
 const OneDay = 24 * 60 * 60
+
+// GET /api/isu/:id/condition の
+const ConditionPagingStep = 10

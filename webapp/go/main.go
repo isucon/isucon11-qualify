@@ -653,11 +653,12 @@ func getIsu(c echo.Context) error {
 	}
 
 	lastCondition := IsuCondition{}
+	foundLastCondition := true
 	err = tx.Get(&lastCondition, "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` DESC LIMIT 1",
 		isu.JIAIsuUUID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			// conditionが無かったらlatestConditionをnilのままにする
+			foundLastCondition = false
 		} else {
 			c.Logger().Errorf("db error: %v", err)
 			return c.NoContent(http.StatusInternalServerError)
@@ -670,22 +671,25 @@ func getIsu(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	conditionLevel, err := calcConditionLevel(lastCondition.Condition)
-	if err != nil {
-		c.Logger().Errorf("failed to get condition level: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
+	var formatedCondition *GetIsuConditionResponse
+	if foundLastCondition {
+		conditionLevel, err := calcConditionLevel(lastCondition.Condition)
+		if err != nil {
+			c.Logger().Errorf("failed to get condition level: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
 
-	formatedCondition := GetIsuConditionResponse{
-		JIAIsuUUID:     lastCondition.JIAIsuUUID,
-		IsuName:        isu.Name,
-		Timestamp:      lastCondition.Timestamp.Unix(),
-		IsSitting:      lastCondition.IsSitting,
-		Condition:      lastCondition.Condition,
-		ConditionLevel: conditionLevel,
-		Message:        lastCondition.Message,
+		formatedCondition = &GetIsuConditionResponse{
+			JIAIsuUUID:     lastCondition.JIAIsuUUID,
+			IsuName:        isu.Name,
+			Timestamp:      lastCondition.Timestamp.Unix(),
+			IsSitting:      lastCondition.IsSitting,
+			Condition:      lastCondition.Condition,
+			ConditionLevel: conditionLevel,
+			Message:        lastCondition.Message,
+		}
 	}
-	res := GetIsuResponse{Isu: isu, LatestIsuCondition: &formatedCondition}
+	res := GetIsuResponse{Isu: isu, LatestIsuCondition: formatedCondition}
 	return c.JSON(http.StatusOK, res)
 }
 

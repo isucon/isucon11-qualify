@@ -44,20 +44,20 @@ type StreamsForScenario struct {
 //一つのIsuにつき、一つの送信用 Goroutineがある
 //IsuはISU協会 Goroutineからも読み込まれる
 type Isu struct {
-	Owner                         *User
-	ID                            int
-	JIAIsuUUID                    string
-	Name                          string
-	ImageHash                     [md5.Size]byte      // 画像の検証用
-	JIACatalogID                  string
-	Character                     string
-	isDeactivated                 bool                //実際にdeactivateされているか
-	StreamsForScenario            *StreamsForScenario //poster Goroutineとの通信
-	Conditions                    IsuConditionArray   //シナリオ Goroutineからのみ参照
+	Owner                         *User               `json:"-"`
+	ID                            int                 `json:"id"`
+	JIAIsuUUID                    string              `json:"jia_isu_uuid"`
+	Name                          string              `json:"name"`
+	ImageHash                     [md5.Size]byte      `json:"image_file_hash"` // 画像の検証用
+	JIACatalogID                  string              `json:"-"`
+	Character                     string              `json:"character"`
+	StreamsForScenario            *StreamsForScenario `json:"-"`          //poster Goroutineとの通信
+	Conditions                    IsuConditionArray   `json:"conditions"` //シナリオ Goroutineからのみ参照
 	LastCompletedGraphTime        int64               //シナリオ Goroutineからのみ参照
 	PostTime                      time.Time           //POST /isu/:id を叩いた仮想時間
 	LastReadConditionTimestamp    int64               //シナリオ Goroutineからのみ参照
 	LastReadBadConditionTimestamp int64               //シナリオ Goroutineからのみ参照
+	CreatedAt                     time.Time           `json:"created_at"`
 }
 
 //新しいISUの生成
@@ -80,7 +80,6 @@ func NewRandomIsuRaw(owner *User) (*Isu, *StreamsForPoster, error) {
 		ImageHash:     defaultIconHash,
 		JIACatalogID:  "550e8400-e29b-41d4-a716-446655440000", //TODO:
 		Character:     random.Character(),
-		isDeactivated: true,
 		StreamsForScenario: &StreamsForScenario{
 			StateChan:     stateChan,
 			ConditionChan: conditionChan,
