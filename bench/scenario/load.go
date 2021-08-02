@@ -98,6 +98,7 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 
 	randEngine := rand.New(rand.NewSource(rand.Int63()))
 	nextTargetIsuIndex := 0
+	nextScenarioIndex := 0
 	scenarioLoopStopper := time.After(1 * time.Millisecond) //ループ頻度調整
 	for {
 		<-scenarioLoopStopper
@@ -118,10 +119,14 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 		default:
 		}
 
-		//conditionを見るISUを選択
-		//TODO: 乱数にする
-		nextTargetIsuIndex += 1
-		nextTargetIsuIndex %= len(user.IsuListOrderByCreatedAt)
+		// 一つのISUに対するシナリオが終わっているとき
+		if nextScenarioIndex > 2 {
+			//conditionを見るISUを選択
+			//TODO: 乱数にする
+			nextTargetIsuIndex += 1
+			nextTargetIsuIndex %= len(user.IsuListOrderByCreatedAt)
+			nextScenarioIndex = 0
+		}
 		targetIsu := user.IsuListOrderByCreatedAt[nextTargetIsuIndex]
 
 		//GET /
@@ -151,16 +156,15 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 			continue
 		}
 
-		// TODO: 確定的に
-		route := randEngine.Intn(3)
-		// 1 / 2
-		if route < 1 {
+		if nextScenarioIndex == 0 {
 			s.requestNewConditionScenario(ctx, step, user, targetIsu)
-		} else if route < 2 {
+		} else if nextScenarioIndex == 1 {
 			s.requestLastBadConditionScenario(ctx, step, user, targetIsu)
 		} else {
 			s.requestGraphScenario(ctx, step, user, targetIsu, randEngine)
 		}
+		// 次のシナリオに
+		nextScenarioIndex += 1
 	}
 }
 
@@ -208,7 +212,7 @@ func (s *Scenario) requestNewConditionScenario(ctx context.Context, step *isucan
 		ConditionLevel: "info,warning,critical",
 		Limit:          nil,
 	}
-	conditions, errs := s.getIsuConditionUntilAlreadyRead(ctx, user, targetIsu, request)
+	conditions, newLastReadConditionTimestamp, errs := s.getIsuConditionUntilAlreadyRead(ctx, user, targetIsu, request, step)
 	if len(errs) != 0 {
 		for _, err := range errs {
 			addErrorWithContext(ctx, step, err)
@@ -222,21 +226,13 @@ func (s *Scenario) requestNewConditionScenario(ctx context.Context, step *isucan
 	// GETに成功したのでその分を加点
 	for _, cond := range conditions {
 		// TODO: 点数調整考える。ここ読むたびじゃなくて、何件読んだにするとか
-		switch cond.ConditionLevel {
-		case "info":
-			step.AddScore(ScoreReadInfoCondition)
-		case "warning":
-			step.AddScore(ScoreReadWarningCondition)
-		case "critical":
-			step.AddScore(ScoreReadCriticalCondition)
-		default:
-			// validate でここに入らないことは保証されている
-		}
+		addConditionScoreTag(cond, step)
 	}
 
 	// LastReadConditionTimestamp を更新
-	// condition の順番保障はされてる
-	targetIsu.LastReadConditionTimestamp = conditions[0].Timestamp
+	if targetIsu.LastReadConditionTimestamp < newLastReadConditionTimestamp {
+		targetIsu.LastReadConditionTimestamp = newLastReadConditionTimestamp
+	}
 
 	// このシナリオでは修理しない
 }
@@ -307,7 +303,11 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 	user *model.User,
 	targetIsu *model.Isu,
 	request service.GetIndividualIsuConditionRequest,
-) ([]*service.GetIsuConditionResponse, []error) {
+	step *isucandar.BenchmarkStep,
+) ([]*service.GetIsuConditionResponse, int64, []error) {
+	// 更新用のLastReadConditionTimestamp
+	var newLastReadConditionTimestamp int64 = 0
+
 	// 今回のこの関数で取得した condition の配列
 	conditions := []*service.GetIsuConditionResponse{}
 
@@ -334,7 +334,10 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 		},
 	)
 	if len(errs) > 0 {
-		return nil, errs
+		return nil, newLastReadConditionTimestamp, errs
+	}
+	if len(firstPageConditions) > 0 {
+		newLastReadConditionTimestamp = firstPageConditions[0].Timestamp
 	}
 	for _, cond := range firstPageConditions {
 		// 新しいやつだけなら append
@@ -342,14 +345,15 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 			conditions = append(conditions, cond)
 		} else {
 			// timestamp順なのは vaidation で保証しているので読んだやつが出てきたタイミングで return
-			return conditions, nil
+			return conditions, newLastReadConditionTimestamp, nil
 		}
 	}
 	// 最初のページが最後のページならやめる
-	if len(firstPageConditions) != limit {
-		return conditions, nil
+	if len(firstPageConditions) < limit {
+		return conditions, newLastReadConditionTimestamp, nil
 	}
 
+	pagingCount := 1
 	// 続きがあり、なおかつ今取得した condition が全て新しい時はスクロールする
 	for {
 		request = service.GetIndividualIsuConditionRequest{
@@ -358,11 +362,21 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 			ConditionLevel: request.ConditionLevel,
 			Limit:          request.Limit,
 		}
+
+		// ConditionPagingStep ページごとに現状の condition をスコアリング
+		pagingCount++
+		if pagingCount % ConditionPagingStep == 0 {
+			for _, cond := range conditions {
+				addConditionScoreTag(cond, step)
+			}
+			conditions = conditions[:0]
+		}
+
 		tmpConditions, _, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
 		// poster で送ったものの同期
 		user.GetConditionFromChan(ctx)
 		if err != nil {
-			return nil, []error{err}
+			return nil, newLastReadConditionTimestamp, []error{err}
 		}
 		// TODO: validation
 
@@ -372,14 +386,27 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 				conditions = append(conditions, cond)
 			} else {
 				// timestamp順なのは validation で保証しているので読んだやつが出てきたタイミングで return
-				return conditions, nil
+				return conditions, newLastReadConditionTimestamp, nil
 			}
 		}
 
 		// 最後のページまで見ちゃってるならやめる
 		if len(tmpConditions) != limit {
-			return conditions, nil
+			return conditions, newLastReadConditionTimestamp, nil
 		}
+	}
+}
+
+func addConditionScoreTag(condition *service.GetIsuConditionResponse, step *isucandar.BenchmarkStep) {
+	switch condition.ConditionLevel {
+	case "info":
+		step.AddScore(ScoreReadInfoCondition)
+	case "warning":
+		step.AddScore(ScoreReadWarningCondition)
+	case "critical":
+		step.AddScore(ScoreReadCriticalCondition)
+	default:
+		// validate でここに入らないことは保証されている
 	}
 }
 

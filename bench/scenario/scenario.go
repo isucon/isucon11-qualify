@@ -147,7 +147,6 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 		IsuName:    isu.Name,
 	}
 	if img != nil {
-		req.ImgName = img.ImgName
 		req.Img = img.Img
 		isu.SetImage(req.Img)
 	}
