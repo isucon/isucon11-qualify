@@ -950,7 +950,7 @@ func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, erro
 	}
 
 	// データ点に整形
-	score := rawScore / len(isuConditions) // rawScoreをconditionの数で正規化
+	score := rawScore / len(isuConditions) // score = conditionLevelごとの素点の合算/condition数
 
 	sittingPercentage := int(sittingCount / len(isuConditions) * 100)
 	isBrokenPercentage := int(conditionsCount["is_broken"] / len(isuConditions) * 100)
