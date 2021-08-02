@@ -493,7 +493,7 @@ func postIsu(c echo.Context) error {
 	if err != nil {
 		if !errors.Is(err, http.ErrMissingFile) {
 			c.Logger().Errorf("failed to get icon: %v", err)
-			return c.String(http.StatusBadRequest, "failed to get icon")
+			return c.String(http.StatusBadRequest, "bad format: icon")
 		}
 		useDefaultImage = true
 	}
@@ -539,7 +539,7 @@ func postIsu(c echo.Context) error {
 
 		if ok && mysqlErr.Number == uint16(mysqlErrNumDuplicateEntry) {
 			c.Logger().Errorf("duplicated isu: %v", err)
-			return c.String(http.StatusConflict, "duplicated isu")
+			return c.String(http.StatusConflict, "duplicated: isu")
 		}
 
 		c.Logger().Errorf("db error: %v", err)
@@ -638,7 +638,7 @@ func getIsu(c echo.Context) error {
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			c.Logger().Errorf("isu not found: %v", err)
-			return c.String(http.StatusNotFound, "isu not found")
+			return c.String(http.StatusNotFound, "not found: isu")
 		}
 
 		c.Logger().Errorf("db error: %v", err)
@@ -707,7 +707,7 @@ func getIsuIcon(c echo.Context) error {
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			c.Logger().Errorf("isu not found: %v", err)
-			return c.String(http.StatusNotFound, "isu not found")
+			return c.String(http.StatusNotFound, "not found: isu")
 		}
 
 		c.Logger().Errorf("db error: %v", err)
@@ -735,12 +735,12 @@ func getIsuGraph(c echo.Context) error {
 	dateStr := c.QueryParam("date")
 	if dateStr == "" {
 		c.Logger().Errorf("date is required")
-		return c.String(http.StatusBadRequest, "date is required")
+		return c.String(http.StatusBadRequest, "missing: date")
 	}
 	dateInt64, err := strconv.ParseInt(dateStr, 10, 64)
 	if err != nil {
 		c.Logger().Errorf("date is invalid format")
-		return c.String(http.StatusBadRequest, "date is invalid format")
+		return c.String(http.StatusBadRequest, "bad format: date")
 	}
 	date := truncateAfterHours(time.Unix(dateInt64, 0))
 
@@ -760,7 +760,7 @@ func getIsuGraph(c echo.Context) error {
 	}
 	if count == 0 {
 		c.Logger().Errorf("isu not found")
-		return c.String(http.StatusNotFound, "isu not found")
+		return c.String(http.StatusNotFound, "not found: isu")
 	}
 
 	res, err := generateIsuGraphResponse(tx, jiaIsuUUID, date)
@@ -976,7 +976,7 @@ func getIsuConditions(c echo.Context) error {
 	jiaIsuUUID := c.Param("jia_isu_uuid")
 	if jiaIsuUUID == "" {
 		c.Logger().Errorf("jia_isu_uuid is missing")
-		return c.String(http.StatusBadRequest, "jia_isu_uuid is missing")
+		return c.String(http.StatusBadRequest, "missing: jia_isu_uuid")
 	}
 	//required query param
 	cursorEndTimeInt64, err := strconv.ParseInt(c.QueryParam("cursor_end_time"), 10, 64)
@@ -988,7 +988,7 @@ func getIsuConditions(c echo.Context) error {
 	conditionLevelCSV := c.QueryParam("condition_level")
 	if conditionLevelCSV == "" {
 		c.Logger().Errorf("condition_level is missing")
-		return c.String(http.StatusBadRequest, "condition_level is missing")
+		return c.String(http.StatusBadRequest, "missing: condition_level")
 	}
 	conditionLevel := map[string]interface{}{}
 	for _, level := range strings.Split(conditionLevelCSV, ",") {
@@ -1024,7 +1024,7 @@ func getIsuConditions(c echo.Context) error {
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			c.Logger().Errorf("isu not found: %v", err)
-			return c.String(http.StatusNotFound, "isu not found")
+			return c.String(http.StatusNotFound, "not found: isu")
 		}
 
 		c.Logger().Errorf("db error: %v", err)
@@ -1140,7 +1140,7 @@ func postIsuCondition(c echo.Context) error {
 	jiaIsuUUID := c.Param("jia_isu_uuid")
 	if jiaIsuUUID == "" {
 		c.Logger().Errorf("jia_isu_uuid is missing")
-		return c.String(http.StatusBadRequest, "jia_isu_uuid is missing")
+		return c.String(http.StatusBadRequest, "missing: jia_isu_uuid")
 	}
 
 	var req []PostIsuConditionRequest
@@ -1170,7 +1170,7 @@ func postIsuCondition(c echo.Context) error {
 	}
 	if count == 0 {
 		c.Logger().Errorf("isu not found")
-		return c.String(http.StatusNotFound, "isu not found")
+		return c.String(http.StatusNotFound, "not found: isu")
 	}
 
 	//isu_conditionに記録
