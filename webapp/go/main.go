@@ -962,7 +962,7 @@ func getIsuConditions(c echo.Context) error {
 	// input
 	//     * jia_isu_uuid: 椅子の固有番号(path_param)
 	//     * start_time: 開始時間
-	//     * cursor_end_time: 終了時間 (required)
+	//     * end_time: 終了時間 (required)
 	//     * condition_level: critical,warning,info (csv)
 	//               critical: conditions (is_dirty,is_overweight,is_broken) のうちtrueが3個
 	//               warning: conditionsのうちtrueのものが1 or 2個
@@ -979,10 +979,10 @@ func getIsuConditions(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "missing: jia_isu_uuid")
 	}
 	//required query param
-	cursorEndTimeInt64, err := strconv.ParseInt(c.QueryParam("cursor_end_time"), 10, 64)
+	cursorEndTimeInt64, err := strconv.ParseInt(c.QueryParam("end_time"), 10, 64)
 	if err != nil {
-		c.Logger().Errorf("bad format: cursor_end_time: %v", err)
-		return c.String(http.StatusBadRequest, "bad format: cursor_end_time")
+		c.Logger().Errorf("bad format: end_time: %v", err)
+		return c.String(http.StatusBadRequest, "bad format: end_time")
 	}
 	cursorEndTime := time.Unix(cursorEndTimeInt64, 0)
 	conditionLevelCSV := c.QueryParam("condition_level")
