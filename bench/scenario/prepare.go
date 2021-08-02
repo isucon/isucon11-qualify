@@ -768,7 +768,7 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 		if lastCond != nil {
 			cursorEndTime = lastCond.TimestampUnix
 		}
-		req := service.GetIndividualIsuConditionRequest{
+		req := service.GetIsuConditionRequest{
 			StartTime:      nil,
 			CursorEndTime:  cursorEndTime,
 			ConditionLevel: "info,warning,critical",
@@ -800,7 +800,7 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 		if lastCond != nil {
 			cursorEndTime = lastCond.TimestampUnix
 		}
-		req := service.GetIndividualIsuConditionRequest{
+		req := service.GetIsuConditionRequest{
 			StartTime:      nil,
 			CursorEndTime:  cursorEndTime,
 			ConditionLevel: "info",
@@ -1043,7 +1043,7 @@ func (s *Scenario) prepareCheckPostIsuCondition(ctx context.Context, loginUser *
 	}
 
 	limit := len(expected)
-	getReq := service.GetIndividualIsuConditionRequest{
+	getReq := service.GetIsuConditionRequest{
 		StartTime:      nil,
 		CursorEndTime:  baseTime.Add(11 * time.Minute).Unix(),
 		ConditionLevel: "info,warning,critical",

@@ -136,7 +136,7 @@ func verifyIsuOrderByCreatedAt(res *http.Response, expectedReverse []*model.Isu,
 //
 //mustExistUntil: この値以下のtimestampを持つものは全て反映されているべき
 func verifyIsuConditions(res *http.Response,
-	targetUser *model.User, targetIsuUUID string, request *service.GetIndividualIsuConditionRequest,
+	targetUser *model.User, targetIsuUUID string, request *service.GetIsuConditionRequest,
 	backendData []*service.GetIsuConditionResponse) error {
 
 	//limitを超えているかチェック
@@ -244,7 +244,7 @@ func verifyIsuConditions(res *http.Response,
 }
 
 func verifyPrepareIsuConditions(res *http.Response,
-	targetUser *model.User, targetIsuUUID string, request *service.GetIndividualIsuConditionRequest,
+	targetUser *model.User, targetIsuUUID string, request *service.GetIsuConditionRequest,
 	backendData []*service.GetIsuConditionResponse) error {
 
 	//limitを超えているかチェック

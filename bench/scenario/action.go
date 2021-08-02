@@ -494,7 +494,7 @@ func postIsuConditionErrorAction(httpClient http.Client, targetUrl string, req [
 	return string(resBody), res, nil
 }
 
-func getIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req service.GetIndividualIsuConditionRequest) ([]*service.GetIsuConditionResponse, *http.Response, error) {
+func getIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req service.GetIsuConditionRequest) ([]*service.GetIsuConditionResponse, *http.Response, error) {
 	reqUrl := getIsuConditionRequestParams(fmt.Sprintf("/api/condition/%s", id), req)
 	conditions := []*service.GetIsuConditionResponse{}
 	res, err := reqJSONResJSON(ctx, a, http.MethodGet, reqUrl, nil, &conditions, []int{http.StatusOK})
@@ -514,7 +514,7 @@ func getIsuConditionErrorAction(ctx context.Context, a *agent.Agent, id string, 
 	return text, res, nil
 }
 
-func getIsuConditionRequestParams(base string, req service.GetIndividualIsuConditionRequest) string {
+func getIsuConditionRequestParams(base string, req service.GetIsuConditionRequest) string {
 	targetURL, err := url.Parse(base)
 	if err != nil {
 		logger.AdminLogger.Panicln(err)
@@ -625,7 +625,7 @@ func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string,
 	return nil, errors
 }
 
-func browserGetIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req service.GetIndividualIsuConditionRequest,
+func browserGetIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req service.GetIsuConditionRequest,
 	validateCondition func(*http.Response, []*service.GetIsuConditionResponse) []error,
 ) (*service.Isu, []*service.GetIsuConditionResponse, []error) {
 	// TODO: 静的ファイルのGET

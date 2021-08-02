@@ -206,7 +206,7 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 func (s *Scenario) requestNewConditionScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User, targetIsu *model.Isu) {
 	// 最新の condition から、一度見た condition が帰ってくるまで condition のページングをする
 	nowVirtualTime := s.ToVirtualTime(time.Now())
-	request := service.GetIndividualIsuConditionRequest{
+	request := service.GetIsuConditionRequest{
 		StartTime:      nil,
 		CursorEndTime:  nowVirtualTime.Unix(),
 		ConditionLevel: "info,warning,critical",
@@ -241,7 +241,7 @@ func (s *Scenario) requestNewConditionScenario(ctx context.Context, step *isucan
 func (s *Scenario) requestLastBadConditionScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User, targetIsu *model.Isu) {
 	// ConditionLevel最新の condition から、一度見た condition が帰ってくるまで condition のページングをする
 	nowVirtualTime := s.ToVirtualTime(time.Now())
-	request := service.GetIndividualIsuConditionRequest{
+	request := service.GetIsuConditionRequest{
 		StartTime:      nil,
 		CursorEndTime:  nowVirtualTime.Unix(),
 		ConditionLevel: "warning,critical",
@@ -302,7 +302,7 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 	ctx context.Context,
 	user *model.User,
 	targetIsu *model.Isu,
-	request service.GetIndividualIsuConditionRequest,
+	request service.GetIsuConditionRequest,
 	step *isucandar.BenchmarkStep,
 ) ([]*service.GetIsuConditionResponse, int64, []error) {
 	// 更新用のLastReadConditionTimestamp
@@ -356,7 +356,7 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 	pagingCount := 1
 	// 続きがあり、なおかつ今取得した condition が全て新しい時はスクロールする
 	for {
-		request = service.GetIndividualIsuConditionRequest{
+		request = service.GetIsuConditionRequest{
 			StartTime:      request.StartTime,
 			CursorEndTime:  conditions[len(conditions)-1].Timestamp,
 			ConditionLevel: request.ConditionLevel,
@@ -460,7 +460,7 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 		nowViewingGraph := graphResponses[len(graphResponses)-1]
 		// チェックする時間
 		checkHour := getCheckHour(*nowViewingGraph, randEngine)
-		request := service.GetIndividualIsuConditionRequest{
+		request := service.GetIsuConditionRequest{
 			StartTime:      &(*nowViewingGraph)[checkHour].StartAt,
 			CursorEndTime:  (*nowViewingGraph)[checkHour].EndAt,
 			ConditionLevel: "info,warning,critical",
