@@ -578,7 +578,7 @@ func getConditionRequestParams(base string, req service.GetIsuConditionRequest) 
 
 func getIsuGraphAction(ctx context.Context, a *agent.Agent, id string, req service.GetGraphRequest) (service.GraphResponse, *http.Response, error) {
 	graph := service.GraphResponse{}
-	reqUrl := fmt.Sprintf("/api/isu/%s/graph?date=%d", id, req.Date)
+	reqUrl := fmt.Sprintf("/api/isu/%s/graph?datetime=%d", id, req.Date)
 	res, err := reqJSONResJSON(ctx, a, http.MethodGet, reqUrl, nil, &graph, []int{http.StatusOK})
 	if err != nil {
 		return nil, nil, err

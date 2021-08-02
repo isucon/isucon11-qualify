@@ -661,7 +661,7 @@ func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model
 
 	// check: 未ログイン状態
 	query := url.Values{}
-	query.Set("date", strconv.FormatInt(time.Now().Unix(), 10))
+	query.Set("datetime", strconv.FormatInt(time.Now().Unix(), 10))
 	resBody, res, err := getIsuGraphErrorAction(ctx, guestAgent, isu.JIAIsuUUID, query)
 	if err != nil {
 		step.AddError(err)
@@ -683,14 +683,14 @@ func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model
 		step.AddError(err)
 		return
 	}
-	if err := verifyText(res, resBody, "missing: date"); err != nil {
+	if err := verifyText(res, resBody, "missing: datetime"); err != nil {
 		step.AddError(err)
 		return
 	}
 
 	// check: dateパラメータのフォーマット違反
 	query = url.Values{}
-	query.Set("date", "date")
+	query.Set("datetime", "datetime")
 	resBody, res, err = getIsuGraphErrorAction(ctx, loginUser.Agent, isu.JIAIsuUUID, query)
 	if err != nil {
 		step.AddError(err)
@@ -700,14 +700,14 @@ func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model
 		step.AddError(err)
 		return
 	}
-	if err := verifyText(res, resBody, "bad format: date"); err != nil {
+	if err := verifyText(res, resBody, "bad format: datetime"); err != nil {
 		step.AddError(err)
 		return
 	}
 
 	// check: 他ユーザの椅子に対するリクエスト
 	query = url.Values{}
-	query.Set("date", strconv.FormatInt(time.Now().Unix(), 10))
+	query.Set("datetime", strconv.FormatInt(time.Now().Unix(), 10))
 	resBody, res, err = getIsuGraphErrorAction(ctx, noIsuUser.Agent, isu.JIAIsuUUID, query)
 	if err != nil {
 		step.AddError(err)
@@ -724,7 +724,7 @@ func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model
 
 	// check: 登録されていない椅子に対するリクエスト
 	query = url.Values{}
-	query.Set("date", strconv.FormatInt(time.Now().Unix(), 10))
+	query.Set("datetime", strconv.FormatInt(time.Now().Unix(), 10))
 	resBody, res, err = getIsuGraphErrorAction(ctx, loginUser.Agent, "jiaisuuuid", query)
 	if err != nil {
 		step.AddError(err)
