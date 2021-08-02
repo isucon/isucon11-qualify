@@ -514,27 +514,6 @@ func getIsuConditionErrorAction(ctx context.Context, a *agent.Agent, id string, 
 	return text, res, nil
 }
 
-func getConditionAction(ctx context.Context, a *agent.Agent, req service.GetIsuConditionRequest) ([]*service.GetIsuConditionResponse, *http.Response, error) {
-	reqUrl := getConditionRequestParams("/api/condition", req)
-	conditions := []*service.GetIsuConditionResponse{}
-	res, err := reqJSONResJSON(ctx, a, http.MethodGet, reqUrl, nil, &conditions, []int{http.StatusOK})
-	if err != nil {
-		return nil, nil, err
-	}
-	return conditions, res, nil
-}
-
-func getConditionErrorAction(ctx context.Context, a *agent.Agent, query url.Values) (string, *http.Response, error) {
-	path := fmt.Sprintf("/api/condition")
-	rpath := getPathWithParams(path, query)
-
-	res, text, err := reqNoContentResError(ctx, a, http.MethodGet, rpath, []int{http.StatusBadRequest, http.StatusUnauthorized})
-	if err != nil {
-		return "", nil, err
-	}
-	return text, res, nil
-}
-
 func getIsuConditionRequestParams(base string, req service.GetIndividualIsuConditionRequest) string {
 	targetURL, err := url.Parse(base)
 	if err != nil {
@@ -546,28 +525,6 @@ func getIsuConditionRequestParams(base string, req service.GetIndividualIsuCondi
 		q.Set("start_time", fmt.Sprint(*req.StartTime))
 	}
 	q.Set("cursor_end_time", fmt.Sprint(req.CursorEndTime))
-	q.Set("condition_level", req.ConditionLevel)
-	if req.Limit != nil {
-		q.Set("limit", fmt.Sprint(*req.Limit))
-	}
-	targetURL.RawQuery = q.Encode()
-	return targetURL.String()
-}
-
-func getConditionRequestParams(base string, req service.GetIsuConditionRequest) string {
-	targetURL, err := url.Parse(base)
-	if err != nil {
-		logger.AdminLogger.Panicln(err)
-	}
-
-	q := url.Values{}
-	if req.StartTime != nil {
-		q.Set("start_time", fmt.Sprint(*req.StartTime))
-	}
-	q.Set("cursor_end_time", fmt.Sprint(req.CursorEndTime))
-	if req.CursorJIAIsuUUID != "" {
-		q.Set("cursor_jia_isu_uuid", req.CursorJIAIsuUUID)
-	}
 	q.Set("condition_level", req.ConditionLevel)
 	if req.Limit != nil {
 		q.Set("limit", fmt.Sprint(*req.Limit))
@@ -628,22 +585,6 @@ func browserGetHomeAction(ctx context.Context, a *agent.Agent,
 		errors = append(errors, validateIsu(hres, isuList)...)
 	}
 	return isuList, errors
-}
-
-func browserGetConditionsAction(ctx context.Context, a *agent.Agent, req service.GetIsuConditionRequest,
-	validateCondition func(*http.Response, []*service.GetIsuConditionResponse) []error,
-) ([]*service.GetIsuConditionResponse, []error) {
-	// TODO: 静的ファイルのGET
-
-	errors := []error{}
-	// TODO: ここ以下は多分並列
-	conditions, hres, err := getConditionAction(ctx, a, req)
-	if err != nil {
-		errors = append(errors, err)
-	} else {
-		errors = append(errors, validateCondition(hres, conditions)...)
-	}
-	return conditions, errors
 }
 
 func browserGetRegisterAction(ctx context.Context, a *agent.Agent) []error {
