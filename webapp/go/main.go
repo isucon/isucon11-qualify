@@ -423,13 +423,6 @@ func postSignout(c echo.Context) error {
 	return c.NoContent(http.StatusOK)
 }
 
-// TODO
-// GET /api/user/{jia_user_id}
-// ユーザ情報を取得
-// day2 実装のため skip
-// func getUser(c echo.Context) error {
-// }
-
 func getMe(c echo.Context) error {
 	userID, err := getUserIDFromSession(c.Request())
 	if err != nil {
@@ -974,7 +967,6 @@ func getIsuConditions(c echo.Context) error {
 	//               critical: conditions (is_dirty,is_overweight,is_broken) のうちtrueが3個
 	//               warning: conditionsのうちtrueのものが1 or 2個
 	//               info: warning無し
-	//     * TODO: day2実装: message (文字列検索)
 
 	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
