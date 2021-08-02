@@ -34,7 +34,6 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 	//TODO: 他の得点源
 	//TODO: 得点調整
 	step.Result().Score.Set(ScoreNormalUserInitialize, 10)
-	step.Result().Score.Set(ScoreNormalUserLoop, 10)
 	step.Result().Score.Set(ScoreGraphExcellent, 5)
 	step.Result().Score.Set(ScoreGraphGood, 4)
 	step.Result().Score.Set(ScoreGraphNormal, 3)
@@ -45,7 +44,9 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 	step.Result().Score.Set(ScoreReadCriticalCondition, 1)
 
 	//初期データの生成
+	logger.AdminLogger.Println("start: load initial data")
 	s.InitializeData()
+	logger.AdminLogger.Println("finish: load initial data")
 	s.realTimePrepareStartedAt = time.Now()
 
 	//jiaの起動

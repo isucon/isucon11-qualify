@@ -24,7 +24,7 @@ services:
       # SQLs
       - "../webapp/sql/init.sh:/webapp/sql/init.sh"
       - "../webapp/sql/0_Schema.sql:/webapp/sql/0_Schema.sql"
-      - "../development/mysql-backend/2_Init.sql:/webapp/sql/1_InitData.sql" #localに1_InitData.sqlがあるなら不要
+      - "../webapp/sql/1_InitData.sql:/webapp/sql/1_InitData.sql"
     depends_on:
       - mysql-backend
 

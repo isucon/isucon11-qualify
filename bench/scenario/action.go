@@ -20,7 +20,6 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
-	"path/filepath"
 	"strconv"
 	"time"
 
@@ -348,8 +347,8 @@ func postIsuAction(ctx context.Context, a *agent.Agent, req service.PostIsuReque
 		logger.AdminLogger.Panic(err)
 	}
 
-	if req.Img != nil && req.ImgName != "" {
-		part, err := writer.CreateFormFile("image", filepath.Base(req.ImgName))
+	if req.Img != nil {
+		part, err := writer.CreateFormFile("image", "image.jpeg")
 		if err != nil {
 			logger.AdminLogger.Panic(err)
 		}
@@ -572,15 +571,19 @@ func getConditionRequestParams(base string, req service.GetIsuConditionRequest) 
 	return targetURL.String()
 }
 
-func getIsuGraphAction(ctx context.Context, a *agent.Agent, id string, date int64) ([]*service.GraphResponse, *http.Response, error) {
-	graph := []*service.GraphResponse{}
-	reqUrl := fmt.Sprintf("/api/isu/%s/graph?date=%d", id, date)
+func getIsuGraphAction(ctx context.Context, a *agent.Agent, id string, req service.GetGraphRequest) (service.GraphResponse, *http.Response, error) {
+	graph := service.GraphResponse{}
+	reqUrl := fmt.Sprintf("/api/isu/%s/graph?date=%d", id, req.Date)
 	res, err := reqJSONResJSON(ctx, a, http.MethodGet, reqUrl, nil, &graph, []int{http.StatusOK})
 	if err != nil {
 		return nil, nil, err
 	}
 
 	//TODO: バリデーション
+	// res, text, err := reqJSONResError(ctx, a, http.MethodPost, reqUrl, bytes.NewReader(body), []int{http.StatusNotFound, http.StatusBadRequest})
+	// if err != nil {
+	// 	return "", nil, err
+	// }
 
 	return graph, res, nil
 }
@@ -697,8 +700,8 @@ func browserGetIsuConditionAction(ctx context.Context, a *agent.Agent, id string
 }
 
 func browserGetIsuGraphAction(ctx context.Context, a *agent.Agent, id string, date int64,
-	validateGraph func(*http.Response, []*service.GraphResponse) []error,
-) (*service.Isu, []*service.GraphResponse, []error) {
+	validateGraph func(*http.Response, service.GraphResponse) []error,
+) (*service.Isu, service.GraphResponse, []error) {
 	// TODO: 静的ファイルのGET
 
 	errors := []error{}
@@ -707,7 +710,8 @@ func browserGetIsuGraphAction(ctx context.Context, a *agent.Agent, id string, da
 	if err != nil {
 		errors = append(errors, err)
 	}
-	graph, res, err := getIsuGraphAction(ctx, a, id, date)
+	req := service.GetGraphRequest{Date: date}
+	graph, res, err := getIsuGraphAction(ctx, a, id, req)
 	if err != nil {
 		errors = append(errors, err)
 	} else {

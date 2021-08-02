@@ -13,7 +13,8 @@ import (
 )
 
 const (
-	PostInterval   = 5 * time.Minute //Virtual Timeでのpost間隔
+	// MEMO: 最大でも一秒に一件しか送れないので点数上限になるが、解決できるとは思えないので良い
+	PostInterval   = 1 * time.Second //Virtual Timeでのpost間隔
 	PostContentNum = 100             //一回のpostで何要素postするか
 )
 
@@ -26,6 +27,7 @@ type posterState struct {
 
 //POST /api/condition/{jia_isu_id}をたたく Goroutine
 func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseURL string, isu *model.Isu, scenarioChan *model.StreamsForPoster) {
+	defer close(scenarioChan.ConditionChan)
 	postConditionTimeout := 50 * time.Millisecond //MEMO: timeout は気にせずにズバズバ投げる
 
 	nowTimeStamp := s.ToVirtualTime(time.Now())
@@ -67,6 +69,9 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		case nextState, ok := <-scenarioChan.StateChan:
 			if ok {
 				stateChange = nextState
+			} else {
+				// StateChan が閉じられるときは load が終了したとき
+				return
 			}
 		default:
 		}

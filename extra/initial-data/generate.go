@@ -18,6 +18,8 @@ const (
 )
 
 func init() {
+	loc, _ := time.LoadLocation("Asia/Tokyo")
+	time.Local = loc
 	t, _ := time.Parse(time.RFC3339, "2021-07-01T00:00:00+07:00")
 	rand.Seed(t.UnixNano())
 	uuid.SetRand(rand.New(rand.NewSource(t.UnixNano())))
@@ -25,6 +27,7 @@ func init() {
 
 func main() {
 	jsonArray := models.JsonArray{}
+	var isuCounter int
 	{ // insert data for isucon user
 		data := []struct {
 			user                     models.User
@@ -64,6 +67,7 @@ func main() {
 			}
 			isuListById := map[string]models.JsonIsuInfo{}
 			for j := 0; j < d.isuNum; j++ {
+				isuCounter += 1
 				isu := models.NewIsu(d.user)
 				isu.CreatedAt = d.user.CreatedAt.Add(time.Minute) // ISU は User 作成の1分後に作成される
 				isu = isu.WithUpdateName()
@@ -87,11 +91,11 @@ func main() {
 						log.Fatal(err)
 					}
 					// json用データ追加
-					if err := jsonConditions.AddCondition(condition); err != nil {
+					if err := jsonConditions.AddCondition(condition, isuCounter); err != nil {
 						log.Fatal(err)
 					}
 				}
-				isuListById[isu.JIAIsuUUID] = models.ToJsonIsuInfo(isu, jsonConditions)
+				isuListById[isu.JIAIsuUUID] = models.ToJsonIsuInfo(isuCounter, isu, jsonConditions)
 			}
 			jsonData := models.Json{
 				JiaUserId:   d.user.JIAUserID,
@@ -129,6 +133,7 @@ func main() {
 
 			// User の所持する ISU 分だけ loop
 			for j := 0; j < isuNum; j++ {
+				isuCounter += 1
 				isu := models.NewIsu(user)
 				// 確率で ISU を更新
 				if rand.Intn(4) < 1 { // 1/4
@@ -157,11 +162,11 @@ func main() {
 						log.Fatal(err)
 					}
 					// json用データ追加
-					if err := jsonConditions.AddCondition(condition); err != nil {
+					if err := jsonConditions.AddCondition(condition, isuCounter); err != nil {
 						log.Fatal(err)
 					}
 				}
-				isuListById[isu.JIAIsuUUID] = models.ToJsonIsuInfo(isu, jsonConditions)
+				isuListById[isu.JIAIsuUUID] = models.ToJsonIsuInfo(isuCounter, isu, jsonConditions)
 			}
 			jsonData := models.Json{
 				JiaUserId:   user.JIAUserID,
