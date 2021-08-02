@@ -732,17 +732,17 @@ func getIsuGraph(c echo.Context) error {
 	}
 
 	jiaIsuUUID := c.Param("jia_isu_uuid")
-	dateStr := c.QueryParam("date")
-	if dateStr == "" {
-		c.Logger().Errorf("date is required")
-		return c.String(http.StatusBadRequest, "missing: date")
+	datetimeStr := c.QueryParam("datetime")
+	if datetimeStr == "" {
+		c.Logger().Errorf("datetime is required")
+		return c.String(http.StatusBadRequest, "missing: datetime")
 	}
-	dateInt64, err := strconv.ParseInt(dateStr, 10, 64)
+	datetimeInt64, err := strconv.ParseInt(datetimeStr, 10, 64)
 	if err != nil {
-		c.Logger().Errorf("date is invalid format")
-		return c.String(http.StatusBadRequest, "bad format: date")
+		c.Logger().Errorf("datetime is invalid format")
+		return c.String(http.StatusBadRequest, "bad format: datetime")
 	}
-	date := truncateAfterHours(time.Unix(dateInt64, 0))
+	date := truncateAfterHours(time.Unix(datetimeInt64, 0))
 
 	tx, err := db.Beginx()
 	if err != nil {
