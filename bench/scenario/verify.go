@@ -96,7 +96,7 @@ func verifyBadReqBody(res *http.Response, text string) error {
 }
 
 func verifyIsuNotFound(res *http.Response, text string) error {
-	expected := "isu not found"
+	expected := "not found: isu"
 	return verify4xxError(res, text, expected, http.StatusNotFound)
 }
 

@@ -471,7 +471,7 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 		step.AddError(err)
 		return
 	}
-	if err := verifyText(res, resBody, "duplicated isu"); err != nil {
+	if err := verifyText(res, resBody, "duplicated: isu"); err != nil {
 		step.AddError(err)
 		return
 	}
@@ -487,7 +487,7 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 		step.AddError(err)
 		return
 	}
-	if err := verifyText(res, resBody, "duplicated isu"); err != nil {
+	if err := verifyText(res, resBody, "duplicated: isu"); err != nil {
 		step.AddError(err)
 		return
 	}
@@ -555,7 +555,7 @@ func (s *Scenario) prepareCheckGetIsu(ctx context.Context, loginUser *model.User
 		step.AddError(err)
 		return
 	}
-	if err := verifyText(res, resBody, "isu not found"); err != nil {
+	if err := verifyText(res, resBody, "not found: isu"); err != nil {
 		step.AddError(err)
 		return
 	}
@@ -570,7 +570,7 @@ func (s *Scenario) prepareCheckGetIsu(ctx context.Context, loginUser *model.User
 		step.AddError(err)
 		return
 	}
-	if err := verifyText(res, resBody, "isu not found"); err != nil {
+	if err := verifyText(res, resBody, "not found: isu"); err != nil {
 		step.AddError(err)
 		return
 	}
@@ -632,7 +632,7 @@ func (s *Scenario) prepareCheckGetIsuIcon(ctx context.Context, loginUser *model.
 		step.AddError(err)
 		return
 	}
-	if err := verifyText(res, resBody, "isu not found"); err != nil {
+	if err := verifyText(res, resBody, "not found: isu"); err != nil {
 		step.AddError(err)
 		return
 	}
@@ -647,7 +647,7 @@ func (s *Scenario) prepareCheckGetIsuIcon(ctx context.Context, loginUser *model.
 		step.AddError(err)
 		return
 	}
-	if err := verifyText(res, resBody, "isu not found"); err != nil {
+	if err := verifyText(res, resBody, "not found: isu"); err != nil {
 		step.AddError(err)
 		return
 	}
@@ -705,7 +705,7 @@ func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model
 		step.AddError(err)
 		return
 	}
-	if err := verifyText(res, resBody, "date is required"); err != nil {
+	if err := verifyText(res, resBody, "missing: date"); err != nil {
 		step.AddError(err)
 		return
 	}
@@ -722,7 +722,7 @@ func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model
 		step.AddError(err)
 		return
 	}
-	if err := verifyText(res, resBody, "date is invalid format"); err != nil {
+	if err := verifyText(res, resBody, "bad format: date"); err != nil {
 		step.AddError(err)
 		return
 	}
@@ -739,7 +739,7 @@ func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model
 		step.AddError(err)
 		return
 	}
-	if err := verifyText(res, resBody, "isu not found"); err != nil {
+	if err := verifyText(res, resBody, "not found: isu"); err != nil {
 		step.AddError(err)
 		return
 	}
@@ -756,7 +756,7 @@ func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model
 		step.AddError(err)
 		return
 	}
-	if err := verifyText(res, resBody, "isu not found"); err != nil {
+	if err := verifyText(res, resBody, "not found: isu"); err != nil {
 		step.AddError(err)
 		return
 	}
@@ -891,7 +891,7 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 		step.AddError(err)
 		return
 	}
-	if err := verifyText(res, resBody, "condition_level is missing"); err != nil {
+	if err := verifyText(res, resBody, "missing: condition_level"); err != nil {
 		step.AddError(err)
 		return
 	}
@@ -966,7 +966,7 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 		step.AddError(err)
 		return
 	}
-	if err := verifyText(res, resBody, "isu not found"); err != nil {
+	if err := verifyText(res, resBody, "not found: isu"); err != nil {
 		step.AddError(err)
 		return
 	}
@@ -984,7 +984,7 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 		step.AddError(err)
 		return
 	}
-	if err := verifyText(res, resBody, "isu not found"); err != nil {
+	if err := verifyText(res, resBody, "not found: isu"); err != nil {
 		step.AddError(err)
 		return
 	}
@@ -1084,7 +1084,7 @@ func (s *Scenario) prepareCheckPostIsuCondition(ctx context.Context, loginUser *
 		step.AddError(err)
 		return
 	}
-	if err := verifyText(res, resBody, "isu not found"); err != nil {
+	if err := verifyText(res, resBody, "not found: isu"); err != nil {
 		step.AddError(err)
 		return
 	}
