@@ -6,15 +6,15 @@ import (
 
 //基本的には一つのシナリオ Goroutine が一つの Viewer を占有する
 type Viewer struct {
-	ErrorCount uint
+	ErrorCount         uint
 	ViewedUpdatedCount uint
-	Agent *agent.Agent
+	Agent              *agent.Agent
 }
 
 func NewViewer(agent *agent.Agent) Viewer {
 	return Viewer{
-		ErrorCount: 0,
+		ErrorCount:         0,
 		ViewedUpdatedCount: 0,
-		Agent: agent,
+		Agent:              agent,
 	}
 }

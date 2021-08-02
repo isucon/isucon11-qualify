@@ -246,7 +246,7 @@ func (s *Scenario) initViewer(ctx context.Context) model.Viewer {
 	func() {
 		s.viewerMtx.Lock()
 		defer s.viewerMtx.Unlock()
-		s.viewers = append(s.viewers, viewer)
+		s.viewers = append(s.viewers, &viewer)
 	}()
 
 	return viewer

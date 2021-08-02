@@ -45,12 +45,12 @@ type Scenario struct {
 	//内部状態
 	normalUsersMtx  sync.Mutex
 	normalUsers     []*model.User
-	
-	// TODO: ユーザーを増やすロジックを書いたときに必要性を再度考える
-	viewerMtx  sync.Mutex
-	viewers []model.Viewer
 
-	Catalogs        map[string]*model.IsuCatalog
+	// TODO: ユーザーを増やすロジックを書いたときに必要性を再度考える
+	viewerMtx sync.Mutex
+	viewers   []*model.Viewer
+
+	Catalogs map[string]*model.IsuCatalog
 }
 
 func NewScenario(jiaServiceURL *url.URL, loadTimeout time.Duration) (*Scenario, error) {
