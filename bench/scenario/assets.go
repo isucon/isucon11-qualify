@@ -4,18 +4,18 @@ package scenario
 var (
 	resourcesHash = map[string]string{
 		"/favicon.d0f5f504.svg":     "3697a1b6c6d164ec4a5e4db6f7789f05",
-		"/index.33beebb9.css":       "00575c6b8448a1f342c33bbc0bbcde70",
-		"/index.9b3a7314.js":        "1ae8a40d689853831d0decd23eae7dfe",
+		"/index.04aaed54.js":        "6dbe09420059da36c74c0dc962a637e9",
+		"/index.994e7d97.css":       "69d7a3d9d51474ea10065c11f6d6f08a",
 		"/logo_orange.974bf3e6.svg": "10e2dfa0ff27ec4325b781973c646737",
 		"/logo_white.98008342.svg":  "f81e35a6821af44ea5b3a77346bcf6ad",
-		"/vendor.e16f2a0d.js":       "80afebbb91dd6f3927348f684b545e11",
+		"/vendor.336960d7.js":       "750beb8831a9353f78c7b06bf8dc766c",
 	}
 	resourcesMap = map[string]string{
 		"/favicon.svg":     "/favicon.d0f5f504.svg",
-		"/index.css":       "/index.33beebb9.css",
-		"/index.js":        "/index.9b3a7314.js",
+		"/index.css":       "/index.994e7d97.css",
+		"/index.js":        "/index.04aaed54.js",
 		"/logo_orange.svg": "/logo_orange.974bf3e6.svg",
 		"/logo_white.svg":  "/logo_white.98008342.svg",
-		"/vendor.js":       "/vendor.e16f2a0d.js",
+		"/vendor.js":       "/vendor.336960d7.js",
 	}
 )
