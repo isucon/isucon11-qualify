@@ -13,7 +13,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -44,9 +43,6 @@ const (
 	scoreConditionLevelWarning  = 2
 	scoreConditionLevelCritical = 1
 )
-
-//"is_dirty=true/false,is_overweight=true/false,..."
-var conditionFormat = regexp.MustCompile(`^[-a-zA-Z_]+=(true|false)(,[-a-zA-Z_]+=(true|false))*$`)
 
 var (
 	templates           *template.Template
