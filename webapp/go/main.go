@@ -924,9 +924,6 @@ func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, erro
 		// conditionを読み込む
 		for _, condStr := range strings.Split(condition.Condition, ",") {
 			keyValue := strings.Split(condStr, "=")
-			if len(keyValue) != 2 {
-				continue // 形式に従っていないものは無視
-			}
 
 			conditionName := keyValue[0]
 			if _, ok := conditionsCount[conditionName]; ok {
