@@ -8,6 +8,7 @@ import (
 	"crypto/md5"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -123,31 +124,31 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	noIsuUser := s.NewUser(ctx, step, noIsuAgent, model.UserTypeNormal)
 
 	// 初期データで生成しているisuconユーザを利用
-	randomUser := s.normalUsers[0]
+	isuconUser := s.normalUsers[0]
 
 	agt, err := s.NewAgent()
 	if err != nil {
 		logger.AdminLogger.Panicln(err)
 	}
-	_, errs := authAction(ctx, agt, randomUser.UserID)
+	_, errs := authAction(ctx, agt, isuconUser.UserID)
 	for _, err := range errs {
 		step.AddError(err)
 		return nil
 	}
-	randomUser.Agent = agt
+	isuconUser.Agent = agt
 
 	s.prepareCheckPostSignout(ctx, step)
-	s.prepareCheckGetMe(ctx, randomUser, guestAgent, step)
-	s.prepareCheckGetIsuList(ctx, randomUser, noIsuUser, guestAgent, step)
-	s.prepareCheckGetIsu(ctx, randomUser, noIsuUser, guestAgent, step)
-	s.prepareCheckGetIsuIcon(ctx, randomUser, noIsuUser, guestAgent, step)
-	s.prepareCheckGetIsuGraph(ctx, randomUser, noIsuUser, guestAgent, step)
-	s.prepareCheckGetIsuConditions(ctx, randomUser, noIsuUser, guestAgent, step)
+	s.prepareCheckGetMe(ctx, isuconUser, guestAgent, step)
+	s.prepareCheckGetIsuList(ctx, isuconUser, noIsuUser, guestAgent, step)
+	s.prepareCheckGetIsu(ctx, isuconUser, noIsuUser, guestAgent, step)
+	s.prepareCheckGetIsuIcon(ctx, isuconUser, noIsuUser, guestAgent, step)
+	s.prepareCheckGetIsuGraph(ctx, isuconUser, noIsuUser, guestAgent, step)
+	s.prepareCheckGetIsuConditions(ctx, isuconUser, noIsuUser, guestAgent, step)
 
 	// MEMO: postIsuConditionのprepareチェックは確率で失敗して安定しないため、prepareステップでは行わない
 
 	// ユーザのISUが増えるので他の検証終わった後に実行
-	s.prepareCheckPostIsu(ctx, randomUser, noIsuUser, guestAgent, step)
+	s.prepareCheckPostIsu(ctx, isuconUser, noIsuUser, guestAgent, step)
 	return nil
 }
 
@@ -726,7 +727,6 @@ func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model
 	}
 }
 
-// TODO: 一部実装途中
 func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
 	isu := loginUser.IsuListOrderByCreatedAt[0]
 
@@ -768,12 +768,47 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 		}
 	}
 
-	// TODO: オプション検証
-	// check: 正常系
-	// - condition指定infoのみ
-	// - end_time指定を途中の時間で
-	// - start_time指定あり
-	// - limit指定あり
+	// check: 正常系（オプションあり）
+	// - start_timeは0-11時間前でrandom
+	// - end_time指定を途中の時間で行う
+	// - limitは1-100でrandom
+	for jiaIsuUUID, isu := range loginUser.IsuListByID {
+		endTime := lastTime
+
+		limit := rand.Intn(100) + 1
+		// condition の read lock を取得
+		isu.CondMutex.RLock()
+		infoConditions := isu.Conditions.Info
+		if len(infoConditions) != 0 {
+			randomCond := infoConditions[rand.Intn(len(infoConditions))]
+			endTime = randomCond.TimestampUnix
+		}
+		isu.CondMutex.RUnlock()
+
+		n := rand.Intn(12)
+		startTime := time.Unix(endTime, 0).Add(-time.Duration(n) * time.Hour).Unix()
+		req := service.GetIsuConditionRequest{
+			StartTime:      &startTime,
+			EndTime:        endTime,
+			ConditionLevel: "info,warning,critical",
+			Limit:          &limit,
+		}
+		conditionsTmp, res, err := getIsuConditionAction(ctx, loginUser.Agent, jiaIsuUUID, req)
+		if err != nil {
+			step.AddError(err)
+			return
+		}
+		//検証
+		err = verifyPrepareIsuConditions(res, loginUser, jiaIsuUUID, &req, conditionsTmp)
+		if err != nil {
+			step.AddError(err)
+			return
+		}
+	}
+
+	// check: 正常系（オプションあり2）
+	// - condition random指定
+	// - start_time指定でlimitまで取得できない
 	limit := 10
 	for jiaIsuUUID, isu := range loginUser.IsuListByID {
 		endTime := lastTime
@@ -786,11 +821,21 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 		}
 		isu.CondMutex.RUnlock()
 
-		oneDayAgo := time.Unix(endTime, 0).Add(-24 * time.Hour).Unix()
+		var levelQuery string
+		switch rand.Intn(3) {
+		case 0:
+			levelQuery = "info"
+		case 1:
+			levelQuery = "warning"
+		case 2:
+			levelQuery = "critical"
+		}
+
+		startTime := time.Unix(endTime, 0).Add(-1 * time.Hour).Unix()
 		req := service.GetIsuConditionRequest{
-			StartTime:      &oneDayAgo,
+			StartTime:      &startTime,
 			EndTime:        endTime,
-			ConditionLevel: "info",
+			ConditionLevel: levelQuery,
 			Limit:          &limit,
 		}
 		conditionsTmp, res, err := getIsuConditionAction(ctx, loginUser.Agent, jiaIsuUUID, req)
