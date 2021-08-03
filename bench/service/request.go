@@ -28,10 +28,6 @@ type IsuImg struct {
 	Img     []byte
 }
 
-type PutIsuRequest struct {
-	Name string `json:"name"`
-}
-
 type GetIsuConditionRequest struct {
 	StartTime      *int64
 	EndTime        int64
