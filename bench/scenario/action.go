@@ -21,7 +21,6 @@ import (
 	"net/http"
 	"net/textproto"
 	"net/url"
-	"strconv"
 	"time"
 
 	"github.com/isucon/isucandar/agent"
@@ -285,19 +284,11 @@ func getMeErrorAction(ctx context.Context, a *agent.Agent) (string, *http.Respon
 	return resBody, res, nil
 }
 
-func getIsuAction(ctx context.Context, a *agent.Agent, limit int) ([]*service.Isu, *http.Response, error) {
+func getIsuAction(ctx context.Context, a *agent.Agent) ([]*service.Isu, *http.Response, error) {
 	targetURL, err := url.Parse("/api/isu")
 	if err != nil {
 		logger.AdminLogger.Panicln(err)
 	}
-	q := url.Values{}
-	if limit < 0 {
-		logger.AdminLogger.Panicf("internal error: limit is minus: %v\n", limit)
-	}
-	if limit != 0 {
-		q.Set("limit", strconv.Itoa(limit))
-	}
-	targetURL.RawQuery = q.Encode()
 
 	var isuList []*service.Isu
 	res, err := reqJSONResJSON(ctx, a, http.MethodGet, targetURL.String(), nil, &isuList, []int{http.StatusOK})
@@ -307,9 +298,13 @@ func getIsuAction(ctx context.Context, a *agent.Agent, limit int) ([]*service.Is
 	return isuList, res, nil
 }
 
-func getIsuErrorAction(ctx context.Context, a *agent.Agent, query url.Values) (string, *http.Response, error) {
-	rpath := getPathWithParams("/api/isu", query)
-	res, resBody, err := reqJSONResError(ctx, a, http.MethodGet, rpath, nil, []int{http.StatusUnauthorized, http.StatusBadRequest})
+func getIsuErrorAction(ctx context.Context, a *agent.Agent) (string, *http.Response, error) {
+	targetURL, err := url.Parse("/api/isu")
+	if err != nil {
+		logger.AdminLogger.Panicln(err)
+	}
+
+	res, resBody, err := reqJSONResError(ctx, a, http.MethodGet, targetURL.String(), nil, []int{http.StatusUnauthorized, http.StatusBadRequest})
 	if err != nil {
 		return "", nil, err
 	}
@@ -629,7 +624,7 @@ func browserGetHomeAction(ctx context.Context, a *agent.Agent,
 
 	errors := []error{}
 	// TODO: ここ以下は多分並列
-	isuList, hres, err := getIsuAction(ctx, a, homeIsuLimit)
+	isuList, hres, err := getIsuAction(ctx, a)
 	if err != nil {
 		errors = append(errors, err)
 	}

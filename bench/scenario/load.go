@@ -148,9 +148,6 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 				// poster で送ったものの同期
 				//user.GetConditionFromChan(ctx)
 				expected := user.IsuListOrderByCreatedAt
-				if homeIsuLimit < len(expected) { //limit
-					expected = expected[len(expected)-homeIsuLimit:]
-				}
 				return verifyIsuOrderByCreatedAt(res, expected, isuList)
 			},
 		)
