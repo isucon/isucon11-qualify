@@ -164,7 +164,6 @@ func (state *posterState) GenerateNextCondition(randEngine *rand.Rand, stateChan
 		Message:       "",
 		TimestampUnix: timeStamp.Unix(),
 		OwnerIsuUUID:  isu.JIAIsuUUID,
-		OwnerIsuID:    isu.ID,
 	}
 	// TODO: over_weight が true のときは sitting を false にしないように
 	//sitting
