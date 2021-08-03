@@ -961,10 +961,10 @@ func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, erro
 	// データ点に整形
 	score := rawScore / len(isuConditions) // score = conditionLevelごとの素点の合算/condition数
 
-	sittingPercentage := int(sittingCount / len(isuConditions) * 100)
-	isBrokenPercentage := int(conditionsCount["is_broken"] / len(isuConditions) * 100)
-	isOverweightPercentage := int(conditionsCount["is_overweight"] / len(isuConditions) * 100)
-	isDirtyPercentage := int(conditionsCount["is_dirty"] / len(isuConditions) * 100)
+	sittingPercentage := sittingCount * 100 / len(isuConditions)
+	isBrokenPercentage := conditionsCount["is_broken"] * 100 / len(isuConditions)
+	isOverweightPercentage := conditionsCount["is_overweight"] * 100 / len(isuConditions)
+	isDirtyPercentage := conditionsCount["is_dirty"] * 100 / len(isuConditions)
 
 	dataPoint := GraphDataPoint{
 		Score: score,
