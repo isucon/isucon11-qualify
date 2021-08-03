@@ -318,7 +318,7 @@ ToDo: ベンチと確認&意識合わせ
   - 10 回あたり減点 1 点
   - 即時失敗は無し
 
-- `POST /api/condition/:jia_isu_uuid` は上記の減点に該当しません。
+- `POST /api/condition/:jia_isu_uuid` は上記の減点に該当せず、一切の減点を行いません。
 
 ## 最終スコア
 
