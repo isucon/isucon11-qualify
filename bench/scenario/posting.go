@@ -78,7 +78,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		// 今の時間から最後のconditionの時間を引く
 		diffTimestamp := nowTimeStamp - state.lastConditionTimestamp
 		// その間に何個のconditionがあったか
-		diffConditionCount := int(math.Ceil(float64(diffTimestamp) / float64(PostIntervalSecond)))
+		diffConditionCount := (diffTimestamp+PostIntervalSecond-1) / PostIntervalSecond
 
 		var reqLength int
 		if diffConditionCount > PostContentNum {
