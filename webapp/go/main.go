@@ -194,7 +194,6 @@ func NewMySQLConnectionEnv() *MySQLConnectionEnv {
 	}
 }
 
-//ConnectDB データベースに接続する
 func (mc *MySQLConnectionEnv) ConnectDB() (*sqlx.DB, error) {
 	dsn := fmt.Sprintf("%v:%v@tcp(%v:%v)/%v?parseTime=true&loc=Local", mc.User, mc.Password, mc.Host, mc.Port, mc.DBName)
 	return sqlx.Open("mysql", dsn)
@@ -319,6 +318,8 @@ func getIndex(c echo.Context) error {
 	return nil
 }
 
+// POST /initialize
+// サービスを初期化
 func postInitialize(c echo.Context) error {
 	var request InitializeRequest
 	err := c.Bind(&request)
@@ -350,7 +351,8 @@ func postInitialize(c echo.Context) error {
 	})
 }
 
-//  POST /api/auth
+// POST /api/auth
+// サインイン
 func postAuthentication(c echo.Context) error {
 	reqJwt := strings.TrimPrefix(c.Request().Header.Get("Authorization"), "Bearer ")
 
@@ -408,7 +410,8 @@ func postAuthentication(c echo.Context) error {
 	return c.NoContent(http.StatusOK)
 }
 
-//  POST /api/signout
+// POST /api/signout
+// サインアウト
 func postSignout(c echo.Context) error {
 	_, err := getUserIDFromSession(c)
 	if err != nil {
@@ -431,6 +434,8 @@ func postSignout(c echo.Context) error {
 	return c.NoContent(http.StatusOK)
 }
 
+// GET /api/user/me
+// サインインしている自分自身の情報を取得
 func getMe(c echo.Context) error {
 	jiaUserID, err := getUserIDFromSession(c)
 	if err != nil {
@@ -441,7 +446,7 @@ func getMe(c echo.Context) error {
 	return c.JSON(http.StatusOK, res)
 }
 
-//  GET /api/isu
+// GET /api/isu
 // 自分のISUの一覧を取得
 func getIsuList(c echo.Context) error {
 	jiaUserID, err := getUserIDFromSession(c)
@@ -521,8 +526,8 @@ func getIsuList(c echo.Context) error {
 	return c.JSON(http.StatusOK, responseList)
 }
 
-//  POST /api/isu
-// 自分のISUの登録
+// POST /api/isu
+// 自分のISUを登録
 func postIsu(c echo.Context) error {
 	jiaUserID, err := getUserIDFromSession(c)
 	if err != nil {
@@ -655,8 +660,8 @@ func postIsu(c echo.Context) error {
 	return c.JSON(http.StatusCreated, isu)
 }
 
-//  GET /api/isu/{jia_isu_uuid}
-// 椅子の情報を取得する
+// GET /api/isu/{jia_isu_uuid}
+// ISUの情報を取得
 func getIsu(c echo.Context) error {
 	jiaUserID, err := getUserIDFromSession(c)
 	if err != nil {
@@ -680,12 +685,8 @@ func getIsu(c echo.Context) error {
 	return c.JSON(http.StatusOK, res)
 }
 
-//  GET /api/isu/{jia_isu_uuid}/icon
-// ISUのアイコンを取得する
-// MEMO: ヘッダーとかでキャッシュ効くようにするのが想定解？(ただしPUTはあることに注意)
-//       nginxで認証だけ外部に投げるみたいなのもできるっぽい？（ちゃんと読んでいない）
-//       https://tech.jxpress.net/entry/2018/08/23/104123
-// MEMO: DB 内の image は longblob
+// GET /api/isu/{jia_isu_uuid}/icon
+// ISUのアイコンを取得
 func getIsuIcon(c echo.Context) error {
 	jiaUserID, err := getUserIDFromSession(c)
 	if err != nil {
@@ -709,12 +710,8 @@ func getIsuIcon(c echo.Context) error {
 	return c.Blob(http.StatusOK, "", image)
 }
 
-//  GET /api/isu/{jia_isu_uuid}/graph
-// グラフ描画のための情報を計算して返却する
-// ユーザーがISUの機嫌を知りたい
-// この時間帯とか、この日とかの機嫌を知りたい
-// 日毎時間単位グラフ
-// conditionを何件か集めて、ISUにとっての快適度数みたいな値を算出する
+// GET /api/isu/{jia_isu_uuid}/graph
+// ISUのグラフのための情報を取得
 func getIsuGraph(c echo.Context) error {
 	jiaUserID, err := getUserIDFromSession(c)
 	if err != nil {
@@ -765,7 +762,6 @@ func getIsuGraph(c echo.Context) error {
 	return c.JSON(http.StatusOK, res)
 }
 
-// GET /api/isu/{jia_isu_uuid}/graph のレスポンス作成のため，
 // グラフのデータ点を一日分生成
 func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Time) ([]GraphResponse, error) {
 
@@ -880,7 +876,7 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 	return responseList, nil
 }
 
-// 複数のISU conditionからグラフの一つのデータ点を計算
+// 複数のISUの通知(condition)からグラフの一つのデータ点を計算
 func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, error) {
 	var dataPoint GraphDataPoint
 
@@ -942,17 +938,9 @@ func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, erro
 	return dataPoint, nil
 }
 
-//  GET /api/condition/{jia_isu_uuid}?
-// 自分の所持椅子のうち、指定した椅子の通知を取得する
+// GET /api/condition/{jia_isu_uuid}
+// ISUの通知を取得
 func getIsuConditions(c echo.Context) error {
-	// input
-	//     * jia_isu_uuid: 椅子の固有番号(path_param)
-	//     * start_time: 開始時間
-	//     * end_time: 終了時間 (required)
-	//     * condition_level: critical,warning,info (csv)
-	//               critical: conditions (is_dirty,is_overweight,is_broken) のうちtrueが3個
-	//               warning: conditionsのうちtrueのものが1 or 2個
-	//               info: warning無し
 
 	jiaUserID, err := getUserIDFromSession(c)
 	if err != nil {
@@ -1019,6 +1007,7 @@ func getIsuConditions(c echo.Context) error {
 	return c.JSON(http.StatusOK, conditionsResponse)
 }
 
+// ISUの通知をDBから取得
 func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, endTime time.Time, conditionLevel map[string]interface{}, startTime time.Time,
 	limit int, isuName string) ([]*GetIsuConditionResponse, error) {
 
@@ -1076,7 +1065,7 @@ func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, endTime time.Time, c
 	return conditionsResponse, nil
 }
 
-// conditionのcsvからcondition levelを計算
+// conditionの文字列からcondition levelを計算
 func calculateConditionLevel(condition string) (string, error) {
 	var conditionLevel string
 
@@ -1098,13 +1087,6 @@ func calculateConditionLevel(condition string) (string, error) {
 // POST /api/condition/{jia_isu_uuid}
 // ISUからのセンサデータを受け取る
 func postIsuCondition(c echo.Context) error {
-	// input (path_param)
-	//	* jia_isu_uuid
-	// input (body)
-	//  * is_sitting:  true/false,
-	// 	* condition: "is_dirty=true/false,is_overweight=true/false,..."
-	//  * message
-	//	* timestamp（秒まで）
 
 	// TODO: これ良くないので後でなんとかする
 	dropProbability := 0.1
@@ -1178,7 +1160,7 @@ func postIsuCondition(c echo.Context) error {
 	return c.NoContent(http.StatusCreated)
 }
 
-//分以下を切り捨て、一時間単位にする関数
+// 分以下を切り捨て、一時間単位にする
 func truncateAfterHours(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), 0, 0, 0, t.Location())
 }
