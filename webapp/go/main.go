@@ -31,7 +31,6 @@ import (
 const (
 	sessionName               = "isucondition"
 	conditionLimit            = 20
-	isuListLimit              = 200 // TODO 修正が必要なら変更
 	frontendContentsPath      = "../public"
 	jwtVerificationKeyPath    = "../ec256-public.pem"
 	defaultIconFilePath       = "../NoImage.jpg"
@@ -99,11 +98,6 @@ type IsuCondition struct {
 	Condition  string    `db:"condition"`
 	Message    string    `db:"message"`
 	CreatedAt  time.Time `db:"created_at"`
-}
-
-type User struct {
-	JIAUserID string    `db:"jia_user_id"`
-	CreatedAt time.Time `db:"created_at"`
 }
 
 type MySQLConnectionEnv struct {
@@ -491,7 +485,7 @@ func getIsuList(c echo.Context) error {
 
 		var formattedCondition *GetIsuConditionResponse
 		if foundLastCondition {
-			conditionLevel, err := calcConditionLevel(lastCondition.Condition)
+			conditionLevel, err := calculateConditionLevel(lastCondition.Condition)
 			if err != nil {
 				c.Logger().Errorf("failed to get condition level: %v", err)
 				return c.NoContent(http.StatusInternalServerError)
@@ -671,7 +665,6 @@ func getIsu(c echo.Context) error {
 
 	jiaIsuUUID := c.Param("jia_isu_uuid")
 
-	// TODO: jia_user_id 判別はクエリに入れずその後のロジックとする？ (一通り完成した後に要考慮)
 	var res Isu
 	err = db.Get(&res, "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
 		jiaUserID, jiaIsuUUID)
@@ -722,7 +715,6 @@ func getIsuIcon(c echo.Context) error {
 // この時間帯とか、この日とかの機嫌を知りたい
 // 日毎時間単位グラフ
 // conditionを何件か集めて、ISUにとっての快適度数みたいな値を算出する
-// TODO: 文面の変更
 func getIsuGraph(c echo.Context) error {
 	jiaUserID, err := getUserIDFromSession(c)
 	if err != nil {
@@ -764,7 +756,6 @@ func getIsuGraph(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	// TODO: 必要以上に長めにトランザクションを取っているので後で検討
 	err = tx.Commit()
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
@@ -1057,7 +1048,7 @@ func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, cursorEndTime time.T
 	//condition_levelでの絞り込み
 	conditionsResponse := []*GetIsuConditionResponse{}
 	for _, c := range conditions {
-		cLevel, err := calcConditionLevel(c.Condition)
+		cLevel, err := calculateConditionLevel(c.Condition)
 		if err != nil {
 			continue
 		}
@@ -1086,7 +1077,7 @@ func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, cursorEndTime time.T
 }
 
 // conditionのcsvからcondition levelを計算
-func calcConditionLevel(condition string) (string, error) {
+func calculateConditionLevel(condition string) (string, error) {
 	var conditionLevel string
 
 	warnCount := strings.Count(condition, "=true")
@@ -1115,7 +1106,6 @@ func postIsuCondition(c echo.Context) error {
 	//  * message
 	//	* timestamp（秒まで）
 
-	// MEMO(isucon11-q実装者) 以下のTODOコメントはヒントにするため，予選本番でも残す
 	// TODO: これ良くないので後でなんとかする
 	dropProbability := 0.1
 	if rand.Float64() <= dropProbability {
@@ -1123,7 +1113,6 @@ func postIsuCondition(c echo.Context) error {
 		return c.NoContent(http.StatusServiceUnavailable)
 	}
 
-	//TODO: 記法の統一
 	jiaIsuUUID := c.Param("jia_isu_uuid")
 	if jiaIsuUUID == "" {
 		return c.String(http.StatusBadRequest, "missing: jia_isu_uuid")
@@ -1147,7 +1136,7 @@ func postIsuCondition(c echo.Context) error {
 
 	// jia_isu_uuid が存在するかを確認
 	var count int
-	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_isu_uuid` = ?", jiaIsuUUID) //TODO: 記法の統一
+	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_isu_uuid` = ?", jiaIsuUUID)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -1206,7 +1195,6 @@ func getTrend(c echo.Context) error {
 
 	res := []TrendResponse{}
 
-	// MEMO(isucon11-q実装者) 以下のTODOコメントはヒントにするため，予選本番でも残す
 	// TODO: 処理が重すぎるのでなんとかする
 	for _, character := range characterList {
 		isuList := []Isu{}
@@ -1233,7 +1221,7 @@ func getTrend(c echo.Context) error {
 
 			if len(conditions) > 0 {
 				isuLastCondition := conditions[0]
-				conditionLevel, err := calcConditionLevel(isuLastCondition.Condition)
+				conditionLevel, err := calculateConditionLevel(isuLastCondition.Condition)
 				if err != nil {
 					c.Logger().Errorf("failed to get condition level: %v", err)
 					return c.NoContent(http.StatusInternalServerError)

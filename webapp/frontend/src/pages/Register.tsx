@@ -23,7 +23,11 @@ const Register = () => {
       await apis.postIsu(req)
       history.push(`/isu/${id}`)
     } catch (e) {
-      alert(e.response.data.message)
+      if (e.response.status === 409) {
+        history.push(`/isu/${id}`)
+      } else {
+        alert(e.response.data)
+      }
     }
   }
 
