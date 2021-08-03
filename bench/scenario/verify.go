@@ -130,7 +130,7 @@ func verifyIsuOrderByCreatedAt(res *http.Response, expectedReverse []*model.Isu,
 
 //mustExistUntil: この値以下のtimestampを持つものは全て反映されているべき
 func verifyIsuConditions(res *http.Response,
-	targetUser *model.User, targetIsuUUID string, request *service.GetIndividualIsuConditionRequest,
+	targetUser *model.User, targetIsuUUID string, request *service.GetIsuConditionRequest,
 	backendData []*service.GetIsuConditionResponse) error {
 
 	//limitを超えているかチェック
@@ -169,7 +169,7 @@ func verifyIsuConditions(res *http.Response,
 		defer targetIsu.CondMutex.RUnlock()
 
 		conditions := targetIsu.Conditions
-		iterTmp := conditions.LowerBound(filter, request.CursorEndTime, targetIsuUUID)
+		iterTmp := conditions.LowerBound(filter, request.EndTime, targetIsuUUID)
 		baseIter := &iterTmp
 
 		//backendDataは新しい順にソートされているはずなので、先頭からチェック
@@ -240,7 +240,7 @@ func verifyIsuConditions(res *http.Response,
 }
 
 func verifyPrepareIsuConditions(res *http.Response,
-	targetUser *model.User, targetIsuUUID string, request *service.GetIndividualIsuConditionRequest,
+	targetUser *model.User, targetIsuUUID string, request *service.GetIsuConditionRequest,
 	backendData []*service.GetIsuConditionResponse) error {
 
 	//limitを超えているかチェック
@@ -279,7 +279,7 @@ func verifyPrepareIsuConditions(res *http.Response,
 		targetIsu.CondMutex.RLock()
 		defer targetIsu.CondMutex.RUnlock()
 
-		iterTmp := targetIsu.Conditions.LowerBound(filter, request.CursorEndTime, targetIsuUUID)
+		iterTmp := targetIsu.Conditions.LowerBound(filter, request.EndTime, targetIsuUUID)
 		baseIter := &iterTmp
 
 		//backendDataは新しい順にソートされているはずなので、先頭からチェック
