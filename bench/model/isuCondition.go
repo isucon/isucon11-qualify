@@ -199,13 +199,19 @@ func upperBoundIsuConditionIndex(base []IsuCondition, end int, targetTimestamp i
 	}
 
 	//線形探索 ngがbase[ng] <= targetになるまで探索
-	const defaultRange = 64
+	searchRange := 64
 	ok := end
-	ng := end - defaultRange
-	ng = (ng / defaultRange) * defaultRange //0未満になるのが嫌なので、defaultRangeの倍数にする
-	for target.Less2(&base[ng]) {           //Timestampはunique仮定なので、<で良い（等価が見つかればそれで良し）
+	ng := end - searchRange
+	if ng < 0 {
+		ng = 0
+	}
+	for target.Less2(&base[ng]) { //Timestampはunique仮定なので、<で良い（等価が見つかればそれで良し）
 		ok = ng
-		ng -= defaultRange
+		ng -= searchRange
+		searchRange *= 2
+		if ng < 0 {
+			ng = 0
+		}
 	}
 
 	//答えは(ng, ok]内にあるはずなので、二分探索
@@ -236,13 +242,19 @@ func lowerBoundIsuConditionIndex(base []IsuCondition, end int, targetTimestamp i
 	}
 
 	//線形探索 ngがbase[ng] <= targetになるまで探索
-	const defaultRange = 64
+	searchRange := 64
 	ok := end
-	ng := end - defaultRange
-	ng = (ng / defaultRange) * defaultRange //0未満になるのが嫌なので、defaultRangeの倍数にする
-	for !base[ng].Less2(&target) {          //Timestampはunique仮定なので、<で良い（等価が見つかればそれで良し）
+	ng := end - searchRange
+	if ng < 0 {
+		ng = 0
+	}
+	for !base[ng].Less2(&target) { //Timestampはunique仮定なので、<で良い（等価が見つかればそれで良し）
 		ok = ng
-		ng -= defaultRange
+		ng -= searchRange
+		searchRange *= 2
+		if ng < 0 {
+			ng = 0
+		}
 	}
 
 	//答えは(ng, ok]内にあるはずなので、二分探索
