@@ -23,11 +23,21 @@ class Apis {
   }
 
   async getIsus(options?: { limit: number }, axiosConfig?: AxiosRequestConfig) {
-    const { data } = await axios.get<Isu[]>(`/api/isu`, {
+    const { data } = await axios.get<ApiGetIsuListResponse[]>(`/api/isu`, {
       params: options,
       ...axiosConfig
     })
-    return data
+    const res: GetIsuListResponse[] = []
+    for (const v of data) {
+      res.push({
+        ...v,
+        latest_isu_condition: {
+          ...v.latest_isu_condition,
+          date: timestampToDate(v.latest_isu_condition.timestamp)
+        }
+      })
+    }
+    return res
   }
 
   async postIsu(req: PostIsuRequest, axiosConfig?: AxiosRequestConfig) {
@@ -41,17 +51,6 @@ class Apis {
       headers: { 'content-type': 'multipart/form-data' },
       ...axiosConfig
     })
-  }
-
-  async getIsuSearch(
-    option?: IsuSearchRequest,
-    axiosConfig?: AxiosRequestConfig
-  ) {
-    const { data } = await axios.get<Isu[]>(`/api/isu/search`, {
-      params: option,
-      ...axiosConfig
-    })
-    return data
   }
 
   async getIsu(jiaIsuUuid: string, axiosConfig?: AxiosRequestConfig) {
@@ -130,13 +129,12 @@ export interface Isu {
   character: string
 }
 
-export interface IsuLog {
-  jia_isu_uuid: string
-  timestamp: number
-  is_sitting: boolean
-  condition: string
-  message: string
-  created_at: string
+interface ApiGetIsuListResponse extends Isu {
+  latest_isu_condition: ApiCondition
+}
+
+export interface GetIsuListResponse extends Isu {
+  latest_isu_condition: Condition
 }
 
 export interface GraphData {
@@ -159,16 +157,6 @@ export interface Graph {
   end_at: Date
   data: GraphData | null
   condition_timestamps: number[]
-}
-
-export interface IsuSearchRequest {
-  name?: string
-  charactor?: string
-  catalog_name?: string
-  min_limit_weight?: number
-  max_limit_weight?: number
-  catalog_tags?: string
-  page?: string
 }
 
 export const DEFAULT_SEARCH_LIMIT = 20
