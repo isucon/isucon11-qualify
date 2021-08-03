@@ -451,7 +451,7 @@ func getMe(c echo.Context) error {
 }
 
 //  GET /api/isu
-// 自分のISUの一覧をpagingして取得
+// 自分のISUの一覧を取得
 func getIsuList(c echo.Context) error {
 	jiaUserID, err := getUserIDFromSession(c)
 	if err != nil {
