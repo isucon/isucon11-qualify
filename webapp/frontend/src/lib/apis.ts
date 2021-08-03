@@ -90,28 +90,6 @@ class Apis {
     return graphs
   }
 
-  async getConditions(req: ConditionRequest, axiosConfig?: AxiosRequestConfig) {
-    const params: ApiConditionRequest = {
-      ...req,
-      start_time: req.start_time ? dateToTimestamp(req.start_time) : undefined,
-      cursor_end_time: dateToTimestamp(req.cursor_end_time)
-    }
-    const { data } = await axios.get<ApiCondition[]>(`/api/condition`, {
-      params,
-      ...axiosConfig
-    })
-
-    const conditions: Condition[] = []
-    data.forEach(apiCondition => {
-      conditions.push({
-        ...apiCondition,
-        date: timestampToDate(apiCondition.timestamp)
-      })
-    })
-
-    return conditions
-  }
-
   async getIsuConditions(
     jiaIsuUuid: string,
     req: ConditionRequest,
