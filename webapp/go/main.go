@@ -1200,7 +1200,12 @@ func postIsuCondition(c echo.Context) error {
 		// parse
 		timestamp := time.Unix(cond.Timestamp, 0)
 
-		if !conditionFormat.MatchString(cond.Condition) {
+		isValid, err := isValidConditionFormat(cond.Condition)
+		if err != nil {
+			c.Logger().Errorf("failed to check condition format: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+		if !isValid {
 			c.Logger().Errorf("bad request body")
 			return c.String(http.StatusBadRequest, "bad request body")
 		}
