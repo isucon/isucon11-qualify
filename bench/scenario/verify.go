@@ -286,22 +286,9 @@ func verifyPrepareIsuConditions(res *http.Response,
 		var lastSort model.IsuConditionCursor
 		for i, c := range backendData {
 
-			// ループ初順の場合、baseIter の指す condition が  actual_conditions[0] に一致するまでイテレーションを回す
-			var expected *model.IsuCondition
-			if i == 0 {
-				for {
-					expected = baseIter.Prev()
-					if expected == nil || expected.TimestampUnix < c.Timestamp {
-						return errorMissmatch(res, "存在しないはずのデータが返却されています")
-					} else if expected.TimestampUnix == c.Timestamp {
-						break
-					}
-				}
-			} else {
-				expected = baseIter.Prev()
-				if expected == nil {
-					return errorMissmatch(res, "存在しないはずのデータが返却されています")
-				}
+			expected := baseIter.Prev()
+			if expected == nil {
+				return errorMissmatch(res, "存在しないはずのデータが返却されています")
 			}
 
 			//backendDataが新しい順にソートされていることの検証

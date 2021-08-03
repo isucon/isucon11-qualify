@@ -124,6 +124,7 @@ func (ia *IsuConditionArray) Back() *IsuCondition {
 	return iter.Prev()
 }
 
+// UpperBound は IsuConditionArray から特定の時間「以下の」最新コンディションを指すイテレータを返す
 func (ia *IsuConditionArray) UpperBound(filter ConditionLevel, targetTimestamp int64, targetOwnerIsuUUID string) IsuConditionArrayIterator {
 	iter := ia.End(filter)
 	if (iter.filter & ConditionLevelInfo) != 0 {
@@ -138,6 +139,7 @@ func (ia *IsuConditionArray) UpperBound(filter ConditionLevel, targetTimestamp i
 	return iter
 }
 
+// LowerBound は IsuConditionArray から特定の時間「より古い」最新コンディションを指すイテレータを返す
 func (ia *IsuConditionArray) LowerBound(filter ConditionLevel, targetTimestamp int64, targetOwnerIsuUUID string) IsuConditionArrayIterator {
 	iter := ia.End(filter)
 	if (iter.filter & ConditionLevelInfo) != 0 {
