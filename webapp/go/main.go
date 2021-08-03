@@ -399,7 +399,12 @@ func postAuthentication(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	session, _ := getSession(c.Request())
+	session, err := getSession(c.Request())
+	if err != nil {
+		c.Logger().Errorf("failed to get session: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
 	session.Values["jia_user_id"] = jiaUserID
 	err = session.Save(c.Request(), c.Response())
 	if err != nil {
@@ -418,7 +423,12 @@ func postSignout(c echo.Context) error {
 		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 
-	session, _ := getSession(c.Request())
+	session, err := getSession(c.Request())
+	if err != nil {
+		c.Logger().Errorf("failed to get session: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
 	session.Options = &sessions.Options{MaxAge: -1, Path: "/"}
 	err = session.Save(c.Request(), c.Response())
 	if err != nil {
