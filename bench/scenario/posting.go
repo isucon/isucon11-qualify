@@ -3,7 +3,6 @@ package scenario
 import (
 	"context"
 	"fmt"
-	"math"
 	"math/rand"
 	"net/http"
 	"time"
@@ -15,8 +14,8 @@ import (
 
 const (
 	// MEMO: 最大でも一秒に一件しか送れないので点数上限になるが、解決できるとは思えないので良い
-	PostIntervalSecond = 60  //Virtual Timeでのpost間隔
-	PostContentNum     = 100 //一回のpostで何要素postするか
+	PostIntervalSecond = 60 //Virtual Timeでのpost間隔
+	PostContentNum     = 20 //一回のpostで何要素postするか
 )
 
 type posterState struct {
@@ -53,6 +52,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 	httpClient.Timeout = postConditionTimeout
 
 	timer := time.NewTicker(20 * time.Millisecond)
+	defer timer.Stop()
 	for {
 		select {
 		case <-ctx.Done():
@@ -78,7 +78,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		// 今の時間から最後のconditionの時間を引く
 		diffTimestamp := nowTimeStamp - state.lastConditionTimestamp
 		// その間に何個のconditionがあったか
-		diffConditionCount := (diffTimestamp+PostIntervalSecond-1) / PostIntervalSecond
+		diffConditionCount := int((diffTimestamp + PostIntervalSecond - 1) / PostIntervalSecond)
 
 		var reqLength int
 		if diffConditionCount > PostContentNum {
