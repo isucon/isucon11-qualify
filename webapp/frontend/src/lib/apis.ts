@@ -150,6 +150,7 @@ interface ApiGraph {
   start_at: number
   end_at: number
   data: GraphData | null
+  condition_timestamps: number[]
 }
 
 export interface Graph {
@@ -157,6 +158,7 @@ export interface Graph {
   start_at: Date
   end_at: Date
   data: GraphData | null
+  condition_timestamps: number[]
 }
 
 export interface IsuSearchRequest {
