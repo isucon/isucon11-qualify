@@ -8,6 +8,7 @@ import (
 	"crypto/md5"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -123,31 +124,31 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	noIsuUser := s.NewUser(ctx, step, noIsuAgent, model.UserTypeNormal)
 
 	// 初期データで生成しているisuconユーザを利用
-	randomUser := s.normalUsers[0]
+	isuconUser := s.normalUsers[0]
 
 	agt, err := s.NewAgent()
 	if err != nil {
 		logger.AdminLogger.Panicln(err)
 	}
-	_, errs := authAction(ctx, agt, randomUser.UserID)
+	_, errs := authAction(ctx, agt, isuconUser.UserID)
 	for _, err := range errs {
 		step.AddError(err)
 		return nil
 	}
-	randomUser.Agent = agt
+	isuconUser.Agent = agt
 
 	s.prepareCheckPostSignout(ctx, step)
-	s.prepareCheckGetMe(ctx, randomUser, guestAgent, step)
-	s.prepareCheckGetIsuList(ctx, randomUser, noIsuUser, guestAgent, step)
-	s.prepareCheckGetIsu(ctx, randomUser, noIsuUser, guestAgent, step)
-	s.prepareCheckGetIsuIcon(ctx, randomUser, noIsuUser, guestAgent, step)
-	s.prepareCheckGetIsuGraph(ctx, randomUser, noIsuUser, guestAgent, step)
-	s.prepareCheckGetIsuConditions(ctx, randomUser, noIsuUser, guestAgent, step)
+	s.prepareCheckGetMe(ctx, isuconUser, guestAgent, step)
+	s.prepareCheckGetIsuList(ctx, isuconUser, noIsuUser, guestAgent, step)
+	s.prepareCheckGetIsu(ctx, isuconUser, noIsuUser, guestAgent, step)
+	s.prepareCheckGetIsuIcon(ctx, isuconUser, noIsuUser, guestAgent, step)
+	s.prepareCheckGetIsuGraph(ctx, isuconUser, noIsuUser, guestAgent, step)
+	s.prepareCheckGetIsuConditions(ctx, isuconUser, noIsuUser, guestAgent, step)
 
 	// MEMO: postIsuConditionのprepareチェックは確率で失敗して安定しないため、prepareステップでは行わない
 
 	// ユーザのISUが増えるので他の検証終わった後に実行
-	s.prepareCheckPostIsu(ctx, randomUser, noIsuUser, guestAgent, step)
+	s.prepareCheckPostIsu(ctx, isuconUser, noIsuUser, guestAgent, step)
 	return nil
 }
 
@@ -289,9 +290,6 @@ func (s *Scenario) prepareCheckGetIsuList(ctx context.Context, loginUser *model.
 	}
 
 	// check: 登録したISUが取得できる
-	isu1 := loginUser.IsuListOrderByCreatedAt[0]
-	isu2 := loginUser.IsuListOrderByCreatedAt[1]
-	expected := []*model.Isu{isu2, isu1}
 	isuList, res, err = getIsuAction(ctx, loginUser.Agent)
 	if err != nil {
 		step.AddError(err)
@@ -299,15 +297,17 @@ func (s *Scenario) prepareCheckGetIsuList(ctx context.Context, loginUser *model.
 	}
 
 	// verify
-	if len(expected) != len(isuList) {
+	if len(loginUser.IsuListOrderByCreatedAt) != len(isuList) {
 		step.AddError(errorInvalid(res, "ユーザの所持する椅子の数が一致しません。"))
 		return
 	}
-	for i, isu := range expected {
-		if isuList[i].JIAIsuUUID != isu.JIAIsuUUID ||
-			isuList[i].Name != isu.Name ||
-			isuList[i].Character != isu.Character ||
-			isuList[i].ID != isu.ID {
+
+	isuListIdx := len(isuList)
+	for i, isu := range loginUser.IsuListOrderByCreatedAt {
+		if isuList[isuListIdx-i-1].JIAIsuUUID != isu.JIAIsuUUID ||
+			isuList[isuListIdx-i-1].Name != isu.Name ||
+			isuList[isuListIdx-i-1].Character != isu.Character ||
+			isuList[isuListIdx-i-1].ID != isu.ID {
 			step.AddError(errorInvalid(res, "ユーザの所持する椅子や順番が一致しません。"))
 			return
 		}
@@ -615,11 +615,8 @@ func (s *Scenario) prepareCheckGetIsuIcon(ctx context.Context, loginUser *model.
 }
 
 func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
-	//ISUグラフの取得 e.GET("/api/isu/:jia_isu_uuid/graph", getIsuGraph)
 	// check: 正常系
 	for _, isu := range loginUser.IsuListOrderByCreatedAt {
-		// 検証用の初期データは3日分のconditionを作成するので前日分も回す
-
 		// condition の read lock を取得
 		isu.CondMutex.RLock()
 		lastCond := isu.Conditions.Back()
@@ -629,7 +626,8 @@ func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model
 		if lastCond == nil {
 			continue
 		}
-		graph, res, err := getIsuGraphAction(ctx, loginUser.Agent, isu.JIAIsuUUID, service.GetGraphRequest{Date: lastCond.TimestampUnix})
+		req := service.GetGraphRequest{Date: lastCond.TimestampUnix}
+		graph, res, err := getIsuGraphAction(ctx, loginUser.Agent, isu.JIAIsuUUID, req)
 		if err != nil {
 			step.AddError(err)
 			return
@@ -639,7 +637,25 @@ func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model
 			return
 		}
 		// graphの検証
-		if err := verifyPrepareGraph(res, loginUser, isu.JIAIsuUUID, graph); err != nil {
+		if err := verifyPrepareGraph(res, loginUser, isu.JIAIsuUUID, &req, graph); err != nil {
+			step.AddError(err)
+			return
+		}
+
+		// 前日分も検証
+		yesterday := time.Unix(lastCond.TimestampUnix, 0).Add(-24 * time.Hour).Unix()
+		req = service.GetGraphRequest{Date: yesterday}
+		graph, res, err = getIsuGraphAction(ctx, loginUser.Agent, isu.JIAIsuUUID, req)
+		if err != nil {
+			step.AddError(err)
+			return
+		}
+		if err := verifyStatusCode(res, http.StatusOK); err != nil {
+			step.AddError(err)
+			return
+		}
+		// graphの検証
+		if err := verifyPrepareGraph(res, loginUser, isu.JIAIsuUUID, &req, graph); err != nil {
 			step.AddError(err)
 			return
 		}
@@ -727,7 +743,6 @@ func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model
 	}
 }
 
-// TODO: 一部実装途中
 func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
 	isu := loginUser.IsuListOrderByCreatedAt[0]
 
@@ -769,12 +784,47 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 		}
 	}
 
-	// TODO: オプション検証
-	// check: 正常系
-	// - condition指定infoのみ
-	// - end_time指定を途中の時間で
-	// - start_time指定あり
-	// - limit指定あり
+	// check: 正常系（オプションあり）
+	// - start_timeは0-11時間前でrandom
+	// - end_time指定を途中の時間で行う
+	// - limitは1-100でrandom
+	for jiaIsuUUID, isu := range loginUser.IsuListByID {
+		endTime := lastTime
+
+		limit := rand.Intn(100) + 1
+		// condition の read lock を取得
+		isu.CondMutex.RLock()
+		infoConditions := isu.Conditions.Info
+		if len(infoConditions) != 0 {
+			randomCond := infoConditions[rand.Intn(len(infoConditions))]
+			endTime = randomCond.TimestampUnix
+		}
+		isu.CondMutex.RUnlock()
+
+		n := rand.Intn(12)
+		startTime := time.Unix(endTime, 0).Add(-time.Duration(n) * time.Hour).Unix()
+		req := service.GetIsuConditionRequest{
+			StartTime:      &startTime,
+			EndTime:        endTime,
+			ConditionLevel: "info,warning,critical",
+			Limit:          &limit,
+		}
+		conditionsTmp, res, err := getIsuConditionAction(ctx, loginUser.Agent, jiaIsuUUID, req)
+		if err != nil {
+			step.AddError(err)
+			return
+		}
+		//検証
+		err = verifyPrepareIsuConditions(res, loginUser, jiaIsuUUID, &req, conditionsTmp)
+		if err != nil {
+			step.AddError(err)
+			return
+		}
+	}
+
+	// check: 正常系（オプションあり2）
+	// - condition random指定
+	// - start_time指定でlimitまで取得できない
 	limit := 10
 	for jiaIsuUUID, isu := range loginUser.IsuListByID {
 		endTime := lastTime
@@ -787,11 +837,21 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 		}
 		isu.CondMutex.RUnlock()
 
-		oneDayAgo := time.Unix(endTime, 0).Add(-24 * time.Hour).Unix()
+		var levelQuery string
+		switch rand.Intn(3) {
+		case 0:
+			levelQuery = "info"
+		case 1:
+			levelQuery = "warning"
+		case 2:
+			levelQuery = "critical"
+		}
+
+		startTime := time.Unix(endTime, 0).Add(-1 * time.Hour).Unix()
 		req := service.GetIsuConditionRequest{
-			StartTime:      &oneDayAgo,
+			StartTime:      &startTime,
 			EndTime:        endTime,
-			ConditionLevel: "info",
+			ConditionLevel: levelQuery,
 			Limit:          &limit,
 		}
 		conditionsTmp, res, err := getIsuConditionAction(ctx, loginUser.Agent, jiaIsuUUID, req)
@@ -812,8 +872,6 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 	query.Set("end_time", strconv.FormatInt(lastTime, 10))
 	query.Set("condition_level", "info,warning,critical")
 
-	// TODO: 初期データにisuを持たないユーザがいたらダメなので、数ユーザは固定ユーザ作ったほうが良い
-	// kanata
 	isu = loginUser.IsuListOrderByCreatedAt[0]
 	resBody, res, err := getIsuConditionErrorAction(ctx, guestAgent, isu.JIAIsuUUID, query)
 	if err != nil {
