@@ -387,3 +387,35 @@ func (iter *IsuConditionTreeSetIterator) Prev() *IsuCondition {
 	}
 	return max
 }
+
+func (cond *IsuCondition) ConditionString() string {
+	if cond.IsDirty {
+		if cond.IsOverweight {
+			if cond.IsBroken {
+				return "is_dirty=true,is_overweight=true,is_broken=true"
+			} else {
+				return "is_dirty=true,is_overweight=true,is_broken=false"
+			}
+		} else {
+			if cond.IsBroken {
+				return "is_dirty=true,is_overweight=false,is_broken=true"
+			} else {
+				return "is_dirty=true,is_overweight=false,is_broken=false"
+			}
+		}
+	} else {
+		if cond.IsOverweight {
+			if cond.IsBroken {
+				return "is_dirty=false,is_overweight=true,is_broken=true"
+			} else {
+				return "is_dirty=false,is_overweight=true,is_broken=false"
+			}
+		} else {
+			if cond.IsBroken {
+				return "is_dirty=false,is_overweight=false,is_broken=true"
+			} else {
+				return "is_dirty=false,is_overweight=false,is_broken=false"
+			}
+		}
+	}
+}
