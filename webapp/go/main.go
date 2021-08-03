@@ -680,7 +680,7 @@ func getIsu(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	var formatedCondition *GetIsuConditionResponse
+	var formattedCondition *GetIsuConditionResponse
 	if foundLastCondition {
 		conditionLevel, err := calcConditionLevel(lastCondition.Condition)
 		if err != nil {
@@ -688,7 +688,7 @@ func getIsu(c echo.Context) error {
 			return c.NoContent(http.StatusInternalServerError)
 		}
 
-		formatedCondition = &GetIsuConditionResponse{
+		formattedCondition = &GetIsuConditionResponse{
 			JIAIsuUUID:     lastCondition.JIAIsuUUID,
 			IsuName:        isu.Name,
 			Timestamp:      lastCondition.Timestamp.Unix(),
@@ -698,7 +698,7 @@ func getIsu(c echo.Context) error {
 			Message:        lastCondition.Message,
 		}
 	}
-	res := GetIsuResponse{Isu: isu, LatestIsuCondition: formatedCondition}
+	res := GetIsuResponse{Isu: isu, LatestIsuCondition: formattedCondition}
 	return c.JSON(http.StatusOK, res)
 }
 
