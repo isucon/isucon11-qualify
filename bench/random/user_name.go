@@ -18,12 +18,14 @@ func init() {
 // 108 * 237 通りのユーザ名を重複なしで返す
 func UserName() string {
 	var username string
+	retry := 0
 	// NOTE: bench内から呼び出す処理で log.Fatalf して欲しくないので、無限ループする
 	for {
-		username = namesgenerator.GetRandomName(0)
+		username = namesgenerator.GetRandomName(retry)
 		if reserveName(username) {
 			break
 		}
+		retry++
 	}
 	return username
 }
