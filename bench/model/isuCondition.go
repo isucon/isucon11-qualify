@@ -124,7 +124,8 @@ func (ia *IsuConditionArray) Back() *IsuCondition {
 	return iter.Prev()
 }
 
-// UpperBound は IsuConditionArray から特定の時間「以下の」最新コンディションを指すイテレータを返す
+// IsuConditionArrayは、後ろの方が新しい
+// UpperBound は IsuConditionArray から特定の時間「より新しい」最も古い(手前の)コンディションを指すイテレータを返す
 func (ia *IsuConditionArray) UpperBound(filter ConditionLevel, targetTimestamp int64, targetOwnerIsuUUID string) IsuConditionArrayIterator {
 	iter := ia.End(filter)
 	if (iter.filter & ConditionLevelInfo) != 0 {
@@ -139,7 +140,8 @@ func (ia *IsuConditionArray) UpperBound(filter ConditionLevel, targetTimestamp i
 	return iter
 }
 
-// LowerBound は IsuConditionArray から特定の時間「より古い」最新コンディションを指すイテレータを返す
+// IsuConditionArrayは、後ろの方が新しい
+// LowerBound は IsuConditionArray から特定の時間「以上の」最も古い(手前の)コンディションを指すイテレータを返す
 func (ia *IsuConditionArray) LowerBound(filter ConditionLevel, targetTimestamp int64, targetOwnerIsuUUID string) IsuConditionArrayIterator {
 	iter := ia.End(filter)
 	if (iter.filter & ConditionLevelInfo) != 0 {
@@ -189,6 +191,7 @@ func (iter *IsuConditionArrayIterator) Prev() *IsuCondition {
 }
 
 //baseはlessの昇順
+//「より大きい」を返す（C++と同じ）
 func upperBoundIsuConditionIndex(base []IsuCondition, end int, targetTimestamp int64, targetOwnerIsuUUID string) int {
 	//末尾の方にあることが分かっているので、末尾を固定要素ずつ線形探索 + 二分探索
 	//assert end <= len(base)
@@ -225,6 +228,7 @@ func upperBoundIsuConditionIndex(base []IsuCondition, end int, targetTimestamp i
 }
 
 //baseはlessの昇順
+//「以上」を返す（C++と同じ）
 func lowerBoundIsuConditionIndex(base []IsuCondition, end int, targetTimestamp int64, targetOwnerIsuUUID string) int {
 	//末尾の方にあることが分かっているので、末尾を固定要素ずつ線形探索 + 二分探索
 	//assert end <= len(base)
