@@ -477,6 +477,10 @@ func verifyGraph(
 		return errorInvalid(res, "要素数が正しくありません")
 	}
 
+	reqDate := time.Unix(getGraphReq.Date, 0)
+	startDate := truncateAfterHours(reqDate).Unix()
+	endDate := truncateAfterHours(reqDate.Add(24 * time.Hour)).Unix()
+
 	var lastStartAt int64
 	// getGraphResp を逆順 (timestamp が新しい順) にloop
 	for idxGraphResp := len(getGraphResp) - 1; idxGraphResp >= 0; idxGraphResp-- {
@@ -487,6 +491,11 @@ func verifyGraph(
 			return errorInvalid(res, "整列順が正しくありません")
 		}
 		lastStartAt = graphOne.StartAt
+
+		// graphのデータが指定日内のものか検証
+		if graphOne.StartAt < startDate || endDate < graphOne.EndAt {
+			return errorInvalid(res, "グラフの日付が間違っています")
+		}
 
 		targetIsu := targetUser.IsuListByID[targetIsuUUID]
 		var conditionsBaseOfScore []*model.IsuCondition
