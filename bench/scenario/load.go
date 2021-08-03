@@ -148,7 +148,9 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 				// poster で送ったものの同期
 				//user.GetConditionFromChan(ctx)
 				expected := user.IsuListOrderByCreatedAt
-				return verifyIsuOrderByCreatedAt(res, expected, isuList)
+
+				_, errs := s.verifyIsuList(res, expected, isuList)
+				return errs
 			},
 		)
 		for _, err := range errs {

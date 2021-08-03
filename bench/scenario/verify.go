@@ -104,29 +104,73 @@ func verifyIsuNotFound(res *http.Response, text string) error {
 
 //データ整合性チェック
 
-func verifyIsuOrderByCreatedAt(res *http.Response, expectedReverse []*model.Isu, isuList []*service.Isu) []error {
+// TODO: verifyIsuList に書き直す
+func (s *Scenario) verifyIsuList(res *http.Response, expectedReverse []*model.Isu, isuList []*service.Isu) (int, []error) {
 	errs := []error{}
+	var newConditionNum int
 	length := len(expectedReverse)
 	if length != len(isuList) {
 		errs = append(errs, errorMissmatch(res, "椅子の数が異なります"))
-		return errs
+		return 0, errs
 	}
 	for i, isu := range isuList {
-		exp := expectedReverse[length-1-i]
-		if exp.JIAIsuUUID == isu.JIAIsuUUID {
-			if exp.Character == isu.Character &&
-				exp.Name == isu.Name {
+		// isu.latest_isu_condition が nil &&  前回の latestIsuCondition の timestamp が初期値ならば
+		// この ISU はまだ poster から condition を受け取っていないため skip
+		if isu.LatestIsuCondition == nil && s.GetLatestConditionTimestampFromID(isu.ID) == 0 {
+			continue
+		}
+
+		expected := expectedReverse[length-1-i]
+
+		// isu の検証 (jia_isu_uuid)
+		if expected.JIAIsuUUID == isu.JIAIsuUUID {
+			// isu の検証 (character, name, image)
+			if expected.Character == isu.Character && expected.Name == isu.Name && expected.ImageHash == md5.Sum(isu.Icon) {
 				//TODO: iconの検証
 
+				// isu の検証 (latest_isu_condition)
+				if err := func() error {
+					expected.CondMutex.RLock()
+					defer expected.CondMutex.RUnlock()
+
+					baseIter := expected.Conditions.End(model.ConditionLevelInfo | model.ConditionLevelWarning | model.ConditionLevelCritical)
+					for {
+						expectedCondition := baseIter.Prev()
+						if expectedCondition == nil || expectedCondition.TimestampUnix < isu.LatestIsuCondition.Timestamp {
+							errs = append(errs, errorMissmatch(res, "%d番目の椅子 (ID=%s) の情報が異なります: POSTに成功していない時刻のデータが返されました", i+1, isu.JIAIsuUUID))
+							break
+						}
+
+						if expectedCondition.TimestampUnix == isu.LatestIsuCondition.Timestamp {
+							// timestamp 以外の要素を検証
+							if !(expected.JIAIsuUUID == isu.LatestIsuCondition.JIAIsuUUID &&
+								expected.Name == isu.LatestIsuCondition.IsuName &&
+								expectedCondition.IsSitting == isu.LatestIsuCondition.IsSitting &&
+								expectedCondition.ConditionString() == isu.LatestIsuCondition.Condition &&
+								expectedCondition.ConditionLevel.Equal(isu.LatestIsuCondition.ConditionLevel) &&
+								expectedCondition.Message == isu.LatestIsuCondition.Message) {
+								errs = append(errs, errorMissmatch(res, "%d番目の椅子 (ID=%s) の情報が異なります: latest_isu_conditionの内容が不正です", i+1, isu.JIAIsuUUID))
+							}
+							// もし前回の latestIsuCondition の timestamp と異なるならばカウンタをインクリメント && キャッシュを更新
+							if isu.LatestIsuCondition.Timestamp != s.GetLatestConditionTimestampFromID(isu.ID) {
+								s.SetLatestConditionTimestampFromID(isu.ID, isu.LatestIsuCondition.Timestamp)
+								newConditionNum++
+							}
+							break
+						}
+					}
+					return nil
+				}(); err != nil {
+					errs = append(errs, errorMissmatch(res, "%d番目の椅子 (ID=%s) の情報が異なります", i+1, isu.JIAIsuUUID))
+				}
 			} else {
-				errs = append(errs, errorMissmatch(res, "%d番目の椅子の情報が異なります: ID=%s", i+1, isu.JIAIsuUUID))
+				errs = append(errs, errorMissmatch(res, "%d番目の椅子 (ID=%s) の情報が異なります", i+1, isu.JIAIsuUUID))
 			}
 		} else {
-			errs = append(errs, errorMissmatch(res, "%d番目の椅子が異なります: ID=%s (expected=%s)", i+1, isu.JIAIsuUUID, exp.JIAIsuUUID))
+			errs = append(errs, errorMissmatch(res, "%d番目の椅子 (ID=%s) が異なります: expected: ID=%s", i+1, isu.JIAIsuUUID, expected.JIAIsuUUID))
 		}
 	}
-
-	return errs
+	return newConditionNum, errs
 }
 
 //mustExistUntil: この値以下のtimestampを持つものは全て反映されているべき
