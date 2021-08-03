@@ -491,7 +491,7 @@ func getIsuList(c echo.Context) error {
 
 		var formattedCondition *GetIsuConditionResponse
 		if foundLastCondition {
-			conditionLevel, err := calcConditionLevel(lastCondition.Condition)
+			conditionLevel, err := calculateConditionLevel(lastCondition.Condition)
 			if err != nil {
 				c.Logger().Errorf("failed to get condition level: %v", err)
 				return c.NoContent(http.StatusInternalServerError)
