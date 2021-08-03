@@ -1228,6 +1228,46 @@ func postIsuCondition(c echo.Context) error {
 	return c.NoContent(http.StatusCreated)
 }
 
+func isValidConditionFormat(conditionStr string) (bool, error) {
+
+	keys := []string{"is_dirty=", "is_overweigh=", "is_broken="}
+	const valueTrue = "true"
+	const valueFalse = "false"
+
+	idxCondStr := 0
+
+	for idxKeys, key := range keys {
+		if !strings.HasPrefix(conditionStr[idxCondStr:], key) {
+			return false, nil
+		}
+		idxCondStr += len(key)
+
+		if strings.HasPrefix(conditionStr[idxCondStr:], valueTrue) {
+			idxCondStr += len(valueTrue)
+		} else if strings.HasPrefix(conditionStr[idxCondStr:], valueFalse) {
+			idxCondStr += len(valueFalse)
+		} else {
+			return false, nil
+		}
+
+		if idxKeys == (len(keys) - 1) {
+			if idxCondStr == len(conditionStr) {
+				return true, nil
+			} else {
+				return false, nil
+			}
+		}
+
+		if conditionStr[idxCondStr] != ',' {
+			return false, nil
+		}
+		idxCondStr++
+	}
+
+	// どんなconditionStrでもここには到達しないはず
+	return false, fmt.Errorf("unexpected error")
+}
+
 //分以下を切り捨て、一時間単位にする関数
 func truncateAfterHours(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), 0, 0, 0, t.Location())
