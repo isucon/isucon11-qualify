@@ -36,7 +36,7 @@
 
 ### 2. ISUの登録とISUのコンディション送信処理
 
-**ユーザ**は、自分の大事なパートナーであるISUを、JIAが発行するISU固有のID(以下、ISU UUID)を使い、ISUCONDITIONに登録 (`POST /api/isu`) します。**ユーザ**は、ISUの登録を行うと、ISUの状態 (`GET /api/isu/:jia_isu_uuid`) やグラフとスコア (`GET /api/isu/:jia_isu_uuid/graph`) を見ることができるようになります。
+**ユーザ**は、自分の大事なパートナーであるISUを、JIAが発行するISU固有のID(以下、ISU UUID)を使い、ISUCONDITIONに登録 (`POST /api/isu`) します。**ユーザ**は、登録を行ったISUの、ISUの状態 (`GET /api/isu/:jia_isu_uuid`) やグラフとスコア (`GET /api/isu/:jia_isu_uuid/graph`) を見ることができます。
 
 **JIA**は、ISUCONDITIONからISU UUIDを受け取ることで、当該のISU UUIDを持つISUに対してISUCONDITIONへコンディション送信 (`POST /api/condition/:jia_isu_uuid`) を開始する指示をします。
 
