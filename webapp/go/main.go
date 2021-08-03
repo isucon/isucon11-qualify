@@ -661,7 +661,7 @@ func getIsu(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	lastCondition := IsuCondition{}
+	var lastCondition IsuCondition
 	foundLastCondition := true
 	err = tx.Get(&lastCondition, "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` DESC LIMIT 1",
 		isu.JIAIsuUUID)
@@ -680,7 +680,7 @@ func getIsu(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	var formatedCondition *GetIsuConditionResponse
+	var formattedCondition *GetIsuConditionResponse
 	if foundLastCondition {
 		conditionLevel, err := calcConditionLevel(lastCondition.Condition)
 		if err != nil {
@@ -688,7 +688,7 @@ func getIsu(c echo.Context) error {
 			return c.NoContent(http.StatusInternalServerError)
 		}
 
-		formatedCondition = &GetIsuConditionResponse{
+		formattedCondition = &GetIsuConditionResponse{
 			JIAIsuUUID:     lastCondition.JIAIsuUUID,
 			IsuName:        isu.Name,
 			Timestamp:      lastCondition.Timestamp.Unix(),
@@ -698,7 +698,7 @@ func getIsu(c echo.Context) error {
 			Message:        lastCondition.Message,
 		}
 	}
-	res := GetIsuResponse{Isu: isu, LatestIsuCondition: formatedCondition}
+	res := GetIsuResponse{Isu: isu, LatestIsuCondition: formattedCondition}
 	return c.JSON(http.StatusOK, res)
 }
 
@@ -870,7 +870,7 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 		}
 	}
 
-	var filteredDataPoints []GraphDataPointWithInfo
+	filteredDataPoints := []GraphDataPointWithInfo{}
 	if startIndex < endNextIndex {
 		filteredDataPoints = dataPoints[startIndex:endNextIndex]
 	}
@@ -912,7 +912,7 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 
 // 複数のISU conditionからグラフの一つのデータ点を計算
 func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, error) {
-	dataPoint := GraphDataPoint{}
+	var dataPoint GraphDataPoint
 
 	//sitting
 	sittingCount := 0
@@ -1012,7 +1012,7 @@ func getIsuConditions(c echo.Context) error {
 	}
 	//optional query param
 	startTimeStr := c.QueryParam("start_time")
-	startTime := time.Time{}
+	var startTime time.Time
 	if startTimeStr != "" {
 		startTimeInt64, err := strconv.ParseInt(startTimeStr, 10, 64)
 		if err != nil {
@@ -1158,7 +1158,7 @@ func postIsuCondition(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "missing: jia_isu_uuid")
 	}
 
-	var req []PostIsuConditionRequest
+	req := []PostIsuConditionRequest{}
 	err := c.Bind(&req)
 	if err != nil {
 		c.Logger().Errorf("bad request body: %v", err)
