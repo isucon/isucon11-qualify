@@ -52,6 +52,15 @@ type Scenario struct {
 	// GET trend にて isuID から isu を取得するのに利用
 	isuFromID      map[int]*model.Isu
 	isuFromIDMutex sync.RWMutex
+
+	// GET trend にて既に確認したconditionを格納するのに利用
+	verifiedConditionsInTrend      map[isuIDAndConditionTimestamp]struct{}
+	verifiedConditionsInTrendMutex sync.RWMutex
+}
+
+type isuIDAndConditionTimestamp struct {
+	IsuID              int
+	ConditionTimestamp int64
 }
 
 var (
@@ -62,13 +71,14 @@ func NewScenario(jiaServiceURL *url.URL, loadTimeout time.Duration) (*Scenario, 
 	return &Scenario{
 		// TODO: シナリオを初期化する
 		//realTimeStart: time.Now()
-		LoadTimeout:       loadTimeout,
-		virtualTimeStart:  random.BaseTime, //初期データ生成時のベースタイムと合わせるために当パッケージの値を利用
-		virtualTimeMulti:  30000,           //5分=300秒に一回 => 1秒に100回
-		jiaServiceURL:     jiaServiceURL,
-		initializeTimeout: 20 * time.Second,
-		normalUsers:       []*model.User{},
-		isuFromID:         make(map[int]*model.Isu, 8192),
+		LoadTimeout:               loadTimeout,
+		virtualTimeStart:          random.BaseTime, //初期データ生成時のベースタイムと合わせるために当パッケージの値を利用
+		virtualTimeMulti:          30000,           //5分=300秒に一回 => 1秒に100回
+		jiaServiceURL:             jiaServiceURL,
+		initializeTimeout:         20 * time.Second,
+		normalUsers:               []*model.User{},
+		isuFromID:                 make(map[int]*model.Isu, 8192),
+		verifiedConditionsInTrend: make(map[isuIDAndConditionTimestamp]struct{}, 8192),
 	}, nil
 }
 
@@ -239,4 +249,17 @@ func (s *Scenario) GetIsuFromID(id int) (*model.Isu, bool) {
 	defer s.isuFromIDMutex.RUnlock()
 	isu, ok := s.isuFromID[id]
 	return isu, ok
+}
+
+func (s *Scenario) SetVerifiedCondition(id int, timestamp int64) {
+	s.verifiedConditionsInTrendMutex.Lock()
+	defer s.verifiedConditionsInTrendMutex.Unlock()
+	s.verifiedConditionsInTrend[isuIDAndConditionTimestamp{id, timestamp}] = struct{}{}
+}
+
+func (s *Scenario) ConditionAlreadyVerified(id int, timestamp int64) bool {
+	s.verifiedConditionsInTrendMutex.RLock()
+	defer s.verifiedConditionsInTrendMutex.RUnlock()
+	_, exist := s.verifiedConditionsInTrend[isuIDAndConditionTimestamp{id, timestamp}]
+	return exist
 }

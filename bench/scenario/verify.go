@@ -570,18 +570,20 @@ func verifyGraph(
 func (s *Scenario) verifyTrend(
 	ctx context.Context, res *http.Response,
 	trendResp service.GetTrendResponse,
-) error {
+) (int, error) {
 
 	// レスポンスの要素にある ISU の性格を格納するための set
 	var characterSet model.IsuCharacterSet
 	// レスポンスの要素にある ISU の ID を格納するための set
 	isuIDSet := make(map[int]struct{}, 8192)
+	// 新規 conditions の数を取得
+	var newConditionNum int
 
 	for _, trendOne := range trendResp {
 
 		character, err := model.NewIsuCharacter(trendOne.Character)
 		if err != nil {
-			return errorInvalid(res, err.Error())
+			return 0, errorInvalid(res, err.Error())
 		}
 		characterSet = characterSet.Append(character)
 
@@ -590,14 +592,14 @@ func (s *Scenario) verifyTrend(
 
 			// conditions が新しい順にソートされていることの検証
 			if idx != 0 && !(condition.Timestamp <= lastConditionTimestamp) {
-				return errorInvalid(res, "整列順が正しくありません")
+				return 0, errorInvalid(res, "整列順が正しくありません")
 			}
 			lastConditionTimestamp = condition.Timestamp
 
 			// condition.ID から isu を取得する
 			isu, ok := s.GetIsuFromID(condition.IsuID)
 			if !ok {
-				return errorMissmatch(res, "condition.isu_id に紐づく ISU が存在しません")
+				return 0, errorMissmatch(res, "condition.isu_id に紐づく ISU が存在しません")
 			}
 
 			if err := func() error {
@@ -624,26 +626,33 @@ func (s *Scenario) verifyTrend(
 							return errorMissmatch(res, "同じ ISU のコンディションが複数登録されています")
 						}
 						isuIDSet[condition.IsuID] = struct{}{}
+
+						// 該当 condition が新規のものである場合はカウンタをインクリメント && キャッシュを更新
+						if !s.ConditionAlreadyVerified(condition.IsuID, condition.Timestamp) {
+							newConditionNum += 1
+							s.SetVerifiedCondition(condition.IsuID, condition.Timestamp)
+						}
+
 						break
 					}
 				}
 				return nil
 			}(); err != nil {
-				return err
+				return 0, err
 			}
 		}
 	}
 	// characterSet の検証
 	if !characterSet.IsFull() {
-		return errorInvalid(res, "全ての性格のトレンドが取得できていません")
+		return 0, errorInvalid(res, "全ての性格のトレンドが取得できていません")
 	}
 	// isuIDSet の検証
 	for isuID := range isuIDSet {
 		if _, exist := s.GetIsuFromID(isuID); !exist {
-			return errorInvalid(res, "POSTに成功していない時刻のデータが返されました")
+			return 0, errorInvalid(res, "POSTに成功していない時刻のデータが返されました")
 		}
 	}
-	return nil
+	return newConditionNum, nil
 }
 
 //分以下を切り捨て、一時間単位にする関数
