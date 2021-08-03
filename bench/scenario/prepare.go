@@ -626,7 +626,8 @@ func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model
 		if lastCond == nil {
 			continue
 		}
-		graph, res, err := getIsuGraphAction(ctx, loginUser.Agent, isu.JIAIsuUUID, service.GetGraphRequest{Date: lastCond.TimestampUnix})
+		req := service.GetGraphRequest{Date: lastCond.TimestampUnix}
+		graph, res, err := getIsuGraphAction(ctx, loginUser.Agent, isu.JIAIsuUUID, req)
 		if err != nil {
 			step.AddError(err)
 			return
@@ -636,14 +637,15 @@ func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model
 			return
 		}
 		// graphの検証
-		if err := verifyPrepareGraph(res, loginUser, isu.JIAIsuUUID, graph); err != nil {
+		if err := verifyPrepareGraph(res, loginUser, isu.JIAIsuUUID, &req, graph); err != nil {
 			step.AddError(err)
 			return
 		}
 
 		// 前日分も検証
 		yesterday := time.Unix(lastCond.TimestampUnix, 0).Add(-24 * time.Hour).Unix()
-		graph, res, err = getIsuGraphAction(ctx, loginUser.Agent, isu.JIAIsuUUID, service.GetGraphRequest{Date: yesterday})
+		req = service.GetGraphRequest{Date: yesterday}
+		graph, res, err = getIsuGraphAction(ctx, loginUser.Agent, isu.JIAIsuUUID, req)
 		if err != nil {
 			step.AddError(err)
 			return
@@ -653,7 +655,7 @@ func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model
 			return
 		}
 		// graphの検証
-		if err := verifyPrepareGraph(res, loginUser, isu.JIAIsuUUID, graph); err != nil {
+		if err := verifyPrepareGraph(res, loginUser, isu.JIAIsuUUID, &req, graph); err != nil {
 			step.AddError(err)
 			return
 		}

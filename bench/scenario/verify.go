@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/isucon/isucandar/agent"
 	"github.com/isucon/isucandar/failure"
@@ -636,13 +637,23 @@ func (s *Scenario) verifyTrend(
 	return nil
 }
 
+// 日単位にする関数
+func truncateAfterHours(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), 0, 0, 0, t.Location())
+}
+
 func verifyPrepareGraph(res *http.Response, targetUser *model.User, targetIsuUUID string,
+	getGraphReq *service.GetGraphRequest,
 	getGraphResp service.GraphResponse) error {
 
 	// graphResp の配列は必ず 24 つ (24時間分) である
 	if len(getGraphResp) != 24 {
 		return errorInvalid(res, "要素数が正しくありません")
 	}
+
+	reqDate := time.Unix(getGraphReq.Date, 0)
+	startDate := truncateAfterHours(reqDate).Unix()
+	endDate := truncateAfterHours(reqDate.Add(24 * time.Hour)).Unix()
 
 	var lastStartAt int64
 	// getGraphResp を逆順 (timestamp が新しい順) にloop
@@ -654,6 +665,11 @@ func verifyPrepareGraph(res *http.Response, targetUser *model.User, targetIsuUUI
 			return errorInvalid(res, "整列順が正しくありません")
 		}
 		lastStartAt = graphOne.StartAt
+
+		// graphのデータが指定日内のものか検証
+		if graphOne.StartAt < startDate || endDate < graphOne.EndAt {
+			return errorInvalid(res, "グラフの日付が間違っています")
+		}
 
 		targetIsu := targetUser.IsuListByID[targetIsuUUID]
 		var conditionsBaseOfScore []*model.IsuCondition
