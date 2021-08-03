@@ -3,10 +3,12 @@ package scenario
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/isucon/isucon11-qualify/bench/logger"
-	"github.com/isucon/isucon11-qualify/bench/model"
 	"io/ioutil"
 	"sort"
+
+	"github.com/isucon/isucon11-qualify/bench/logger"
+	"github.com/isucon/isucon11-qualify/bench/model"
+	"github.com/isucon/isucon11-qualify/bench/random"
 )
 
 func (s *Scenario) InitializeData() {
@@ -55,6 +57,11 @@ func (s *Scenario) InitializeData() {
 
 		user.Type = model.UserTypeNormal
 		s.normalUsers = append(s.normalUsers, &user)
+	}
+
+	//初期データを登録
+	for _, u := range s.normalUsers {
+		random.SetGeneratedUser(u.UserID)
 	}
 
 	//for debug
