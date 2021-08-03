@@ -18,25 +18,31 @@ func init() {
 // 108 * 237 通りのユーザ名を重複なしで返す
 func UserName() string {
 	var username string
+	retry := 0
 	// NOTE: bench内から呼び出す処理で log.Fatalf して欲しくないので、無限ループする
 	for {
-		username = namesgenerator.GetRandomName(0)
-		if !hasAlreadyGenerated(username) {
+		username = namesgenerator.GetRandomName(retry)
+		if reserveName(username) {
 			break
 		}
+		retry++
 	}
-	setGeneratedUser(username)
 	return username
 }
 
-func hasAlreadyGenerated(username string) bool {
+//成功でtrue
+func reserveName(username string) bool {
 	mu.Lock()
 	defer mu.Unlock()
 	_, exists := generatedUser[username]
-	return exists
+	if exists {
+		return false
+	}
+	generatedUser[username] = struct{}{}
+	return true
 }
 
-func setGeneratedUser(username string) {
+func SetGeneratedUser(username string) {
 	mu.Lock()
 	defer mu.Unlock()
 	generatedUser[username] = struct{}{}
