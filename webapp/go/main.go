@@ -936,6 +936,7 @@ func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, erro
 			if _, ok := conditionsCount[conditionName]; ok {
 				if keyValue[1] == "true" {
 					conditionsCount[conditionName] += 1
+					badConditionsCount++
 				}
 			}
 		}
