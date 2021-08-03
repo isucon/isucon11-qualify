@@ -25,3 +25,5 @@ const OneDay = 24 * 60 * 60
 
 // GET /api/isu/:id/condition の
 const ConditionPagingStep = 10
+
+const SignoutPercentage = 20

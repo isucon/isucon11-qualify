@@ -170,6 +170,12 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 		} else {
 			s.requestGraphScenario(ctx, step, user, targetIsu, randEngine)
 		}
+
+		// たまに signoutScenario に入る
+		if randEngine.Intn(100) < SignoutPercentage {
+			signoutScenario(ctx, step, user)
+		}
+
 		// 次のシナリオに
 		nextScenarioIndex += 1
 	}
@@ -200,7 +206,7 @@ func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep
 		default:
 		}
 		logger.AdminLogger.Println("viewer load")
-	
+
 		// trends, err := getTrendAction()
 		// updatedTimestampCount, err := verifyTrend(trends)
 	}
@@ -416,7 +422,7 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 
 		// ConditionPagingStep ページごとに現状の condition をスコアリング
 		pagingCount++
-		if pagingCount % ConditionPagingStep == 0 {
+		if pagingCount%ConditionPagingStep == 0 {
 			for _, cond := range conditions {
 				addConditionScoreTag(cond, step)
 			}
@@ -676,4 +682,28 @@ func findBadIsuState(conditions []*service.GetIsuConditionResponse) (model.IsuSt
 	}
 
 	return solveCondition, virtualTimestamp
+}
+
+// 確率で signout して再度ログインするシナリオ。全てのシナリオの最後に確率で発生する
+func signoutScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User) {
+	_, err := signoutAction(ctx, user.Agent)
+	if err != nil {
+		addErrorWithContext(ctx, step, err)
+		// MEMO: ここで実は signout に成功していました、みたいな状況だと以降のこのユーザーループが死ぬがそれはユーザー責任とする
+		return
+	}
+	authInfinityRetry(ctx, user.Agent, user.UserID, step)
+}
+
+func authInfinityRetry(ctx context.Context, a *agent.Agent, userID string, step *isucandar.BenchmarkStep) {
+	for {
+		_, errs := authAction(ctx, a, userID)
+		if len(errs) > 0 {
+			for _, err := range errs {
+				addErrorWithContext(ctx, step, err)
+			}
+			continue
+		}
+		return
+	}
 }
