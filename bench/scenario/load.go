@@ -200,7 +200,7 @@ func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep
 		default:
 		}
 		logger.AdminLogger.Println("viewer load")
-	
+
 		// trends, err := getTrendAction()
 		// updatedTimestampCount, err := verifyTrend(trends)
 	}
@@ -230,7 +230,6 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 	isuCount := isuCountRandEngine.Intn(isuCountMax) + 1
 	for i := 0; i < isuCount; i++ {
 		isu := s.NewIsu(ctx, step, user, true, nil)
-		// TODO: retry
 		if isu == nil {
 			user.CloseAllIsuStateChan()
 			return nil
@@ -416,7 +415,7 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 
 		// ConditionPagingStep ページごとに現状の condition をスコアリング
 		pagingCount++
-		if pagingCount % ConditionPagingStep == 0 {
+		if pagingCount%ConditionPagingStep == 0 {
 			for _, cond := range conditions {
 				addConditionScoreTag(cond, step)
 			}
@@ -676,4 +675,15 @@ func findBadIsuState(conditions []*service.GetIsuConditionResponse) (model.IsuSt
 	}
 
 	return solveCondition, virtualTimestamp
+}
+
+func postIsuInfinityRetry(ctx context.Context, a *agent.Agent, req service.PostIsuRequest, step *isucandar.BenchmarkStep) (*service.Isu, *http.Response) {
+	for {
+		isu, res, err := postIsuAction(ctx, a, req)
+		if err != nil {
+			addErrorWithContext(ctx, step, err)
+			continue
+		}
+		return isu, res
+	}
 }

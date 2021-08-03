@@ -43,8 +43,8 @@ type Scenario struct {
 	jiaCancel     context.CancelFunc
 
 	//内部状態
-	normalUsersMtx  sync.Mutex
-	normalUsers     []*model.User
+	normalUsersMtx sync.Mutex
+	normalUsers    []*model.User
 
 	// TODO: ユーザーを増やすロジックを書いたときに必要性を再度考える
 	viewerMtx sync.Mutex
@@ -153,12 +153,7 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 		req.Img = img.Img
 		isu.SetImage(req.Img)
 	}
-	isuResponse, res, err := postIsuAction(ctx, owner.Agent, req) //TODO:画像
-	// TODO: err のとき retry
-	if err != nil {
-		step.AddError(err)
-		return nil
-	}
+	isuResponse, res := postIsuInfinityRetry(ctx, owner.Agent, req, step) //TODO:画像
 	// TODO: これは validate でやるべきなきがする
 	if isuResponse.JIAIsuUUID != isu.JIAIsuUUID ||
 		isuResponse.Name != isu.Name ||
