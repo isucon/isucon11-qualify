@@ -65,7 +65,7 @@ ISUCONDITIONは、ISUから送信されるコンディション (`POST /api/cond
 
 #### 4.3. 状態の悪いISUの修理
 
-ユーザは、状態の悪いISUのコンディションを確認 (`GET /api/condition/:jia_isu_uuid?condition_level=critical,warnin`) 後、状態の悪いISUがあった場合にISUの状態改善を行います。状態の改善は瞬時に完了します。
+**ユーザ**は、ISUのコンディションを確認後、状態の悪いISUがあった場合にISUの状態改善を行います。
 
 ユーザにより状態改善が行われたISUは、次のコンディション送信からは改善されたコンディションを送信します。
 
