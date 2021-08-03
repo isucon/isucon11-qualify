@@ -108,11 +108,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 			conditions = append(conditions, condition)
 			conditionsReq = append(conditionsReq, service.PostIsuConditionRequest{
 				IsSitting: condition.IsSitting,
-				Condition: fmt.Sprintf("is_dirty=%v,is_overweight=%v,is_broken=%v",
-					condition.IsDirty,
-					condition.IsOverweight,
-					condition.IsBroken,
-				),
+				Condition: condition.ConditionString(),
 				Message:   condition.Message,
 				Timestamp: condition.TimestampUnix,
 			})
