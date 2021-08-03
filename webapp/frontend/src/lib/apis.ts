@@ -69,7 +69,7 @@ class Apis {
     axiosConfig?: AxiosRequestConfig
   ) {
     const params: ApiGraphRequest = {
-      date: dateToTimestamp(req.date)
+      datetime: dateToTimestamp(req.date)
     }
     const { data } = await axios.get<ApiGraph[]>(
       `/api/isu/${jiaIsuUuid}/graph`,
@@ -150,6 +150,7 @@ interface ApiGraph {
   start_at: number
   end_at: number
   data: GraphData | null
+  condition_timestamps: number[]
 }
 
 export interface Graph {
@@ -157,6 +158,7 @@ export interface Graph {
   start_at: Date
   end_at: Date
   data: GraphData | null
+  condition_timestamps: number[]
 }
 
 export interface IsuSearchRequest {
@@ -214,7 +216,7 @@ export interface ConditionRequest {
 }
 
 interface ApiGraphRequest {
-  date: number
+  datetime: number
 }
 
 export interface GraphRequest {
