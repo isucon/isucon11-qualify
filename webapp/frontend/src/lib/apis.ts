@@ -98,7 +98,7 @@ class Apis {
     const params: ApiConditionRequest = {
       ...req,
       start_time: req.start_time ? dateToTimestamp(req.start_time) : undefined,
-      cursor_end_time: dateToTimestamp(req.cursor_end_time)
+      end_time: dateToTimestamp(req.end_time)
     }
     const { data } = await axios.get<ApiCondition[]>(
       `/api/condition/${jiaIsuUuid}`,
@@ -201,16 +201,14 @@ type ConditionLevel = 'info' | 'warning' | 'critical'
 
 interface ApiConditionRequest {
   start_time?: number
-  cursor_end_time: number
-  cursor_jia_isu_uuid: string
+  end_time: number
   // critical,warning,info をカンマ区切りで取り扱う
   condition_level: string
 }
 
 export interface ConditionRequest {
   start_time?: Date
-  cursor_end_time: Date
-  cursor_jia_isu_uuid: string
+  end_time: Date
   // critical,warning,info をカンマ区切りで取り扱う
   condition_level: string
 }
