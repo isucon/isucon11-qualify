@@ -1193,12 +1193,7 @@ func postIsuCondition(c echo.Context) error {
 		// parse
 		timestamp := time.Unix(cond.Timestamp, 0)
 
-		isValid, err := isValidConditionFormat(cond.Condition)
-		if err != nil {
-			c.Logger().Errorf("failed to check condition format: %v", err)
-			return c.NoContent(http.StatusInternalServerError)
-		}
-		if !isValid {
+		if !isValidConditionFormat(cond.Condition) {
 			c.Logger().Errorf("bad request body")
 			return c.String(http.StatusBadRequest, "bad request body")
 		}
@@ -1227,7 +1222,7 @@ func postIsuCondition(c echo.Context) error {
 }
 
 // conditionの文字列がcsv形式になっているか検証
-func isValidConditionFormat(conditionStr string) (bool, error) {
+func isValidConditionFormat(conditionStr string) bool {
 
 	keys := []string{"is_dirty=", "is_overweight=", "is_broken="}
 	const valueTrue = "true"
@@ -1237,7 +1232,7 @@ func isValidConditionFormat(conditionStr string) (bool, error) {
 
 	for idxKeys, key := range keys {
 		if !strings.HasPrefix(conditionStr[idxCondStr:], key) {
-			return false, nil
+			return false
 		}
 		idxCondStr += len(key)
 
@@ -1246,25 +1241,18 @@ func isValidConditionFormat(conditionStr string) (bool, error) {
 		} else if strings.HasPrefix(conditionStr[idxCondStr:], valueFalse) {
 			idxCondStr += len(valueFalse)
 		} else {
-			return false, nil
+			return false
 		}
 
-		if idxKeys == (len(keys) - 1) {
-			if idxCondStr == len(conditionStr) {
-				return true, nil
-			} else {
-				return false, nil
+		if idxKeys < (len(keys) - 1) {
+			if conditionStr[idxCondStr] != ',' {
+				return false
 			}
+			idxCondStr++
 		}
-
-		if conditionStr[idxCondStr] != ',' {
-			return false, nil
-		}
-		idxCondStr++
 	}
 
-	// どんなconditionStrでもここには到達しないはず
-	return false, fmt.Errorf("unexpected error")
+	return (idxCondStr == len(conditionStr))
 }
 
 //分以下を切り捨て、一時間単位にする関数
