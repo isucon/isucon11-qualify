@@ -34,9 +34,10 @@ RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSI
 
 RUN ln -sf /usr/share/zoneinfo/Asia/Tokyo /etc/localtime
 
-COPY webapp/php/composer.json .
-COPY webapp/php/composer.lock .
+COPY webapp/php/ .
+COPY --from=frontend /public /webapp/public
 
 RUN composer install
 
-COPY --from=frontend /public /webapp/public
+ENTRYPOINT ["dockerize", "-wait=tcp://mysql-backend:3306", "-timeout=60s"]
+CMD ["php", "-S", "0.0.0.0:3000", "-t", "public", "public/index.php"]

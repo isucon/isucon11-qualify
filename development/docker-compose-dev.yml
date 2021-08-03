@@ -50,7 +50,7 @@ services:
     volumes:
       - "../webapp/php:/webapp/php"
       - "../webapp/ec256-public.pem:/webapp/ec256-public.pem"
-      - "../webapp/NoImage.png:/webapp/NoImage.png"
+      - "../webapp/NoImage.jpg:/webapp/NoImage.jpg"
       # SQLs
       - "../webapp/sql/init.sh:/webapp/sql/init.sh"
       - "../webapp/sql/0_Schema.sql:/webapp/sql/0_Schema.sql"
