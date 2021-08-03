@@ -253,7 +253,6 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 
 	for i := 0; i < isuCount; i++ {
 		isu := s.NewIsu(ctx, step, user, true, nil)
-		// TODO: retry
 		if isu == nil {
 			user.CloseAllIsuStateChan()
 			return nil
@@ -286,7 +285,7 @@ func (s *Scenario) requestNewConditionScenario(ctx context.Context, step *isucan
 	nowVirtualTime := s.ToVirtualTime(time.Now())
 	request := service.GetIsuConditionRequest{
 		StartTime:      nil,
-		EndTime:  nowVirtualTime.Unix(),
+		EndTime:        nowVirtualTime.Unix(),
 		ConditionLevel: "info,warning,critical",
 		Limit:          nil,
 	}
@@ -321,7 +320,7 @@ func (s *Scenario) requestLastBadConditionScenario(ctx context.Context, step *is
 	nowVirtualTime := s.ToVirtualTime(time.Now())
 	request := service.GetIsuConditionRequest{
 		StartTime:      nil,
-		EndTime:  nowVirtualTime.Unix(),
+		EndTime:        nowVirtualTime.Unix(),
 		ConditionLevel: "warning,critical",
 		Limit:          nil,
 	}
@@ -432,7 +431,7 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 	for {
 		request = service.GetIsuConditionRequest{
 			StartTime:      request.StartTime,
-			EndTime:  conditions[len(conditions)-1].Timestamp,
+			EndTime:        conditions[len(conditions)-1].Timestamp,
 			ConditionLevel: request.ConditionLevel,
 			Limit:          request.Limit,
 		}
@@ -539,7 +538,7 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 		checkHour := getCheckHour(*nowViewingGraph, randEngine)
 		request := service.GetIsuConditionRequest{
 			StartTime:      &(*nowViewingGraph)[checkHour].StartAt,
-			EndTime:  (*nowViewingGraph)[checkHour].EndAt,
+			EndTime:        (*nowViewingGraph)[checkHour].EndAt,
 			ConditionLevel: "info,warning,critical",
 		}
 		conditions, hres, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
@@ -699,4 +698,15 @@ func findBadIsuState(conditions []*service.GetIsuConditionResponse) (model.IsuSt
 	}
 
 	return solveCondition, virtualTimestamp
+}
+
+func postIsuInfinityRetry(ctx context.Context, a *agent.Agent, req service.PostIsuRequest, step *isucandar.BenchmarkStep) (*service.Isu, *http.Response) {
+	for {
+		isu, res, err := postIsuAction(ctx, a, req)
+		if err != nil {
+			addErrorWithContext(ctx, step, err)
+			continue
+		}
+		return isu, res
+	}
 }

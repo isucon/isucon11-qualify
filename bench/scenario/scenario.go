@@ -161,12 +161,7 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 		req.Img = img.Img
 		isu.SetImage(req.Img)
 	}
-	isuResponse, res, err := postIsuAction(ctx, owner.Agent, req) //TODO:画像
-	// TODO: err のとき retry
-	if err != nil {
-		step.AddError(err)
-		return nil
-	}
+	isuResponse, res := postIsuInfinityRetry(ctx, owner.Agent, req, step) //TODO:画像
 	// TODO: これは validate でやるべきなきがする
 	if isuResponse.JIAIsuUUID != isu.JIAIsuUUID ||
 		isuResponse.Name != isu.Name ||
