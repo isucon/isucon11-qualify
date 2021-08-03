@@ -926,11 +926,9 @@ func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, erro
 			keyValue := strings.Split(condStr, "=")
 
 			conditionName := keyValue[0]
-			if _, ok := conditionsCount[conditionName]; ok {
-				if keyValue[1] == "true" {
-					conditionsCount[conditionName] += 1
-					badConditionsCount++
-				}
+			if keyValue[1] == "true" {
+				conditionsCount[conditionName] += 1
+				badConditionsCount++
 			}
 		}
 
