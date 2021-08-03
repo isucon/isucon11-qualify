@@ -206,15 +206,18 @@ func GetConditionDataExistTimestamp(s *Scenario, user *model.User) int64 {
 	}
 	var timestamp int64 = math.MaxInt64
 	for _, isu := range user.IsuListOrderByCreatedAt {
+
+		// condition の read lock を取得
 		isu.CondMutex.RLock()
 		cond := isu.Conditions.Back()
-		isu.CondMutex.RUnlock()
 		if cond == nil {
 			return s.virtualTimeStart.Unix()
 		}
 		if cond.TimestampUnix < timestamp {
 			timestamp = cond.TimestampUnix
 		}
+		isu.CondMutex.RUnlock()
+
 	}
 	return timestamp
 }
