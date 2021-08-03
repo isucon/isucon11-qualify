@@ -45,3 +45,17 @@ func (m *IsuConditionPosterManager) StopPosting(targetIp string, targetPort int,
 	}
 	return nil
 }
+
+func (m *IsuConditionPosterManager) StopPostingAll() error {
+	m.activatedIsuMtx.Lock()
+	defer m.activatedIsuMtx.Unlock()
+
+	for key := range m.activatedIsu {
+		isu, ok := m.activatedIsu[key]
+		if ok {
+			isu.StopPosting()
+			delete(m.activatedIsu, key)
+		}
+	}
+	return nil
+}

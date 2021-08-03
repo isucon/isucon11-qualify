@@ -43,6 +43,7 @@ func main() {
 	e.GET("/api/catalog/:catalog_id", catalogController.GetCatalog)
 	e.POST("/api/activate", activationController.PostActivate)
 	e.POST("/api/deactivate", activationController.PostDeactivate)
+	e.GET("/api/stop_all", activationController.GetStopAll)
 	e.POST("/api/die", func(ctx echo.Context) error {
 		input := &struct {
 			Password string `json:"password" validate:"required"`

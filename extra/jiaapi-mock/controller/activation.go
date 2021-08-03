@@ -131,6 +131,18 @@ func (c *ActivationController) PostDeactivate(ctx echo.Context) error {
 	return ctx.NoContent(http.StatusNoContent)
 }
 
+func (c *ActivationController) GetStopAll(ctx echo.Context) error {
+	fmt.Println("hello!!! from get test")
+
+	err := c.isuConditionPosterManager.StopPostingAll()
+	if err != nil {
+		ctx.Logger().Errorf("failed to stopPostingAll: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+
+	return ctx.String(http.StatusOK, "ok")
+}
+
 func isPrivateIP(ipstr string) bool {
 
 	ipAddr, err := net.ResolveIPAddr("ip", ipstr)
