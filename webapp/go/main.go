@@ -31,7 +31,6 @@ import (
 const (
 	sessionName               = "isucondition"
 	conditionLimit            = 20
-	isuListLimit              = 200
 	frontendContentsPath      = "../public"
 	jwtVerificationKeyPath    = "../ec256-public.pem"
 	defaultIconFilePath       = "../NoImage.jpg"
@@ -491,7 +490,7 @@ func getIsuList(c echo.Context) error {
 
 		var formattedCondition *GetIsuConditionResponse
 		if foundLastCondition {
-			conditionLevel, err := calcConditionLevel(lastCondition.Condition)
+			conditionLevel, err := calculateConditionLevel(lastCondition.Condition)
 			if err != nil {
 				c.Logger().Errorf("failed to get condition level: %v", err)
 				return c.NoContent(http.StatusInternalServerError)
@@ -1054,7 +1053,7 @@ func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, cursorEndTime time.T
 	//condition_levelでの絞り込み
 	conditionsResponse := []*GetIsuConditionResponse{}
 	for _, c := range conditions {
-		cLevel, err := calcConditionLevel(c.Condition)
+		cLevel, err := calculateConditionLevel(c.Condition)
 		if err != nil {
 			continue
 		}
@@ -1083,7 +1082,7 @@ func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, cursorEndTime time.T
 }
 
 // conditionのcsvからcondition levelを計算
-func calcConditionLevel(condition string) (string, error) {
+func calculateConditionLevel(condition string) (string, error) {
 	var conditionLevel string
 
 	warnCount := strings.Count(condition, "=true")
@@ -1227,7 +1226,7 @@ func getTrend(c echo.Context) error {
 
 			if len(conditions) > 0 {
 				isuLastCondition := conditions[0]
-				conditionLevel, err := calcConditionLevel(isuLastCondition.Condition)
+				conditionLevel, err := calculateConditionLevel(isuLastCondition.Condition)
 				if err != nil {
 					c.Logger().Errorf("failed to get condition level: %v", err)
 					return c.NoContent(http.StatusInternalServerError)
