@@ -1226,6 +1226,7 @@ func postIsuCondition(c echo.Context) error {
 	return c.NoContent(http.StatusCreated)
 }
 
+// conditionの文字列がcsv形式になっているか検証
 func isValidConditionFormat(conditionStr string) (bool, error) {
 
 	keys := []string{"is_dirty=", "is_overweigh=", "is_broken="}
