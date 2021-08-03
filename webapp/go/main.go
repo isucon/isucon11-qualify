@@ -100,11 +100,6 @@ type IsuCondition struct {
 	CreatedAt  time.Time `db:"created_at"`
 }
 
-type User struct {
-	JIAUserID string    `db:"jia_user_id"`
-	CreatedAt time.Time `db:"created_at"`
-}
-
 type MySQLConnectionEnv struct {
 	Host     string
 	Port     string
