@@ -106,7 +106,7 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 	return nil
 }
 
-//エンドポイント事の単体テスト
+//エンドポイント毎の単体テスト
 func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.BenchmarkStep) error {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
@@ -122,14 +122,8 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	}
 	noIsuUser := s.NewUser(ctx, step, noIsuAgent, model.UserTypeNormal)
 
-	// TODO: 初期データから適当に選択してるが、テスト用に想定どおりの値をもつinitialdataを生成する必要がありそう
-	var randomUser *model.User
-	for {
-		randomUser = s.normalUsers[0]
-		if len(randomUser.IsuListOrderByCreatedAt) >= 2 {
-			break
-		}
-	}
+	// 初期データで生成しているisuconユーザを利用
+	randomUser := s.normalUsers[0]
 
 	agt, err := s.NewAgent()
 	if err != nil {
@@ -145,14 +139,15 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	s.prepareCheckPostSignout(ctx, step)
 	s.prepareCheckGetMe(ctx, randomUser, guestAgent, step)
 	s.prepareCheckGetIsuList(ctx, randomUser, noIsuUser, guestAgent, step)
-	s.prepareCheckPostIsu(ctx, randomUser, noIsuUser, guestAgent, step)
 	s.prepareCheckGetIsu(ctx, randomUser, noIsuUser, guestAgent, step)
 	s.prepareCheckGetIsuIcon(ctx, randomUser, noIsuUser, guestAgent, step)
 	s.prepareCheckGetIsuGraph(ctx, randomUser, noIsuUser, guestAgent, step)
 	s.prepareCheckGetIsuConditions(ctx, randomUser, noIsuUser, guestAgent, step)
-	// TODO: 確率で失敗するようになったので一旦prepareCheckを行わないようにする。方針決まり次第消すか復活させるかする
-	//s.prepareCheckPostIsuCondition(ctx, loginUser, noIsuUser, guestAgent, step)
 
+	// MEMO: postIsuConditionのprepareチェックは確率で失敗して安定しないため、prepareステップでは行わない
+
+	// ユーザのISUが増えるので他の検証終わった後に実行
+	s.prepareCheckPostIsu(ctx, randomUser, noIsuUser, guestAgent, step)
 	return nil
 }
 
@@ -294,22 +289,28 @@ func (s *Scenario) prepareCheckGetIsuList(ctx context.Context, loginUser *model.
 	}
 
 	// check: 登録したISUがlimit分取得できる
-	// TODO: 2個以上の椅子をもたせる
-	size := len(loginUser.IsuListOrderByCreatedAt)
-	isu2 := loginUser.IsuListOrderByCreatedAt[size-2]
-	isu3 := loginUser.IsuListOrderByCreatedAt[size-1]
+	isu1 := loginUser.IsuListOrderByCreatedAt[0]
+	isu2 := loginUser.IsuListOrderByCreatedAt[1]
+	expected := []*model.Isu{isu2, isu1}
 	isuList, res, err = getIsuAction(ctx, loginUser.Agent, 2)
 	if err != nil {
 		step.AddError(err)
 		return
 	}
-	//expected
-	sIsu2 := isu2.ToService()
-	sIsu3 := isu3.ToService()
-	expected := []*service.Isu{sIsu3, sIsu2}
-	if !reflect.DeepEqual(isuList, expected) {
-		step.AddError(errorInvalid(res, "ユーザの所持する椅子の数や順番が一致しません。"))
+
+	// verify
+	if len(expected) != len(isuList) {
+		step.AddError(errorInvalid(res, "ユーザの所持する椅子の数が一致しません。"))
 		return
+	}
+	for i, isu := range expected {
+		if isuList[i].JIAIsuUUID != isu.JIAIsuUUID ||
+			isuList[i].Name != isu.Name ||
+			isuList[i].Character != isu.Character ||
+			isuList[i].ID != isu.ID {
+			step.AddError(errorInvalid(res, "ユーザの所持する椅子や順番が一致しません。"))
+			return
+		}
 	}
 
 	// check: サインインしてない状態で取得
@@ -652,7 +653,7 @@ func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model
 	//ISUグラフの取得 e.GET("/api/isu/:jia_isu_uuid/graph", getIsuGraph)
 	// check: 正常系
 	for _, isu := range loginUser.IsuListOrderByCreatedAt {
-		// TODO: 2日分くらいconditionある初期データ作る
+		// 検証用の初期データは3日分のconditionを作成するので前日分も回す
 		lastCond := isu.Conditions.Back()
 		// prepare中に追加したISUはconditionが無いためチェックしない
 		if lastCond == nil {
@@ -800,8 +801,9 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 		if lastCond != nil {
 			cursorEndTime = lastCond.TimestampUnix
 		}
+		oneDayAgo := time.Unix(cursorEndTime, 0).Add(-24 * time.Hour).Unix()
 		req := service.GetIndividualIsuConditionRequest{
-			StartTime:      nil,
+			StartTime:      &oneDayAgo,
 			CursorEndTime:  cursorEndTime,
 			ConditionLevel: "info",
 			Limit:          &limit,
@@ -824,7 +826,6 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 	query.Set("cursor_end_time", strconv.FormatInt(lastTime, 10))
 	query.Set("condition_level", "info,warning,critical")
 
-	// TODO: 初期データにisuを持たないユーザがいたらダメなので、数ユーザは固定ユーザ作ったほうが良い
 	isu := loginUser.IsuListOrderByCreatedAt[0]
 	resBody, res, err := getIsuConditionErrorAction(ctx, guestAgent, isu.JIAIsuUUID, query)
 	if err != nil {

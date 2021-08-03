@@ -44,7 +44,7 @@ func (s *Scenario) InitializeData() {
 			}
 		}
 		sort.Slice(user.IsuListOrderByCreatedAt, func(i, j int) bool {
-			return user.IsuListOrderByCreatedAt[i].CreatedAt.Before(user.IsuListOrderByCreatedAt[j].CreatedAt)
+			return user.IsuListOrderByCreatedAt[i].ID < user.IsuListOrderByCreatedAt[j].ID
 		})
 		sort.Slice(userConditions, func(i, j int) bool {
 			return userConditions[i].TimestampUnix < userConditions[j].TimestampUnix
