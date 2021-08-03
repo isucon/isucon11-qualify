@@ -106,7 +106,7 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 	return nil
 }
 
-//エンドポイント事の単体テスト
+//エンドポイント毎の単体テスト
 func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.BenchmarkStep) error {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
@@ -122,14 +122,8 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	}
 	noIsuUser := s.NewUser(ctx, step, noIsuAgent, model.UserTypeNormal)
 
-	// TODO: 初期データから適当に選択してるが、テスト用に想定どおりの値をもつinitialdataを生成する必要がありそう
-	var randomUser *model.User
-	for {
-		randomUser = s.normalUsers[0]
-		if len(randomUser.IsuListOrderByCreatedAt) >= 2 {
-			break
-		}
-	}
+	// 初期データで生成しているisuconユーザを利用
+	randomUser := s.normalUsers[0]
 
 	agt, err := s.NewAgent()
 	if err != nil {
@@ -145,14 +139,15 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	s.prepareCheckPostSignout(ctx, step)
 	s.prepareCheckGetMe(ctx, randomUser, guestAgent, step)
 	s.prepareCheckGetIsuList(ctx, randomUser, noIsuUser, guestAgent, step)
-	s.prepareCheckPostIsu(ctx, randomUser, noIsuUser, guestAgent, step)
 	s.prepareCheckGetIsu(ctx, randomUser, noIsuUser, guestAgent, step)
 	s.prepareCheckGetIsuIcon(ctx, randomUser, noIsuUser, guestAgent, step)
 	s.prepareCheckGetIsuGraph(ctx, randomUser, noIsuUser, guestAgent, step)
 	s.prepareCheckGetIsuConditions(ctx, randomUser, noIsuUser, guestAgent, step)
-	// TODO: 確率で失敗するようになったので一旦prepareCheckを行わないようにする。方針決まり次第消すか復活させるかする
-	//s.prepareCheckPostIsuCondition(ctx, loginUser, noIsuUser, guestAgent, step)
 
+	// MEMO: postIsuConditionのprepareチェックは確率で失敗して安定しないため、prepareステップでは行わない
+
+	// ユーザのISUが増えるので他の検証終わった後に実行
+	s.prepareCheckPostIsu(ctx, randomUser, noIsuUser, guestAgent, step)
 	return nil
 }
 
@@ -294,22 +289,28 @@ func (s *Scenario) prepareCheckGetIsuList(ctx context.Context, loginUser *model.
 	}
 
 	// check: 登録したISUがlimit分取得できる
-	// TODO: 2個以上の椅子をもたせる
-	size := len(loginUser.IsuListOrderByCreatedAt)
-	isu2 := loginUser.IsuListOrderByCreatedAt[size-2]
-	isu3 := loginUser.IsuListOrderByCreatedAt[size-1]
+	isu1 := loginUser.IsuListOrderByCreatedAt[0]
+	isu2 := loginUser.IsuListOrderByCreatedAt[1]
+	expected := []*model.Isu{isu2, isu1}
 	isuList, res, err = getIsuAction(ctx, loginUser.Agent, 2)
 	if err != nil {
 		step.AddError(err)
 		return
 	}
-	//expected
-	sIsu2 := isu2.ToService()
-	sIsu3 := isu3.ToService()
-	expected := []*service.Isu{sIsu3, sIsu2}
-	if !reflect.DeepEqual(isuList, expected) {
-		step.AddError(errorInvalid(res, "ユーザの所持する椅子の数や順番が一致しません。"))
+
+	// verify
+	if len(expected) != len(isuList) {
+		step.AddError(errorInvalid(res, "ユーザの所持する椅子の数が一致しません。"))
 		return
+	}
+	for i, isu := range expected {
+		if isuList[i].JIAIsuUUID != isu.JIAIsuUUID ||
+			isuList[i].Name != isu.Name ||
+			isuList[i].Character != isu.Character ||
+			isuList[i].ID != isu.ID {
+			step.AddError(errorInvalid(res, "ユーザの所持する椅子や順番が一致しません。"))
+			return
+		}
 	}
 
 	// check: サインインしてない状態で取得
@@ -652,7 +653,7 @@ func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model
 	//ISUグラフの取得 e.GET("/api/isu/:jia_isu_uuid/graph", getIsuGraph)
 	// check: 正常系
 	for _, isu := range loginUser.IsuListOrderByCreatedAt {
-		// TODO: 2日分くらいconditionある初期データ作る
+		// 検証用の初期データは3日分のconditionを作成するので前日分も回す
 
 		// condition の read lock を取得
 		isu.CondMutex.RLock()
@@ -821,8 +822,9 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 		}
 		isu.CondMutex.RUnlock()
 
+		oneDayAgo := time.Unix(cursorEndTime, 0).Add(-24 * time.Hour).Unix()
 		req := service.GetIndividualIsuConditionRequest{
-			StartTime:      nil,
+			StartTime:      &oneDayAgo,
 			CursorEndTime:  cursorEndTime,
 			ConditionLevel: "info",
 			Limit:          &limit,
@@ -846,6 +848,7 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 	query.Set("condition_level", "info,warning,critical")
 
 	// TODO: 初期データにisuを持たないユーザがいたらダメなので、数ユーザは固定ユーザ作ったほうが良い
+	// kanata
 	isu = loginUser.IsuListOrderByCreatedAt[0]
 	resBody, res, err := getIsuConditionErrorAction(ctx, guestAgent, isu.JIAIsuUUID, query)
 	if err != nil {
@@ -1000,218 +1003,6 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 		return
 	}
 	if err := verifyText(res, resBody, "not found: isu"); err != nil {
-		step.AddError(err)
-		return
-	}
-}
-
-func (s *Scenario) prepareCheckPostIsuCondition(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
-	// ISUからのcondition送信 e.POST("/api/isu/:jia_isu_uuid/condition", postIsuCondition)
-	// - 正常系
-	isu := s.NewIsu(ctx, step, loginUser, true, nil)
-	if isu == nil {
-		return
-	}
-
-	// 通常のisu condition送信とかぶらないように未来の日付にしてる
-	// TODO: ここは時間表現ではなく、prepare中はkeepPostingさせないなどして制御するか、keepPostingした上で厳し目チェックに
-	baseTime := time.Date(2022, 7, 1, 0, 0, 0, 0, time.FixedZone("Asia/Tokyo", 9*60*60))
-	var conditionsReq []service.PostIsuConditionRequest
-	var expected []*service.GetIsuConditionResponse
-	expected = append(expected, &service.GetIsuConditionResponse{
-		JIAIsuUUID:     isu.JIAIsuUUID,
-		IsuName:        isu.Name,
-		Timestamp:      baseTime.Add(10 * time.Minute).Unix(),
-		IsSitting:      true,
-		Condition:      fmt.Sprintf("is_dirty=%v,is_overweight=%v,is_broken=%v", true, true, true),
-		ConditionLevel: "critical",
-		Message:        "助けてください",
-	})
-	expected = append(expected, &service.GetIsuConditionResponse{
-		JIAIsuUUID:     isu.JIAIsuUUID,
-		IsuName:        isu.Name,
-		Timestamp:      baseTime.Add(5 * time.Minute).Unix(),
-		IsSitting:      true,
-		Condition:      fmt.Sprintf("is_dirty=%v,is_overweight=%v,is_broken=%v", false, true, false),
-		ConditionLevel: "warning",
-		Message:        "重たいです",
-	})
-	expected = append(expected, &service.GetIsuConditionResponse{
-		JIAIsuUUID:     isu.JIAIsuUUID,
-		IsuName:        isu.Name,
-		Timestamp:      baseTime.Unix(),
-		IsSitting:      true,
-		Condition:      fmt.Sprintf("is_dirty=%v,is_overweight=%v,is_broken=%v", false, false, false),
-		ConditionLevel: "info",
-		Message:        "おはようございます",
-	})
-
-	for _, condRes := range expected {
-		conditionsReq = append(conditionsReq, service.PostIsuConditionRequest{
-			IsSitting: condRes.IsSitting,
-			Condition: condRes.Condition,
-			Message:   condRes.Message,
-			Timestamp: condRes.Timestamp,
-		})
-	}
-	targetURL := fmt.Sprintf("%s/api/condition/%s", isuTargetBaseUrl[isu.JIAIsuUUID], isu.JIAIsuUUID)
-	httpClient := http.Client{}
-	httpClient.Timeout = agent.DefaultRequestTimeout + 5*time.Second
-	res, err := postIsuConditionAction(httpClient, targetURL, &conditionsReq)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-
-	limit := len(expected)
-	getReq := service.GetIndividualIsuConditionRequest{
-		StartTime:      nil,
-		CursorEndTime:  baseTime.Add(11 * time.Minute).Unix(),
-		ConditionLevel: "info,warning,critical",
-		Limit:          &limit,
-	}
-	conditionsRes, res, err := getIsuConditionAction(ctx, loginUser.Agent, isu.JIAIsuUUID, getReq)
-	if len(conditionsRes) != len(expected) {
-		step.AddError(errorInvalid(res, "condition数が一致しません。"))
-	}
-	if !reflect.DeepEqual(conditionsRes, expected) {
-		step.AddError(errorInvalid(res, "conditionが一致しません。"))
-	}
-
-	// check: conditionかぶりのエラー（かぶらなくなったので削除）
-
-	// check: jia_isu_uuidが空文字
-	req := []map[string]interface{}{}
-	req = append(req, map[string]interface{}{
-		"is_sitting": true,
-		"condition":  fmt.Sprintf("is_dirty=%v,is_overweight=%v,is_broken=%v", true, true, true),
-		"message":    "message",
-		"timestamp":  time.Now().Unix()})
-
-	// check: 存在しないjia_isu_uuid
-	targetURL = fmt.Sprintf("%s/api/condition/%s", isuTargetBaseUrl[isu.JIAIsuUUID], "jiaisuuuid")
-	resBody, res, err := postIsuConditionErrorAction(httpClient, targetURL, req)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyStatusCode(res, http.StatusNotFound); err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyText(res, resBody, "not found: isu"); err != nil {
-		step.AddError(err)
-		return
-	}
-
-	// check: conditionフォーマットの不正(cond.Timestampが文字列)
-	req = []map[string]interface{}{}
-	req = append(req, map[string]interface{}{
-		"is_sitting": true,
-		"condition":  fmt.Sprintf("is_dirty=%v,is_overweight=%v,is_broken=%v", true, true, true),
-		"message":    "message",
-		"timestamp":  "hoge",
-	})
-
-	targetURL = fmt.Sprintf("%s/api/condition/%s", isuTargetBaseUrl[isu.JIAIsuUUID], isu.JIAIsuUUID)
-	resBody, res, err = postIsuConditionErrorAction(httpClient, targetURL, req)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyStatusCode(res, http.StatusBadRequest); err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyText(res, resBody, "bad request body"); err != nil {
-		step.AddError(err)
-		return
-	}
-
-	//check: conditionフォーマットの不正(condition空文字)
-	req = []map[string]interface{}{}
-	req = append(req, map[string]interface{}{
-		"is_sitting": true,
-		"condition":  "",
-		"message":    "message",
-		"timestamp":  time.Now().Unix(),
-	})
-	targetURL = fmt.Sprintf("%s/api/condition/%s", isuTargetBaseUrl[isu.JIAIsuUUID], isu.JIAIsuUUID)
-	resBody, res, err = postIsuConditionErrorAction(httpClient, targetURL, req)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyStatusCode(res, http.StatusBadRequest); err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyText(res, resBody, "bad request body"); err != nil {
-		step.AddError(err)
-		return
-	}
-
-	// check: conditionフォーマットの不正
-	req = []map[string]interface{}{}
-	req = append(req, map[string]interface{}{
-		"is_sitting": true,
-		"condition":  fmt.Sprintf("is_dirty=%v", "hoge"),
-		"message":    "message",
-		"timestamp":  time.Now().Unix(),
-	})
-
-	targetURL = fmt.Sprintf("%s/api/condition/%s", isuTargetBaseUrl[isu.JIAIsuUUID], isu.JIAIsuUUID)
-	resBody, res, err = postIsuConditionErrorAction(httpClient, targetURL, req)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyStatusCode(res, http.StatusBadRequest); err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyText(res, resBody, "bad request body"); err != nil {
-		step.AddError(err)
-		return
-	}
-
-	// check: is_sittingフォーマットの不正
-	req = []map[string]interface{}{}
-	req = append(req, map[string]interface{}{
-		"is_sitting": "hoge",
-		"condition":  fmt.Sprintf("is_dirty=%v", "hoge"),
-		"message":    "message",
-		"timestamp":  time.Now().Unix(),
-	})
-
-	targetURL = fmt.Sprintf("%s/api/condition/%s", isuTargetBaseUrl[isu.JIAIsuUUID], isu.JIAIsuUUID)
-	resBody, res, err = postIsuConditionErrorAction(httpClient, targetURL, req)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyStatusCode(res, http.StatusBadRequest); err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyText(res, resBody, "bad request body"); err != nil {
-		step.AddError(err)
-		return
-	}
-
-	// check: reqが空
-	req = []map[string]interface{}{}
-	targetURL = fmt.Sprintf("%s/api/condition/%s", isuTargetBaseUrl[isu.JIAIsuUUID], isu.JIAIsuUUID)
-	resBody, res, err = postIsuConditionErrorAction(httpClient, targetURL, req)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyStatusCode(res, http.StatusBadRequest); err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyText(res, resBody, "bad request body"); err != nil {
 		step.AddError(err)
 		return
 	}

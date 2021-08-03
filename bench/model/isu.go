@@ -162,11 +162,11 @@ func (isu *Isu) SetImage(image []byte) {
 	isu.ImageHash = md5.Sum(image)
 }
 
-func (i *Isu) AddIsuConditions(conditions []*IsuCondition) {
+func (i *Isu) AddIsuConditions(conditions []IsuCondition) {
 	i.CondMutex.Lock()
 	defer i.CondMutex.Unlock()
 	for _, c := range conditions {
-		i.Conditions.Add(c)
+		i.Conditions.Add(&c)
 	}
 }
 

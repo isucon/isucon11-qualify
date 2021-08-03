@@ -9,6 +9,7 @@ import (
 
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
+	"github.com/isucon/isucon11-qualify/bench/random"
 )
 
 func (s *Scenario) InitializeData(ctx context.Context) {
@@ -43,7 +44,7 @@ func (s *Scenario) InitializeData(ctx context.Context) {
 			//conditions := isu.GetIsuConditions()
 		}
 		sort.Slice(user.IsuListOrderByCreatedAt, func(i, j int) bool {
-			return user.IsuListOrderByCreatedAt[i].CreatedAt.Before(user.IsuListOrderByCreatedAt[j].CreatedAt)
+			return user.IsuListOrderByCreatedAt[i].ID < user.IsuListOrderByCreatedAt[j].ID
 		})
 		// sort.Slice(userConditions, func(i, j int) bool {
 		// 	return userConditions[i].TimestampUnix < userConditions[j].TimestampUnix
@@ -56,6 +57,11 @@ func (s *Scenario) InitializeData(ctx context.Context) {
 
 		user.Type = model.UserTypeNormal
 		s.normalUsers = append(s.normalUsers, &user)
+	}
+
+	//初期データを登録
+	for _, u := range s.normalUsers {
+		random.SetGeneratedUser(u.UserID)
 	}
 
 	//for debug
