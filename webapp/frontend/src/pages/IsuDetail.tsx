@@ -5,17 +5,16 @@ import { Isu } from '../lib/apis'
 
 interface Props {
   isu: Isu
-  setIsu: React.Dispatch<React.SetStateAction<Isu | null>>
 }
 
-const IsuDetail = ({ isu, setIsu }: Props) => {
+const IsuDetail = ({ isu }: Props) => {
   if (!isu) {
     return <NowLoading />
   }
   return (
     <div className="flex flex-col gap-10 items-center">
       <Card>
-        <MainInfo isu={isu} setIsu={setIsu} />
+        <MainInfo isu={isu} />
       </Card>
     </div>
   )

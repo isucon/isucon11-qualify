@@ -19,6 +19,7 @@ import (
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"net/url"
 	"strconv"
 	"time"
@@ -348,7 +349,11 @@ func postIsuAction(ctx context.Context, a *agent.Agent, req service.PostIsuReque
 	}
 
 	if req.Img != nil {
-		part, err := writer.CreateFormFile("image", "image.jpeg")
+		partHeader := textproto.MIMEHeader{}
+		partHeader.Set("Content-Type", "image/jpeg")
+		partHeader.Set("Content-Disposition", `form-data; name="image"; filename="image.jpeg"`)
+
+		part, err := writer.CreatePart(partHeader)
 		if err != nil {
 			logger.AdminLogger.Panic(err)
 		}
@@ -573,7 +578,7 @@ func getConditionRequestParams(base string, req service.GetIsuConditionRequest) 
 
 func getIsuGraphAction(ctx context.Context, a *agent.Agent, id string, req service.GetGraphRequest) (service.GraphResponse, *http.Response, error) {
 	graph := service.GraphResponse{}
-	reqUrl := fmt.Sprintf("/api/isu/%s/graph?date=%d", id, req.Date)
+	reqUrl := fmt.Sprintf("/api/isu/%s/graph?datetime=%d", id, req.Date)
 	res, err := reqJSONResJSON(ctx, a, http.MethodGet, reqUrl, nil, &graph, []int{http.StatusOK})
 	if err != nil {
 		return nil, nil, err

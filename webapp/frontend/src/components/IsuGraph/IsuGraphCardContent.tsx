@@ -3,7 +3,6 @@ import { useCallback } from 'react'
 import NowLoading from '../UI/NowLoading'
 import TransitionGraph from './TransitionGraph'
 import SittingGraph from './SittingGraph'
-import Score from './Score'
 import DateInput from './DateInput'
 import useGraph from './use/graph'
 
@@ -24,7 +23,6 @@ const IsuGraphCardContent = ({ isu }: Props) => {
     transitionData,
     sittingData,
     timeCategories,
-    score,
     day,
     tooltipData,
     fetchGraphs
@@ -53,7 +51,6 @@ const IsuGraphCardContent = ({ isu }: Props) => {
             timeCategories={timeCategories}
           />
         </div>
-        <Score score={score} />
       </div>
     </div>
   )

@@ -32,16 +32,6 @@ type PutIsuRequest struct {
 	Name string `json:"name"`
 }
 
-type GetIsuSearchRequest struct {
-	Name           *string
-	Character      *string
-	CatalogName    *string
-	MinLimitWeight *int
-	MaxLimitWeight *int
-	CatalogTags    *string
-	Page           *int
-}
-
 // TODO: これは消して GetIndividualIsuConditionRequest をこの名前にする
 type GetIsuConditionRequest struct {
 	StartTime        *int64
