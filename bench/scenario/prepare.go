@@ -289,9 +289,6 @@ func (s *Scenario) prepareCheckGetIsuList(ctx context.Context, loginUser *model.
 	}
 
 	// check: 登録したISUが取得できる
-	isu1 := loginUser.IsuListOrderByCreatedAt[0]
-	isu2 := loginUser.IsuListOrderByCreatedAt[1]
-	expected := []*model.Isu{isu2, isu1}
 	isuList, res, err = getIsuAction(ctx, loginUser.Agent)
 	if err != nil {
 		step.AddError(err)
@@ -299,15 +296,17 @@ func (s *Scenario) prepareCheckGetIsuList(ctx context.Context, loginUser *model.
 	}
 
 	// verify
-	if len(expected) != len(isuList) {
+	if len(loginUser.IsuListOrderByCreatedAt) != len(isuList) {
 		step.AddError(errorInvalid(res, "ユーザの所持する椅子の数が一致しません。"))
 		return
 	}
-	for i, isu := range expected {
-		if isuList[i].JIAIsuUUID != isu.JIAIsuUUID ||
-			isuList[i].Name != isu.Name ||
-			isuList[i].Character != isu.Character ||
-			isuList[i].ID != isu.ID {
+
+	isuListIdx := len(isuList)
+	for i, isu := range loginUser.IsuListOrderByCreatedAt {
+		if isuList[isuListIdx-i].JIAIsuUUID != isu.JIAIsuUUID ||
+			isuList[isuListIdx-i].Name != isu.Name ||
+			isuList[isuListIdx-i].Character != isu.Character ||
+			isuList[isuListIdx-i].ID != isu.ID {
 			step.AddError(errorInvalid(res, "ユーザの所持する椅子や順番が一致しません。"))
 			return
 		}
@@ -812,8 +811,6 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 	query.Set("end_time", strconv.FormatInt(lastTime, 10))
 	query.Set("condition_level", "info,warning,critical")
 
-	// TODO: 初期データにisuを持たないユーザがいたらダメなので、数ユーザは固定ユーザ作ったほうが良い
-	// kanata
 	isu = loginUser.IsuListOrderByCreatedAt[0]
 	resBody, res, err := getIsuConditionErrorAction(ctx, guestAgent, isu.JIAIsuUUID, query)
 	if err != nil {
