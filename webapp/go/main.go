@@ -430,13 +430,13 @@ func postSignout(c echo.Context) error {
 }
 
 func getMe(c echo.Context) error {
-	userID, err := getUserIDFromSession(c.Request())
+	jiaUserID, err := getUserIDFromSession(c.Request())
 	if err != nil {
 		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 
-	res := GetMeResponse{JIAUserID: userID}
+	res := GetMeResponse{JIAUserID: jiaUserID}
 	return c.JSON(http.StatusOK, res)
 }
 
