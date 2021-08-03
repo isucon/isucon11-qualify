@@ -281,13 +281,19 @@ func main() {
 	e.Logger.Fatal(e.Start(serverPort))
 }
 
-func getSession(r *http.Request) *sessions.Session {
-	session, _ := sessionStore.Get(r, sessionName)
-	return session
+func getSession(r *http.Request) (*sessions.Session, error) {
+	session, err := sessionStore.Get(r, sessionName)
+	if err != nil {
+		return nil, err
+	}
+	return session, nil
 }
 
 func getUserIDFromSession(r *http.Request) (string, error) {
-	session := getSession(r)
+	session, err := getSession(r)
+	if err != nil {
+		return "", err
+	}
 	userID, ok := session.Values["jia_user_id"]
 	if !ok {
 		return "", fmt.Errorf("no session")
@@ -393,7 +399,7 @@ func postAuthentication(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	session := getSession(c.Request())
+	session, _ := getSession(c.Request())
 	session.Values["jia_user_id"] = jiaUserID
 	err = session.Save(c.Request(), c.Response())
 	if err != nil {
@@ -412,7 +418,7 @@ func postSignout(c echo.Context) error {
 		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 
-	session := getSession(c.Request())
+	session, _ := getSession(c.Request())
 	session.Options = &sessions.Options{MaxAge: -1, Path: "/"}
 	err = session.Save(c.Request(), c.Response())
 	if err != nil {
