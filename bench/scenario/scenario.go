@@ -45,7 +45,10 @@ type Scenario struct {
 	//内部状態
 	normalUsersMtx  sync.Mutex
 	normalUsers     []*model.User
-	Catalogs        map[string]*model.IsuCatalog
+
+	// TODO: ユーザーを増やすロジックを書いたときに必要性を再度考える
+	viewerMtx sync.Mutex
+	viewers   []*model.Viewer
 }
 
 func NewScenario(jiaServiceURL *url.URL, loadTimeout time.Duration) (*Scenario, error) {
@@ -92,7 +95,7 @@ func (s *Scenario) AddNormalUser(ctx context.Context, step *isucandar.BenchmarkS
 
 //load用
 //マニアユーザーのシナリオ Goroutineを追加する
-func (s *Scenario) AddManiacUser(ctx context.Context, step *isucandar.BenchmarkStep, count int) {
+func (s *Scenario) AddViewer(ctx context.Context, step *isucandar.BenchmarkStep, count int) {
 	if count <= 0 {
 		return
 	}
@@ -100,7 +103,7 @@ func (s *Scenario) AddManiacUser(ctx context.Context, step *isucandar.BenchmarkS
 	for i := 0; i < count; i++ {
 		go func(ctx context.Context, step *isucandar.BenchmarkStep) {
 			defer s.loadWaitGroup.Done()
-			//s.loadManiacUser(ctx, step) //TODO:
+			s.loadViewer(ctx, step)
 		}(ctx, step)
 	}
 }
