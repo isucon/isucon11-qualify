@@ -40,7 +40,7 @@
 
 **JIA**は、ISUCONDITIONからISU UUIDを受け取ることで、当該のISU UUIDを持つISUに対してISUCONDITIONへコンディション送信 (`POST /api/condition/:jia_isu_uuid`) を開始する指示をします。
 
-**ISU**は、JIAから送信開始の指示を受け取った時点から、一定間隔で自身のコンディションをISUCONDITIONに対して送信 (`POST /api/condition/:jia_isu_uuid`) を続けます。コンディションは一定の確率で悪くなる事があり、ユーザが改善を行わない限りコンディションが良くなる事はありません。
+**ISU**は、JIAから送信開始の指示を受け取った時点から、自身のコンディションをISUCONDITIONに対して送信 (`POST /api/condition/:jia_isu_uuid`) を続けます。**ISU**のコンディションは悪くなる事があり、ユーザが改善を行わない限りコンディションが良くなる事はありません。
 
 ISUの置かれた環境など様々な影響からコンディションが欠損することがありますが、ISUがコンディションに含める送信時刻は過去に戻ることはありません。
 
