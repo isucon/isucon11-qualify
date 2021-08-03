@@ -156,8 +156,8 @@ type GetIsuConditionResponse struct {
 }
 
 type TrendResponse struct {
-	Character  string           `json:"character"`
-	Conditions []TrendCondition `json:"conditions"`
+	Character  string            `json:"character"`
+	Conditions []*TrendCondition `json:"conditions"`
 }
 
 type TrendCondition struct {
@@ -482,7 +482,7 @@ func getIsuList(c echo.Context) error {
 	isuList := []Isu{}
 	err = db.Select(
 		&isuList,
-		"SELECT * FROM `isu` WHERE `jia_user_id` = ? ORDER BY `created_at` DESC LIMIT ? OFFSET ?",
+		"SELECT * FROM `isu` WHERE `jia_user_id` = ? ORDER BY `id` DESC LIMIT ? OFFSET ?",
 		jiaUserID, limit, offset)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
@@ -1251,7 +1251,7 @@ func getTrend(c echo.Context) error {
 			return c.NoContent(http.StatusInternalServerError)
 		}
 
-		characterIsuConditions := []TrendCondition{}
+		characterIsuConditions := []*TrendCondition{}
 		for _, isu := range isuList {
 			conditions := []IsuCondition{}
 			err = db.Select(&conditions,
@@ -1275,7 +1275,7 @@ func getTrend(c echo.Context) error {
 					Timestamp:      isuLastCondition.Timestamp.Unix(),
 					ConditionLevel: conditionLevel,
 				}
-				characterIsuConditions = append(characterIsuConditions, trendCondition)
+				characterIsuConditions = append(characterIsuConditions, &trendCondition)
 			}
 
 		}
