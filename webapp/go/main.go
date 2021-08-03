@@ -1031,7 +1031,7 @@ func getIsuConditions(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	// 対象isu_idの通知を取得(limit, cursorで絞り込み）
+	// 対象isu_idの通知を取得(limit, startTime, endTimeで絞り込み）
 	conditionsResponse, err := getIsuConditionsFromDB(db, jiaIsuUUID, endTime, conditionLevel, startTime, limit, isuName)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
