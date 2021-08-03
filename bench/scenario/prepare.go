@@ -278,7 +278,7 @@ func (s *Scenario) prepareCheckGetMe(ctx context.Context, loginUser *model.User,
 func (s *Scenario) prepareCheckGetIsuList(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
 	//ISU一覧の取得 e.GET("/api/isu", getIsuList)
 	// check: 椅子未所持の場合は椅子が存在しない
-	isuList, res, err := getIsuAction(ctx, noIsuUser.Agent, 1)
+	isuList, res, err := getIsuAction(ctx, noIsuUser.Agent)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -288,11 +288,11 @@ func (s *Scenario) prepareCheckGetIsuList(ctx context.Context, loginUser *model.
 		return
 	}
 
-	// check: 登録したISUがlimit分取得できる
+	// check: 登録したISUが取得できる
 	isu1 := loginUser.IsuListOrderByCreatedAt[0]
 	isu2 := loginUser.IsuListOrderByCreatedAt[1]
 	expected := []*model.Isu{isu2, isu1}
-	isuList, res, err = getIsuAction(ctx, loginUser.Agent, 2)
+	isuList, res, err = getIsuAction(ctx, loginUser.Agent)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -314,47 +314,12 @@ func (s *Scenario) prepareCheckGetIsuList(ctx context.Context, loginUser *model.
 	}
 
 	// check: サインインしてない状態で取得
-	query := url.Values{}
-	resBody, res, err := getIsuErrorAction(ctx, guestAgent, query)
+	resBody, res, err := getIsuErrorAction(ctx, guestAgent)
 	if err != nil {
 		step.AddError(err)
 		return
 	}
 	if err := verifyNotSignedIn(res, resBody); err != nil {
-		step.AddError(err)
-		return
-	}
-
-	// check: limitが不正(0)
-	query = url.Values{}
-	query.Set("limit", "0")
-	resBody, res, err = getIsuErrorAction(ctx, loginUser.Agent, query)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyStatusCode(res, http.StatusBadRequest); err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyText(res, resBody, "bad format: limit"); err != nil {
-		step.AddError(err)
-		return
-	}
-
-	// check: limitが不正(文字列)
-	query = url.Values{}
-	query.Set("limit", "limit")
-	resBody, res, err = getIsuErrorAction(ctx, loginUser.Agent, query)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyStatusCode(res, http.StatusBadRequest); err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyText(res, resBody, "bad format: limit"); err != nil {
 		step.AddError(err)
 		return
 	}
