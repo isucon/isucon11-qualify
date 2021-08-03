@@ -8,26 +8,23 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/isucon/isucon11-qualify/extra/initial-data/random"
+	"github.com/isucon/isucon11-qualify/bench/random"
 )
 
 type Isu struct {
-	User         User
-	JIAIsuUUID   string
-	Name         string
-	Image        []byte
-	JIACatalogID string
-	Character    string
-	IsDeleted    bool
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	User       User
+	JIAIsuUUID string
+	Name       string
+	Image      []byte
+	Character  string
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
 }
 
 func NewIsu(user User) Isu {
 	u, _ := uuid.NewRandom()
-	createdAt := random.Time()
+	createdAt := random.TimeAfterArg(user.CreatedAt)
 
-	updatedAt := createdAt
 	image := defaultImage()
 
 	return Isu{
@@ -35,11 +32,24 @@ func NewIsu(user User) Isu {
 		u.String(),
 		random.IsuName(),
 		image,
-		random.CatalogID(),
 		random.Character(),
-		false,
 		createdAt,
-		updatedAt,
+		createdAt,
+	}
+}
+
+func NewIsuWithCreatedAt(user User, createdAt time.Time) Isu {
+	u, _ := uuid.NewRandom()
+	image := defaultImage()
+
+	return Isu{
+		user,
+		u.String(),
+		random.IsuName(),
+		image,
+		random.Character(),
+		createdAt,
+		createdAt,
 	}
 }
 
@@ -61,18 +71,13 @@ func (i Isu) WithUpdateImage() Isu {
 	i.UpdatedAt = random.TimeAfterArg(i.UpdatedAt)
 	return i
 }
-func (i Isu) WithDelete() Isu {
-	i.IsDeleted = true
-	i.UpdatedAt = random.TimeAfterArg(i.UpdatedAt)
-	return i
-}
 
 func (i Isu) Create() error {
-	if _, err := db.Exec("INSERT INTO isu VALUES (?,?,?,?,?,?,?,?,?)",
-		i.JIAIsuUUID, i.Name, i.Image, i.Character, i.JIACatalogID, i.User.JIAUserID,
-		i.IsDeleted, i.CreatedAt, i.UpdatedAt,
+	if _, err := db.Exec("INSERT INTO isu(`jia_isu_uuid`,`name`,`image`,`character`,`jia_user_id`,`created_at`,`updated_at`) VALUES (?,?,?,?,?,?,?)",
+		i.JIAIsuUUID, i.Name, i.Image, i.Character, i.User.JIAUserID,
+		i.CreatedAt, i.UpdatedAt,
 	); err != nil {
-		return fmt.Errorf("insert user: %w", err)
+		return fmt.Errorf("insert isu: %w", err)
 	}
 	return nil
 }

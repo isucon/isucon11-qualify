@@ -20,26 +20,34 @@ type JIAServiceRequest struct {
 type PostIsuRequest struct {
 	JIAIsuUUID string `json:"jia_isu_uuid"`
 	IsuName    string `json:"isu_name"`
+	Img        []byte
+}
+
+type IsuImg struct {
+	ImgName string
+	Img     []byte
 }
 
 type PutIsuRequest struct {
 	Name string `json:"name"`
 }
 
-type GetIsuSearchRequest struct {
-	Name           *string
-	Character      *string
-	CatalogName    *string
-	MinLimitWeight *uint
-	MaxLimitWeight *uint
-	CatalogTags    *string
-	Page           *uint
-}
-
+// TODO: これは消して GetIndividualIsuConditionRequest をこの名前にする
 type GetIsuConditionRequest struct {
-	StartTime        *uint64
-	CursorEndTime    uint64
+	StartTime        *int64
+	CursorEndTime    int64
 	CursorJIAIsuUUID string
 	ConditionLevel   string
-	Limit            *uint
+	Limit            *int
+}
+
+type GetIndividualIsuConditionRequest struct {
+	StartTime      *int64
+	CursorEndTime  int64
+	ConditionLevel string
+	Limit          *int
+}
+
+type GetGraphRequest struct {
+	Date int64 // unixtime
 }

@@ -50,15 +50,15 @@ func isCritical(err error) bool {
 }
 
 var (
+	ErrChecksum           failure.StringCode = "check-sum"
 	ErrInvalidStatusCode  failure.StringCode = "status code"
 	ErrInvalidContentType failure.StringCode = "content type"
 	ErrInvalidJSON        failure.StringCode = "json"
 	ErrInvalidAsset       failure.StringCode = "asset"
-	ErrMissmatch          failure.StringCode = "missmatch"         //データはあるが、間違っている（名前が違う等）
-	ErrInvalid            failure.StringCode = "invalid"           //ロジック的に誤り（存在しないはずのものが有る等）
-	ErrBadResponse        failure.StringCode = "bad-response"      //不正な書式のレスポンス
-	ErrHTTP               failure.StringCode = "http"              //http通信回りのエラー（timeout含む）
-	ErrX5XX               failure.StringCode = "http-server-error" //500系のエラー
+	ErrMissmatch          failure.StringCode = "missmatch"    //データはあるが、間違っている（名前が違う等）
+	ErrInvalid            failure.StringCode = "invalid"      //ロジック的に誤り（存在しないはずのものが有る等）
+	ErrBadResponse        failure.StringCode = "bad-response" //不正な書式のレスポンス
+	ErrHTTP               failure.StringCode = "http"         //http通信回りのエラー（timeout含む）
 )
 
 func isDeduction(err error) bool {
@@ -79,7 +79,8 @@ func isTimeout(err error) bool {
 			return true
 		}
 	}
-	if failure.Is(err, context.DeadlineExceeded) {
+	if failure.Is(err, context.DeadlineExceeded) ||
+		failure.Is(err, context.Canceled) {
 		return true
 	}
 	return failure.IsCode(err, failure.TimeoutErrorCode)
@@ -124,6 +125,9 @@ func errorInvalid(res *http.Response, message string, args ...interface{}) error
 	return failure.NewError(ErrInvalid, fmt.Errorf(message+": %d (%s: %s)", args...))
 }
 
+func errorCheckSum(message string, args ...interface{}) error {
+	return failure.NewError(ErrChecksum, fmt.Errorf(message, args...))
+}
 func errorBadResponse(res *http.Response, message string, args ...interface{}) error {
 	args = append(args, res.StatusCode, res.Request.Method, res.Request.URL.Path)
 	return failure.NewError(ErrBadResponse, fmt.Errorf(message+": %d (%s: %s)", args...))

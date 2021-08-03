@@ -8,6 +8,14 @@
     owner: isucon
     group: isucon
 
+- name: "roles/bench/tasks/bench: Deploy initial-data for bench"
+  become_user: isucon
+  copy:
+    src: "initialize.json"
+    dest: /home/isucon/bench/data/
+    owner: isucon
+    group: isucon
+
 - name: "roles/bench/tasks/bench: Build Web Application Go"
   become_user: isucon
   args:

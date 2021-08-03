@@ -139,6 +139,7 @@
         'sudo cp /dev/shm/files-generated/REVISION /etc/',
         'sudo mv /dev/shm/files-generated/isucon11-qualify.tar /dev/shm/ansible/roles/common/files/',
         'sudo mv /dev/shm/files-generated/initial-data.sql /dev/shm/ansible/roles/contestant/files/',
+        'sudo mv /dev/shm/files-generated/initialize.json /dev/shm/ansible/roles/bench/files/',
         'sudo echo "[target]\n127.0.0.1" >> /dev/shm/ansible/hosts',
         'sudo ssh-keygen -f /root/.ssh/id_rsa -t rsa -N ""',
         'sudo su -c "cat /root/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys"',
@@ -148,7 +149,7 @@
     run_ansible: {
       type: 'shell',
       inline: [
-        '( cd /dev/shm/ansible && sudo ansible-playbook -u root -i hosts -t aws -t ' + $.arg_variant + ' site.yml )',
+        '( cd /dev/shm/ansible && sudo ansible-playbook -u root -i ' + $.arg_variant + '.hosts -t aws -t ' + $.arg_variant + ' site.yml )',
       ],
     },
     remove_ansible: {
@@ -157,7 +158,7 @@
         'sudo apt remove -y ansible',
         'sudo apt-add-repository -y --remove ppa:ansible/ansible',
         'sudo rm -rf /etc/ansible',
-        'sudo rm -f /root/.ssh/*',
+        'sudo su -c "rm -rf /root/.ssh/*"',
       ],
     },
 
@@ -190,11 +191,15 @@
         "sudo sh -c 'echo > /home/ubuntu/.ssh/authorized_keys'",
         'sudo mv /etc/sudoers.d/*-cloud-init-users /root/ || :',
         'sudo rm -f /var/lib/systemd/timesync/clock || :',
-        'sudo rm -rf /var/lib/cloud /var/lib/dbus/machine-id',
+        'sudo rm -rf /var/lib/dbus/machine-id',
         'sudo rm -rf /root/go',
         'sudo rm -rf /dev/shm/files',
         'sudo rm -rf /dev/shm/files-generated',
         'sudo rm -rf /dev/shm/ansible',
+        // Cleanup cloud-init except scripts
+        'sudo mv /var/lib/cloud/scripts /tmp/cloud-init.scripts',
+        'sudo rm -rf /var/lib/cloud/*',
+        'sudo mv /tmp/cloud-init.scripts /var/lib/cloud/scripts',
       ],
     },
   },

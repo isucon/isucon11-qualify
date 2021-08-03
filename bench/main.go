@@ -7,15 +7,21 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"runtime/pprof"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/isucon/isucandar"
 	"github.com/isucon/isucandar/agent"
 	"github.com/isucon/isucandar/failure"
+
+	// TODO: isucon11-portal に差し替え
+	"github.com/isucon/isucon10-portal/bench-tool.go/benchrun"
+	isuxportalResources "github.com/isucon/isucon10-portal/proto.go/isuxportal/resources"
 
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/scenario"
@@ -23,7 +29,9 @@ import (
 
 const (
 	// FAIL になるエラー回数
-	FAIL_ERROR_COUNT int64 = 500 //TODO:ちゃんと決める
+	FAIL_ERROR_COUNT int64 = 100 //TODO:ちゃんと決める
+	//load context
+	LOAD_TIMEOUT time.Duration = 70 * time.Second
 )
 
 var (
@@ -31,7 +39,7 @@ var (
 	targetAddress      string
 	profileFile        string
 	hostAdvertise      string
-	jiaServiceURL      string
+	jiaServiceURL      *url.URL
 	tlsCertificatePath string
 	tlsKeyPath         string
 	useTLS             bool
@@ -42,7 +50,7 @@ var (
 
 	initializeTimeout time.Duration
 	// TODO: isucon11-portal に差し替え
-	//reporter benchrun.Reporter
+	reporter benchrun.Reporter
 )
 
 func getEnv(key, defaultValue string) string {
@@ -64,37 +72,37 @@ func init() {
 	agent.DefaultTLSConfig.MinVersion = tls.VersionTLS12
 	agent.DefaultTLSConfig.InsecureSkipVerify = false
 
-	// TODO: isucon11-portal に差し替え
-	//flag.StringVar(&targetAddress, "target", benchrun.GetTargetAddress(), "ex: localhost:9292")
-	flag.StringVar(&targetAddress, "target", getEnv("TARGET_ADDRESS", "localhost:9292"), "ex: localhost:9292")
+	flag.StringVar(&targetAddress, "target", benchrun.GetTargetAddress(), "ex: localhost:9292")
 	flag.StringVar(&profileFile, "profile", "", "ex: cpu.out")
-	flag.StringVar(&hostAdvertise, "host-advertise", "local.t.isucon.dev", "hostname to advertise against target")
-	flag.StringVar(&jiaServiceURL, "jia-service-url", "http://apitest:80", "jia service url")
-	flag.StringVar(&tlsCertificatePath, "tls-cert", "../secrets/cert.pem", "path to TLS certificate for a push service")
-	flag.StringVar(&tlsKeyPath, "tls-key", "../secrets/key.pem", "path to private key of TLS certificate for a push service")
 	flag.BoolVar(&exitStatusOnFail, "exit-status", false, "set exit status non-zero when a benchmark result is failing")
 	flag.BoolVar(&noLoad, "no-load", false, "exit on finished prepare")
 	flag.StringVar(&promOut, "prom-out", "", "Prometheus textfile output path")
 	flag.BoolVar(&showVersion, "version", false, "show version and exit 1")
 
-	timeoutDuration := ""
-	initializeTimeoutDuration := ""
+	var jiaServiceURLStr, timeoutDuration, initializeTimeoutDuration string
+	flag.StringVar(&jiaServiceURLStr, "jia-service-url", getEnv("JIA_SERVICE_URL", "http://apitest:5000"), "jia service url")
 	flag.StringVar(&timeoutDuration, "timeout", "10s", "request timeout duration")
 	flag.StringVar(&initializeTimeoutDuration, "initialize-timeout", "20s", "request timeout duration of POST /initialize")
 
 	flag.Parse()
 
+	// validate jia-service-url
+	jiaServiceURL, err = url.Parse(jiaServiceURLStr)
+	if err != nil {
+		panic(err)
+	}
+	// validate timeout
 	timeout, err := time.ParseDuration(timeoutDuration)
 	if err != nil {
 		panic(err)
 	}
 	agent.DefaultRequestTimeout = timeout
 
+	// validate initialize-timeout
 	initializeTimeout, err = time.ParseDuration(initializeTimeoutDuration)
 	if err != nil {
 		panic(err)
 	}
-
 }
 
 func checkError(err error) (critical bool, timeout bool, deduction bool) {
@@ -105,8 +113,6 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 	passed := true
 	reason := "pass"
 	errors := result.Errors.All()
-
-	//TODO: 他の得点源
 
 	scoreRaw := result.Score.Sum()
 	deduction := int64(0)
@@ -150,29 +156,24 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 	logger.ContestantLogger.Printf("score: %d(%d - %d) : %s", score, scoreRaw, deductionTotal, reason)
 	logger.ContestantLogger.Printf("deduction: %d / timeout: %d", deduction, timeoutCount)
 
-	// TODO: isucon11-portal に差し替え
-	/*
-		err := reporter.Report(&isuxportalResources.BenchmarkResult{
-			SurveyResponse: &isuxportalResources.SurveyResponse{
-				Language: s.Language,
-			},
-			Finished: finish,
-			Passed:   passed,
-			Score:    0, // TODO: 加点 - 減点
-			ScoreBreakdown: &isuxportalResources.BenchmarkResult_ScoreBreakdown{
-				Raw:       0, // TODO: 加点
-				Deduction: 0, // TODO: 減点
-			},
-			Execution: &isuxportalResources.BenchmarkResult_Execution{
-				Reason: reason,
-			},
-		})
-		if err != nil {
-			panic(err)
-		}
-	*/
-	// TODO: 以下は消す
-	fmt.Println(reason)
+	err := reporter.Report(&isuxportalResources.BenchmarkResult{
+		SurveyResponse: &isuxportalResources.SurveyResponse{
+			Language: s.Language,
+		},
+		Finished: finish,
+		Passed:   passed,
+		Score:    score,
+		ScoreBreakdown: &isuxportalResources.BenchmarkResult_ScoreBreakdown{
+			Raw:       scoreRaw,
+			Deduction: deductionTotal,
+		},
+		Execution: &isuxportalResources.BenchmarkResult_Execution{
+			Reason: reason,
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
 
 	return passed
 }
@@ -218,7 +219,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	s, err := scenario.NewScenario(jiaServiceURL)
+	s, err := scenario.NewScenario(jiaServiceURL, LOAD_TIMEOUT)
 	if err != nil {
 		panic(err)
 	}
@@ -230,32 +231,28 @@ func main() {
 	s.BaseURL = fmt.Sprintf("%s://%s/", scheme, targetAddress)
 	s.NoLoad = noLoad
 
-	b, err := isucandar.NewBenchmark(isucandar.WithLoadTimeout(60*time.Second), isucandar.WithoutPanicRecover())
+	b, err := isucandar.NewBenchmark(isucandar.WithoutPanicRecover())
 	if err != nil {
 		panic(err)
 	}
 
-	// TODO: isucon11-portal に差し替え
-	/*
-		reporter, err = benchrun.NewReporter(false)
-		if err != nil {
-			panic(err)
-		}
-	*/
+	reporter, err = benchrun.NewReporter(false)
+	if err != nil {
+		panic(err)
+	}
 
-	//errorCount := int64(0)
+	errorCount := int64(0)
 	b.OnError(func(err error, step *isucandar.BenchmarkStep) {
+		critical, timeout, deduction := checkError(err)
+
 		// Load 中の timeout のみログから除外
-		if failure.IsCode(err, failure.TimeoutErrorCode) && failure.IsCode(err, isucandar.ErrLoad) {
+		if timeout && failure.IsCode(err, isucandar.ErrLoad) {
 			return
 		}
 
-		//critical, _, deduction := checkError(err)
-
-		//TODO: 暫定対処として、failが確定しても負荷をかけ続ける
-		//if critical || (deduction && atomic.AddInt64(&errorCount, 1) > FAIL_ERROR_COUNT) {
-		//	step.Cancel()
-		//}
+		if critical || (deduction && atomic.AddInt64(&errorCount, 1) > FAIL_ERROR_COUNT) {
+			step.Cancel()
+		}
 
 		logger.ContestantLogger.Printf("ERR: %v", err)
 	})
@@ -263,13 +260,32 @@ func main() {
 	b.AddScenario(s)
 
 	wg := sync.WaitGroup{}
-	b.Load(func(ctx context.Context, step *isucandar.BenchmarkStep) error {
+	b.Load(func(parent context.Context, step *isucandar.BenchmarkStep) error {
+		//このWaitGroupで、sendResult(,,true)が呼ばれた後sendResult(,,false)が呼ばれないことを保証する
+		//isucandarのparallelはcontextが終了した場合に、スレッドの終了を待たずにWaitを終了する
+		//そこで、wg.Done()が呼ばれsendResult(,,false)の送信を終了した後に、sendResult(,,true)の処理に移る
+		//
+		//コーナーケースとして、wg.Add(1)する前にb.Start(ctx)が終了しwg.Wait()を突破する可能性がある（loadの開始直後にCriticalErrorの場合など）
+		//その場合でも、この関数はctx.Done()を検出して早期returnすることでsendResult(,,false)を実行しないため、保証できている
+		//
+		//補足：
+		//　wg.Addをgoroutine内で呼ぶとこのコーナーケースを引き起こすので一般にはgoroutine生成直前にAddするべき
+		//　今回は生成直前がisucandar内にあり、そのタイミングでのAddが出来ないためここに記述
+		//　b.Startの前にAddする実装も考えたが、Prepareフェーズでstep.Cancel()された場合に、
+		//　Load自体がスキップされwg.Doneが実行されずにデッドロックを起こしたためボツ
+		wg.Add(1)
+		defer wg.Done()
 		if s.NoLoad {
 			return nil
 		}
 
-		wg.Add(1)
-		defer wg.Done()
+		ctx, cancel := context.WithTimeout(parent, s.LoadTimeout)
+		defer cancel()
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+		}
 
 		for {
 			// 途中経過を3秒毎に送信

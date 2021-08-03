@@ -4,6 +4,7 @@ import {
   ConditionRequest,
   DEFAULT_CONDITION_LIMIT
 } from '../../../lib/apis'
+import { getNowDate } from '../../../lib/date'
 
 const usePaging = (
   getConditions: (req: ConditionRequest) => Promise<Condition[]>
@@ -13,7 +14,7 @@ const usePaging = (
     const fetchCondtions = async () => {
       setConditions(
         await getConditions({
-          cursor_end_time: Math.floor(new Date().getTime() / 1000),
+          cursor_end_time: getNowDate(),
           // 初回fetch時は'z'をセットすることで全件表示させてる
           cursor_jia_isu_uuid: 'z',
           condition_level: 'critical,warning,info'
@@ -75,15 +76,15 @@ const usePaging = (
         return
       }
     } else {
-      cursor_end_time = new Date()
+      cursor_end_time = getNowDate()
     }
 
     setQuery(payload.query)
     setTimes(payload.times)
 
     const params = {
-      start_time: Math.floor(start_time.getTime() / 1000),
-      cursor_end_time: Math.floor(cursor_end_time.getTime() / 1000),
+      start_time: start_time,
+      cursor_end_time: cursor_end_time,
       condition_level: payload.query,
       cursor_jia_isu_uuid: 'z'
     }
@@ -97,11 +98,11 @@ const usePaging = (
     const start_time = times[0] ? new Date(times[0] + 'Z') : new Date(0)
     const cursor_end_time = times[1]
       ? new Date(times[1] + 'Z')
-      : new Date(conditions[DEFAULT_CONDITION_LIMIT - 1].timestamp)
+      : conditions[DEFAULT_CONDITION_LIMIT - 1].date
 
     return {
-      cursor_end_time: Math.floor(cursor_end_time.getTime() / 1000),
-      start_time: Math.floor(start_time.getTime() / 1000),
+      cursor_end_time: cursor_end_time,
+      start_time: start_time,
       cursor_jia_isu_uuid,
       condition_level: query
     }

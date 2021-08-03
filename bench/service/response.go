@@ -14,22 +14,12 @@ type GetMeResponse struct {
 }
 
 type Isu struct {
-	JIAIsuUUID   string `json:"jia_isu_uuid"`
-	Name         string `json:"name"`
-	JIACatalogID string `json:"jia_catalog_id"`
-	Character    string `json:"character"`
+	ID         int    `json:"id"`
+	JIAIsuUUID string `json:"jia_isu_uuid"`
+	Name       string `json:"name"`
+	Character  string `json:"character"`
 	// TODO: これはmodelの方にあるのが正しそう
 	Icon []byte `json:"-"`
-}
-
-type Catalog struct {
-	JIACatalogID string `json:"jia_catalog_id"`
-	Name         string `json:"name"`
-	LimitWeight  int    `json:"limit_weight"`
-	Weight       int    `json:"weight"`
-	Size         string `json:"size"`
-	Maker        string `json:"maker"`
-	Tags         string `json:"tags"`
 }
 
 type GetIsuConditionResponse struct {
@@ -42,10 +32,13 @@ type GetIsuConditionResponse struct {
 	Message        string `json:"message"`
 }
 
-type GraphResponse struct {
-	StartAt int64      `json:"start_at"`
-	EndAt   int64      `json:"end_at"`
-	Data    *GraphData `json:"data"`
+type GraphResponse []*GraphResponseOne
+
+type GraphResponseOne struct {
+	StartAt             int64      `json:"start_at"`
+	EndAt               int64      `json:"end_at"`
+	Data                *GraphData `json:"data"`
+	ConditionTimestamps []int64    `json:"condition_timestamps"`
 }
 
 type GraphData struct {

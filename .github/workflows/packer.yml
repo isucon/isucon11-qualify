@@ -11,6 +11,7 @@ jobs:
     runs-on:
       - self-hosted
       - isucon11-github001 # 乱数のseedを合わせるために特定インスタンスを指定
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v2
 
@@ -46,7 +47,7 @@ jobs:
           ${HOME}/work/_tool/isucon11-qualify/dockerize -wait tcp://127.0.0.1:3306 -timeout 60s
           sleep 10  # docker-entrypoint-initdb.d の読み込みを待つ
           go run .
-      - name: Dump initial-data
+      - name: Dump initial-data.sql
         working-directory: development
         run: |
           sh -c "docker-compose -f docker-compose-ci.yml exec -T mysql-backend mysqldump -uroot -proot isucondition -n -t" > initial-data.sql
@@ -57,13 +58,16 @@ jobs:
 
       - name: Upload initial-data to S3
         working-directory: development
-        run: ${HOME}/work/_tool/isucon11-qualify/aws s3 cp ./initial-data.sql s3://isucon11-qualify-dev/
+        run: |
+          ${HOME}/work/_tool/isucon11-qualify/aws s3 cp ./initial-data.sql s3://isucon11-qualify-dev/
+          ${HOME}/work/_tool/isucon11-qualify/aws s3 cp ../extra/initial-data/initialize.json s3://isucon11-qualify-dev/
 
   build-packer:
     name: packer build
     runs-on: [self-hosted]
     needs:
       - build-initial-data
+    timeout-minutes: 30
     env:
       PACKER_LOG: '1'
     defaults:

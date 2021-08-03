@@ -1,0 +1,19 @@
+---
+- name: "roles/langs.rust/tasks/main: Install Rust"
+  become_user: isucon
+  shell: |
+    curl https://sh.rustup.rs -sSf | sh -s -- -y
+
+
+- name: "roles/langs.rust/tasks/main: Add PATH for Rust"
+  become_user: isucon
+  blockinfile:
+    marker: "# {mark} ANSIBLE MANAGED BLOCK Rust"
+    path: /home/isucon/.bashrc
+    content: |
+      export PATH=/home/isucon/.cargo/bin:$PATH
+
+- name: "roles/langs.rust/tasks/main: Update to 1.53.0"
+  become: yes
+  become_user: isucon
+  command: /home/isucon/.cargo/bin/rustup update 1.53.0

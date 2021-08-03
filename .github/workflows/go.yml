@@ -5,19 +5,26 @@ on:
     paths:
       - bench/**/*
       - webapp/go/**/*
-      - development/**/*
+      - development/backend-go/**/*
+      - development/docker-compose-ci.yml
+      - development/docker-compose-dev.yml
+      - development/Makefile
       - .github/workflows/go.yml
   pull_request:
     paths:
       - bench/**/*
       - webapp/go/**/*
-      - development/**/*
+      - development/backend-go/**/*
+      - development/docker-compose-ci.yml
+      - development/docker-compose-dev.yml
+      - development/Makefile
       - .github/workflows/go.yml
 
 jobs:
   lint:
     name: Lint
     runs-on: self-hosted
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v2
       - name: golangci-lint
@@ -29,6 +36,7 @@ jobs:
   test:
     name: Integration Test
     runs-on: self-hosted
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: development
@@ -52,8 +60,10 @@ jobs:
 
 
       - name: Download init-data.sql
-        working-directory: webapp/sql
-        run: ${HOME}/work/_tool/isucon11-qualify/aws s3 cp s3://isucon11-qualify-dev/initial-data.sql ./1_InitData.sql
+        working-directory: .
+        run: |
+          ${HOME}/work/_tool/isucon11-qualify/aws s3 cp s3://isucon11-qualify-dev/initial-data.sql webapp/sql/1_InitData.sql
+          ${HOME}/work/_tool/isucon11-qualify/aws s3 cp s3://isucon11-qualify-dev/initialize.json bench/data/initialize.json
 
       - name: Build Go App
         run: target=go docker-compose -f docker-compose-ci.yml up -d --build -- backend mysql-backend

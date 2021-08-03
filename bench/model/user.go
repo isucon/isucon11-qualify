@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/isucon/isucandar/agent"
-	"github.com/isucon/isucon11-qualify/extra/initial-data/random"
+	"github.com/isucon/isucon11-qualify/bench/random"
 )
 
 //enum
@@ -12,18 +12,16 @@ type UserType int
 
 const (
 	UserTypeNormal UserType = iota
-	UserTypeMania
-	UserTypeCompany
 )
 
-//基本的には一つのシナリオスレッドが一つのユーザーを占有する
+//基本的には一つのシナリオ Goroutineが一つのユーザーを占有する
 //=>Isuの追加操作と、参照操作が同時に必要になる場面は無いはずなので、
 //  IsuListのソートは追加が終わってからソートすれば良い
 type User struct {
 	UserID                  string `json:"jia_user_id"`
 	Type                    UserType
-	IsuListOrderByCreatedAt []*Isu          //CreatedAtは厳密にはわからないので、postした後にgetをした順番を正とする
-	IsuListByID             map[string]*Isu //IDをkeyにアクセス
+	IsuListOrderByCreatedAt []*Isu          //CreatedAtは厳密にはわからないので、並列postの場合はpostした後にgetをした順番を正とする
+	IsuListByID             map[string]*Isu `json:"isu_list_by_id"` //IDをkeyにアクセス
 	Conditions              IsuConditionTreeSet
 
 	Agent *agent.Agent
@@ -49,5 +47,11 @@ func (u *User) AddIsu(isu *Isu) {
 func (user *User) GetConditionFromChan(ctx context.Context) {
 	for _, isu := range user.IsuListOrderByCreatedAt {
 		isu.getConditionFromChan(ctx, &user.Conditions)
+	}
+}
+
+func (user *User) CloseAllIsuStateChan() {
+	for _, isu := range user.IsuListByID {
+		close(isu.StreamsForScenario.StateChan)
 	}
 }

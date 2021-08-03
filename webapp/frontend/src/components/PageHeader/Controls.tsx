@@ -5,7 +5,7 @@ import { useState } from 'react'
 import ControlItem from './ControlItem'
 import UserControlModal from './UserControlModal'
 import ControlLinkItem from './ControlLinkItem'
-import { IoIosNotifications, IoMdSearch } from 'react-icons/io'
+import { IoIosNotifications } from 'react-icons/io'
 import { TiPlus } from 'react-icons/ti'
 
 const Controls = () => {
@@ -26,7 +26,7 @@ const Controls = () => {
         label="ISUの状態"
         icon={<IoIosNotifications />}
       />
-      <ControlLinkItem to="/search" label="ISUの検索" icon={<IoMdSearch />} />
+      {/* TODO: ISU一覧へのリンク */}
       <div className="border-l-1 pl-4 border-white">
         <ControlItem>
           <div

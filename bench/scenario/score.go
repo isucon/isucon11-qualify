@@ -5,11 +5,13 @@ import "github.com/isucon/isucandar/score"
 // スコアタグの管理
 
 const (
-	ScoreNormalUserInitialize  score.ScoreTag = "nu-i"
-	ScoreNormalUserLoop        score.ScoreTag = "nu-l"
-	ScoreCompanyUserInitialize score.ScoreTag = "cu-i"
-	ScoreCompanyUserLoop       score.ScoreTag = "cu-l"
-	ScorePostConditionInfo     score.ScoreTag = "pc-i"
-	ScorePostConditionWarning  score.ScoreTag = "pc-w"
-	ScorePostConditionCritical score.ScoreTag = "pc-c"
+	ScoreNormalUserInitialize  score.ScoreTag = "NormalUserInitialize      "
+	ScoreGraphExcellent        score.ScoreTag = "ScoreGraphExcellent       "
+	ScoreGraphGood             score.ScoreTag = "ScoreGraphGood            "
+	ScoreGraphNormal           score.ScoreTag = "ScoreGraphNormal          "
+	ScoreGraphBad              score.ScoreTag = "ScoreGraphBad             "
+	ScoreGraphWorst            score.ScoreTag = "ScoreGraphWorst           "
+	ScoreReadInfoCondition     score.ScoreTag = "ScoreReadInfoCondition    "
+	ScoreReadWarningCondition  score.ScoreTag = "ScoreReadWarningCondition "
+	ScoreReadCriticalCondition score.ScoreTag = "ScoreReadCriticalCondition"
 )

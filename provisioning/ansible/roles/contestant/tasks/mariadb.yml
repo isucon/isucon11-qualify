@@ -1,0 +1,53 @@
+---
+- name: "roles/contestant/tasks/mariadb: Install Package"
+  apt:
+    name:
+    - mariadb-common
+    - mariadb-server-10.3
+    - mariadb-server-core-10.3
+    - mariadb-client-10.3
+    - mariadb-client-core-10.3
+    update_cache: yes
+
+- name: "roles/contestant/tasks/mariadb: Set temporary password"
+  become_user: root
+  blockinfile:
+    create: yes
+    dest: &myCnf /root/.my.cnf
+    content: |
+      [client]
+      user = root
+      password = root
+
+- name: "roles/contestant/tasks/mariadb: Create isucon user on MariaDB"
+  become_user: root
+  shell: >
+      mysql -e "
+        CREATE USER IF NOT EXISTS 'isucon'@'localhost' IDENTIFIED BY 'isucon';
+        GRANT ALL PRIVILEGES ON *.* TO 'isucon'@'localhost' WITH GRANT OPTION;
+        FLUSH PRIVILEGES;
+      "
+
+- name: "roles/contestant/tasks/mariadb: Remove temporary file"
+  file:
+    path: *myCnf
+    state: absent
+
+- name: "roles.contestant.tasks.mariadb: Copy configs"
+  copy:
+    src: "{{ item }}"
+    dest: "/{{ item }}"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+  with_items:
+  - etc/mysql/mariadb.conf.d/50-server.cnf
+  - etc/mysql/conf.d/my.cnf
+
+- name: "roles/contestant/tasks/mariadb: Start mariadb-server"
+  systemd:
+    daemon_reload: "yes"
+    name: "mariadb.service"
+    state: "restarted"
+    enabled: "yes"
+
