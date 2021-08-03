@@ -27,3 +27,6 @@ const OneDay = 24 * 60 * 60
 const ConditionPagingStep = 10
 
 const SignoutPercentage = 20
+
+// ReadCondition 系のスコアタグが何件ごとに付与されるか
+const ReadConditionTagStep = 50
