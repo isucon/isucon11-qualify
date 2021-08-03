@@ -42,7 +42,7 @@ const (
 	conditionLevelCritical      = "critical"
 	scoreConditionLevelInfo     = 2
 	scoreConditionLevelWarning  = 1
-	ScoreConditionLevelCritical = 0
+	scoreConditionLevelCritical = 0
 )
 
 //"is_dirty=true/false,is_overweight=true/false,..."
@@ -942,7 +942,7 @@ func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, erro
 
 		// rawScoreを加算
 		if badConditionsCount >= 3 { // critical
-			rawScore += ScoreConditionLevelCritical
+			rawScore += scoreConditionLevelCritical
 		} else if badConditionsCount >= 1 { // warning
 			rawScore += scoreConditionLevelWarning
 		} else { // info
