@@ -916,10 +916,6 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 
 // 複数のISU conditionからグラフの一つのデータ点を計算
 func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, error) {
-<<<<<<< HEAD
-=======
-	var dataPoint GraphDataPoint
->>>>>>> main
 
 	// DB上にある is_dirty=true/false,is_overweight=true/false,... 形式の conditionを読み込み，
 	// 各conditionを数え，
