@@ -25,7 +25,7 @@ func UserName() string {
 			break
 		}
 	}
-	setGeneratedUser(username)
+	SetGeneratedUser(username)
 	return username
 }
 
@@ -36,7 +36,7 @@ func hasAlreadyGenerated(username string) bool {
 	return exists
 }
 
-func setGeneratedUser(username string) {
+func SetGeneratedUser(username string) {
 	mu.Lock()
 	defer mu.Unlock()
 	generatedUser[username] = struct{}{}
