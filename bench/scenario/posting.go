@@ -31,7 +31,6 @@ type posterState struct {
 
 //POST /api/condition/{jia_isu_id}をたたく Goroutine
 func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseURL string, isu *model.Isu, scenarioChan *model.StreamsForPoster) {
-	defer close(scenarioChan.ConditionChan)
 	postConditionTimeout := 50 * time.Millisecond //MEMO: timeout は気にせずにズバズバ投げる
 
 	nowTime := s.ToVirtualTime(time.Now())
@@ -89,6 +88,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 
 		//TODO: 検証可能な生成方法にする
 		//TODO: stateの適用タイミングをちゃんと考える
+
 		conditions := make([]model.IsuCondition, 0, reqLength)
 		conditionsReq := make([]service.PostIsuConditionRequest, 0, reqLength)
 
@@ -116,6 +116,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 				Message:   condition.Message,
 				Timestamp: condition.TimestampUnix,
 			})
+
 		}
 
 		if len(conditions) == 0 {
@@ -126,8 +127,12 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		select {
 		case <-ctx.Done():
 			return
-		case scenarioChan.ConditionChan <- conditions:
+		default:
 		}
+		isu.AddIsuConditions(conditions)
+
+		// TODO: sleep しないとレスポンスが来てすぐにループが回るので POST condition が高頻度過ぎてベンチが死ぬ (#728)
+		time.Sleep(400 * time.Millisecond)
 
 		// timeout も無視するので全てのエラーを見ない
 		postIsuConditionAction(httpClient, targetURL, &conditionsReq)
@@ -151,7 +156,6 @@ func (state *posterState) GetNewestCondition(stateChange model.IsuStateChange, i
 		Message:       "",
 		TimestampUnix: state.lastConditionTimestamp,
 		OwnerIsuUUID:  isu.JIAIsuUUID,
-		OwnerIsuID:    isu.ID,
 	}
 
 	//message
