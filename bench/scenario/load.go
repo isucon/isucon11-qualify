@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/isucon/isucandar"
@@ -20,7 +21,8 @@ import (
 
 var (
 	// ユーザーが持つ ISU の数を確定させたいので、そのための乱数生成器。ソースは適当に決めた
-	isuCountRandEngine = rand.New(rand.NewSource(-8679036))
+	isuCountRandEngine      = rand.New(rand.NewSource(-8679036))
+	isuCountRandEngineMutex sync.RWMutex
 )
 
 func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) error {
@@ -32,6 +34,11 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	ctx, cancel := context.WithTimeout(parent, s.LoadTimeout)
 	defer cancel()
 
+	// // 初期データをロード
+	// logger.AdminLogger.Println("start: load initial data")
+	// s.InitializeData(ctx)
+	// logger.AdminLogger.Println("finish: load initial data")
+
 	logger.ContestantLogger.Printf("===> LOAD")
 	logger.AdminLogger.Printf("LOAD INFO\n  Language: %s\n  Campaign: None\n", s.Language)
 	defer logger.AdminLogger.Println("<=== LOAD END")
@@ -42,7 +49,7 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	s.AddNormalUser(ctx, step, 2)
 
 	//非ログインユーザーを増やす
-	s.AddViewer(ctx, step, 1)
+	s.AddViewer(ctx, step, 5)
 	// //ユーザーを増やす
 	// s.loadWaitGroup.Add(1)
 	// go func() {
@@ -117,7 +124,7 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 		}
 
 		//posterからconditionの取得
-		user.GetConditionFromChan(ctx)
+		//user.GetConditionFromChan(ctx)
 		select {
 		case <-ctx.Done():
 			return
@@ -139,11 +146,8 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 		_, errs := browserGetHomeAction(ctx, user.Agent, dataExistTimestamp, true,
 			func(res *http.Response, isuList []*service.Isu) []error {
 				// poster で送ったものの同期
-				user.GetConditionFromChan(ctx)
+				//user.GetConditionFromChan(ctx)
 				expected := user.IsuListOrderByCreatedAt
-				if homeIsuLimit < len(expected) { //limit
-					expected = expected[len(expected)-homeIsuLimit:]
-				}
 				return verifyIsuOrderByCreatedAt(res, expected, isuList)
 			},
 		)
@@ -177,6 +181,11 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 
 func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep) {
 
+	userAgent, err := s.NewAgent()
+	if err != nil {
+		logger.AdminLogger.Panicln(err)
+	}
+
 	viewerTimer, viewerTimerCancel := context.WithDeadline(ctx, s.realTimeLoadFinishedAt.Add(-agent.DefaultRequestTimeout))
 	defer viewerTimerCancel()
 	select {
@@ -192,6 +201,7 @@ func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep
 	for {
 		<-scenarioLoopStopper
 		scenarioLoopStopper = time.After(5 * time.Second) //TODO: 頻度調整(絶対変える今は5秒)
+
 		select {
 		case <-ctx.Done():
 			return
@@ -200,6 +210,16 @@ func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep
 		default:
 		}
 		logger.AdminLogger.Println("viewer load")
+
+		// TODO: ちゃんとシナリオを実装する
+		trend, res, err := getTrendAction(ctx, userAgent)
+		if err != nil {
+			addErrorWithContext(ctx, step, err)
+		} else {
+			if err := s.verifyTrend(ctx, res, trend); err != nil {
+				addErrorWithContext(ctx, step, err)
+			}
+		}
 
 		// trends, err := getTrendAction()
 		// updatedTimestampCount, err := verifyTrend(trends)
@@ -227,7 +247,10 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 	//椅子作成
 	// TODO: 実際に解いてみてこの isu 数の上限がいい感じに働いているか検証する
 	const isuCountMax = 15
+	isuCountRandEngineMutex.RLock()
 	isuCount := isuCountRandEngine.Intn(isuCountMax) + 1
+	isuCountRandEngineMutex.RUnlock()
+
 	for i := 0; i < isuCount; i++ {
 		isu := s.NewIsu(ctx, step, user, true, nil)
 		if isu == nil {
@@ -260,9 +283,9 @@ func (s *Scenario) initViewer(ctx context.Context) model.Viewer {
 func (s *Scenario) requestNewConditionScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User, targetIsu *model.Isu) {
 	// 最新の condition から、一度見た condition が帰ってくるまで condition のページングをする
 	nowVirtualTime := s.ToVirtualTime(time.Now())
-	request := service.GetIndividualIsuConditionRequest{
+	request := service.GetIsuConditionRequest{
 		StartTime:      nil,
-		CursorEndTime:  nowVirtualTime.Unix(),
+		EndTime:        nowVirtualTime.Unix(),
 		ConditionLevel: "info,warning,critical",
 		Limit:          nil,
 	}
@@ -295,9 +318,9 @@ func (s *Scenario) requestNewConditionScenario(ctx context.Context, step *isucan
 func (s *Scenario) requestLastBadConditionScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User, targetIsu *model.Isu) {
 	// ConditionLevel最新の condition から、一度見た condition が帰ってくるまで condition のページングをする
 	nowVirtualTime := s.ToVirtualTime(time.Now())
-	request := service.GetIndividualIsuConditionRequest{
+	request := service.GetIsuConditionRequest{
 		StartTime:      nil,
-		CursorEndTime:  nowVirtualTime.Unix(),
+		EndTime:        nowVirtualTime.Unix(),
 		ConditionLevel: "warning,critical",
 		Limit:          nil,
 	}
@@ -306,7 +329,7 @@ func (s *Scenario) requestLastBadConditionScenario(ctx context.Context, step *is
 		request,
 		func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
 			// poster で送ったものの同期
-			user.GetConditionFromChan(ctx)
+			//user.GetConditionFromChan(ctx)
 
 			err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request, conditions)
 			if err != nil {
@@ -354,7 +377,7 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 	ctx context.Context,
 	user *model.User,
 	targetIsu *model.Isu,
-	request service.GetIndividualIsuConditionRequest,
+	request service.GetIsuConditionRequest,
 	step *isucandar.BenchmarkStep,
 ) ([]*service.GetIsuConditionResponse, int64, []error) {
 	// 更新用のLastReadConditionTimestamp
@@ -374,7 +397,7 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 		request,
 		func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
 			// poster で送ったものの同期
-			user.GetConditionFromChan(ctx)
+			//user.GetConditionFromChan(ctx)
 
 			err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request, conditions)
 			if err != nil {
@@ -406,9 +429,9 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 	pagingCount := 1
 	// 続きがあり、なおかつ今取得した condition が全て新しい時はスクロールする
 	for {
-		request = service.GetIndividualIsuConditionRequest{
+		request = service.GetIsuConditionRequest{
 			StartTime:      request.StartTime,
-			CursorEndTime:  conditions[len(conditions)-1].Timestamp,
+			EndTime:        conditions[len(conditions)-1].Timestamp,
 			ConditionLevel: request.ConditionLevel,
 			Limit:          request.Limit,
 		}
@@ -427,7 +450,7 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 			return nil, newLastReadConditionTimestamp, []error{err}
 		}
 		// poster で送ったものの同期
-		user.GetConditionFromChan(ctx)
+		//user.GetConditionFromChan(ctx)
 		err = verifyIsuConditions(hres, user, targetIsu.JIAIsuUUID, &request, tmpConditions)
 		if err != nil {
 			return nil, newLastReadConditionTimestamp, []error{err}
@@ -513,9 +536,9 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 		nowViewingGraph := graphResponses[len(graphResponses)-1]
 		// チェックする時間
 		checkHour := getCheckHour(*nowViewingGraph, randEngine)
-		request := service.GetIndividualIsuConditionRequest{
+		request := service.GetIsuConditionRequest{
 			StartTime:      &(*nowViewingGraph)[checkHour].StartAt,
-			CursorEndTime:  (*nowViewingGraph)[checkHour].EndAt,
+			EndTime:        (*nowViewingGraph)[checkHour].EndAt,
 			ConditionLevel: "info,warning,critical",
 		}
 		conditions, hres, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
@@ -524,7 +547,7 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 			return
 		}
 		// poster で送ったものの同期
-		user.GetConditionFromChan(ctx)
+		//user.GetConditionFromChan(ctx)
 		err = verifyIsuConditions(hres, user, targetIsu.JIAIsuUUID, &request, conditions)
 		if err != nil {
 			addErrorWithContext(ctx, step, err)
@@ -606,7 +629,7 @@ func getIsuGraphUntilLastViewed(
 	}
 
 	//検証前にデータ取得
-	user.GetConditionFromChan(ctx)
+	//user.GetConditionFromChan(ctx)
 	err = verifyGraph(hres, user, targetIsu.JIAIsuUUID, &todayRequest, todayGraph)
 	if err != nil {
 		return nil, []error{err}
@@ -631,7 +654,7 @@ func getIsuGraphUntilLastViewed(
 		}
 
 		//検証前にデータ取得
-		user.GetConditionFromChan(ctx)
+		//user.GetConditionFromChan(ctx)
 		err = verifyGraph(hres, user, targetIsu.JIAIsuUUID, &request, tmpGraph)
 		if err != nil {
 			return nil, []error{err}

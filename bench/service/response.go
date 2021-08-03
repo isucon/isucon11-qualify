@@ -46,3 +46,16 @@ type GraphData struct {
 	Sitting int            `json:"sitting"`
 	Detail  map[string]int `json:"detail"`
 }
+
+type GetTrendResponse []GetTrendResponseOne
+
+type GetTrendResponseOne struct {
+	Character  string           `json:"character"`
+	Conditions []TrendCondition `json:"conditions"`
+}
+
+type TrendCondition struct {
+	IsuID          int    `json:"isu_id"`
+	Timestamp      int64  `json:"timestamp"`
+	ConditionLevel string `json:"condition_level"`
+}
