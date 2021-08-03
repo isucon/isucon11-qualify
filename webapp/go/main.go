@@ -68,7 +68,7 @@ type Config struct {
 	URL  string `db:"url"`
 }
 
-type GetIsuResponse struct {
+type GetIsuListResponse struct {
 	Isu
 	LatestIsuCondition *GetIsuConditionResponse `json:"latest_isu_condition"`
 }
@@ -492,7 +492,7 @@ func getIsuList(c echo.Context) error {
 	}
 
 	// 各ISUの最近のconditionをそれぞれ取得し，レスポンスを生成
-	responseList := []GetIsuResponse{}
+	responseList := []GetIsuListResponse{}
 	for _, isu := range isuList {
 		var lastCondition IsuCondition
 		foundLastCondition := true
@@ -526,7 +526,7 @@ func getIsuList(c echo.Context) error {
 			}
 		}
 
-		res := GetIsuResponse{Isu: isu, LatestIsuCondition: formattedCondition}
+		res := GetIsuListResponse{Isu: isu, LatestIsuCondition: formattedCondition}
 		responseList = append(responseList, res)
 	}
 
@@ -739,7 +739,7 @@ func getIsu(c echo.Context) error {
 			Message:        lastCondition.Message,
 		}
 	}
-	res := GetIsuResponse{Isu: isu, LatestIsuCondition: formattedCondition}
+	res := GetIsuListResponse{Isu: isu, LatestIsuCondition: formattedCondition}
 	return c.JSON(http.StatusOK, res)
 }
 
