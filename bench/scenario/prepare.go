@@ -615,11 +615,8 @@ func (s *Scenario) prepareCheckGetIsuIcon(ctx context.Context, loginUser *model.
 }
 
 func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
-	//ISUグラフの取得 e.GET("/api/isu/:jia_isu_uuid/graph", getIsuGraph)
 	// check: 正常系
 	for _, isu := range loginUser.IsuListOrderByCreatedAt {
-		// 検証用の初期データは3日分のconditionを作成するので前日分も回す
-
 		// condition の read lock を取得
 		isu.CondMutex.RLock()
 		lastCond := isu.Conditions.Back()
@@ -630,6 +627,23 @@ func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model
 			continue
 		}
 		graph, res, err := getIsuGraphAction(ctx, loginUser.Agent, isu.JIAIsuUUID, service.GetGraphRequest{Date: lastCond.TimestampUnix})
+		if err != nil {
+			step.AddError(err)
+			return
+		}
+		if err := verifyStatusCode(res, http.StatusOK); err != nil {
+			step.AddError(err)
+			return
+		}
+		// graphの検証
+		if err := verifyPrepareGraph(res, loginUser, isu.JIAIsuUUID, graph); err != nil {
+			step.AddError(err)
+			return
+		}
+
+		// 前日分も検証
+		yesterday := time.Unix(lastCond.TimestampUnix, 0).Add(-24 * time.Hour).Unix()
+		graph, res, err = getIsuGraphAction(ctx, loginUser.Agent, isu.JIAIsuUUID, service.GetGraphRequest{Date: yesterday})
 		if err != nil {
 			step.AddError(err)
 			return
