@@ -479,10 +479,17 @@ func getIsuList(c echo.Context) error {
 		}
 	}
 
-	offset := (page - 1) * limit
+	// トランザクション開始
+	tx, err := db.Beginx()
+	if err != nil {
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	defer tx.Rollback()
 
+	offset := (page - 1) * limit
 	isuList := []Isu{}
-	err = db.Select(
+	err = tx.Select(
 		&isuList,
 		"SELECT * FROM `isu` WHERE `jia_user_id` = ? ORDER BY `created_at` DESC LIMIT ? OFFSET ?",
 		jiaUserID, limit, offset)
@@ -496,7 +503,7 @@ func getIsuList(c echo.Context) error {
 	for _, isu := range isuList {
 		var lastCondition IsuCondition
 		foundLastCondition := true
-		err = db.Get(&lastCondition, "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` DESC LIMIT 1",
+		err = tx.Get(&lastCondition, "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` DESC LIMIT 1",
 			isu.JIAIsuUUID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
@@ -528,6 +535,13 @@ func getIsuList(c echo.Context) error {
 
 		res := GetIsuListResponse{Isu: isu, LatestIsuCondition: formattedCondition}
 		responseList = append(responseList, res)
+	}
+
+	// トランザクション終了
+	err = tx.Commit()
+	if err != nil {
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	return c.JSON(http.StatusOK, responseList)
