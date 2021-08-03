@@ -22,16 +22,6 @@ type Isu struct {
 	Icon []byte `json:"-"`
 }
 
-type Catalog struct {
-	JIACatalogID string `json:"jia_catalog_id"`
-	Name         string `json:"name"`
-	LimitWeight  int    `json:"limit_weight"`
-	Weight       int    `json:"weight"`
-	Size         string `json:"size"`
-	Maker        string `json:"maker"`
-	Tags         string `json:"tags"`
-}
-
 type GetIsuConditionResponse struct {
 	JIAIsuUUID     string `json:"jia_isu_uuid"`
 	IsuName        string `json:"isu_name"`
@@ -55,4 +45,17 @@ type GraphData struct {
 	Score   int            `json:"score"`
 	Sitting int            `json:"sitting"`
 	Detail  map[string]int `json:"detail"`
+}
+
+type GetTrendResponse []GetTrendResponseOne
+
+type GetTrendResponseOne struct {
+	Character  string           `json:"character"`
+	Conditions []TrendCondition `json:"conditions"`
+}
+
+type TrendCondition struct {
+	IsuID          int    `json:"isu_id"`
+	Timestamp      int64  `json:"timestamp"`
+	ConditionLevel string `json:"condition_level"`
 }

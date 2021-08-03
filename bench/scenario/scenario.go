@@ -43,10 +43,20 @@ type Scenario struct {
 	jiaCancel     context.CancelFunc
 
 	//内部状態
-	normalUsersMtx  sync.Mutex
-	normalUsers     []*model.User
-	Catalogs        map[string]*model.IsuCatalog
+	normalUsersMtx sync.Mutex
+	normalUsers    []*model.User
+
+	viewerMtx sync.Mutex
+	viewers   []*model.Viewer
+
+	// GET trend にて isuID から isu を取得するのに利用
+	isuFromID      map[int]*model.Isu
+	isuFromIDMutex sync.RWMutex
 }
+
+var (
+// MEMO: IsuFromID は NewIsu() 内でのみ書き込まれる append only な map
+)
 
 func NewScenario(jiaServiceURL *url.URL, loadTimeout time.Duration) (*Scenario, error) {
 	return &Scenario{
@@ -58,6 +68,7 @@ func NewScenario(jiaServiceURL *url.URL, loadTimeout time.Duration) (*Scenario, 
 		jiaServiceURL:     jiaServiceURL,
 		initializeTimeout: 20 * time.Second,
 		normalUsers:       []*model.User{},
+		isuFromID:         make(map[int]*model.Isu, 8192),
 	}, nil
 }
 
@@ -92,7 +103,7 @@ func (s *Scenario) AddNormalUser(ctx context.Context, step *isucandar.BenchmarkS
 
 //load用
 //マニアユーザーのシナリオ Goroutineを追加する
-func (s *Scenario) AddManiacUser(ctx context.Context, step *isucandar.BenchmarkStep, count int) {
+func (s *Scenario) AddViewer(ctx context.Context, step *isucandar.BenchmarkStep, count int) {
 	if count <= 0 {
 		return
 	}
@@ -100,7 +111,7 @@ func (s *Scenario) AddManiacUser(ctx context.Context, step *isucandar.BenchmarkS
 	for i := 0; i < count; i++ {
 		go func(ctx context.Context, step *isucandar.BenchmarkStep) {
 			defer s.loadWaitGroup.Done()
-			//s.loadManiacUser(ctx, step) //TODO:
+			s.loadViewer(ctx, step)
 		}(ctx, step)
 	}
 }
@@ -166,6 +177,9 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 	// POST isu のレスポンスより ID を取得して isu モデルに代入する
 	isu.ID = isuResponse.ID
 
+	// isu.ID から model.TrendCondition を取得できるようにする (GET /trend 用)
+	s.UpdateIsuFromID(isu)
+
 	// poster に isu model の初期化終了を伝える
 	isu.StreamsForScenario.StateChan <- model.IsuStateChangeNone
 
@@ -192,6 +206,9 @@ func GetConditionDataExistTimestamp(s *Scenario, user *model.User) int64 {
 	}
 	var timestamp int64 = math.MaxInt64
 	for _, isu := range user.IsuListOrderByCreatedAt {
+
+		// condition の read lock を取得
+		isu.CondMutex.RLock()
 		cond := isu.Conditions.Back()
 		if cond == nil {
 			return s.virtualTimeStart.Unix()
@@ -199,6 +216,8 @@ func GetConditionDataExistTimestamp(s *Scenario, user *model.User) int64 {
 		if cond.TimestampUnix < timestamp {
 			timestamp = cond.TimestampUnix
 		}
+		isu.CondMutex.RUnlock()
+
 	}
 	return timestamp
 }
@@ -212,4 +231,17 @@ func addErrorWithContext(ctx context.Context, step *isucandar.BenchmarkStep, err
 	default:
 		step.AddError(err)
 	}
+}
+
+func (s *Scenario) UpdateIsuFromID(isu *model.Isu) {
+	s.isuFromIDMutex.Lock()
+	defer s.isuFromIDMutex.Unlock()
+	s.isuFromID[isu.ID] = isu
+}
+
+func (s *Scenario) GetIsuFromID(id int) (*model.Isu, bool) {
+	s.isuFromIDMutex.RLock()
+	defer s.isuFromIDMutex.RUnlock()
+	isu, ok := s.isuFromID[id]
+	return isu, ok
 }

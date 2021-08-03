@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/isucon/isucandar"
@@ -16,6 +17,12 @@ import (
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
 	"github.com/isucon/isucon11-qualify/bench/service"
+)
+
+var (
+	// ユーザーが持つ ISU の数を確定させたいので、そのための乱数生成器。ソースは適当に決めた
+	isuCountRandEngine      = rand.New(rand.NewSource(-8679036))
+	isuCountRandEngineMutex sync.RWMutex
 )
 
 func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) error {
@@ -27,17 +34,22 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	ctx, cancel := context.WithTimeout(parent, s.LoadTimeout)
 	defer cancel()
 
+	// // 初期データをロード
+	// logger.AdminLogger.Println("start: load initial data")
+	// s.InitializeData(ctx)
+	// logger.AdminLogger.Println("finish: load initial data")
+
 	logger.ContestantLogger.Printf("===> LOAD")
 	logger.AdminLogger.Printf("LOAD INFO\n  Language: %s\n  Campaign: None\n", s.Language)
 	defer logger.AdminLogger.Println("<=== LOAD END")
 
-	/*
-		TODO: 実際の負荷走行シナリオ
-	*/
+	// 実際の負荷走行シナリオ
 
 	//通常ユーザー
 	s.AddNormalUser(ctx, step, 2)
 
+	//非ログインユーザーを増やす
+	s.AddViewer(ctx, step, 5)
 	// //ユーザーを増やす
 	// s.loadWaitGroup.Add(1)
 	// go func() {
@@ -112,7 +124,7 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 		}
 
 		//posterからconditionの取得
-		user.GetConditionFromChan(ctx)
+		//user.GetConditionFromChan(ctx)
 		select {
 		case <-ctx.Done():
 			return
@@ -133,10 +145,9 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 		dataExistTimestamp := GetConditionDataExistTimestamp(s, user)
 		_, errs := browserGetHomeAction(ctx, user.Agent, dataExistTimestamp, true,
 			func(res *http.Response, isuList []*service.Isu) []error {
+				// poster で送ったものの同期
+				//user.GetConditionFromChan(ctx)
 				expected := user.IsuListOrderByCreatedAt
-				if homeIsuLimit < len(expected) { //limit
-					expected = expected[len(expected)-homeIsuLimit:]
-				}
 				return verifyIsuOrderByCreatedAt(res, expected, isuList)
 			},
 		)
@@ -168,6 +179,53 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 	}
 }
 
+func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep) {
+
+	userAgent, err := s.NewAgent()
+	if err != nil {
+		logger.AdminLogger.Panicln(err)
+	}
+
+	viewerTimer, viewerTimerCancel := context.WithDeadline(ctx, s.realTimeLoadFinishedAt.Add(-agent.DefaultRequestTimeout))
+	defer viewerTimerCancel()
+	select {
+	case <-ctx.Done():
+		return
+	case <-viewerTimer.Done():
+		return
+	default:
+	}
+
+	_ = s.initViewer(ctx)
+	scenarioLoopStopper := time.After(1 * time.Millisecond) //ループ頻度調整
+	for {
+		<-scenarioLoopStopper
+		scenarioLoopStopper = time.After(5 * time.Second) //TODO: 頻度調整(絶対変える今は5秒)
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-viewerTimer.Done(): //TODO: GETリクエスト系も早めに終わるかは要検討
+			return
+		default:
+		}
+		logger.AdminLogger.Println("viewer load")
+
+		// TODO: ちゃんとシナリオを実装する
+		trend, res, err := getTrendAction(ctx, userAgent)
+		if err != nil {
+			addErrorWithContext(ctx, step, err)
+		} else {
+			if err := s.verifyTrend(ctx, res, trend); err != nil {
+				addErrorWithContext(ctx, step, err)
+			}
+		}
+
+		// trends, err := getTrendAction()
+		// updatedTimestampCount, err := verifyTrend(trends)
+	}
+}
+
 //ユーザーとISUの作成
 func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.BenchmarkStep) *model.User {
 	//ユーザー作成
@@ -189,7 +247,10 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 	//椅子作成
 	// TODO: 実際に解いてみてこの isu 数の上限がいい感じに働いているか検証する
 	const isuCountMax = 15
-	isuCount := rand.Intn(isuCountMax) + 1
+	isuCountRandEngineMutex.RLock()
+	isuCount := isuCountRandEngine.Intn(isuCountMax) + 1
+	isuCountRandEngineMutex.RUnlock()
+
 	for i := 0; i < isuCount; i++ {
 		isu := s.NewIsu(ctx, step, user, true, nil)
 		// TODO: retry
@@ -200,6 +261,23 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 	}
 	step.AddScore(ScoreNormalUserInitialize)
 	return user
+}
+
+//ユーザーとISUの作成
+func (s *Scenario) initViewer(ctx context.Context) model.Viewer {
+	//ユーザー作成
+	viewerAgent, err := s.NewAgent()
+	if err != nil {
+		logger.AdminLogger.Panicln(err)
+	}
+	viewer := model.NewViewer(viewerAgent)
+	func() {
+		s.viewerMtx.Lock()
+		defer s.viewerMtx.Unlock()
+		s.viewers = append(s.viewers, &viewer)
+	}()
+
+	return viewer
 }
 
 // あるISUの新しいconditionを見に行くシナリオ。
@@ -252,10 +330,8 @@ func (s *Scenario) requestLastBadConditionScenario(ctx context.Context, step *is
 		request,
 		func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
 			// poster で送ったものの同期
-			user.GetConditionFromChan(ctx)
+			//user.GetConditionFromChan(ctx)
 
-			// TODO: validation は引数に渡さず関数の結果からやる
-			//conditionの検証
 			err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request, conditions)
 			if err != nil {
 				return []error{err}
@@ -322,10 +398,8 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 		request,
 		func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
 			// poster で送ったものの同期
-			user.GetConditionFromChan(ctx)
+			//user.GetConditionFromChan(ctx)
 
-			// TODO: validation は引数に渡さず関数の結果からやる
-			//conditionの検証
 			err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request, conditions)
 			if err != nil {
 				return []error{err}
@@ -365,20 +439,23 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 
 		// ConditionPagingStep ページごとに現状の condition をスコアリング
 		pagingCount++
-		if pagingCount % ConditionPagingStep == 0 {
+		if pagingCount%ConditionPagingStep == 0 {
 			for _, cond := range conditions {
 				addConditionScoreTag(cond, step)
 			}
 			conditions = conditions[:0]
 		}
 
-		tmpConditions, _, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
-		// poster で送ったものの同期
-		user.GetConditionFromChan(ctx)
+		tmpConditions, hres, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
 		if err != nil {
 			return nil, newLastReadConditionTimestamp, []error{err}
 		}
-		// TODO: validation
+		// poster で送ったものの同期
+		//user.GetConditionFromChan(ctx)
+		err = verifyIsuConditions(hres, user, targetIsu.JIAIsuUUID, &request, tmpConditions)
+		if err != nil {
+			return nil, newLastReadConditionTimestamp, []error{err}
+		}
 
 		for _, cond := range tmpConditions {
 			// 新しいやつだけなら append
@@ -465,12 +542,18 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 			EndTime:  (*nowViewingGraph)[checkHour].EndAt,
 			ConditionLevel: "info,warning,critical",
 		}
-		_, _, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
+		conditions, hres, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
 		if err != nil {
 			addErrorWithContext(ctx, step, err)
 			return
 		}
-		// TODO: validation
+		// poster で送ったものの同期
+		//user.GetConditionFromChan(ctx)
+		err = verifyIsuConditions(hres, user, targetIsu.JIAIsuUUID, &request, conditions)
+		if err != nil {
+			addErrorWithContext(ctx, step, err)
+			return
+		}
 	}
 
 	// graph の加点分を計算
@@ -547,7 +630,7 @@ func getIsuGraphUntilLastViewed(
 	}
 
 	//検証前にデータ取得
-	user.GetConditionFromChan(ctx)
+	//user.GetConditionFromChan(ctx)
 	err = verifyGraph(hres, user, targetIsu.JIAIsuUUID, &todayRequest, todayGraph)
 	if err != nil {
 		return nil, []error{err}
@@ -572,7 +655,7 @@ func getIsuGraphUntilLastViewed(
 		}
 
 		//検証前にデータ取得
-		user.GetConditionFromChan(ctx)
+		//user.GetConditionFromChan(ctx)
 		err = verifyGraph(hres, user, targetIsu.JIAIsuUUID, &request, tmpGraph)
 		if err != nil {
 			return nil, []error{err}

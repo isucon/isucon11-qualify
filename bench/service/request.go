@@ -32,19 +32,9 @@ type PutIsuRequest struct {
 	Name string `json:"name"`
 }
 
-type GetIsuSearchRequest struct {
-	Name           *string
-	Character      *string
-	CatalogName    *string
-	MinLimitWeight *int
-	MaxLimitWeight *int
-	CatalogTags    *string
-	Page           *int
-}
-
 type GetIsuConditionRequest struct {
 	StartTime      *int64
-	EndTime  int64
+	EndTime        int64
 	ConditionLevel string
 	Limit          *int
 }
