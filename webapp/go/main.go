@@ -68,11 +68,6 @@ type Config struct {
 	URL  string `db:"url"`
 }
 
-type GetIsuListResponse struct {
-	Isu
-	LatestIsuCondition *GetIsuConditionResponse `json:"latest_isu_condition"`
-}
-
 type Isu struct {
 	ID         int       `db:"id" json:"id"`
 	JIAIsuUUID string    `db:"jia_isu_uuid" json:"jia_isu_uuid"`
@@ -86,6 +81,14 @@ type Isu struct {
 
 type IsuFromJIA struct {
 	Character string `json:"character"`
+}
+
+type GetIsuListResponse struct {
+	ID                 int                      `json:"id"`
+	JIAIsuUUID         string                   `json:"jia_isu_uuid"`
+	Name               string                   `json:"name"`
+	Character          string                   `json:"character"`
+	LatestIsuCondition *GetIsuConditionResponse `json:"latest_isu_condition"`
 }
 
 type IsuCondition struct {
@@ -533,7 +536,12 @@ func getIsuList(c echo.Context) error {
 			}
 		}
 
-		res := GetIsuListResponse{Isu: isu, LatestIsuCondition: formattedCondition}
+		res := GetIsuListResponse{
+			ID:                 isu.ID,
+			JIAIsuUUID:         isu.JIAIsuUUID,
+			Name:               isu.Name,
+			Character:          isu.Character,
+			LatestIsuCondition: formattedCondition}
 		responseList = append(responseList, res)
 	}
 
