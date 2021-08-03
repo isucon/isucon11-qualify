@@ -21,19 +21,23 @@ func UserName() string {
 	// NOTE: bench内から呼び出す処理で log.Fatalf して欲しくないので、無限ループする
 	for {
 		username = namesgenerator.GetRandomName(0)
-		if !hasAlreadyGenerated(username) {
+		if reserveName(username) {
 			break
 		}
 	}
-	SetGeneratedUser(username)
 	return username
 }
 
-func hasAlreadyGenerated(username string) bool {
+//成功でtrue
+func reserveName(username string) bool {
 	mu.Lock()
 	defer mu.Unlock()
 	_, exists := generatedUser[username]
-	return exists
+	if exists {
+		return false
+	}
+	generatedUser[username] = struct{}{}
+	return true
 }
 
 func SetGeneratedUser(username string) {
