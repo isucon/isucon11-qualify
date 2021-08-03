@@ -637,7 +637,7 @@ func (s *Scenario) verifyTrend(
 	return nil
 }
 
-// 日単位にする関数
+//分以下を切り捨て、一時間単位にする関数
 func truncateAfterHours(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), 0, 0, 0, t.Location())
 }
