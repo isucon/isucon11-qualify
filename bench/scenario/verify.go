@@ -219,7 +219,7 @@ func verifyIsuConditions(res *http.Response,
 			c.IsSitting != expected.IsSitting ||
 			c.JIAIsuUUID != expected.OwnerIsuUUID ||
 			c.Message != expected.Message ||
-			c.IsuName != targetUser.IsuListByID[c.JIAIsuUUID].Name {
+			c.IsuName != targetIsu.Name {
 			return errorMissmatch(res, "データが正しくありません")
 		}
 		lastSort = nowSort
@@ -309,7 +309,7 @@ func verifyPrepareIsuConditions(res *http.Response,
 			c.IsSitting != expected.IsSitting ||
 			c.JIAIsuUUID != expected.OwnerIsuUUID ||
 			c.Message != expected.Message ||
-			c.IsuName != targetUser.IsuListByID[c.JIAIsuUUID].Name ||
+			c.IsuName != targetIsu.Name ||
 			c.Timestamp != expected.TimestampUnix {
 			return errorMissmatch(res, "データが正しくありません")
 		}
