@@ -870,7 +870,7 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 		}
 	}
 
-	var filteredDataPoints []GraphDataPointWithInfo
+	filteredDataPoints := []GraphDataPointWithInfo{}
 	if startIndex < endNextIndex {
 		filteredDataPoints = dataPoints[startIndex:endNextIndex]
 	}
@@ -1158,7 +1158,7 @@ func postIsuCondition(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "missing: jia_isu_uuid")
 	}
 
-	var req []PostIsuConditionRequest
+	req := []PostIsuConditionRequest{}
 	err := c.Bind(&req)
 	if err != nil {
 		c.Logger().Errorf("bad request body: %v", err)
