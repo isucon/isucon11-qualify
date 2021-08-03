@@ -40,9 +40,9 @@ const (
 	conditionLevelInfo          = "info"
 	conditionLevelWarning       = "warning"
 	conditionLevelCritical      = "critical"
-	scoreConditionLevelInfo     = 2
-	scoreConditionLevelWarning  = 1
-	scoreConditionLevelCritical = 0
+	scoreConditionLevelInfo     = 3
+	scoreConditionLevelWarning  = 2
+	scoreConditionLevelCritical = 1
 )
 
 //"is_dirty=true/false,is_overweight=true/false,..."
