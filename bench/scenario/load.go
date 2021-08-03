@@ -141,9 +141,6 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 				// poster で送ったものの同期
 				user.GetConditionFromChan(ctx)
 				expected := user.IsuListOrderByCreatedAt
-				if homeIsuLimit < len(expected) { //limit
-					expected = expected[len(expected)-homeIsuLimit:]
-				}
 				return verifyIsuOrderByCreatedAt(res, expected, isuList)
 			},
 		)
@@ -200,7 +197,7 @@ func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep
 		default:
 		}
 		logger.AdminLogger.Println("viewer load")
-	
+
 		// trends, err := getTrendAction()
 		// updatedTimestampCount, err := verifyTrend(trends)
 	}
@@ -416,7 +413,7 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 
 		// ConditionPagingStep ページごとに現状の condition をスコアリング
 		pagingCount++
-		if pagingCount % ConditionPagingStep == 0 {
+		if pagingCount%ConditionPagingStep == 0 {
 			for _, cond := range conditions {
 				addConditionScoreTag(cond, step)
 			}

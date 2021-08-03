@@ -455,24 +455,6 @@ func getIsuList(c echo.Context) error {
 		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 
-	pageStr := c.QueryParam("page")
-	page := 1
-	if pageStr != "" {
-		page, err = strconv.Atoi(pageStr)
-		if err != nil || page <= 0 {
-			return c.String(http.StatusBadRequest, "bad format: page")
-		}
-	}
-
-	limitStr := c.QueryParam("limit")
-	limit := isuListLimit
-	if limitStr != "" {
-		limit, err = strconv.Atoi(limitStr)
-		if err != nil || limit <= 0 {
-			return c.String(http.StatusBadRequest, "bad format: limit")
-		}
-	}
-
 	// トランザクション開始
 	tx, err := db.Beginx()
 	if err != nil {
@@ -481,12 +463,11 @@ func getIsuList(c echo.Context) error {
 	}
 	defer tx.Rollback()
 
-	offset := (page - 1) * limit
 	isuList := []Isu{}
 	err = tx.Select(
 		&isuList,
-		"SELECT * FROM `isu` WHERE `jia_user_id` = ? ORDER BY `id` DESC LIMIT ? OFFSET ?",
-		jiaUserID, limit, offset)
+		"SELECT * FROM `isu` WHERE `jia_user_id` = ? ORDER BY `id` DESC",
+		jiaUserID)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
