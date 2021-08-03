@@ -29,16 +29,19 @@ import (
 )
 
 const (
-	sessionName               = "isucondition"
-	conditionLimit            = 20
-	frontendContentsPath      = "../public"
-	jwtVerificationKeyPath    = "../ec256-public.pem"
-	defaultIconFilePath       = "../NoImage.jpg"
-	defaultJIAServiceURL      = "http://localhost:5000"
-	mysqlErrNumDuplicateEntry = 1062
-	conditionLevelInfo        = "info"
-	conditionLevelWarning     = "warning"
-	conditionLevelCritical    = "critical"
+	sessionName                 = "isucondition"
+	conditionLimit              = 20
+	frontendContentsPath        = "../public"
+	jwtVerificationKeyPath      = "../ec256-public.pem"
+	defaultIconFilePath         = "../NoImage.jpg"
+	defaultJIAServiceURL        = "http://localhost:5000"
+	mysqlErrNumDuplicateEntry   = 1062
+	conditionLevelInfo          = "info"
+	conditionLevelWarning       = "warning"
+	conditionLevelCritical      = "critical"
+	scoreConditionLevelInfo     = 3
+	scoreConditionLevelWarning  = 2
+	scoreConditionLevelCritical = 1
 )
 
 //"is_dirty=true/false,is_overweight=true/false,..."
