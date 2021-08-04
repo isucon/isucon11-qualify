@@ -1,6 +1,6 @@
 # ISUCONDITION アプリケーションマニュアル
 
-![](https://s3-ap-northeast-1.amazonaws.com/hackmd-jp1/uploads/upload_f7b1f89768906f3a6d8280f4814af567.png)
+![ISUCONDITIONロゴ](https://s3-ap-northeast-1.amazonaws.com/hackmd-jp1/uploads/upload_f7b1f89768906f3a6d8280f4814af567.png)
 
 
 ## ISUCONDITION とは
@@ -32,11 +32,11 @@
 
 ### 1. ユーザ登録/ログイン
 
-**ユーザ**は、JIAのアカウントを利用してユーザ登録/ログイン (`POST /api/auth`) を行います。JIAへログインし、そこで得たトークン（JWT:JSON Web Token）を元にISUCONDITIONへアクセスを行います。
+**ユーザ**は、JIAのアカウントを利用してユーザ登録/ログイン (`/login`) を行います。JIAへログインし、そこで得たトークン（JWT:JSON Web Token）を元にISUCONDITIONへアクセスを行います。
 
 ### 2. ISUの登録とISUのコンディション送信処理
 
-**ユーザ**は、自分の大事なパートナーであるISUを、JIAが発行するISU固有のID(以下、ISU UUID)を使い、ISUCONDITIONに登録 (`POST /api/isu`) します。**ユーザ**は、登録を行ったISUの、ISUの状態 (`GET /api/isu/:jia_isu_uuid`) やグラフとスコア (`GET /api/isu/:jia_isu_uuid/graph`) を見ることができます。
+**ユーザ**は、自分の大事なパートナーであるISUを、JIAが発行するISU固有のID(以下、ISU UUID)を使い、ISUCONDITIONに登録 (`/register`) します。**ユーザ**は、登録を行ったISUの詳細 (`/isu/:jia_isu_uuid`) や、ISUの状態 (`/isu/:jia_isu_uuid/condition`) 、グラフとスコア (`/isu/:jia_isu_uuid/graph`) を見ることができます。
 
 **JIA**は、ISUCONDITIONからISU UUIDを受け取ることで、当該のISU UUIDを持つISUに対してISUCONDITIONへコンディション送信 (`POST /api/condition/:jia_isu_uuid`) を開始する指示をします。
 
@@ -48,7 +48,7 @@ ISUCONDITIONは、ISUから送信されるコンディション (`POST /api/cond
 
 ### 3. 登録済みのISUの確認
 
-**ユーザ**は、一定の頻度で自身が登録したISUの一覧 (`GET /api/isu`) を確認しています。ユーザはISUの一覧を受け取ったとき、各ISUの詳細 (`GET /api/isu/:jia_isu_uuid`) を確認します。
+**ユーザ**は、一定の頻度でログイン後のトップページ (`/`) に表示される、自身が登録したISUの一覧を確認しています。ユーザはISUの一覧を受け取ったとき、各ISUの詳細 (`/isu/:jia_isu_uuid`) を確認します。
 他のユーザのISUについて見ることできません。
 
 ### 4. ISUの状態確認
@@ -57,11 +57,11 @@ ISUCONDITIONは、ISUから送信されるコンディション (`POST /api/cond
 
 #### 4.1. グラフの確認
 
-ユーザは、当日のグラフを確認 (`GET /api/isu/:jia_isu_uuid/graph`) 後、まだ確認していない日付のグラフがある場合、過去日付に遡ってグラフを確認します。
+ユーザは、当日のグラフを確認 (`/isu/:jia_isu_uuid/graph`) 後、まだ確認していない日付のグラフがある場合、過去日付に遡ってグラフを確認します。
 
 #### 4.2. 状態の確認
 
-ユーザは、ISUのコンディションを確認 (`GET /api/condition/:jia_isu_uuid`) 後、まだ確認していない状態がある場合、過去に遡ってグラフを確認します。
+ユーザは、ISUのコンディションを確認 (`/isu/:jia_isu_uuid/condition`) 後、まだ確認していない状態がある場合、過去に遡ってグラフを確認します。
 
 #### 4.3. 状態の悪いISUの修理
 
@@ -71,9 +71,11 @@ ISUCONDITIONは、ISUから送信されるコンディション (`POST /api/cond
 
 ### 5. トレンド
 
-閲覧者は、ISUCONDITIONのページトップに表示されるトレンド　(`GET /api/trend`) を確認することで、ISUCONDITIONに登録されているISUたちの、性格ごとの最新の状態を閲覧することができます。
+閲覧者は、ISUCONDITIONのトップページ　(`/`) に表示されるトレンドを確認しています。
+トレンドにはISUCONDITIONに登録されているすべてのISUたちの最新状態が取得でき、これらの状態はISUが持つ性格ごとにグルーピングされた形となっています。
 
-サービスに興味を持った閲覧者はサービストップページに表示されるトレンドを一定間隔で閲覧し、トレンドの変化に注目しています。閲覧者はトレンドの変化を確認すると、サービスに興味を持ち、ユーザ登録を行った後に、自信が所有するISUを登録します。
+サービスに興味を持った閲覧者はサービストップページに表示されるトレンドを一定間隔で閲覧し、トレンドの変化に注目しています。
+閲覧者はトレンドの変化を確認すると、サービスの魅力を理解し、口コミを広めることでサービスに興味を持つユーザが増加します。
 
 TODO: 閲覧者がどうやって増えるかを確認
 
