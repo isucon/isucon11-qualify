@@ -168,11 +168,13 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 
 		//GET /
 		dataExistTimestamp := GetConditionDataExistTimestamp(s, user)
+		var newConditionUUIDs []string
 		_, errs := browserGetHomeAction(ctx, user.Agent, dataExistTimestamp, true,
 			func(res *http.Response, isuList []*service.Isu) []error {
 				expected := user.IsuListOrderByCreatedAt
 
-				_, errs := s.verifyIsuList(res, expected, isuList)
+				var errs []error
+				newConditionUUIDs, errs = s.verifyIsuList(res, expected, isuList)
 				return errs
 			},
 		)
@@ -181,6 +183,20 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 		}
 		if len(errs) > 0 {
 			continue
+		}
+		//更新されているかどうか確認
+		if nextScenarioIndex == 0 {
+			found := false
+			for _, updated := range newConditionUUIDs {
+				if updated == targetIsu.JIAIsuUUID {
+					found = true
+					break
+				}
+			}
+			if !found { //更新されていないので次のISUを見に行く
+				nextScenarioIndex = 2
+				continue
+			}
 		}
 
 		//GET /isu/{jia_isu_uuid}
