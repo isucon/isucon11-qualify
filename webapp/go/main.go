@@ -259,7 +259,6 @@ func main() {
 		e.Logger.Fatalf("DB connection failed : %v", err)
 		return
 	}
-	db.SetMaxOpenConns(10)
 	defer db.Close()
 
 	isuConditionPublicAddress = os.Getenv("SERVER_PUBLIC_ADDRESS")
@@ -291,11 +290,25 @@ func getUserIDFromSession(c echo.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	userID, ok := session.Values["jia_user_id"]
+	_jiaUserID, ok := session.Values["jia_user_id"]
 	if !ok {
 		return "", fmt.Errorf("no session")
 	}
-	return userID.(string), nil
+
+	jiaUserID := _jiaUserID.(string)
+	var count int
+
+	err = db.Get(&count, "SELECT COUNT(*) FROM `user` WHERE `jia_user_id` = ?",
+		jiaUserID)
+	if err != nil {
+		return "", err
+	}
+
+	if count == 0 {
+		return "", fmt.Errorf("not found: user")
+	}
+
+	return jiaUserID, nil
 }
 
 func getJIAServiceURL(tx *sqlx.Tx) string {

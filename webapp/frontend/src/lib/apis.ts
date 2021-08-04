@@ -160,8 +160,14 @@ export interface GetIsuListResponse extends Isu {
 
 export interface GraphData {
   score: number
+  percentage: ConditionPercentage
+}
+
+export interface ConditionPercentage {
   sitting: number
-  detail: { [key: string]: number }
+  is_broken: number
+  is_dirty: number
+  is_overweight: number
 }
 
 interface ApiGraph {
