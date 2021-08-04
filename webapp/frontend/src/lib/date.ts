@@ -29,3 +29,11 @@ export const getConditionTime = (condition: Condition) => {
 }
 
 const pad0 = (num: number) => ('0' + num).slice(-2)
+
+export const getPrevDate = (date: Date) => {
+  return new Date(date.setDate(date.getDate() - 1))
+}
+
+export const getNextDate = (date: Date) => {
+  return new Date(date.setDate(date.getDate() + 1))
+}

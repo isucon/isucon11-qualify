@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { GraphRequest, Graph } from '../../../lib/apis'
-import { getTodayDate } from '../../../lib/date'
+import { getNextDate, getPrevDate, getTodayDate } from '../../../lib/date'
 
 export interface Tooltip {
   score: string
@@ -27,12 +27,12 @@ const useGraph = (getGraphs: (req: GraphRequest) => Promise<Graph[]>) => {
     day: '',
     tooltipData: []
   })
+  const [date, updateDate] = useState<Date>(getTodayDate())
 
   useEffect(() => {
     const fetchGraphs = async () => {
-      const day = getTodayDate()
       const graphs = await getGraphs({
-        date: day
+        date: date
       })
       const graphData = genGraphData(graphs)
       updateResult(state => ({
@@ -41,20 +41,14 @@ const useGraph = (getGraphs: (req: GraphRequest) => Promise<Graph[]>) => {
         transitionData: graphData.transitionData,
         sittingData: graphData.sittingData,
         timeCategories: graphData.timeCategories,
-        day: day.toLocaleDateString(),
+        day: date.toLocaleDateString(),
         tooltipData: graphData.tooltipData
       }))
     }
     fetchGraphs()
-  }, [getGraphs, updateResult])
+  }, [getGraphs, updateResult, date])
 
-  const fetchGraphs = async (payload: { day: string }) => {
-    const date = new Date(payload.day)
-    if (isNaN(date.getTime())) {
-      alert('日時の指定が不正です')
-      return
-    }
-
+  const innerFetchGraphs = async () => {
     const graphs = await getGraphs({ date: date })
     const graphData = genGraphData(graphs)
 
@@ -65,12 +59,33 @@ const useGraph = (getGraphs: (req: GraphRequest) => Promise<Graph[]>) => {
       transitionData: graphData.transitionData,
       sittingData: graphData.sittingData,
       timeCategories: graphData.timeCategories,
-      day: payload.day,
+      day: date.toLocaleTimeString(),
       tooltipData: graphData.tooltipData
     }))
   }
 
-  return { ...result, fetchGraphs }
+  const fetchGraphs = async (payload: { day: string }) => {
+    const date = new Date(payload.day)
+    if (isNaN(date.getTime())) {
+      alert('日時の指定が不正です')
+      return
+    }
+
+    updateDate(date)
+    innerFetchGraphs()
+  }
+
+  const prev = async () => {
+    updateDate(getPrevDate(date))
+    innerFetchGraphs()
+  }
+
+  const next = async () => {
+    updateDate(getNextDate(date))
+    innerFetchGraphs()
+  }
+
+  return { ...result, fetchGraphs, prev, next }
 }
 
 const genGraphData = (graphs: Graph[]) => {
