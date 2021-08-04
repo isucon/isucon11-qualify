@@ -555,14 +555,16 @@ func verifyGraph(
 		// conditionsBaseOfScore から組み立てた data が actual と等値であることの検証
 		expectedGraph := model.NewGraph(conditionsBaseOfScore)
 
-		if graphOne.Data.Score != expectedGraph.Score() ||
-			graphOne.Data.Sitting != expectedGraph.Sitting() ||
-			graphOne.Data.Detail["is_broken"] != expectedGraph.IsBroken() ||
-			graphOne.Data.Detail["is_dirty"] != expectedGraph.IsDirty() ||
-			graphOne.Data.Detail["is_overweight"] != expectedGraph.IsOverweight() ||
-			graphOne.Data.Detail["missing_data"] != expectedGraph.MissingData() {
-			return errorMissmatch(res, "graphのデータが正しくありません")
+		if expectedGraph.Match(
+			graphOne.Data.Score,
+			graphOne.Data.Percentage.Sitting,
+			graphOne.Data.Percentage.IsBroken,
+			graphOne.Data.Percentage.IsDirty,
+			graphOne.Data.Percentage.IsOverweight,
+		) {
+			return errorMissmatch(res, "グラフのデータが正しくありません")
 		}
+
 	}
 	return nil
 }
@@ -731,13 +733,14 @@ func verifyPrepareGraph(res *http.Response, targetUser *model.User, targetIsuUUI
 
 		// conditionsBaseOfScore から組み立てた data が actual と等値であることの検証
 		expectedGraph := model.NewGraph(conditionsBaseOfScore)
-		if graphOne.Data.Score != expectedGraph.Score() ||
-			graphOne.Data.Sitting != expectedGraph.Sitting() ||
-			graphOne.Data.Detail["is_broken"] != expectedGraph.IsBroken() ||
-			graphOne.Data.Detail["is_dirty"] != expectedGraph.IsDirty() ||
-			graphOne.Data.Detail["is_overweight"] != expectedGraph.IsOverweight() ||
-			graphOne.Data.Detail["missing_data"] != expectedGraph.MissingData() {
-			return errorMissmatch(res, "graphのデータが正しくありません")
+		if expectedGraph.Match(
+			graphOne.Data.Score,
+			graphOne.Data.Percentage.Sitting,
+			graphOne.Data.Percentage.IsBroken,
+			graphOne.Data.Percentage.IsDirty,
+			graphOne.Data.Percentage.IsOverweight,
+		) {
+			return errorMissmatch(res, "グラフのデータが正しくありません")
 		}
 	}
 

@@ -29,23 +29,20 @@ import (
 )
 
 const (
-	sessionName               = "isucondition"
-	conditionLimit            = 20
-	frontendContentsPath      = "../public"
-	jwtVerificationKeyPath    = "../ec256-public.pem"
-	defaultIconFilePath       = "../NoImage.jpg"
-	defaultJIAServiceURL      = "http://localhost:5000"
-	mysqlErrNumDuplicateEntry = 1062
-	conditionLevelInfo        = "info"
-	conditionLevelWarning     = "warning"
-	conditionLevelCritical    = "critical"
+	sessionName                 = "isucondition"
+	conditionLimit              = 20
+	frontendContentsPath        = "../public"
+	jwtVerificationKeyPath      = "../ec256-public.pem"
+	defaultIconFilePath         = "../NoImage.jpg"
+	defaultJIAServiceURL        = "http://localhost:5000"
+	mysqlErrNumDuplicateEntry   = 1062
+	conditionLevelInfo          = "info"
+	conditionLevelWarning       = "warning"
+	conditionLevelCritical      = "critical"
+	scoreConditionLevelInfo     = 3
+	scoreConditionLevelWarning  = 2
+	scoreConditionLevelCritical = 1
 )
-
-var scorePerCondition = map[string]int{
-	"is_dirty":      -1,
-	"is_overweight": -1,
-	"is_broken":     -5,
-}
 
 //"is_dirty=true/false,is_overweight=true/false,..."
 var conditionFormat = regexp.MustCompile(`^[-a-zA-Z_]+=(true|false)(,[-a-zA-Z_]+=(true|false))*$`)
@@ -129,9 +126,16 @@ type GraphResponse struct {
 
 // グラフにおける一つのデータ点の情報
 type GraphDataPoint struct {
-	Score   int            `json:"score"`
-	Sitting int            `json:"sitting"`
-	Detail  map[string]int `json:"detail"`
+	Score      int                  `json:"score"`
+	Percentage ConditionsPercentage `json:"percentage"`
+}
+
+// 一つのデータ点における各conditionの割合
+type ConditionsPercentage struct {
+	Sitting      int `json:"sitting"`
+	IsBroken     int `json:"is_broken"`
+	IsDirty      int `json:"is_dirty"`
+	IsOverweight int `json:"is_overweight"`
 }
 
 // グラフ作成の計算に使用
@@ -882,63 +886,68 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 
 // 複数のISU conditionからグラフの一つのデータ点を計算
 func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, error) {
-	var dataPoint GraphDataPoint
 
-	//sitting
+	// DB上にある is_dirty=true/false,is_overweight=true/false,... 形式の conditionを読み込み，
+	// 各conditionを数え，
+	// 正規化していないrawScoreを計算
+	conditionsCount := map[string]int{"is_broken": 0, "is_dirty": 0, "is_overweight": 0}
+	rawScore := 0
+	for _, condition := range isuConditions {
+		badConditionsCount := 0
+
+		// conditionを読み込む
+		for _, condStr := range strings.Split(condition.Condition, ",") {
+			keyValue := strings.Split(condStr, "=")
+			if len(keyValue) != 2 {
+				continue // 形式に従っていないものは無視
+			}
+
+			conditionName := keyValue[0]
+			if _, ok := conditionsCount[conditionName]; ok {
+				if keyValue[1] == "true" {
+					conditionsCount[conditionName] += 1
+					badConditionsCount++
+				}
+			}
+		}
+
+		// rawScoreを加算
+		if badConditionsCount >= 3 { // critical
+			rawScore += scoreConditionLevelCritical
+		} else if badConditionsCount >= 1 { // warning
+			rawScore += scoreConditionLevelWarning
+		} else { // info
+			rawScore += scoreConditionLevelInfo
+		}
+	}
+
+	// sitting を数える
 	sittingCount := 0
 	for _, condition := range isuConditions {
 		if condition.IsSitting {
 			sittingCount++
 		}
 	}
-	dataPoint.Sitting = sittingCount * 100 / len(isuConditions)
 
-	//score&detail
-	dataPoint.Score = 100
-	//condition要因の減点
-	dataPoint.Detail = map[string]int{}
-	for key := range scorePerCondition {
-		dataPoint.Detail[key] = 0
-	}
-	for _, condition := range isuConditions {
-		conditionMapList := map[string]bool{}
-		//DB上にある is_dirty=true/false,is_overweight=true/false,... 形式のデータを
-		//map[string]bool形式に変換
-		for _, condStr := range strings.Split(condition.Condition, ",") {
-			keyValue := strings.Split(condStr, "=")
-			if len(keyValue) != 2 {
-				continue //形式に従っていないものは無視
-			}
-			conditionMapList[keyValue[0]] = (keyValue[1] != "false")
-		}
+	// データ点に整形
+	isuConditionsLength := len(isuConditions)
 
-		//trueになっているものは減点
-		for key, enabled := range conditionMapList {
-			if enabled {
-				score, ok := scorePerCondition[key]
-				if ok {
-					dataPoint.Score += score
-					dataPoint.Detail[key] += score
-				}
-			}
-		}
-	}
-	//スコアに影響がないDetailを削除
-	for key := range scorePerCondition {
-		if dataPoint.Detail[key] == 0 {
-			delete(dataPoint.Detail, key)
-		}
-	}
-	//個数減点
-	if len(isuConditions) < 50 {
-		minus := -(50 - len(isuConditions)) * 2
-		dataPoint.Score += minus
-		dataPoint.Detail["missing_data"] = minus
-	}
-	if dataPoint.Score < 0 {
-		dataPoint.Score = 0
-	}
+	score := rawScore / isuConditionsLength // score = conditionLevelごとの素点の合算/condition数
 
+	sittingPercentage := sittingCount * 100 / isuConditionsLength
+	isBrokenPercentage := conditionsCount["is_broken"] * 100 / isuConditionsLength
+	isOverweightPercentage := conditionsCount["is_overweight"] * 100 / isuConditionsLength
+	isDirtyPercentage := conditionsCount["is_dirty"] * 100 / isuConditionsLength
+
+	dataPoint := GraphDataPoint{
+		Score: score,
+		Percentage: ConditionsPercentage{
+			Sitting:      sittingPercentage,
+			IsBroken:     isBrokenPercentage,
+			IsOverweight: isOverweightPercentage,
+			IsDirty:      isDirtyPercentage,
+		},
+	}
 	return dataPoint, nil
 }
 
