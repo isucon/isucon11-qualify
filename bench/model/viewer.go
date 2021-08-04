@@ -1,8 +1,6 @@
 package model
 
 import (
-	"sync"
-
 	"github.com/isucon/isucandar/agent"
 )
 
@@ -13,8 +11,7 @@ type Viewer struct {
 	Agent              *agent.Agent
 
 	// GET trend にて既に確認したconditionを格納するのに利用
-	verifiedConditionsInTrend      map[isuIDAndConditionTimestamp]struct{}
-	verifiedConditionsInTrendMutex sync.RWMutex
+	verifiedConditionsInTrend map[isuIDAndConditionTimestamp]struct{}
 }
 
 type isuIDAndConditionTimestamp struct {
@@ -32,14 +29,10 @@ func NewViewer(agent *agent.Agent) Viewer {
 }
 
 func (v *Viewer) SetVerifiedCondition(id int, timestamp int64) {
-	v.verifiedConditionsInTrendMutex.Lock()
-	defer v.verifiedConditionsInTrendMutex.Unlock()
 	v.verifiedConditionsInTrend[isuIDAndConditionTimestamp{id, timestamp}] = struct{}{}
 }
 
 func (v *Viewer) ConditionAlreadyVerified(id int, timestamp int64) bool {
-	v.verifiedConditionsInTrendMutex.RLock()
-	defer v.verifiedConditionsInTrendMutex.RUnlock()
 	_, exist := v.verifiedConditionsInTrend[isuIDAndConditionTimestamp{id, timestamp}]
 	return exist
 }
