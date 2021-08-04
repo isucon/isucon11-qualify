@@ -635,7 +635,6 @@ func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string,
 		errors = append(errors, err)
 	}
 	if isu != nil {
-		// TODO: ここ以下は多分並列
 		icon, _, err := getIsuIconAction(ctx, a, id, allowNotModified)
 		if err != nil {
 			errors = append(errors, err)
