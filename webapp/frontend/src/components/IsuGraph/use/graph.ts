@@ -7,7 +7,6 @@ export interface Tooltip {
   is_dirty: string
   is_overweight: string
   is_broken: string
-  missing_data: string
 }
 
 interface UseGraphResult {
@@ -83,21 +82,12 @@ const genGraphData = (graphs: Graph[]) => {
   graphs.forEach(graph => {
     if (graph.data) {
       transitionData.push(graph.data.score)
-      sittingData.push(graph.data.sitting)
+      sittingData.push(graph.data.percentage.sitting)
       tooltipData.push({
         score: graph.data.score.toString(),
-        is_dirty: graph.data.detail['is_dirty']
-          ? graph.data.detail['is_dirty'].toString()
-          : '-',
-        is_overweight: graph.data.detail['is_overweight']
-          ? graph.data.detail['is_overweight'].toString()
-          : '-',
-        is_broken: graph.data.detail['is_broken']
-          ? graph.data.detail['is_broken'].toString()
-          : '-',
-        missing_data: graph.data.detail['missing_data']
-          ? graph.data.detail['missing_data'].toString()
-          : '-'
+        is_dirty: `${graph.data.percentage.is_dirty}%`,
+        is_overweight: `${graph.data.percentage.is_overweight}%`,
+        is_broken: `${graph.data.percentage.is_broken}%`
       })
     } else {
       transitionData.push(0)
@@ -106,8 +96,7 @@ const genGraphData = (graphs: Graph[]) => {
         score: '-',
         is_dirty: '-',
         is_overweight: '-',
-        is_broken: '-',
-        missing_data: '-'
+        is_broken: '-'
       })
     }
 
