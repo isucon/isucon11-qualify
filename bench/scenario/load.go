@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/isucon/isucandar"
@@ -23,7 +24,18 @@ var (
 	// ユーザーが持つ ISU の数を確定させたいので、そのための乱数生成器。ソースは適当に決めた
 	isuCountRandEngine      = rand.New(rand.NewSource(-8679036))
 	isuCountRandEngineMutex sync.Mutex
+
+	// 全ユーザーがよんだconditionの端数の合計。Goroutine終了時に加算する
+	readInfoConditionFraction     int32 = 0
+	readWarnConditionFraction     int32 = 0
+	readCriticalConditionFraction int32 = 0
 )
+
+type ReadConditionCount struct {
+	Info     int32
+	Warn     int32
+	Critical int32
+}
 
 func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) error {
 	defer s.jiaCancel()
@@ -46,7 +58,7 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	// 実際の負荷走行シナリオ
 
 	//通常ユーザー
-	s.AddNormalUser(ctx, step, 2)
+	s.AddNormalUser(ctx, step, 10)
 
 	//非ログインユーザーを増やす
 	s.AddViewer(ctx, step, 5)
@@ -61,6 +73,9 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	s.jiaCancel()
 	logger.AdminLogger.Println("LOAD WAIT")
 	s.loadWaitGroup.Wait()
+
+	// 余りの加点
+	addConditionScoreTag(step, &ReadConditionCount{Info: readInfoConditionFraction, Warn: readWarnConditionFraction, Critical: readCriticalConditionFraction})
 
 	return nil
 }
@@ -107,6 +122,13 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 		return
 	}
 	defer user.CloseAllIsuStateChan()
+
+	readConditionCount := ReadConditionCount{Info: 0, Warn: 0, Critical: 0}
+	defer func() {
+		atomic.AddInt32(&readInfoConditionFraction, readConditionCount.Info)
+		atomic.AddInt32(&readWarnConditionFraction, readConditionCount.Warn)
+		atomic.AddInt32(&readCriticalConditionFraction, readConditionCount.Critical)
+	}()
 
 	randEngine := rand.New(rand.NewSource(rand.Int63()))
 	nextTargetIsuIndex := 0
@@ -168,7 +190,7 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 		}
 
 		if nextScenarioIndex == 0 {
-			s.requestNewConditionScenario(ctx, step, user, targetIsu)
+			s.requestNewConditionScenario(ctx, step, user, targetIsu, &readConditionCount)
 		} else if nextScenarioIndex == 1 {
 			s.requestLastBadConditionScenario(ctx, step, user, targetIsu)
 		} else {
@@ -286,7 +308,7 @@ func (s *Scenario) initViewer(ctx context.Context) model.Viewer {
 }
 
 // あるISUの新しいconditionを見に行くシナリオ。
-func (s *Scenario) requestNewConditionScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User, targetIsu *model.Isu) {
+func (s *Scenario) requestNewConditionScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User, targetIsu *model.Isu, readConditionCount *ReadConditionCount) {
 	// 最新の condition から、一度見た condition が帰ってくるまで condition のページングをする
 	nowVirtualTime := s.ToVirtualTime(time.Now())
 	request := service.GetIsuConditionRequest{
@@ -295,7 +317,7 @@ func (s *Scenario) requestNewConditionScenario(ctx context.Context, step *isucan
 		ConditionLevel: "info,warning,critical",
 		Limit:          nil,
 	}
-	conditions, newLastReadConditionTimestamp, errs := s.getIsuConditionUntilAlreadyRead(ctx, user, targetIsu, request, step)
+	conditions, newLastReadConditionTimestamp, errs := s.getIsuConditionUntilAlreadyRead(ctx, user, targetIsu, request, step, readConditionCount)
 	if len(errs) != 0 {
 		for _, err := range errs {
 			addErrorWithContext(ctx, step, err)
@@ -307,10 +329,7 @@ func (s *Scenario) requestNewConditionScenario(ctx context.Context, step *isucan
 	}
 
 	// GETに成功したのでその分を加点
-	for _, cond := range conditions {
-		// TODO: 点数調整考える。ここ読むたびじゃなくて、何件読んだにするとか
-		addConditionScoreTag(cond, step)
-	}
+	readCondition(conditions, step, readConditionCount)
 
 	// LastReadConditionTimestamp を更新
 	if targetIsu.LastReadConditionTimestamp < newLastReadConditionTimestamp {
@@ -385,6 +404,7 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 	targetIsu *model.Isu,
 	request service.GetIsuConditionRequest,
 	step *isucandar.BenchmarkStep,
+	readConditionCount *ReadConditionCount,
 ) ([]*service.GetIsuConditionResponse, int64, []error) {
 	// 更新用のLastReadConditionTimestamp
 	var newLastReadConditionTimestamp int64 = 0
@@ -445,9 +465,7 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 		// ConditionPagingStep ページごとに現状の condition をスコアリング
 		pagingCount++
 		if pagingCount%ConditionPagingStep == 0 {
-			for _, cond := range conditions {
-				addConditionScoreTag(cond, step)
-			}
+			readCondition(conditions, step, readConditionCount)
 			conditions = conditions[:0]
 		}
 
@@ -479,16 +497,44 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 	}
 }
 
-func addConditionScoreTag(condition *service.GetIsuConditionResponse, step *isucandar.BenchmarkStep) {
-	switch condition.ConditionLevel {
-	case "info":
-		step.AddScore(ScoreReadInfoCondition)
-	case "warning":
-		step.AddScore(ScoreReadWarningCondition)
-	case "critical":
-		step.AddScore(ScoreReadCriticalCondition)
-	default:
-		// validate でここに入らないことは保証されている
+func readCondition(conditions []*service.GetIsuConditionResponse, step *isucandar.BenchmarkStep, readConditionCount *ReadConditionCount) {
+	for _, condition := range conditions {
+		switch condition.ConditionLevel {
+		case "info":
+			readConditionCount.Info += 1
+		case "warning":
+			readConditionCount.Warn += 1
+		case "critical":
+			readConditionCount.Critical += 1
+		default:
+			// validate でここに入らないことは保証されている
+		}
+	}
+
+	addConditionScoreTag(step, readConditionCount)
+}
+
+func addConditionScoreTag(step *isucandar.BenchmarkStep, readConditionCount *ReadConditionCount) {
+	if readConditionCount.Info-ReadConditionTagStep >= 0 {
+		addCount := int(readConditionCount.Info / ReadConditionTagStep)
+		for i := 0; i < addCount; i++ {
+			step.AddScore(ScoreReadInfoCondition)
+			readConditionCount.Info -= ReadConditionTagStep
+		}
+	}
+	if readConditionCount.Warn-ReadConditionTagStep >= 0 {
+		addCount := int(readConditionCount.Warn / ReadConditionTagStep)
+		for i := 0; i < addCount; i++ {
+			step.AddScore(ScoreReadWarningCondition)
+			readConditionCount.Warn -= ReadConditionTagStep
+		}
+	}
+	if readConditionCount.Critical-ReadConditionTagStep >= 0 {
+		addCount := int(readConditionCount.Critical / ReadConditionTagStep)
+		for i := 0; i < addCount; i++ {
+			step.AddScore(ScoreReadCriticalCondition)
+			readConditionCount.Critical -= ReadConditionTagStep
+		}
 	}
 }
 
