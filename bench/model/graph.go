@@ -44,16 +44,26 @@ func NewGraph(c []*IsuCondition) Graph {
 // g.condition を元に他フィールドを埋めるメソッド
 func (g *Graph) calculate() {
 	rawScore := 0
+	sittingCount := 0
+	brokenCount := 0
+	overweightCount := 0
+	dirtyCount := 0
 	for _, c := range g.conditions {
 		warnCount := 0
+		if c.IsSitting {
+			sittingCount++
+		}
 		if c.IsDirty {
 			warnCount++
+			dirtyCount++
 		}
 		if c.IsOverweight {
 			warnCount++
+			overweightCount++
 		}
 		if c.IsBroken {
 			warnCount++
+			brokenCount++
 		}
 		switch warnCount {
 		case 0:
@@ -65,6 +75,10 @@ func (g *Graph) calculate() {
 		}
 	}
 	g.score = rawScore / len(g.conditions)
+	g.percentage.sitting = sittingCount * 100 / len(g.conditions)
+	g.percentage.isBroken = brokenCount * 100 / len(g.conditions)
+	g.percentage.isOverweight = overweightCount * 100 / len(g.conditions)
+	g.percentage.isDirty = dirtyCount * 100 / len(g.conditions)
 }
 
 func (g Graph) Match(
