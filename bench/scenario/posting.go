@@ -127,9 +127,6 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		}
 		isu.AddIsuConditions(conditions)
 
-		// TODO: sleep しないとレスポンスが来てすぐにループが回るので POST condition が高頻度過ぎてベンチが死ぬ (#728)
-		time.Sleep(400 * time.Millisecond)
-
 		// timeout も無視するので全てのエラーを見ない
 		postIsuConditionAction(httpClient, targetURL, &conditionsReq)
 	}
