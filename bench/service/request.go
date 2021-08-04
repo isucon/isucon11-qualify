@@ -28,22 +28,9 @@ type IsuImg struct {
 	Img     []byte
 }
 
-type PutIsuRequest struct {
-	Name string `json:"name"`
-}
-
-// TODO: これは消して GetIndividualIsuConditionRequest をこの名前にする
 type GetIsuConditionRequest struct {
-	StartTime        *int64
-	CursorEndTime    int64
-	CursorJIAIsuUUID string
-	ConditionLevel   string
-	Limit            *int
-}
-
-type GetIndividualIsuConditionRequest struct {
 	StartTime      *int64
-	CursorEndTime  int64
+	EndTime        int64
 	ConditionLevel string
 	Limit          *int
 }

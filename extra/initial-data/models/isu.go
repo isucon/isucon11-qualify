@@ -12,14 +12,13 @@ import (
 )
 
 type Isu struct {
-	User         User
-	JIAIsuUUID   string
-	Name         string
-	Image        []byte
-	JIACatalogID string
-	Character    string
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	User       User
+	JIAIsuUUID string
+	Name       string
+	Image      []byte
+	Character  string
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
 }
 
 func NewIsu(user User) Isu {
@@ -33,7 +32,6 @@ func NewIsu(user User) Isu {
 		u.String(),
 		random.IsuName(),
 		image,
-		random.CatalogID(),
 		random.Character(),
 		createdAt,
 		createdAt,
@@ -49,7 +47,6 @@ func NewIsuWithCreatedAt(user User, createdAt time.Time) Isu {
 		u.String(),
 		random.IsuName(),
 		image,
-		random.CatalogID(),
 		random.Character(),
 		createdAt,
 		createdAt,

@@ -25,3 +25,16 @@ const OneDay = 24 * 60 * 60
 
 // GET /api/isu/:id/condition の
 const ConditionPagingStep = 10
+
+const SignoutPercentage = 20
+
+type PageType int
+
+const (
+	HomePage PageType = iota
+	IsuDetailPage
+	IsuConditionPage
+	IsuGraphPage
+	RegisterPage
+	AuthPage
+)

@@ -13,7 +13,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -29,27 +28,20 @@ import (
 )
 
 const (
-	sessionName               = "isucondition"
-	conditionLimit            = 20
-	isuListLimit              = 200 // TODO 修正が必要なら変更
-	frontendContentsPath      = "../public"
-	jwtVerificationKeyPath    = "../ec256-public.pem"
-	defaultIconFilePath       = "../NoImage.jpg"
-	defaultJIAServiceURL      = "http://localhost:5000"
-	mysqlErrNumDuplicateEntry = 1062
-	conditionLevelInfo        = "info"
-	conditionLevelWarning     = "warning"
-	conditionLevelCritical    = "critical"
+	sessionName                 = "isucondition"
+	conditionLimit              = 20
+	frontendContentsPath        = "../public"
+	jwtVerificationKeyPath      = "../ec256-public.pem"
+	defaultIconFilePath         = "../NoImage.jpg"
+	defaultJIAServiceURL        = "http://localhost:5000"
+	mysqlErrNumDuplicateEntry   = 1062
+	conditionLevelInfo          = "info"
+	conditionLevelWarning       = "warning"
+	conditionLevelCritical      = "critical"
+	scoreConditionLevelInfo     = 3
+	scoreConditionLevelWarning  = 2
+	scoreConditionLevelCritical = 1
 )
-
-var scorePerCondition = map[string]int{
-	"is_dirty":      -1,
-	"is_overweight": -1,
-	"is_broken":     -5,
-}
-
-//"is_dirty=true/false,is_overweight=true/false,..."
-var conditionFormat = regexp.MustCompile(`^[-a-zA-Z_]+=(true|false)(,[-a-zA-Z_]+=(true|false))*$`)
 
 var (
 	templates           *template.Template
@@ -68,11 +60,6 @@ type Config struct {
 	URL  string `db:"url"`
 }
 
-type GetIsuResponse struct {
-	Isu
-	LatestIsuCondition *GetIsuConditionResponse `json:"latest_isu_condition"`
-}
-
 type Isu struct {
 	ID         int       `db:"id" json:"id"`
 	JIAIsuUUID string    `db:"jia_isu_uuid" json:"jia_isu_uuid"`
@@ -88,6 +75,14 @@ type IsuFromJIA struct {
 	Character string `json:"character"`
 }
 
+type GetIsuListResponse struct {
+	ID                 int                      `json:"id"`
+	JIAIsuUUID         string                   `json:"jia_isu_uuid"`
+	Name               string                   `json:"name"`
+	Character          string                   `json:"character"`
+	LatestIsuCondition *GetIsuConditionResponse `json:"latest_isu_condition"`
+}
+
 type IsuCondition struct {
 	ID         int       `db:"id"`
 	JIAIsuUUID string    `db:"jia_isu_uuid"`
@@ -96,11 +91,6 @@ type IsuCondition struct {
 	Condition  string    `db:"condition"`
 	Message    string    `db:"message"`
 	CreatedAt  time.Time `db:"created_at"`
-}
-
-type User struct {
-	JIAUserID string    `db:"jia_user_id"`
-	CreatedAt time.Time `db:"created_at"`
 }
 
 type MySQLConnectionEnv struct {
@@ -132,9 +122,16 @@ type GraphResponse struct {
 
 // グラフにおける一つのデータ点の情報
 type GraphDataPoint struct {
-	Score   int            `json:"score"`
-	Sitting int            `json:"sitting"`
-	Detail  map[string]int `json:"detail"`
+	Score      int                  `json:"score"`
+	Percentage ConditionsPercentage `json:"percentage"`
+}
+
+// 一つのデータ点における各conditionの割合
+type ConditionsPercentage struct {
+	Sitting      int `json:"sitting"`
+	IsBroken     int `json:"is_broken"`
+	IsDirty      int `json:"is_dirty"`
+	IsOverweight int `json:"is_overweight"`
 }
 
 // グラフ作成の計算に使用
@@ -156,8 +153,8 @@ type GetIsuConditionResponse struct {
 }
 
 type TrendResponse struct {
-	Character  string           `json:"character"`
-	Conditions []TrendCondition `json:"conditions"`
+	Character  string            `json:"character"`
+	Conditions []*TrendCondition `json:"conditions"`
 }
 
 type TrendCondition struct {
@@ -326,7 +323,6 @@ func postInitialize(c echo.Context) error {
 	var request InitializeRequest
 	err := c.Bind(&request)
 	if err != nil {
-		c.Logger().Errorf("bad request body: %v", err)
 		return c.String(http.StatusBadRequest, "bad request body")
 	}
 
@@ -368,7 +364,6 @@ func postAuthentication(c echo.Context) error {
 	if err != nil {
 		switch err.(type) {
 		case *jwt.ValidationError:
-			c.Logger().Errorf("jwt validation error: %v", err)
 			return c.String(http.StatusForbidden, "forbidden")
 		default:
 			c.Logger().Errorf("unknown error: %v", err)
@@ -384,12 +379,10 @@ func postAuthentication(c echo.Context) error {
 	}
 	jiaUserIDVar, ok := claims["jia_user_id"]
 	if !ok {
-		c.Logger().Errorf("invalid JWT payload")
 		return c.String(http.StatusBadRequest, "invalid JWT payload")
 	}
 	jiaUserID, ok := jiaUserIDVar.(string)
 	if !ok {
-		c.Logger().Errorf("invalid JWT payload")
 		return c.String(http.StatusBadRequest, "invalid JWT payload")
 	}
 
@@ -419,7 +412,6 @@ func postAuthentication(c echo.Context) error {
 func postSignout(c echo.Context) error {
 	_, err := getUserIDFromSession(c)
 	if err != nil {
-		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 
@@ -442,7 +434,6 @@ func postSignout(c echo.Context) error {
 func getMe(c echo.Context) error {
 	jiaUserID, err := getUserIDFromSession(c)
 	if err != nil {
-		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 
@@ -450,46 +441,84 @@ func getMe(c echo.Context) error {
 	return c.JSON(http.StatusOK, res)
 }
 
+//  GET /api/isu
+// 自分のISUの一覧を取得
 func getIsuList(c echo.Context) error {
 	jiaUserID, err := getUserIDFromSession(c)
 	if err != nil {
-		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 
-	pageStr := c.QueryParam("page")
-	page := 1
-	if pageStr != "" {
-		page, err = strconv.Atoi(pageStr)
-		if err != nil || page <= 0 {
-			c.Logger().Errorf("bad format: page: page = %s, %v", pageStr, err)
-			return c.String(http.StatusBadRequest, "bad format: page")
-		}
+	// トランザクション開始
+	tx, err := db.Beginx()
+	if err != nil {
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
-
-	limitStr := c.QueryParam("limit")
-	limit := isuListLimit
-	if limitStr != "" {
-		limit, err = strconv.Atoi(limitStr)
-		if err != nil || limit <= 0 {
-			c.Logger().Errorf("bad format: limit: limit = %v, %v", limit, err)
-			return c.String(http.StatusBadRequest, "bad format: limit")
-		}
-	}
-
-	offset := (page - 1) * limit
+	defer tx.Rollback()
 
 	isuList := []Isu{}
-	err = db.Select(
+	err = tx.Select(
 		&isuList,
-		"SELECT * FROM `isu` WHERE `jia_user_id` = ? ORDER BY `created_at` DESC LIMIT ? OFFSET ?",
-		jiaUserID, limit, offset)
+		"SELECT * FROM `isu` WHERE `jia_user_id` = ? ORDER BY `id` DESC",
+		jiaUserID)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	return c.JSON(http.StatusOK, isuList)
+	// 各ISUの最近のconditionをそれぞれ取得し，レスポンスを生成
+	responseList := []GetIsuListResponse{}
+	for _, isu := range isuList {
+		var lastCondition IsuCondition
+		foundLastCondition := true
+		err = tx.Get(&lastCondition, "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` DESC LIMIT 1",
+			isu.JIAIsuUUID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				foundLastCondition = false
+			} else {
+				c.Logger().Errorf("db error: %v", err)
+				return c.NoContent(http.StatusInternalServerError)
+			}
+		}
+
+		var formattedCondition *GetIsuConditionResponse
+		if foundLastCondition {
+			conditionLevel, err := calculateConditionLevel(lastCondition.Condition)
+			if err != nil {
+				c.Logger().Errorf("failed to get condition level: %v", err)
+				return c.NoContent(http.StatusInternalServerError)
+			}
+
+			formattedCondition = &GetIsuConditionResponse{
+				JIAIsuUUID:     lastCondition.JIAIsuUUID,
+				IsuName:        isu.Name,
+				Timestamp:      lastCondition.Timestamp.Unix(),
+				IsSitting:      lastCondition.IsSitting,
+				Condition:      lastCondition.Condition,
+				ConditionLevel: conditionLevel,
+				Message:        lastCondition.Message,
+			}
+		}
+
+		res := GetIsuListResponse{
+			ID:                 isu.ID,
+			JIAIsuUUID:         isu.JIAIsuUUID,
+			Name:               isu.Name,
+			Character:          isu.Character,
+			LatestIsuCondition: formattedCondition}
+		responseList = append(responseList, res)
+	}
+
+	// トランザクション終了
+	err = tx.Commit()
+	if err != nil {
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	return c.JSON(http.StatusOK, responseList)
 }
 
 //  POST /api/isu
@@ -497,7 +526,6 @@ func getIsuList(c echo.Context) error {
 func postIsu(c echo.Context) error {
 	jiaUserID, err := getUserIDFromSession(c)
 	if err != nil {
-		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 
@@ -508,7 +536,6 @@ func postIsu(c echo.Context) error {
 	fh, err := c.FormFile("image")
 	if err != nil {
 		if !errors.Is(err, http.ErrMissingFile) {
-			c.Logger().Errorf("failed to get icon: %v", err)
 			return c.String(http.StatusBadRequest, "bad format: icon")
 		}
 		useDefaultImage = true
@@ -554,7 +581,6 @@ func postIsu(c echo.Context) error {
 		mysqlErr, ok := err.(*mysql.MySQLError)
 
 		if ok && mysqlErr.Number == uint16(mysqlErrNumDuplicateEntry) {
-			c.Logger().Errorf("duplicated isu: %v", err)
 			return c.String(http.StatusConflict, "duplicated: isu")
 		}
 
@@ -634,26 +660,16 @@ func postIsu(c echo.Context) error {
 func getIsu(c echo.Context) error {
 	jiaUserID, err := getUserIDFromSession(c)
 	if err != nil {
-		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 
 	jiaIsuUUID := c.Param("jia_isu_uuid")
 
-	tx, err := db.Beginx()
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	defer tx.Rollback()
-
-	// TODO: jia_user_id 判別はクエリに入れずその後のロジックとする？ (一通り完成した後に要考慮)
-	var isu Isu
-	err = tx.Get(&isu, "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
+	var res Isu
+	err = db.Get(&res, "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
 		jiaUserID, jiaIsuUUID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			c.Logger().Errorf("isu not found: %v", err)
 			return c.String(http.StatusNotFound, "not found: isu")
 		}
 
@@ -661,44 +677,6 @@ func getIsu(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	var lastCondition IsuCondition
-	foundLastCondition := true
-	err = tx.Get(&lastCondition, "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` DESC LIMIT 1",
-		isu.JIAIsuUUID)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			foundLastCondition = false
-		} else {
-			c.Logger().Errorf("db error: %v", err)
-			return c.NoContent(http.StatusInternalServerError)
-		}
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	var formattedCondition *GetIsuConditionResponse
-	if foundLastCondition {
-		conditionLevel, err := calcConditionLevel(lastCondition.Condition)
-		if err != nil {
-			c.Logger().Errorf("failed to get condition level: %v", err)
-			return c.NoContent(http.StatusInternalServerError)
-		}
-
-		formattedCondition = &GetIsuConditionResponse{
-			JIAIsuUUID:     lastCondition.JIAIsuUUID,
-			IsuName:        isu.Name,
-			Timestamp:      lastCondition.Timestamp.Unix(),
-			IsSitting:      lastCondition.IsSitting,
-			Condition:      lastCondition.Condition,
-			ConditionLevel: conditionLevel,
-			Message:        lastCondition.Message,
-		}
-	}
-	res := GetIsuResponse{Isu: isu, LatestIsuCondition: formattedCondition}
 	return c.JSON(http.StatusOK, res)
 }
 
@@ -711,7 +689,6 @@ func getIsu(c echo.Context) error {
 func getIsuIcon(c echo.Context) error {
 	jiaUserID, err := getUserIDFromSession(c)
 	if err != nil {
-		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 
@@ -722,7 +699,6 @@ func getIsuIcon(c echo.Context) error {
 		jiaUserID, jiaIsuUUID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			c.Logger().Errorf("isu not found: %v", err)
 			return c.String(http.StatusNotFound, "not found: isu")
 		}
 
@@ -739,23 +715,19 @@ func getIsuIcon(c echo.Context) error {
 // この時間帯とか、この日とかの機嫌を知りたい
 // 日毎時間単位グラフ
 // conditionを何件か集めて、ISUにとっての快適度数みたいな値を算出する
-// TODO: 文面の変更
 func getIsuGraph(c echo.Context) error {
 	jiaUserID, err := getUserIDFromSession(c)
 	if err != nil {
-		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 
 	jiaIsuUUID := c.Param("jia_isu_uuid")
 	datetimeStr := c.QueryParam("datetime")
 	if datetimeStr == "" {
-		c.Logger().Errorf("datetime is required")
 		return c.String(http.StatusBadRequest, "missing: datetime")
 	}
 	datetimeInt64, err := strconv.ParseInt(datetimeStr, 10, 64)
 	if err != nil {
-		c.Logger().Errorf("datetime is invalid format")
 		return c.String(http.StatusBadRequest, "bad format: datetime")
 	}
 	date := truncateAfterHours(time.Unix(datetimeInt64, 0))
@@ -775,7 +747,6 @@ func getIsuGraph(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	if count == 0 {
-		c.Logger().Errorf("isu not found")
 		return c.String(http.StatusNotFound, "not found: isu")
 	}
 
@@ -785,7 +756,6 @@ func getIsuGraph(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	// TODO: 必要以上に長めにトランザクションを取っているので後で検討
 	err = tx.Commit()
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
@@ -912,63 +882,63 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 
 // 複数のISU conditionからグラフの一つのデータ点を計算
 func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, error) {
-	var dataPoint GraphDataPoint
 
-	//sitting
+	// DB上にある is_dirty=true/false,is_overweight=true/false,... 形式の conditionを読み込み，
+	// 各conditionを数え，
+	// 正規化していないrawScoreを計算
+	conditionsCount := map[string]int{"is_broken": 0, "is_dirty": 0, "is_overweight": 0}
+	rawScore := 0
+	for _, condition := range isuConditions {
+		badConditionsCount := 0
+
+		// conditionを読み込む
+		for _, condStr := range strings.Split(condition.Condition, ",") {
+			keyValue := strings.Split(condStr, "=")
+
+			conditionName := keyValue[0]
+			if keyValue[1] == "true" {
+				conditionsCount[conditionName] += 1
+				badConditionsCount++
+			}
+		}
+
+		// rawScoreを加算
+		if badConditionsCount >= 3 { // critical
+			rawScore += scoreConditionLevelCritical
+		} else if badConditionsCount >= 1 { // warning
+			rawScore += scoreConditionLevelWarning
+		} else { // info
+			rawScore += scoreConditionLevelInfo
+		}
+	}
+
+	// sitting を数える
 	sittingCount := 0
 	for _, condition := range isuConditions {
 		if condition.IsSitting {
 			sittingCount++
 		}
 	}
-	dataPoint.Sitting = sittingCount * 100 / len(isuConditions)
 
-	//score&detail
-	dataPoint.Score = 100
-	//condition要因の減点
-	dataPoint.Detail = map[string]int{}
-	for key := range scorePerCondition {
-		dataPoint.Detail[key] = 0
-	}
-	for _, condition := range isuConditions {
-		conditionMapList := map[string]bool{}
-		//DB上にある is_dirty=true/false,is_overweight=true/false,... 形式のデータを
-		//map[string]bool形式に変換
-		for _, condStr := range strings.Split(condition.Condition, ",") {
-			keyValue := strings.Split(condStr, "=")
-			if len(keyValue) != 2 {
-				continue //形式に従っていないものは無視
-			}
-			conditionMapList[keyValue[0]] = (keyValue[1] != "false")
-		}
+	// データ点に整形
+	isuConditionsLength := len(isuConditions)
 
-		//trueになっているものは減点
-		for key, enabled := range conditionMapList {
-			if enabled {
-				score, ok := scorePerCondition[key]
-				if ok {
-					dataPoint.Score += score
-					dataPoint.Detail[key] += score
-				}
-			}
-		}
-	}
-	//スコアに影響がないDetailを削除
-	for key := range scorePerCondition {
-		if dataPoint.Detail[key] == 0 {
-			delete(dataPoint.Detail, key)
-		}
-	}
-	//個数減点
-	if len(isuConditions) < 50 {
-		minus := -(50 - len(isuConditions)) * 2
-		dataPoint.Score += minus
-		dataPoint.Detail["missing_data"] = minus
-	}
-	if dataPoint.Score < 0 {
-		dataPoint.Score = 0
-	}
+	score := rawScore / isuConditionsLength // score = conditionLevelごとの素点の合算/condition数
 
+	sittingPercentage := sittingCount * 100 / isuConditionsLength
+	isBrokenPercentage := conditionsCount["is_broken"] * 100 / isuConditionsLength
+	isOverweightPercentage := conditionsCount["is_overweight"] * 100 / isuConditionsLength
+	isDirtyPercentage := conditionsCount["is_dirty"] * 100 / isuConditionsLength
+
+	dataPoint := GraphDataPoint{
+		Score: score,
+		Percentage: ConditionsPercentage{
+			Sitting:      sittingPercentage,
+			IsBroken:     isBrokenPercentage,
+			IsOverweight: isOverweightPercentage,
+			IsDirty:      isDirtyPercentage,
+		},
+	}
 	return dataPoint, nil
 }
 
@@ -978,7 +948,7 @@ func getIsuConditions(c echo.Context) error {
 	// input
 	//     * jia_isu_uuid: 椅子の固有番号(path_param)
 	//     * start_time: 開始時間
-	//     * cursor_end_time: 終了時間 (required)
+	//     * end_time: 終了時間 (required)
 	//     * condition_level: critical,warning,info (csv)
 	//               critical: conditions (is_dirty,is_overweight,is_broken) のうちtrueが3個
 	//               warning: conditionsのうちtrueのものが1 or 2個
@@ -986,24 +956,20 @@ func getIsuConditions(c echo.Context) error {
 
 	jiaUserID, err := getUserIDFromSession(c)
 	if err != nil {
-		c.Logger().Errorf("you are not signed in: %v", err)
 		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 	jiaIsuUUID := c.Param("jia_isu_uuid")
 	if jiaIsuUUID == "" {
-		c.Logger().Errorf("jia_isu_uuid is missing")
 		return c.String(http.StatusBadRequest, "missing: jia_isu_uuid")
 	}
 	//required query param
-	cursorEndTimeInt64, err := strconv.ParseInt(c.QueryParam("cursor_end_time"), 10, 64)
+	endTimeInt64, err := strconv.ParseInt(c.QueryParam("end_time"), 10, 64)
 	if err != nil {
-		c.Logger().Errorf("bad format: cursor_end_time: %v", err)
-		return c.String(http.StatusBadRequest, "bad format: cursor_end_time")
+		return c.String(http.StatusBadRequest, "bad format: end_time")
 	}
-	cursorEndTime := time.Unix(cursorEndTimeInt64, 0)
+	endTime := time.Unix(endTimeInt64, 0)
 	conditionLevelCSV := c.QueryParam("condition_level")
 	if conditionLevelCSV == "" {
-		c.Logger().Errorf("condition_level is missing")
 		return c.String(http.StatusBadRequest, "missing: condition_level")
 	}
 	conditionLevel := map[string]interface{}{}
@@ -1016,7 +982,6 @@ func getIsuConditions(c echo.Context) error {
 	if startTimeStr != "" {
 		startTimeInt64, err := strconv.ParseInt(startTimeStr, 10, 64)
 		if err != nil {
-			c.Logger().Errorf("bad format: start_time: %v", err)
 			return c.String(http.StatusBadRequest, "bad format: start_time")
 		}
 		startTime = time.Unix(startTimeInt64, 0)
@@ -1026,7 +991,6 @@ func getIsuConditions(c echo.Context) error {
 	if limitStr != "" {
 		limit, err = strconv.Atoi(limitStr)
 		if err != nil || limit <= 0 {
-			c.Logger().Errorf("bad format: limit: limit = %v, %v", limit, err)
 			return c.String(http.StatusBadRequest, "bad format: limit")
 		}
 	}
@@ -1039,7 +1003,6 @@ func getIsuConditions(c echo.Context) error {
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			c.Logger().Errorf("isu not found: %v", err)
 			return c.String(http.StatusNotFound, "not found: isu")
 		}
 
@@ -1047,8 +1010,8 @@ func getIsuConditions(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	// 対象isu_idの通知を取得(limit, cursorで絞り込み）
-	conditionsResponse, err := getIsuConditionsFromDB(db, jiaIsuUUID, cursorEndTime, conditionLevel, startTime, limit, isuName)
+	// 対象isu_idの通知を取得(limit, startTime, endTimeで絞り込み）
+	conditionsResponse, err := getIsuConditionsFromDB(db, jiaIsuUUID, endTime, conditionLevel, startTime, limit, isuName)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -1056,7 +1019,7 @@ func getIsuConditions(c echo.Context) error {
 	return c.JSON(http.StatusOK, conditionsResponse)
 }
 
-func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, cursorEndTime time.Time, conditionLevel map[string]interface{}, startTime time.Time,
+func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, endTime time.Time, conditionLevel map[string]interface{}, startTime time.Time,
 	limit int, isuName string) ([]*GetIsuConditionResponse, error) {
 
 	conditions := []IsuCondition{}
@@ -1067,7 +1030,7 @@ func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, cursorEndTime time.T
 			"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ?"+
 				"	AND `timestamp` < ?"+
 				"	ORDER BY `timestamp` DESC",
-			jiaIsuUUID, cursorEndTime,
+			jiaIsuUUID, endTime,
 		)
 	} else {
 		err = db.Select(&conditions,
@@ -1075,7 +1038,7 @@ func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, cursorEndTime time.T
 				"	AND `timestamp` < ?"+
 				"	AND ? <= `timestamp`"+
 				"	ORDER BY `timestamp` DESC",
-			jiaIsuUUID, cursorEndTime, startTime,
+			jiaIsuUUID, endTime, startTime,
 		)
 	}
 	if err != nil {
@@ -1085,7 +1048,7 @@ func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, cursorEndTime time.T
 	//condition_levelでの絞り込み
 	conditionsResponse := []*GetIsuConditionResponse{}
 	for _, c := range conditions {
-		cLevel, err := calcConditionLevel(c.Condition)
+		cLevel, err := calculateConditionLevel(c.Condition)
 		if err != nil {
 			continue
 		}
@@ -1114,7 +1077,7 @@ func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, cursorEndTime time.T
 }
 
 // conditionのcsvからcondition levelを計算
-func calcConditionLevel(condition string) (string, error) {
+func calculateConditionLevel(condition string) (string, error) {
 	var conditionLevel string
 
 	warnCount := strings.Count(condition, "=true")
@@ -1143,7 +1106,6 @@ func postIsuCondition(c echo.Context) error {
 	//  * message
 	//	* timestamp（秒まで）
 
-	// MEMO(isucon11-q実装者) 以下のTODOコメントはヒントにするため，予選本番でも残す
 	// TODO: これ良くないので後でなんとかする
 	dropProbability := 0.1
 	if rand.Float64() <= dropProbability {
@@ -1151,20 +1113,16 @@ func postIsuCondition(c echo.Context) error {
 		return c.NoContent(http.StatusServiceUnavailable)
 	}
 
-	//TODO: 記法の統一
 	jiaIsuUUID := c.Param("jia_isu_uuid")
 	if jiaIsuUUID == "" {
-		c.Logger().Errorf("jia_isu_uuid is missing")
 		return c.String(http.StatusBadRequest, "missing: jia_isu_uuid")
 	}
 
 	req := []PostIsuConditionRequest{}
 	err := c.Bind(&req)
 	if err != nil {
-		c.Logger().Errorf("bad request body: %v", err)
 		return c.String(http.StatusBadRequest, "bad request body")
 	} else if len(req) == 0 {
-		c.Logger().Errorf("bad request body: array length is 0")
 		return c.String(http.StatusBadRequest, "bad request body")
 	}
 
@@ -1178,7 +1136,7 @@ func postIsuCondition(c echo.Context) error {
 
 	// jia_isu_uuid が存在するかを確認
 	var count int
-	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_isu_uuid` = ?", jiaIsuUUID) //TODO: 記法の統一
+	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_isu_uuid` = ?", jiaIsuUUID)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -1193,8 +1151,7 @@ func postIsuCondition(c echo.Context) error {
 		// parse
 		timestamp := time.Unix(cond.Timestamp, 0)
 
-		if !conditionFormat.MatchString(cond.Condition) {
-			c.Logger().Errorf("bad request body")
+		if !isValidConditionFormat(cond.Condition) {
 			return c.String(http.StatusBadRequest, "bad request body")
 		}
 
@@ -1221,6 +1178,40 @@ func postIsuCondition(c echo.Context) error {
 	return c.NoContent(http.StatusCreated)
 }
 
+// conditionの文字列がcsv形式になっているか検証
+func isValidConditionFormat(conditionStr string) bool {
+
+	keys := []string{"is_dirty=", "is_overweight=", "is_broken="}
+	const valueTrue = "true"
+	const valueFalse = "false"
+
+	idxCondStr := 0
+
+	for idxKeys, key := range keys {
+		if !strings.HasPrefix(conditionStr[idxCondStr:], key) {
+			return false
+		}
+		idxCondStr += len(key)
+
+		if strings.HasPrefix(conditionStr[idxCondStr:], valueTrue) {
+			idxCondStr += len(valueTrue)
+		} else if strings.HasPrefix(conditionStr[idxCondStr:], valueFalse) {
+			idxCondStr += len(valueFalse)
+		} else {
+			return false
+		}
+
+		if idxKeys < (len(keys) - 1) {
+			if conditionStr[idxCondStr] != ',' {
+				return false
+			}
+			idxCondStr++
+		}
+	}
+
+	return (idxCondStr == len(conditionStr))
+}
+
 //分以下を切り捨て、一時間単位にする関数
 func truncateAfterHours(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), 0, 0, 0, t.Location())
@@ -1238,7 +1229,6 @@ func getTrend(c echo.Context) error {
 
 	res := []TrendResponse{}
 
-	// MEMO(isucon11-q実装者) 以下のTODOコメントはヒントにするため，予選本番でも残す
 	// TODO: 処理が重すぎるのでなんとかする
 	for _, character := range characterList {
 		isuList := []Isu{}
@@ -1251,7 +1241,7 @@ func getTrend(c echo.Context) error {
 			return c.NoContent(http.StatusInternalServerError)
 		}
 
-		characterIsuConditions := []TrendCondition{}
+		characterIsuConditions := []*TrendCondition{}
 		for _, isu := range isuList {
 			conditions := []IsuCondition{}
 			err = db.Select(&conditions,
@@ -1265,7 +1255,7 @@ func getTrend(c echo.Context) error {
 
 			if len(conditions) > 0 {
 				isuLastCondition := conditions[0]
-				conditionLevel, err := calcConditionLevel(isuLastCondition.Condition)
+				conditionLevel, err := calculateConditionLevel(isuLastCondition.Condition)
 				if err != nil {
 					c.Logger().Errorf("failed to get condition level: %v", err)
 					return c.NoContent(http.StatusInternalServerError)
@@ -1275,7 +1265,7 @@ func getTrend(c echo.Context) error {
 					Timestamp:      isuLastCondition.Timestamp.Unix(),
 					ConditionLevel: conditionLevel,
 				}
-				characterIsuConditions = append(characterIsuConditions, trendCondition)
+				characterIsuConditions = append(characterIsuConditions, &trendCondition)
 			}
 
 		}

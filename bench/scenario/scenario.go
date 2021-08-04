@@ -43,13 +43,20 @@ type Scenario struct {
 	jiaCancel     context.CancelFunc
 
 	//内部状態
-	normalUsersMtx  sync.Mutex
-	normalUsers     []*model.User
+	normalUsersMtx sync.Mutex
+	normalUsers    []*model.User
 
-	// TODO: ユーザーを増やすロジックを書いたときに必要性を再度考える
 	viewerMtx sync.Mutex
 	viewers   []*model.Viewer
+
+	// GET trend にて isuID から isu を取得するのに利用
+	isuFromID      map[int]*model.Isu
+	isuFromIDMutex sync.RWMutex
 }
+
+var (
+// MEMO: IsuFromID は NewIsu() 内でのみ書き込まれる append only な map
+)
 
 func NewScenario(jiaServiceURL *url.URL, loadTimeout time.Duration) (*Scenario, error) {
 	return &Scenario{
@@ -61,6 +68,7 @@ func NewScenario(jiaServiceURL *url.URL, loadTimeout time.Duration) (*Scenario, 
 		jiaServiceURL:     jiaServiceURL,
 		initializeTimeout: 20 * time.Second,
 		normalUsers:       []*model.User{},
+		isuFromID:         make(map[int]*model.Isu, 8192),
 	}, nil
 }
 
@@ -153,12 +161,7 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 		req.Img = img.Img
 		isu.SetImage(req.Img)
 	}
-	isuResponse, res, err := postIsuAction(ctx, owner.Agent, req) //TODO:画像
-	// TODO: err のとき retry
-	if err != nil {
-		step.AddError(err)
-		return nil
-	}
+	isuResponse, res := postIsuInfinityRetry(ctx, owner.Agent, req, step) //TODO:画像
 	// TODO: これは validate でやるべきなきがする
 	if isuResponse.JIAIsuUUID != isu.JIAIsuUUID ||
 		isuResponse.Name != isu.Name ||
@@ -168,6 +171,9 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 
 	// POST isu のレスポンスより ID を取得して isu モデルに代入する
 	isu.ID = isuResponse.ID
+
+	// isu.ID から model.TrendCondition を取得できるようにする (GET /trend 用)
+	s.UpdateIsuFromID(isu)
 
 	// poster に isu model の初期化終了を伝える
 	isu.StreamsForScenario.StateChan <- model.IsuStateChangeNone
@@ -195,6 +201,9 @@ func GetConditionDataExistTimestamp(s *Scenario, user *model.User) int64 {
 	}
 	var timestamp int64 = math.MaxInt64
 	for _, isu := range user.IsuListOrderByCreatedAt {
+
+		// condition の read lock を取得
+		isu.CondMutex.RLock()
 		cond := isu.Conditions.Back()
 		if cond == nil {
 			return s.virtualTimeStart.Unix()
@@ -202,6 +211,8 @@ func GetConditionDataExistTimestamp(s *Scenario, user *model.User) int64 {
 		if cond.TimestampUnix < timestamp {
 			timestamp = cond.TimestampUnix
 		}
+		isu.CondMutex.RUnlock()
+
 	}
 	return timestamp
 }
@@ -215,4 +226,17 @@ func addErrorWithContext(ctx context.Context, step *isucandar.BenchmarkStep, err
 	default:
 		step.AddError(err)
 	}
+}
+
+func (s *Scenario) UpdateIsuFromID(isu *model.Isu) {
+	s.isuFromIDMutex.Lock()
+	defer s.isuFromIDMutex.Unlock()
+	s.isuFromID[isu.ID] = isu
+}
+
+func (s *Scenario) GetIsuFromID(id int) (*model.Isu, bool) {
+	s.isuFromIDMutex.RLock()
+	defer s.isuFromIDMutex.RUnlock()
+	isu, ok := s.isuFromID[id]
+	return isu, ok
 }

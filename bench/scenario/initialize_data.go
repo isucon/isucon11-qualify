@@ -1,15 +1,18 @@
 package scenario
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/isucon/isucon11-qualify/bench/logger"
-	"github.com/isucon/isucon11-qualify/bench/model"
 	"io/ioutil"
 	"sort"
+
+	"github.com/isucon/isucon11-qualify/bench/logger"
+	"github.com/isucon/isucon11-qualify/bench/model"
+	"github.com/isucon/isucon11-qualify/bench/random"
 )
 
-func (s *Scenario) InitializeData() {
+func (s *Scenario) InitializeData(ctx context.Context) {
 	//TODO: ちゃんと生成する
 
 	raw, err := ioutil.ReadFile("./data/initialize.json")
@@ -24,37 +27,41 @@ func (s *Scenario) InitializeData() {
 
 	for i, _ := range users {
 		user := users[i]
-		var userConditions []model.IsuCondition
+		//var userConditions []model.IsuCondition
 
 		for key, _ := range user.IsuListByID {
-			isu := user.IsuListByID[key]
-			isu.Owner = &user
-			isu.JIAIsuUUID = key
+			// isu の初期化
+			isu, _, err := model.NewIsuRawForInitData(user.IsuListByID[key], &user, key)
+			if err != nil {
+				logger.AdminLogger.Panicln(fmt.Errorf("初期データから User インスタンスを作成するのに失敗しました: %v", err))
+			}
+			//PosterForInitData(ctx, streamsForPoster)
+
+			// isu.ID から model.TrendCondition を取得できるようにする (GET /trend 用)
+			s.UpdateIsuFromID(isu)
+
 			user.IsuListOrderByCreatedAt = append(user.IsuListOrderByCreatedAt, isu)
-			for _, cond := range isu.Conditions.Info {
-				userConditions = append(userConditions, cond)
-			}
-			for _, cond := range isu.Conditions.Warning {
-				userConditions = append(userConditions, cond)
-			}
-			for _, cond := range isu.Conditions.Critical {
-				userConditions = append(userConditions, cond)
-			}
+			//conditions := isu.GetIsuConditions()
 		}
 		sort.Slice(user.IsuListOrderByCreatedAt, func(i, j int) bool {
-			return user.IsuListOrderByCreatedAt[i].CreatedAt.Before(user.IsuListOrderByCreatedAt[j].CreatedAt)
+			return user.IsuListOrderByCreatedAt[i].ID < user.IsuListOrderByCreatedAt[j].ID
 		})
-		sort.Slice(userConditions, func(i, j int) bool {
-			return userConditions[i].TimestampUnix < userConditions[j].TimestampUnix
-		})
+		// sort.Slice(userConditions, func(i, j int) bool {
+		// 	return userConditions[i].TimestampUnix < userConditions[j].TimestampUnix
+		// })
 
-		user.Conditions = model.NewIsuConditionTreeSet()
-		for i, _ := range userConditions {
-			user.Conditions.Add(&userConditions[i])
-		}
+		// user.Conditions = model.NewIsuConditionTreeSet()
+		// for i, _ := range userConditions {
+		// 	user.Conditions.Add(&userConditions[i])
+		// }
 
 		user.Type = model.UserTypeNormal
 		s.normalUsers = append(s.normalUsers, &user)
+	}
+
+	//初期データを登録
+	for _, u := range s.normalUsers {
+		random.SetGeneratedUser(u.UserID)
 	}
 
 	//for debug
@@ -89,3 +96,16 @@ func (s *Scenario) InitializeData() {
 	//	logger.AdminLogger.Printf("normal users len: %v", len(s.normalUsers))
 	//}
 }
+
+// func PosterForInitData(ctx context.Context, stream *model.StreamsForPoster) {
+// 	go func() {
+// 		for {
+// 			select {
+// 			case <-ctx.Done():
+// 				return
+// 			default:
+// 			}
+// 			stream.ConditionChan <- []model.IsuCondition{}
+// 		}
+// 	}()
+// }
