@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"net/textproto"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/isucon/isucandar/agent"
@@ -580,20 +581,28 @@ func browserGetHomeAction(ctx context.Context, a *agent.Agent,
 	// TODO: 静的ファイルのGET
 
 	errors := []error{}
-	// TODO: ここ以下は多分並列
 	isuList, hres, err := getIsuAction(ctx, a)
 	if err != nil {
 		errors = append(errors, err)
 	}
 	if isuList != nil {
-		// TODO: ここ以下は多分並列
+		var wg sync.WaitGroup
+		var errMutex sync.Mutex
+		wg.Add(len(isuList))
 		for _, isu := range isuList {
-			icon, _, err := getIsuIconAction(ctx, a, isu.JIAIsuUUID, allowNotModified)
-			if err != nil {
-				errors = append(errors, err)
-			}
-			isu.Icon = icon
+			go func(isu *service.Isu) {
+				defer wg.Done()
+				icon, _, err := getIsuIconAction(ctx, a, isu.JIAIsuUUID, allowNotModified)
+				if err != nil {
+					errMutex.Lock()
+					errors = append(errors, err)
+					errMutex.Unlock()
+				} else {
+					isu.Icon = icon
+				}
+			}(isu)
 		}
+		wg.Wait()
 		errors = append(errors, validateIsu(hres, isuList)...)
 	}
 
