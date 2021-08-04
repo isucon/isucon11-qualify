@@ -359,7 +359,8 @@ func joinURL(base *url.URL, target string) string {
 }
 
 // TODO: vendor.****.jsで取得処理が記述されているlogo_white, logo_orangeも取得できてない
-func verifyResources(page string, res *http.Response, resources agent.Resources) []error {
+// TODO: trendページの追加もまだ
+func verifyResources(page PageType, res *http.Response, resources agent.Resources) []error {
 	base := res.Request.URL.String()
 
 	faviconSvg := resourcesMap["/favicon.svg"]
@@ -371,7 +372,7 @@ func verifyResources(page string, res *http.Response, resources agent.Resources)
 
 	var checks []error
 	switch page {
-	case "/signup":
+	case HomePage, IsuDetailPage, IsuConditionPage, IsuGraphPage, RegisterPage:
 		checks = []error{
 			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+faviconSvg)], faviconSvg),
 			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexCss)], indexCss),
@@ -379,31 +380,7 @@ func verifyResources(page string, res *http.Response, resources agent.Resources)
 			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+logoWhite)], logoWhite),
 			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+vendorJs)], vendorJs),
 		}
-	case "/condition":
-		checks = []error{
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+faviconSvg)], faviconSvg),
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexCss)], indexCss),
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexJs)], indexJs),
-			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+logoWhite)], logoWhite),
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+vendorJs)], vendorJs),
-		}
-	case "/isu":
-		checks = []error{
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+faviconSvg)], faviconSvg),
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexCss)], indexCss),
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexJs)], indexJs),
-			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+logoWhite)], logoWhite),
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+vendorJs)], vendorJs),
-		}
-	case "/register":
-		checks = []error{
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+faviconSvg)], faviconSvg),
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexCss)], indexCss),
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexJs)], indexJs),
-			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+logoWhite)], logoWhite),
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+vendorJs)], vendorJs),
-		}
-	case "/login":
+	case AuthPage:
 		checks = []error{
 			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+faviconSvg)], faviconSvg),
 			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexCss)], indexCss),
@@ -412,6 +389,8 @@ func verifyResources(page string, res *http.Response, resources agent.Resources)
 			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+logoWhite)], logoWhite),
 			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+vendorJs)], vendorJs),
 		}
+	default:
+		logger.AdminLogger.Panicf("意図していないpage(%s)のResourceCheckを行っています。(path: %s)", page, res.Request.URL.Path)
 	}
 	errs := []error{}
 	for _, err := range checks {
