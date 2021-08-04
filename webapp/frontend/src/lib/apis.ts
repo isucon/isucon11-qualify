@@ -69,7 +69,7 @@ class Apis {
     axiosConfig?: AxiosRequestConfig
   ) {
     const params: ApiGraphRequest = {
-      date: dateToTimestamp(req.date)
+      datetime: dateToTimestamp(req.date)
     }
     const { data } = await axios.get<ApiGraph[]>(
       `/api/isu/${jiaIsuUuid}/graph`,
@@ -90,28 +90,6 @@ class Apis {
     return graphs
   }
 
-  async getConditions(req: ConditionRequest, axiosConfig?: AxiosRequestConfig) {
-    const params: ApiConditionRequest = {
-      ...req,
-      start_time: req.start_time ? dateToTimestamp(req.start_time) : undefined,
-      cursor_end_time: dateToTimestamp(req.cursor_end_time)
-    }
-    const { data } = await axios.get<ApiCondition[]>(`/api/condition`, {
-      params,
-      ...axiosConfig
-    })
-
-    const conditions: Condition[] = []
-    data.forEach(apiCondition => {
-      conditions.push({
-        ...apiCondition,
-        date: timestampToDate(apiCondition.timestamp)
-      })
-    })
-
-    return conditions
-  }
-
   async getIsuConditions(
     jiaIsuUuid: string,
     req: ConditionRequest,
@@ -120,7 +98,7 @@ class Apis {
     const params: ApiConditionRequest = {
       ...req,
       start_time: req.start_time ? dateToTimestamp(req.start_time) : undefined,
-      cursor_end_time: dateToTimestamp(req.cursor_end_time)
+      end_time: dateToTimestamp(req.end_time)
     }
     const { data } = await axios.get<ApiCondition[]>(
       `/api/condition/${jiaIsuUuid}`,
@@ -172,6 +150,7 @@ interface ApiGraph {
   start_at: number
   end_at: number
   data: GraphData | null
+  condition_timestamps: number[]
 }
 
 export interface Graph {
@@ -179,6 +158,7 @@ export interface Graph {
   start_at: Date
   end_at: Date
   data: GraphData | null
+  condition_timestamps: number[]
 }
 
 export interface IsuSearchRequest {
@@ -223,22 +203,20 @@ type ConditionLevel = 'info' | 'warning' | 'critical'
 
 interface ApiConditionRequest {
   start_time?: number
-  cursor_end_time: number
-  cursor_jia_isu_uuid: string
+  end_time: number
   // critical,warning,info をカンマ区切りで取り扱う
   condition_level: string
 }
 
 export interface ConditionRequest {
   start_time?: Date
-  cursor_end_time: Date
-  cursor_jia_isu_uuid: string
+  end_time: Date
   // critical,warning,info をカンマ区切りで取り扱う
   condition_level: string
 }
 
 interface ApiGraphRequest {
-  date: number
+  datetime: number
 }
 
 export interface GraphRequest {

@@ -42,7 +42,26 @@ type GraphResponseOne struct {
 }
 
 type GraphData struct {
-	Score   int            `json:"score"`
-	Sitting int            `json:"sitting"`
-	Detail  map[string]int `json:"detail"`
+	Score      int                 `json:"score"`
+	Percentage GraphDataPercentage `json:"percentage"`
+}
+
+type GraphDataPercentage struct {
+	Sitting      int `json:"sitting"`
+	IsBroken     int `json:"is_broken"`
+	IsDirty      int `json:"is_dirty"`
+	IsOverweight int `json:"is_overweight"`
+}
+
+type GetTrendResponse []GetTrendResponseOne
+
+type GetTrendResponseOne struct {
+	Character  string           `json:"character"`
+	Conditions []TrendCondition `json:"conditions"`
+}
+
+type TrendCondition struct {
+	IsuID          int    `json:"isu_id"`
+	Timestamp      int64  `json:"timestamp"`
+	ConditionLevel string `json:"condition_level"`
 }
