@@ -1,12 +1,12 @@
 import { useEffect } from 'react'
 import { useState } from 'react'
-import apis, { Isu } from '../../lib/apis'
+import apis, { GetIsuListResponse } from '../../lib/apis'
 import IsuList from '../UI/IsuList'
 
 const LIMIT = 4
 
 const Isus = () => {
-  const [isus, setIsus] = useState<Isu[]>([])
+  const [isus, setIsus] = useState<GetIsuListResponse[]>([])
   useEffect(() => {
     const fetchIsus = async () => {
       setIsus(await apis.getIsus({ limit: LIMIT }))

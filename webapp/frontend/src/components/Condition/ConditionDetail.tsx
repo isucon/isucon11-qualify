@@ -1,21 +1,10 @@
 import { Condition } from '../../lib/apis'
-import Tip from './Tip'
+import { getConditionTime } from '../../lib/date'
+import Tip from '../UI/Tip'
 
 interface Props {
   condition: Condition
 }
-
-const getTime = (condition: Condition) => {
-  const date = condition.date
-  // 2020/01/01 01:01:01
-  return `${date.getFullYear()}/${pad0(date.getMonth() + 1)}/${pad0(
-    date.getDate()
-  )} ${pad0(date.getHours())}:${pad0(date.getMinutes())}:${pad0(
-    date.getSeconds()
-  )}`
-}
-
-const pad0 = (num: number) => ('0' + num).slice(-2)
 
 const ConditionDetail = ({ condition }: Props) => {
   return (
@@ -31,7 +20,7 @@ const ConditionDetail = ({ condition }: Props) => {
         <Tip variant={condition.condition_level} />
       </div>
       <div>
-        <div>{getTime(condition)}</div>
+        <div>{getConditionTime(condition)}</div>
       </div>
     </div>
   )
