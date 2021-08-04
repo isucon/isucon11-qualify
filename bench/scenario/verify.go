@@ -780,3 +780,54 @@ func verifyPrepareGraph(res *http.Response, targetUser *model.User, targetIsuUUI
 
 	return nil
 }
+
+func verifyPrepareIsuList(res *http.Response, expectedReverse []*model.Isu, isuList []*service.Isu) []error {
+	var errs []error
+	length := len(expectedReverse)
+	if length != len(isuList) {
+		errs = append(errs, errorMissmatch(res, "椅子の数が異なります"))
+		return errs
+	}
+	for i, isu := range isuList {
+		expected := expectedReverse[length-1-i]
+		func() {
+			expected.CondMutex.RLock()
+			defer expected.CondMutex.RUnlock()
+
+			baseIter := expected.Conditions.End(model.ConditionLevelInfo | model.ConditionLevelWarning | model.ConditionLevelCritical)
+			expectedCondition := baseIter.Prev()
+
+			// isu.latest_isu_condition が nil &&  前回の latestIsuCondition の timestamp が初期値ならば
+			// この ISU は conditionを未送信なのでOK
+			if isu.LatestIsuCondition == nil && expectedCondition == nil {
+				return
+			}
+
+			if isu.LatestIsuCondition == nil {
+				errs = append(errs, errorMissmatch(res, "%d番目の椅子 (ID=%s) の情報が異なります: 登録されている時刻のデータが返されていません", i+1, isu.JIAIsuUUID))
+				return
+			}
+			if expectedCondition == nil {
+				errs = append(errs, errorMissmatch(res, "%d番目の椅子 (ID=%s) の情報が異なります: 登録されていない時刻のデータが返されました", i+1, isu.JIAIsuUUID))
+				return
+			}
+
+			// isu の検証 (jia_isu_uuid, id, character, name)
+			if expected.JIAIsuUUID == isu.JIAIsuUUID && expected.ID == isu.ID && expected.Character == isu.Character && expected.Name == isu.Name {
+				// conditionの検証
+				if !(expectedCondition.TimestampUnix == isu.LatestIsuCondition.Timestamp &&
+					expected.JIAIsuUUID == isu.LatestIsuCondition.JIAIsuUUID &&
+					expected.Name == isu.LatestIsuCondition.IsuName &&
+					expectedCondition.IsSitting == isu.LatestIsuCondition.IsSitting &&
+					expectedCondition.ConditionString() == isu.LatestIsuCondition.Condition &&
+					expectedCondition.ConditionLevel.Equal(isu.LatestIsuCondition.ConditionLevel) &&
+					expectedCondition.Message == isu.LatestIsuCondition.Message) {
+					errs = append(errs, errorMissmatch(res, "%d番目の椅子 (ID=%s) の情報が異なります: latest_isu_conditionの内容が不正です", i+1, isu.JIAIsuUUID))
+				}
+			} else {
+				errs = append(errs, errorMissmatch(res, "%d番目の椅子 (ID=%s) の情報が異なります", i+1, isu.JIAIsuUUID))
+			}
+		}()
+	}
+	return errs
+}

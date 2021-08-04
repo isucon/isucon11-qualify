@@ -289,8 +289,11 @@ func (s *Scenario) prepareCheckGetIsuList(ctx context.Context, loginUser *model.
 		step.AddError(err)
 		return
 	}
-	if len(isuList) != 0 {
-		step.AddError(errorInvalid(res, "ユーザの所持する椅子の数が一致しません。"))
+	expected := noIsuUser.IsuListOrderByCreatedAt
+	if errs := verifyPrepareIsuList(res, expected, isuList); errs != nil {
+		for _, err := range errs {
+			step.AddError(err)
+		}
 		return
 	}
 
@@ -307,20 +310,12 @@ func (s *Scenario) prepareCheckGetIsuList(ctx context.Context, loginUser *model.
 	}
 
 	// verify
-	if len(loginUser.IsuListOrderByCreatedAt) != len(isuList) {
-		step.AddError(errorInvalid(res, "ユーザの所持する椅子の数が一致しません。"))
-		return
-	}
-
-	isuListIdx := len(isuList)
-	for i, isu := range loginUser.IsuListOrderByCreatedAt {
-		if isuList[isuListIdx-i-1].JIAIsuUUID != isu.JIAIsuUUID ||
-			isuList[isuListIdx-i-1].Name != isu.Name ||
-			isuList[isuListIdx-i-1].Character != isu.Character ||
-			isuList[isuListIdx-i-1].ID != isu.ID {
-			step.AddError(errorInvalid(res, "ユーザの所持する椅子や順番が一致しません。"))
-			return
+	expected = loginUser.IsuListOrderByCreatedAt
+	if errs := verifyPrepareIsuList(res, expected, isuList); errs != nil {
+		for _, err := range errs {
+			step.AddError(err)
 		}
+		return
 	}
 
 	// check: サインインしてない状態で取得
