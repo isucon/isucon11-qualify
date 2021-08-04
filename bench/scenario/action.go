@@ -679,7 +679,7 @@ func browserGetIsuGraphAction(ctx context.Context, a *agent.Agent, id string, da
 	return isu, graph, errors
 }
 
-func BrowserAccess(ctx context.Context, a *agent.Agent, rpath string) error {
+func BrowserAccess(ctx context.Context, a *agent.Agent, rpath string, page PageType) error {
 	req, err := a.GET(rpath)
 	if err != nil {
 		logger.AdminLogger.Panic(err)
@@ -700,7 +700,7 @@ func BrowserAccess(ctx context.Context, a *agent.Agent, rpath string) error {
 		return failure.NewError(ErrCritical, err)
 	}
 	// resourceの検証
-	errs := verifyResources(rpath, res, resources)
+	errs := verifyResources(page, res, resources)
 	for _, err := range errs {
 		if err != nil {
 			return err

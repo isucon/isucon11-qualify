@@ -173,6 +173,11 @@ func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.Benchma
 			}
 		} else {
 			//ログイン成功
+			if err := BrowserAccess(ctx, agt, "/login", AuthPage); err != nil {
+				step.AddError(err)
+				return
+			}
+
 			_, errs := authAction(ctx, agt, userID)
 			for _, err := range errs {
 				step.AddError(err)
@@ -224,10 +229,6 @@ func (s *Scenario) prepareCheckPostSignout(ctx context.Context, step *isucandar.
 		return
 	}
 
-	if err := BrowserAccess(ctx, agt, "/login"); err != nil {
-		step.AddError(err)
-		return
-	}
 	_, err = signoutAction(ctx, agt)
 	if err != nil {
 		step.AddError(err)
@@ -279,6 +280,10 @@ func (s *Scenario) prepareCheckGetMe(ctx context.Context, loginUser *model.User,
 func (s *Scenario) prepareCheckGetIsuList(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
 	//ISU一覧の取得 e.GET("/api/isu", getIsuList)
 	// check: 椅子未所持の場合は椅子が存在しない
+	if err := BrowserAccess(ctx, noIsuUser.Agent, "/", HomePage); err != nil {
+		step.AddError(err)
+		return
+	}
 	isuList, res, err := getIsuAction(ctx, noIsuUser.Agent)
 	if err != nil {
 		step.AddError(err)
@@ -290,6 +295,11 @@ func (s *Scenario) prepareCheckGetIsuList(ctx context.Context, loginUser *model.
 	}
 
 	// check: 登録したISUが取得できる
+	if err := BrowserAccess(ctx, loginUser.Agent, "/", HomePage); err != nil {
+		step.AddError(err)
+		return
+	}
+
 	isuList, res, err = getIsuAction(ctx, loginUser.Agent)
 	if err != nil {
 		step.AddError(err)
@@ -328,6 +338,11 @@ func (s *Scenario) prepareCheckGetIsuList(ctx context.Context, loginUser *model.
 func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
 	//Isuの登録 e.POST("/api/isu", postIsu)
 	// check: 椅子の登録が成功する（デフォルト画像）
+	if err := BrowserAccess(ctx, loginUser.Agent, "/register", RegisterPage); err != nil {
+		step.AddError(err)
+		return
+	}
+
 	isu := s.NewIsu(ctx, step, loginUser, true, nil)
 	if isu == nil {
 		return
@@ -366,6 +381,11 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 	}
 
 	// check: 椅子の登録が成功する（画像あり）
+	if err := BrowserAccess(ctx, loginUser.Agent, "/register", RegisterPage); err != nil {
+		step.AddError(err)
+		return
+	}
+
 	img, err := ioutil.ReadFile("./images/CIMG8423_resize.jpg")
 	if err != nil {
 		logger.AdminLogger.Panicln(err)
@@ -477,7 +497,7 @@ func (s *Scenario) prepareCheckGetIsu(ctx context.Context, loginUser *model.User
 	//Isuの詳細情報取得 e.GET("/api/isu/:jia_isu_uuid", getIsu)
 	// check: 正常系
 	for _, isu := range loginUser.IsuListOrderByCreatedAt {
-		if err := BrowserAccess(ctx, loginUser.Agent, "/isu/"+isu.JIAIsuUUID); err != nil {
+		if err := BrowserAccess(ctx, loginUser.Agent, "/isu/"+isu.JIAIsuUUID, IsuDetailPage); err != nil {
 			step.AddError(err)
 			return
 		}
@@ -626,6 +646,12 @@ func (s *Scenario) prepareCheckGetIsuGraph(ctx context.Context, loginUser *model
 		if lastCond == nil {
 			continue
 		}
+
+		if err := BrowserAccess(ctx, loginUser.Agent, "/isu/"+isu.JIAIsuUUID+"/graph", IsuGraphPage); err != nil {
+			step.AddError(err)
+			return
+		}
+
 		req := service.GetGraphRequest{Date: lastCond.TimestampUnix}
 		graph, res, err := getIsuGraphAction(ctx, loginUser.Agent, isu.JIAIsuUUID, req)
 		if err != nil {
@@ -765,6 +791,11 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 		}
 		isu.CondMutex.RUnlock()
 
+		if err := BrowserAccess(ctx, loginUser.Agent, "/isu/"+isu.JIAIsuUUID+"/condition", IsuConditionPage); err != nil {
+			step.AddError(err)
+			return
+		}
+
 		req := service.GetIsuConditionRequest{
 			StartTime:      nil,
 			EndTime:        endTime,
@@ -809,6 +840,12 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 			ConditionLevel: "info,warning,critical",
 			Limit:          &limit,
 		}
+
+		if err := BrowserAccess(ctx, loginUser.Agent, "/isu/"+isu.JIAIsuUUID+"/condition", IsuConditionPage); err != nil {
+			step.AddError(err)
+			return
+		}
+
 		conditionsTmp, res, err := getIsuConditionAction(ctx, loginUser.Agent, jiaIsuUUID, req)
 		if err != nil {
 			step.AddError(err)
@@ -854,6 +891,12 @@ func (s *Scenario) prepareCheckGetIsuConditions(ctx context.Context, loginUser *
 			ConditionLevel: levelQuery,
 			Limit:          &limit,
 		}
+
+		if err := BrowserAccess(ctx, loginUser.Agent, "/isu/"+isu.JIAIsuUUID+"/condition", IsuConditionPage); err != nil {
+			step.AddError(err)
+			return
+		}
+
 		conditionsTmp, res, err := getIsuConditionAction(ctx, loginUser.Agent, jiaIsuUUID, req)
 		if err != nil {
 			step.AddError(err)
