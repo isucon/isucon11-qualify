@@ -49,10 +49,6 @@ type Scenario struct {
 	viewerMtx sync.Mutex
 	viewers   []*model.Viewer
 
-	// GET /api/isu にて isuID から latest_isu_condition.timestamp を取得するのに利用
-	latestConditionTimestampFromID      map[int]int64
-	latestConditionTimestampFromIDMutex sync.RWMutex
-
 	// GET /api/trend にて isuID から isu を取得するのに利用
 	isuFromID      map[int]*model.Isu
 	isuFromIDMutex sync.RWMutex
@@ -75,15 +71,14 @@ func NewScenario(jiaServiceURL *url.URL, loadTimeout time.Duration) (*Scenario, 
 	return &Scenario{
 		// TODO: シナリオを初期化する
 		//realTimeStart: time.Now()
-		LoadTimeout:                    loadTimeout,
-		virtualTimeStart:               random.BaseTime, //初期データ生成時のベースタイムと合わせるために当パッケージの値を利用
-		virtualTimeMulti:               30000,           //5分=300秒に一回 => 1秒に100回
-		jiaServiceURL:                  jiaServiceURL,
-		initializeTimeout:              20 * time.Second,
-		normalUsers:                    []*model.User{},
-		latestConditionTimestampFromID: make(map[int]int64, 8192),
-		isuFromID:                      make(map[int]*model.Isu, 8192),
-		verifiedConditionsInTrend:      make(map[isuIDAndConditionTimestamp]struct{}, 8192),
+		LoadTimeout:               loadTimeout,
+		virtualTimeStart:          random.BaseTime, //初期データ生成時のベースタイムと合わせるために当パッケージの値を利用
+		virtualTimeMulti:          30000,           //5分=300秒に一回 => 1秒に100回
+		jiaServiceURL:             jiaServiceURL,
+		initializeTimeout:         20 * time.Second,
+		normalUsers:               []*model.User{},
+		isuFromID:                 make(map[int]*model.Isu, 8192),
+		verifiedConditionsInTrend: make(map[isuIDAndConditionTimestamp]struct{}, 8192),
 	}, nil
 }
 
