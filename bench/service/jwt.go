@@ -32,7 +32,7 @@ func init() {
 func GenerateJWT(userID string, issuedAt time.Time) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodES256, jwt.MapClaims{
 		"jia_user_id": userID,
-		"iat":         issuedAt.Unix(),
+		"iat":         issuedAt.Add(-1 * time.Second).Unix(), //#445 Token used before issued対策
 		"exp":         issuedAt.Add(lifetime).Unix(),
 	})
 
