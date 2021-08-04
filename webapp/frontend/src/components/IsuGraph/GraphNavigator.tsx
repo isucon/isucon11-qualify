@@ -11,7 +11,7 @@ interface Props {
 
 const ConditionNavigator = ({ next, prev, day, fetchGraphs }: Props) => {
   return (
-    <div className="center flex gap-8">
+    <div className="flex gap-8">
       <IconButton onClick={prev}>
         <IoIosArrowBack size={24} />
       </IconButton>

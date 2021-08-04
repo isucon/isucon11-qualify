@@ -35,7 +35,7 @@ const IsuGraphCardContent = ({ isu }: Props) => {
   }
   return (
     <div className="flex flex-col gap-12">
-      <div className="flex w-full">
+      <div className="flex justify-center w-full">
         <GraphNavigator
           prev={prev}
           next={next}
