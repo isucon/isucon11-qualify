@@ -162,7 +162,7 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 			continue
 		}
 		//更新されているかどうか確認
-		{
+		if nextScenarioIndex == 0 {
 			found := false
 			for _, updated := range newConditionUUIDs {
 				if updated == targetIsu.JIAIsuUUID {
