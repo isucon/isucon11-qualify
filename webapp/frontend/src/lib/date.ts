@@ -18,8 +18,7 @@ export const timestampToDate = (timestamp: number) => {
   return new Date(timestamp * 1000)
 }
 
-export const getConditionTime = (condition: Condition) => {
-  const date = condition.date
+export const getConditionTime = (date: Date) => {
   // 2020/01/01 01:01:01
   return `${date.getFullYear()}/${pad0(date.getMonth() + 1)}/${pad0(
     date.getDate()
