@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react'
 import { GraphRequest, Graph } from '../../../lib/apis'
-import { getTodayDate } from '../../../lib/date'
+import { getNextDate, getPrevDate, getTodayDate } from '../../../lib/date'
 
 export interface Tooltip {
   score: string
   is_dirty: string
   is_overweight: string
   is_broken: string
-  missing_data: string
 }
 
 interface UseGraphResult {
@@ -28,12 +27,12 @@ const useGraph = (getGraphs: (req: GraphRequest) => Promise<Graph[]>) => {
     day: '',
     tooltipData: []
   })
+  const [date, updateDate] = useState<Date>(getTodayDate())
 
   useEffect(() => {
     const fetchGraphs = async () => {
-      const day = getTodayDate()
       const graphs = await getGraphs({
-        date: day
+        date: date
       })
       const graphData = genGraphData(graphs)
       updateResult(state => ({
@@ -42,20 +41,14 @@ const useGraph = (getGraphs: (req: GraphRequest) => Promise<Graph[]>) => {
         transitionData: graphData.transitionData,
         sittingData: graphData.sittingData,
         timeCategories: graphData.timeCategories,
-        day: day.toLocaleDateString(),
+        day: date.toLocaleDateString(),
         tooltipData: graphData.tooltipData
       }))
     }
     fetchGraphs()
-  }, [getGraphs, updateResult])
+  }, [getGraphs, updateResult, date])
 
-  const fetchGraphs = async (payload: { day: string }) => {
-    const date = new Date(payload.day)
-    if (isNaN(date.getTime())) {
-      alert('日時の指定が不正です')
-      return
-    }
-
+  const innerFetchGraphs = async () => {
     const graphs = await getGraphs({ date: date })
     const graphData = genGraphData(graphs)
 
@@ -66,12 +59,33 @@ const useGraph = (getGraphs: (req: GraphRequest) => Promise<Graph[]>) => {
       transitionData: graphData.transitionData,
       sittingData: graphData.sittingData,
       timeCategories: graphData.timeCategories,
-      day: payload.day,
+      day: date.toLocaleTimeString(),
       tooltipData: graphData.tooltipData
     }))
   }
 
-  return { ...result, fetchGraphs }
+  const fetchGraphs = async (payload: { day: string }) => {
+    const date = new Date(payload.day)
+    if (isNaN(date.getTime())) {
+      alert('日時の指定が不正です')
+      return
+    }
+
+    updateDate(date)
+    innerFetchGraphs()
+  }
+
+  const prev = async () => {
+    updateDate(getPrevDate(date))
+    innerFetchGraphs()
+  }
+
+  const next = async () => {
+    updateDate(getNextDate(date))
+    innerFetchGraphs()
+  }
+
+  return { ...result, fetchGraphs, prev, next }
 }
 
 const genGraphData = (graphs: Graph[]) => {
@@ -83,21 +97,12 @@ const genGraphData = (graphs: Graph[]) => {
   graphs.forEach(graph => {
     if (graph.data) {
       transitionData.push(graph.data.score)
-      sittingData.push(graph.data.sitting)
+      sittingData.push(graph.data.percentage.sitting)
       tooltipData.push({
         score: graph.data.score.toString(),
-        is_dirty: graph.data.detail['is_dirty']
-          ? graph.data.detail['is_dirty'].toString()
-          : '-',
-        is_overweight: graph.data.detail['is_overweight']
-          ? graph.data.detail['is_overweight'].toString()
-          : '-',
-        is_broken: graph.data.detail['is_broken']
-          ? graph.data.detail['is_broken'].toString()
-          : '-',
-        missing_data: graph.data.detail['missing_data']
-          ? graph.data.detail['missing_data'].toString()
-          : '-'
+        is_dirty: `${graph.data.percentage.is_dirty}%`,
+        is_overweight: `${graph.data.percentage.is_overweight}%`,
+        is_broken: `${graph.data.percentage.is_broken}%`
       })
     } else {
       transitionData.push(0)
@@ -106,8 +111,7 @@ const genGraphData = (graphs: Graph[]) => {
         score: '-',
         is_dirty: '-',
         is_overweight: '-',
-        is_broken: '-',
-        missing_data: '-'
+        is_broken: '-'
       })
     }
 

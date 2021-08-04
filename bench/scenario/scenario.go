@@ -56,6 +56,15 @@ type Scenario struct {
 	// GET /api/trend にて isuID から isu を取得するのに利用
 	isuFromID      map[int]*model.Isu
 	isuFromIDMutex sync.RWMutex
+
+	// GET trend にて既に確認したconditionを格納するのに利用
+	verifiedConditionsInTrend      map[isuIDAndConditionTimestamp]struct{}
+	verifiedConditionsInTrendMutex sync.RWMutex
+}
+
+type isuIDAndConditionTimestamp struct {
+	IsuID              int
+	ConditionTimestamp int64
 }
 
 var (
@@ -74,6 +83,7 @@ func NewScenario(jiaServiceURL *url.URL, loadTimeout time.Duration) (*Scenario, 
 		normalUsers:                    []*model.User{},
 		latestConditionTimestampFromID: make(map[int]int64, 8192),
 		isuFromID:                      make(map[int]*model.Isu, 8192),
+		verifiedConditionsInTrend:      make(map[isuIDAndConditionTimestamp]struct{}, 8192),
 	}, nil
 }
 
@@ -167,6 +177,9 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 		isu.SetImage(req.Img)
 	}
 	isuResponse, res := postIsuInfinityRetry(ctx, owner.Agent, req, step) //TODO:画像
+	if isuResponse == nil {
+		return nil
+	}
 	// TODO: これは validate でやるべきなきがする
 	if isuResponse.JIAIsuUUID != isu.JIAIsuUUID ||
 		isuResponse.Name != isu.Name ||
@@ -244,4 +257,17 @@ func (s *Scenario) GetIsuFromID(id int) (*model.Isu, bool) {
 	defer s.isuFromIDMutex.RUnlock()
 	isu, ok := s.isuFromID[id]
 	return isu, ok
+}
+
+func (s *Scenario) SetVerifiedCondition(id int, timestamp int64) {
+	s.verifiedConditionsInTrendMutex.Lock()
+	defer s.verifiedConditionsInTrendMutex.Unlock()
+	s.verifiedConditionsInTrend[isuIDAndConditionTimestamp{id, timestamp}] = struct{}{}
+}
+
+func (s *Scenario) ConditionAlreadyVerified(id int, timestamp int64) bool {
+	s.verifiedConditionsInTrendMutex.RLock()
+	defer s.verifiedConditionsInTrendMutex.RUnlock()
+	_, exist := s.verifiedConditionsInTrend[isuIDAndConditionTimestamp{id, timestamp}]
+	return exist
 }
