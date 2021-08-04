@@ -5,6 +5,7 @@ on:
     paths:
       - bench/**/*
       - webapp/go/**/*
+      - webapp/frontend/**/*  # bench/assets.go の更新検知のために回す
       - development/backend-go/**/*
       - development/docker-compose-ci.yml
       - development/docker-compose-dev.yml
@@ -14,6 +15,7 @@ on:
     paths:
       - bench/**/*
       - webapp/go/**/*
+      - webapp/frontend/**/*  # bench/assets.go の更新検知のために回す
       - development/backend-go/**/*
       - development/docker-compose-ci.yml
       - development/docker-compose-dev.yml
