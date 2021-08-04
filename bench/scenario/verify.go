@@ -118,7 +118,7 @@ func (s *Scenario) verifyIsuList(res *http.Response, expectedReverse []*model.Is
 
 		// isu.latest_isu_condition が nil &&  前回の latestIsuCondition の timestamp が初期値ならば
 		// この ISU はまだ poster から condition を受け取っていないため skip
-		if isu.LatestIsuCondition == nil && expected.LastLatestConditionTimestamp == 0 {
+		if isu.LatestIsuCondition == nil && expected.LastReadConditionTimestamp == 0 {
 			continue
 		}
 
@@ -151,9 +151,9 @@ func (s *Scenario) verifyIsuList(res *http.Response, expectedReverse []*model.Is
 								expectedCondition.Message == isu.LatestIsuCondition.Message) {
 								errs = append(errs, errorMissmatch(res, "%d番目の椅子 (ID=%s) の情報が異なります: latest_isu_conditionの内容が不正です", i+1, isu.JIAIsuUUID))
 							}
-							// もし前回の latestIsuCondition の timestamp より新しいならばカウンタをインクリメント && キャッシュを更新
-							if expected.LastLatestConditionTimestamp < isu.LatestIsuCondition.Timestamp {
-								expected.LastLatestConditionTimestamp = isu.LatestIsuCondition.Timestamp
+							// もし前回の latestIsuCondition の timestamp より新しいならばカウンタをインクリメント
+							if expected.LastReadConditionTimestamp < isu.LatestIsuCondition.Timestamp {
+								//↑ここではなく、conditionを見て加点したタイミングで更新
 								newConditionUUIDs = append(newConditionUUIDs, isu.JIAIsuUUID)
 							}
 							break
