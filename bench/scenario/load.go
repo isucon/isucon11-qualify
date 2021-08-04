@@ -236,11 +236,15 @@ func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep
 		// logger.AdminLogger.Println("viewer load")
 
 		// TODO: ちゃんとシナリオを実装する
+		requestTime := time.Now()
 		trend, res, err := getTrendAction(ctx, userAgent)
 		if err != nil {
-			addErrorWithContext(ctx, step, err)
+			// viewer シナリオはいくらタイムアウトしても良いので addErrorWithContext はしない?
+			//addErrorWithContext(ctx, step, err)
 		} else {
-			if err := s.verifyTrend(ctx, res, trend); err != nil {
+			_, err := s.verifyTrend(ctx, res, trend, requestTime)
+
+			if err != nil {
 				addErrorWithContext(ctx, step, err)
 			}
 		}
