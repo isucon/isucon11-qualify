@@ -1,0 +1,4 @@
+---
+- name: "roles/common/tasks/timezone: Set timezone to Asia/Tokyo"
+  timezone:
+    name: Asia/Tokyo
