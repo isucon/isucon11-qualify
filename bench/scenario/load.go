@@ -170,8 +170,9 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 					break
 				}
 			}
-			if !found {
-				continue //更新されていない
+			if !found { //更新されていないので次のISUを見に行く
+				nextScenarioIndex = 2
+				continue
 			}
 		}
 
