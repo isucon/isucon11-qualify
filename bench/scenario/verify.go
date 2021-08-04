@@ -160,7 +160,7 @@ func verifyIsuConditions(res *http.Response,
 		case 'c':
 			filter |= model.ConditionLevelCritical
 		default:
-			return errorInvalid(res, "データが正しくありません")
+			panic(fmt.Errorf("verifyIsuCondtions: リクエストのクエリパラメータ condition_level が不正な値です: %v", level))
 		}
 	}
 
@@ -272,7 +272,7 @@ func verifyPrepareIsuConditions(res *http.Response,
 		case 'c':
 			filter |= model.ConditionLevelCritical
 		default:
-			return errorInvalid(res, "データが正しくありません")
+			panic(fmt.Errorf("verifyPrepareIsuCondtions: リクエストのクエリパラメータ condition_level が不正な値です: %v", level))
 		}
 	}
 
