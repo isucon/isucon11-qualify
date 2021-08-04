@@ -151,7 +151,6 @@ func (state *posterState) GetNewestCondition(stateChange model.IsuStateChange, i
 		//ConditionLevel: model.ConditionLevelCritical,
 		Message:       "",
 		TimestampUnix: state.lastConditionTimestamp,
-		OwnerIsuUUID:  isu.JIAIsuUUID,
 	}
 
 	//message

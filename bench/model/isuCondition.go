@@ -35,36 +35,30 @@ type IsuCondition struct {
 	IsBroken       bool           `json:"is_broken"`
 	ConditionLevel ConditionLevel `json:"condition_level"`
 	Message        string         `json:"message"`
-	OwnerIsuUUID   string         `json:"owner_isu_uuid"`
 }
 
 //left < right
 func (left *IsuCondition) Less(right *IsuCondition) bool {
-	return left.TimestampUnix < right.TimestampUnix ||
-		(left.TimestampUnix == right.TimestampUnix && left.OwnerIsuUUID < right.OwnerIsuUUID)
+	return left.TimestampUnix < right.TimestampUnix
 }
 
 type IsuConditionCursor struct {
 	TimestampUnix int64
-	OwnerIsuUUID  string
 }
 
 //left < right
 func (left *IsuConditionCursor) Less(right *IsuConditionCursor) bool {
-	return left.TimestampUnix < right.TimestampUnix ||
-		(left.TimestampUnix == right.TimestampUnix && left.OwnerIsuUUID < right.OwnerIsuUUID)
+	return left.TimestampUnix < right.TimestampUnix
 }
 
 //left < right
 func (left *IsuCondition) Less2(right *IsuConditionCursor) bool {
-	return left.TimestampUnix < right.TimestampUnix ||
-		(left.TimestampUnix == right.TimestampUnix && left.OwnerIsuUUID < right.OwnerIsuUUID)
+	return left.TimestampUnix < right.TimestampUnix
 }
 
 //left < right
 func (left *IsuConditionCursor) Less2(right *IsuCondition) bool {
-	return left.TimestampUnix < right.TimestampUnix ||
-		(left.TimestampUnix == right.TimestampUnix && left.OwnerIsuUUID < right.OwnerIsuUUID)
+	return left.TimestampUnix < right.TimestampUnix
 }
 
 //conditionをcreated atの大きい順で見る
@@ -195,7 +189,7 @@ func (iter *IsuConditionArrayIterator) Prev() *IsuCondition {
 func upperBoundIsuConditionIndex(base []IsuCondition, end int, targetTimestamp int64, targetOwnerIsuUUID string) int {
 	//末尾の方にあることが分かっているので、末尾を固定要素ずつ線形探索 + 二分探索
 	//assert end <= len(base)
-	target := IsuConditionCursor{TimestampUnix: targetTimestamp, OwnerIsuUUID: targetOwnerIsuUUID}
+	target := IsuConditionCursor{TimestampUnix: targetTimestamp}
 	if end <= 0 {
 		return end //要素が見つからない
 	}
@@ -232,7 +226,7 @@ func upperBoundIsuConditionIndex(base []IsuCondition, end int, targetTimestamp i
 func lowerBoundIsuConditionIndex(base []IsuCondition, end int, targetTimestamp int64, targetOwnerIsuUUID string) int {
 	//末尾の方にあることが分かっているので、末尾を固定要素ずつ線形探索 + 二分探索
 	//assert end <= len(base)
-	target := IsuConditionCursor{TimestampUnix: targetTimestamp, OwnerIsuUUID: targetOwnerIsuUUID}
+	target := IsuConditionCursor{TimestampUnix: targetTimestamp}
 	if end <= 0 {
 		return end //要素が見つからない
 	}
@@ -334,7 +328,7 @@ func (ia *IsuConditionTreeSet) Back() *IsuCondition {
 
 func (ia *IsuConditionTreeSet) LowerBound(filter ConditionLevel, targetTimestamp int64, targetOwnerIsuUUID string) IsuConditionTreeSetIterator {
 	iter := ia.End(filter)
-	cursor := &IsuCondition{TimestampUnix: targetTimestamp, OwnerIsuUUID: targetOwnerIsuUUID}
+	cursor := &IsuCondition{TimestampUnix: targetTimestamp}
 	if (filter & ConditionLevelInfo) != 0 {
 		node, found := ia.Info.Ceiling(cursor)
 		if found {
