@@ -147,7 +147,7 @@ func reqMultipartResJSON(ctx context.Context, agent *agent.Agent, method string,
 
 	httpres, err := doRequest(ctx, agent, httpreq, allowedStatusCodes)
 	if err != nil {
-		return nil, err
+		return httpres, err
 	}
 	defer httpres.Body.Close()
 
@@ -196,7 +196,7 @@ func doRequest(ctx context.Context, agent *agent.Agent, httpreq *http.Request, a
 		}
 	}
 	if invalidStatusCode {
-		return nil, errorInvalidStatusCodes(httpres, allowedStatusCodes)
+		return httpres, errorInvalidStatusCodes(httpres, allowedStatusCodes)
 	}
 
 	return httpres, nil
