@@ -366,7 +366,7 @@ func postIsuAction(ctx context.Context, a *agent.Agent, req service.PostIsuReque
 	isu := &service.Isu{}
 	res, err := reqMultipartResJSON(ctx, a, http.MethodPost, "/api/isu", buf, writer, isu, []int{http.StatusCreated})
 	if err != nil {
-		return nil, nil, err
+		return nil, res, err
 	}
 	return isu, res, nil
 }
@@ -402,7 +402,7 @@ func postIsuErrorAction(ctx context.Context, a *agent.Agent, req service.PostIsu
 	}
 	res, text, err := reqMultipartResError(ctx, a, http.MethodPost, "/api/isu", buf, writer, []int{http.StatusBadRequest, http.StatusConflict, http.StatusUnauthorized, http.StatusNotFound, http.StatusForbidden})
 	if err != nil {
-		return "", nil, err
+		return "", res, err
 	}
 	return text, res, nil
 }
