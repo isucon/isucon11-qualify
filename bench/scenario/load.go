@@ -717,8 +717,15 @@ func signoutScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *m
 	authInfinityRetry(ctx, user.Agent, user.UserID, step)
 }
 
+// signoutScenario 以外からは呼ばない(シナリオループの最後である必要がある)
 func authInfinityRetry(ctx context.Context, a *agent.Agent, userID string, step *isucandar.BenchmarkStep) {
 	for {
+		select {
+		case <-ctx.Done():
+			// 失敗したときも区別せずに return してよい(次シナリオループで終了するため)
+			return
+		default:
+		}
 		_, errs := authAction(ctx, a, userID)
 		if len(errs) > 0 {
 			for _, err := range errs {
@@ -732,6 +739,11 @@ func authInfinityRetry(ctx context.Context, a *agent.Agent, userID string, step 
 
 func postIsuInfinityRetry(ctx context.Context, a *agent.Agent, req service.PostIsuRequest, step *isucandar.BenchmarkStep) (*service.Isu, *http.Response) {
 	for {
+		select {
+		case <-ctx.Done():
+			return nil, nil
+		default:
+		}
 		isu, res, err := postIsuAction(ctx, a, req)
 		if err != nil {
 			addErrorWithContext(ctx, step, err)
