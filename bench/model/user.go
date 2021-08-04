@@ -40,12 +40,6 @@ func (u *User) AddIsu(isu *Isu) {
 	u.IsuListByID[isu.JIAIsuUUID] = isu
 }
 
-// func (user *User) GetConditionFromChan(ctx context.Context) {
-// 	for _, isu := range user.IsuListOrderByCreatedAt {
-// 		isu.getConditionFromChan(ctx)
-// 	}
-// }
-
 func (user *User) CloseAllIsuStateChan() {
 	for _, isu := range user.IsuListByID {
 		close(isu.StreamsForScenario.StateChan)

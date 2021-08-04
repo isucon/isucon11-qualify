@@ -35,7 +35,7 @@ const TransitionGraph = ({
       categories: timeCategories
     },
     yaxis: {
-      max: 100
+      min: 0
     },
     tooltip: {
       custom: ({ dataPointIndex }) => {
@@ -69,10 +69,6 @@ const genTooltipCard = (tooltip: Tooltip) => {
     <div class="flex flex-row">
       <div class="w-25">is_broken</div>
       <div>${tooltip.is_broken}</div>
-    </div>
-    <div class="flex flex-row">
-      <div class="w-25">missing_data</div>
-      <div>${tooltip.missing_data}</div>
     </div>
   </div>`
 }
