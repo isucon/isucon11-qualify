@@ -130,7 +130,7 @@ export interface Isu {
 }
 
 interface ApiGetIsuListResponse extends Isu {
-  latest_isu_condition: ApiCondition
+  latest_isu_condition?: ApiCondition
 }
 
 export interface GetIsuListResponse extends Isu {
