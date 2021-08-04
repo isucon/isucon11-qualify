@@ -49,7 +49,7 @@ type Scenario struct {
 	viewerMtx sync.Mutex
 	viewers   []*model.Viewer
 
-	// GET trend にて isuID から isu を取得するのに利用
+	// GET /api/trend にて isuID から isu を取得するのに利用
 	isuFromID      map[int]*model.Isu
 	isuFromIDMutex sync.RWMutex
 

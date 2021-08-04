@@ -171,7 +171,9 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 		_, errs := browserGetHomeAction(ctx, user.Agent, dataExistTimestamp, true,
 			func(res *http.Response, isuList []*service.Isu) []error {
 				expected := user.IsuListOrderByCreatedAt
-				return verifyIsuOrderByCreatedAt(res, expected, isuList)
+
+				_, errs := s.verifyIsuList(res, expected, isuList)
+				return errs
 			},
 		)
 		for _, err := range errs {
