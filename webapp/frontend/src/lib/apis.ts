@@ -116,6 +116,25 @@ class Apis {
 
     return conditions
   }
+
+  async getTrend(axiosConfig?: AxiosRequestConfig) {
+    const { data } = await axios.get<ApiTrendResponse>(`/api/trend`, {
+      ...axiosConfig
+    })
+
+    const trends: TrendResponse = []
+    data.forEach(trend => {
+      trends.push({
+        ...trend,
+        conditions: trend.conditions.map(v => ({
+          ...v,
+          date: timestampToDate(v.timestamp)
+        }))
+      })
+    })
+
+    return trends
+  }
 }
 
 const apis = new Apis()
@@ -220,3 +239,27 @@ export interface GraphRequest {
 }
 
 export const DEFAULT_CONDITION_LIMIT = 20
+
+interface ApiTrendResponseElement {
+  character: string
+  conditions: {
+    isu_id: number
+    condition_level: 'critical' | 'warning' | 'info'
+    timestamp: number
+  }[]
+}
+
+type ApiTrendResponse = ApiTrendResponseElement[]
+
+export interface Trend {
+  character: string
+  conditions: TrendCondition[]
+}
+
+export interface TrendCondition {
+  isu_id: number
+  condition_level: 'critical' | 'warning' | 'info'
+  date: Date
+}
+
+export type TrendResponse = Trend[]

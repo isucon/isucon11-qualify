@@ -19,7 +19,7 @@ const Controls = () => {
   }
 
   return (
-    <div className="w-110 flex items-center justify-between ml-auto">
+    <div className="w-80 flex items-center justify-between ml-auto">
       <ControlLinkItem to="/register" label="ISUの登録" icon={<TiPlus />} />
       <ControlLinkItem
         to="/condition"

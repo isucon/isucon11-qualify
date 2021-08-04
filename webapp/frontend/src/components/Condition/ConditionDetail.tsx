@@ -20,7 +20,7 @@ const ConditionDetail = ({ condition }: Props) => {
         <Tip variant={condition.condition_level} />
       </div>
       <div>
-        <div>{getConditionTime(condition)}</div>
+        <div>{getConditionTime(condition.date)}</div>
       </div>
     </div>
   )
