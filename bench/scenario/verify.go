@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/isucon/isucandar/agent"
 	"github.com/isucon/isucandar/failure"
@@ -176,7 +177,7 @@ func verifyIsuConditions(res *http.Response,
 		var lastSort model.IsuConditionCursor
 		for i, c := range backendData {
 			//backendDataが新しい順にソートされていることの検証
-			nowSort := model.IsuConditionCursor{TimestampUnix: c.Timestamp, OwnerIsuUUID: c.JIAIsuUUID}
+			nowSort := model.IsuConditionCursor{TimestampUnix: c.Timestamp}
 			if i != 0 && !nowSort.Less(&lastSort) {
 				return errorInvalid(res, "整列順が正しくありません")
 			}
@@ -188,7 +189,7 @@ func verifyIsuConditions(res *http.Response,
 					return errorMissmatch(res, "POSTに成功していない時刻のデータが返されました")
 				}
 
-				if expected.TimestampUnix == c.Timestamp && expected.OwnerIsuUUID == c.JIAIsuUUID {
+				if expected.TimestampUnix == c.Timestamp {
 					break //ok
 				}
 
@@ -225,7 +226,7 @@ func verifyIsuConditions(res *http.Response,
 			if c.Condition != expectedCondition ||
 				c.ConditionLevel != expectedConditionLevelStr ||
 				c.IsSitting != expected.IsSitting ||
-				c.JIAIsuUUID != expected.OwnerIsuUUID ||
+				c.JIAIsuUUID != targetIsuUUID ||
 				c.Message != expected.Message ||
 				c.IsuName != targetIsu.Name {
 				return errorMissmatch(res, "データが正しくありません")
@@ -292,7 +293,7 @@ func verifyPrepareIsuConditions(res *http.Response,
 			}
 
 			//backendDataが新しい順にソートされていることの検証
-			nowSort := model.IsuConditionCursor{TimestampUnix: c.Timestamp, OwnerIsuUUID: c.JIAIsuUUID}
+			nowSort := model.IsuConditionCursor{TimestampUnix: c.Timestamp}
 			if i != 0 && !nowSort.Less(&lastSort) {
 				return errorInvalid(res, "整列順が正しくありません")
 			}
@@ -326,7 +327,7 @@ func verifyPrepareIsuConditions(res *http.Response,
 			if c.Condition != expectedCondition ||
 				c.ConditionLevel != expectedConditionLevelStr ||
 				c.IsSitting != expected.IsSitting ||
-				c.JIAIsuUUID != expected.OwnerIsuUUID ||
+				c.JIAIsuUUID != targetIsuUUID ||
 				c.Message != expected.Message ||
 				c.IsuName != targetIsu.Name ||
 				c.Timestamp != expected.TimestampUnix {
@@ -358,7 +359,8 @@ func joinURL(base *url.URL, target string) string {
 }
 
 // TODO: vendor.****.jsで取得処理が記述されているlogo_white, logo_orangeも取得できてない
-func verifyResources(page string, res *http.Response, resources agent.Resources) []error {
+// TODO: trendページの追加もまだ
+func verifyResources(page PageType, res *http.Response, resources agent.Resources) []error {
 	base := res.Request.URL.String()
 
 	faviconSvg := resourcesMap["/favicon.svg"]
@@ -370,7 +372,7 @@ func verifyResources(page string, res *http.Response, resources agent.Resources)
 
 	var checks []error
 	switch page {
-	case "/signup":
+	case HomePage, IsuDetailPage, IsuConditionPage, IsuGraphPage, RegisterPage:
 		checks = []error{
 			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+faviconSvg)], faviconSvg),
 			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexCss)], indexCss),
@@ -378,31 +380,7 @@ func verifyResources(page string, res *http.Response, resources agent.Resources)
 			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+logoWhite)], logoWhite),
 			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+vendorJs)], vendorJs),
 		}
-	case "/condition":
-		checks = []error{
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+faviconSvg)], faviconSvg),
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexCss)], indexCss),
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexJs)], indexJs),
-			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+logoWhite)], logoWhite),
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+vendorJs)], vendorJs),
-		}
-	case "/isu":
-		checks = []error{
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+faviconSvg)], faviconSvg),
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexCss)], indexCss),
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexJs)], indexJs),
-			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+logoWhite)], logoWhite),
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+vendorJs)], vendorJs),
-		}
-	case "/register":
-		checks = []error{
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+faviconSvg)], faviconSvg),
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexCss)], indexCss),
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexJs)], indexJs),
-			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+logoWhite)], logoWhite),
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+vendorJs)], vendorJs),
-		}
-	case "/login":
+	case AuthPage:
 		checks = []error{
 			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+faviconSvg)], faviconSvg),
 			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexCss)], indexCss),
@@ -411,6 +389,8 @@ func verifyResources(page string, res *http.Response, resources agent.Resources)
 			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+logoWhite)], logoWhite),
 			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+vendorJs)], vendorJs),
 		}
+	default:
+		logger.AdminLogger.Panicf("意図していないpage(%s)のResourceCheckを行っています。(path: %s)", page, res.Request.URL.Path)
 	}
 	errs := []error{}
 	for _, err := range checks {
@@ -476,6 +456,10 @@ func verifyGraph(
 		return errorInvalid(res, "要素数が正しくありません")
 	}
 
+	reqDate := time.Unix(getGraphReq.Date, 0)
+	startDate := truncateAfterHours(reqDate).Unix()
+	endDate := truncateAfterHours(reqDate.Add(24 * time.Hour)).Unix()
+
 	var lastStartAt int64
 	// getGraphResp を逆順 (timestamp が新しい順) にloop
 	for idxGraphResp := len(getGraphResp) - 1; idxGraphResp >= 0; idxGraphResp-- {
@@ -486,6 +470,11 @@ func verifyGraph(
 			return errorInvalid(res, "整列順が正しくありません")
 		}
 		lastStartAt = graphOne.StartAt
+
+		// graphのデータが指定日内のものか検証
+		if graphOne.StartAt < startDate || endDate < graphOne.EndAt {
+			return errorInvalid(res, "グラフの日付が間違っています")
+		}
 
 		targetIsu := targetUser.IsuListByID[targetIsuUUID]
 		var conditionsBaseOfScore []*model.IsuCondition
@@ -545,14 +534,16 @@ func verifyGraph(
 		// conditionsBaseOfScore から組み立てた data が actual と等値であることの検証
 		expectedGraph := model.NewGraph(conditionsBaseOfScore)
 
-		if graphOne.Data.Score != expectedGraph.Score() ||
-			graphOne.Data.Sitting != expectedGraph.Sitting() ||
-			graphOne.Data.Detail["is_broken"] != expectedGraph.IsBroken() ||
-			graphOne.Data.Detail["is_dirty"] != expectedGraph.IsDirty() ||
-			graphOne.Data.Detail["is_overweight"] != expectedGraph.IsOverweight() ||
-			graphOne.Data.Detail["missing_data"] != expectedGraph.MissingData() {
-			return errorMissmatch(res, "graphのデータが正しくありません")
+		if expectedGraph.Match(
+			graphOne.Data.Score,
+			graphOne.Data.Percentage.Sitting,
+			graphOne.Data.Percentage.IsBroken,
+			graphOne.Data.Percentage.IsDirty,
+			graphOne.Data.Percentage.IsOverweight,
+		) {
+			return errorMissmatch(res, "グラフのデータが正しくありません")
 		}
+
 	}
 	return nil
 }
@@ -636,13 +627,23 @@ func (s *Scenario) verifyTrend(
 	return nil
 }
 
+//分以下を切り捨て、一時間単位にする関数
+func truncateAfterHours(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), 0, 0, 0, t.Location())
+}
+
 func verifyPrepareGraph(res *http.Response, targetUser *model.User, targetIsuUUID string,
+	getGraphReq *service.GetGraphRequest,
 	getGraphResp service.GraphResponse) error {
 
 	// graphResp の配列は必ず 24 つ (24時間分) である
 	if len(getGraphResp) != 24 {
 		return errorInvalid(res, "要素数が正しくありません")
 	}
+
+	reqDate := time.Unix(getGraphReq.Date, 0)
+	startDate := truncateAfterHours(reqDate).Unix()
+	endDate := truncateAfterHours(reqDate.Add(24 * time.Hour)).Unix()
 
 	var lastStartAt int64
 	// getGraphResp を逆順 (timestamp が新しい順) にloop
@@ -654,6 +655,11 @@ func verifyPrepareGraph(res *http.Response, targetUser *model.User, targetIsuUUI
 			return errorInvalid(res, "整列順が正しくありません")
 		}
 		lastStartAt = graphOne.StartAt
+
+		// graphのデータが指定日内のものか検証
+		if graphOne.StartAt < startDate || endDate < graphOne.EndAt {
+			return errorInvalid(res, "グラフの日付が間違っています")
+		}
 
 		targetIsu := targetUser.IsuListByID[targetIsuUUID]
 		var conditionsBaseOfScore []*model.IsuCondition
@@ -706,13 +712,14 @@ func verifyPrepareGraph(res *http.Response, targetUser *model.User, targetIsuUUI
 
 		// conditionsBaseOfScore から組み立てた data が actual と等値であることの検証
 		expectedGraph := model.NewGraph(conditionsBaseOfScore)
-		if graphOne.Data.Score != expectedGraph.Score() ||
-			graphOne.Data.Sitting != expectedGraph.Sitting() ||
-			graphOne.Data.Detail["is_broken"] != expectedGraph.IsBroken() ||
-			graphOne.Data.Detail["is_dirty"] != expectedGraph.IsDirty() ||
-			graphOne.Data.Detail["is_overweight"] != expectedGraph.IsOverweight() ||
-			graphOne.Data.Detail["missing_data"] != expectedGraph.MissingData() {
-			return errorMissmatch(res, "graphのデータが正しくありません")
+		if expectedGraph.Match(
+			graphOne.Data.Score,
+			graphOne.Data.Percentage.Sitting,
+			graphOne.Data.Percentage.IsBroken,
+			graphOne.Data.Percentage.IsDirty,
+			graphOne.Data.Percentage.IsOverweight,
+		) {
+			return errorMissmatch(res, "グラフのデータが正しくありません")
 		}
 	}
 

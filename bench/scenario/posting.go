@@ -15,7 +15,7 @@ import (
 const (
 	// MEMO: 最大でも一秒に一件しか送れないので点数上限になるが、解決できるとは思えないので良い
 	PostIntervalSecond = 60 //Virtual Timeでのpost間隔
-	PostContentNum     = 20 //一回のpostで何要素postするか
+	PostContentNum     = 10 //一回のpostで何要素postするか virtualTimeMulti * timerDuration(20ms) / PostIntervalSecond
 )
 
 type posterState struct {
@@ -119,7 +119,6 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 			continue
 		}
 
-		//TODO: ユーザー Goroutineが詰まると詰まるのでいや
 		select {
 		case <-ctx.Done():
 			return
@@ -127,11 +126,8 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		}
 		isu.AddIsuConditions(conditions)
 
-		// TODO: sleep しないとレスポンスが来てすぐにループが回るので POST condition が高頻度過ぎてベンチが死ぬ (#728)
-		time.Sleep(400 * time.Millisecond)
-
 		// timeout も無視するので全てのエラーを見ない
-		postIsuConditionAction(httpClient, targetURL, &conditionsReq)
+		postIsuConditionAction(ctx, httpClient, targetURL, &conditionsReq)
 	}
 }
 
@@ -151,7 +147,6 @@ func (state *posterState) GetNewestCondition(stateChange model.IsuStateChange, i
 		//ConditionLevel: model.ConditionLevelCritical,
 		Message:       "",
 		TimestampUnix: state.lastConditionTimestamp,
-		OwnerIsuUUID:  isu.JIAIsuUUID,
 	}
 
 	//message

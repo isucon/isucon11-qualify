@@ -102,7 +102,7 @@ func (s *Scenario) AddNormalUser(ctx context.Context, step *isucandar.BenchmarkS
 }
 
 //load用
-//マニアユーザーのシナリオ Goroutineを追加する
+//非ログインユーザーのシナリオ Goroutineを追加する
 func (s *Scenario) AddViewer(ctx context.Context, step *isucandar.BenchmarkStep, count int) {
 	if count <= 0 {
 		return

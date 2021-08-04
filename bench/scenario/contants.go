@@ -30,3 +30,14 @@ const SignoutPercentage = 20
 
 // ReadCondition 系のスコアタグが何件ごとに付与されるか
 const ReadConditionTagStep = 50
+
+type PageType int
+
+const (
+	HomePage PageType = iota
+	IsuDetailPage
+	IsuConditionPage
+	IsuGraphPage
+	RegisterPage
+	AuthPage
+)

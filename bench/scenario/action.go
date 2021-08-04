@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"net/textproto"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/isucon/isucandar/agent"
@@ -448,15 +449,18 @@ func getIsuIconErrorAction(ctx context.Context, a *agent.Agent, id string) (stri
 	return text, res, nil
 }
 
-func postIsuConditionAction(httpClient http.Client, targetUrl string, req *[]service.PostIsuConditionRequest) (*http.Response, error) {
+func postIsuConditionAction(ctx context.Context, httpClient http.Client, targetUrl string, req *[]service.PostIsuConditionRequest) (*http.Response, error) {
 	conditionByte, err := json.Marshal(req)
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 	}
-	res, err := httpClient.Post(
-		targetUrl, "application/json",
-		bytes.NewBuffer(conditionByte),
-	)
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", targetUrl, bytes.NewBuffer(conditionByte))
+	if err != nil {
+		logger.AdminLogger.Panic(err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("User-Agent", "JIA-Members-Client/1.2")
+	res, err := httpClient.Do(httpReq)
 	if err != nil {
 		return nil, err
 	}
@@ -467,15 +471,18 @@ func postIsuConditionAction(httpClient http.Client, targetUrl string, req *[]ser
 	return res, nil
 }
 
-func postIsuConditionErrorAction(httpClient http.Client, targetUrl string, req []map[string]interface{}) (string, *http.Response, error) {
+func postIsuConditionErrorAction(ctx context.Context, httpClient http.Client, targetUrl string, req []map[string]interface{}) (string, *http.Response, error) {
 	conditionByte, err := json.Marshal(req)
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 	}
-	res, err := httpClient.Post(
-		targetUrl, "application/json",
-		bytes.NewBuffer(conditionByte),
-	)
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", targetUrl, bytes.NewBuffer(conditionByte))
+	if err != nil {
+		logger.AdminLogger.Panic(err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("User-Agent", "JIA-Members-Client/1.2")
+	res, err := httpClient.Do(httpReq)
 	if err != nil {
 		return "", nil, err
 	}
@@ -580,20 +587,28 @@ func browserGetHomeAction(ctx context.Context, a *agent.Agent,
 	// TODO: 静的ファイルのGET
 
 	errors := []error{}
-	// TODO: ここ以下は多分並列
 	isuList, hres, err := getIsuAction(ctx, a)
 	if err != nil {
 		errors = append(errors, err)
 	}
 	if isuList != nil {
-		// TODO: ここ以下は多分並列
+		var wg sync.WaitGroup
+		var errMutex sync.Mutex
+		wg.Add(len(isuList))
 		for _, isu := range isuList {
-			icon, _, err := getIsuIconAction(ctx, a, isu.JIAIsuUUID, allowNotModified)
-			if err != nil {
-				errors = append(errors, err)
-			}
-			isu.Icon = icon
+			go func(isu *service.Isu) {
+				defer wg.Done()
+				icon, _, err := getIsuIconAction(ctx, a, isu.JIAIsuUUID, allowNotModified)
+				if err != nil {
+					errMutex.Lock()
+					errors = append(errors, err)
+					errMutex.Unlock()
+				} else {
+					isu.Icon = icon
+				}
+			}(isu)
 		}
+		wg.Wait()
 		errors = append(errors, validateIsu(hres, isuList)...)
 	}
 
@@ -626,7 +641,6 @@ func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string,
 		errors = append(errors, err)
 	}
 	if isu != nil {
-		// TODO: ここ以下は多分並列
 		icon, _, err := getIsuIconAction(ctx, a, id, allowNotModified)
 		if err != nil {
 			errors = append(errors, err)
@@ -679,7 +693,7 @@ func browserGetIsuGraphAction(ctx context.Context, a *agent.Agent, id string, da
 	return isu, graph, errors
 }
 
-func BrowserAccess(ctx context.Context, a *agent.Agent, rpath string) error {
+func BrowserAccess(ctx context.Context, a *agent.Agent, rpath string, page PageType) error {
 	req, err := a.GET(rpath)
 	if err != nil {
 		logger.AdminLogger.Panic(err)
@@ -700,7 +714,7 @@ func BrowserAccess(ctx context.Context, a *agent.Agent, rpath string) error {
 		return failure.NewError(ErrCritical, err)
 	}
 	// resourceの検証
-	errs := verifyResources(rpath, res, resources)
+	errs := verifyResources(page, res, resources)
 	for _, err := range errs {
 		if err != nil {
 			return err
