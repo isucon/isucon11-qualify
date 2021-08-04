@@ -449,12 +449,12 @@ func getIsuIconErrorAction(ctx context.Context, a *agent.Agent, id string) (stri
 	return text, res, nil
 }
 
-func postIsuConditionAction(httpClient http.Client, targetUrl string, req *[]service.PostIsuConditionRequest) (*http.Response, error) {
+func postIsuConditionAction(ctx context.Context, httpClient http.Client, targetUrl string, req *[]service.PostIsuConditionRequest) (*http.Response, error) {
 	conditionByte, err := json.Marshal(req)
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 	}
-	httpReq, err := http.NewRequest("POST", targetUrl, bytes.NewBuffer(conditionByte))
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", targetUrl, bytes.NewBuffer(conditionByte))
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 	}
@@ -471,12 +471,12 @@ func postIsuConditionAction(httpClient http.Client, targetUrl string, req *[]ser
 	return res, nil
 }
 
-func postIsuConditionErrorAction(httpClient http.Client, targetUrl string, req []map[string]interface{}) (string, *http.Response, error) {
+func postIsuConditionErrorAction(ctx context.Context, httpClient http.Client, targetUrl string, req []map[string]interface{}) (string, *http.Response, error) {
 	conditionByte, err := json.Marshal(req)
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 	}
-	httpReq, err := http.NewRequest("POST", targetUrl, bytes.NewBuffer(conditionByte))
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", targetUrl, bytes.NewBuffer(conditionByte))
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 	}

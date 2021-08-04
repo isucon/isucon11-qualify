@@ -128,7 +128,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		isu.AddIsuConditions(conditions)
 
 		// timeout も無視するので全てのエラーを見ない
-		postIsuConditionAction(httpClient, targetURL, &conditionsReq)
+		postIsuConditionAction(ctx, httpClient, targetURL, &conditionsReq)
 	}
 }
 
