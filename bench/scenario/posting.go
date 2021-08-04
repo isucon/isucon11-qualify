@@ -15,7 +15,7 @@ import (
 const (
 	// MEMO: 最大でも一秒に一件しか送れないので点数上限になるが、解決できるとは思えないので良い
 	PostIntervalSecond = 60 //Virtual Timeでのpost間隔
-	PostContentNum     = 20 //一回のpostで何要素postするか
+	PostContentNum     = 10 //一回のpostで何要素postするか virtualTimeMulti * timerDuration(20ms) / PostIntervalSecond
 )
 
 type posterState struct {
