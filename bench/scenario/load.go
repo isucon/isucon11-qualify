@@ -29,6 +29,9 @@ var (
 	readInfoConditionFraction     int32 = 0
 	readWarnConditionFraction     int32 = 0
 	readCriticalConditionFraction int32 = 0
+
+	// Viewer が増やす更新された
+	viewUpdatedTrendCounter int32 = 0
 )
 
 type ReadConditionCount struct {
@@ -61,13 +64,13 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	s.AddNormalUser(ctx, step, 10)
 
 	//非ログインユーザーを増やす
-	s.AddViewer(ctx, step, 5)
-	// //ユーザーを増やす
-	// s.loadWaitGroup.Add(1)
-	// go func() {
-	// 	defer s.loadWaitGroup.Done()
-	// 	s.userAdder(ctx, step)
-	// }()
+	s.AddViewer(ctx, step, 2)
+	//ユーザーを増やす
+	s.loadWaitGroup.Add(1)
+	go func() {
+		defer s.loadWaitGroup.Done()
+		s.userAdder(ctx, step)
+	}()
 
 	<-ctx.Done()
 	s.jiaCancel()
@@ -91,14 +94,13 @@ func (s *Scenario) userAdder(ctx context.Context, step *isucandar.BenchmarkStep)
 			return
 		}
 
-		errCount := step.Result().Errors.Count()
-		timeoutCount, ok := errCount["timeout"]
-		if !ok || timeoutCount == 0 {
+		if viewUpdatedTrendCounter > AddUserStep {
 			logger.ContestantLogger.Println("現レベルの負荷へ応答ができているため、負荷レベルを上昇させます")
-			s.AddNormalUser(ctx, step, 20)
-		} else if ok && timeoutCount > 0 {
-			logger.ContestantLogger.Println("エラーが発生したため、負荷レベルは上昇しません")
-			return
+			addCount := viewUpdatedTrendCounter / AddUserStep
+			s.AddNormalUser(ctx, step, AddUserCount*int(addCount))
+			atomic.AddInt32(&viewUpdatedTrendCounter, -AddUserStep*addCount)
+		} else {
+			logger.ContestantLogger.Println("負荷レベルは上昇しませんでした")
 		}
 	}
 }
@@ -158,6 +160,9 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 			nextTargetIsuIndex += 1
 			nextTargetIsuIndex %= len(user.IsuListOrderByCreatedAt)
 			nextScenarioIndex = 0
+
+			// 1 set のシナリオが終わったらViewerを増やす
+			s.AddViewer(ctx, step, 1)
 		}
 		targetIsu := user.IsuListOrderByCreatedAt[nextTargetIsuIndex]
 
@@ -205,11 +210,6 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 
 func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep) {
 
-	userAgent, err := s.NewAgent()
-	if err != nil {
-		logger.AdminLogger.Panicln(err)
-	}
-
 	viewerTimer, viewerTimerCancel := context.WithDeadline(ctx, s.realTimeLoadFinishedAt.Add(-agent.DefaultRequestTimeout))
 	defer viewerTimerCancel()
 	select {
@@ -220,7 +220,7 @@ func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep
 	default:
 	}
 
-	_ = s.initViewer(ctx)
+	viewer := s.initViewer(ctx)
 	scenarioLoopStopper := time.After(1 * time.Millisecond) //ループ頻度調整
 	for {
 		<-scenarioLoopStopper
@@ -233,24 +233,26 @@ func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep
 			return
 		default:
 		}
-		// logger.AdminLogger.Println("viewer load")
 
-		// TODO: ちゃんとシナリオを実装する
-		requestTime := time.Now()
-		trend, res, err := getTrendAction(ctx, userAgent)
-		if err != nil {
-			// viewer シナリオはいくらタイムアウトしても良いので addErrorWithContext はしない?
-			//addErrorWithContext(ctx, step, err)
-		} else {
-			_, err := s.verifyTrend(ctx, res, trend, requestTime)
-
-			if err != nil {
-				addErrorWithContext(ctx, step, err)
-			}
+		// viewer が ViewerDropCount より多くエラーに遭遇していたらループから脱落
+		if viewer.ErrorCount > ViewerDropCount {
+			return
 		}
 
-		// trends, err := getTrendAction()
-		// updatedTimestampCount, err := verifyTrend(trends)
+		requestTime := time.Now()
+		trend, res, err := getTrendAction(ctx, viewer.Agent)
+		if err != nil {
+			viewer.ErrorCount += 1
+			addErrorWithContext(ctx, step, err)
+			continue
+		}
+		updatedCount, err := s.verifyTrend(ctx, res, trend, requestTime)
+		if err != nil {
+			addErrorWithContext(ctx, step, err)
+			viewer.ErrorCount += 1
+			continue
+		}
+		atomic.AddInt32(&viewUpdatedTrendCounter, int32(updatedCount))
 	}
 }
 
