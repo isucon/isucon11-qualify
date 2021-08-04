@@ -570,6 +570,7 @@ func verifyGraph(
 func (s *Scenario) verifyTrend(
 	ctx context.Context, res *http.Response,
 	trendResp service.GetTrendResponse,
+	requestTime time.Time,
 ) (int, error) {
 
 	// レスポンスの要素にある ISU の性格を格納するための set
@@ -630,8 +631,8 @@ func (s *Scenario) verifyTrend(
 						// 該当 condition が新規のものである場合はキャッシュを更新
 						if !s.ConditionAlreadyVerified(condition.IsuID, condition.Timestamp) {
 							s.SetVerifiedCondition(condition.IsuID, condition.Timestamp)
-							// 一秒前(仮想時間で8時間20分以上前)よりあとのものならカウンタをインクリメント
-							if condition.Timestamp > s.ToVirtualTime(time.Now().Add(-1*time.Second)).Unix() {
+							// 一秒前(仮想時間で16時間40分以上前)よりあとのものならカウンタをインクリメント
+							if condition.Timestamp > s.ToVirtualTime(requestTime.Add(-2*time.Second)).Unix() {
 								newConditionNum += 1
 							}
 						}
