@@ -126,8 +126,6 @@ func (s *Scenario) verifyIsuList(res *http.Response, expectedReverse []*model.Is
 		if expected.JIAIsuUUID == isu.JIAIsuUUID {
 			// isu の検証 (character, name, image)
 			if expected.Character == isu.Character && expected.Name == isu.Name && expected.ImageHash == md5.Sum(isu.Icon) {
-				//TODO: iconの検証
-
 				// isu の検証 (latest_isu_condition)
 				if err := func() error {
 					expected.CondMutex.RLock()
