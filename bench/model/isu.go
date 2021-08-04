@@ -58,6 +58,8 @@ type Isu struct {
 	LastReadConditionTimestamp    int64     //シナリオ Goroutineからのみ参照
 	LastReadBadConditionTimestamp int64     //シナリオ Goroutineからのみ参照
 	CreatedAt                     time.Time `json:"created_at"`
+
+	LastLatestConditionTimestamp int64 // シナリオ Goroutineからのみ参照 (前回の /api/isu のレスポンス の .[].latest_isu_condition.timestamp を格納)
 }
 
 //新しいISUの生成

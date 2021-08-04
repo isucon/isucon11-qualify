@@ -104,23 +104,23 @@ func verifyIsuNotFound(res *http.Response, text string) error {
 
 //データ整合性チェック
 
-// TODO: verifyIsuList に書き直す
-func (s *Scenario) verifyIsuList(res *http.Response, expectedReverse []*model.Isu, isuList []*service.Isu) (int, []error) {
+func (s *Scenario) verifyIsuList(res *http.Response, expectedReverse []*model.Isu, isuList []*service.Isu) ([]string, []error) {
 	errs := []error{}
-	var newConditionNum int
+	var newConditionUUIDs []string
 	length := len(expectedReverse)
 	if length != len(isuList) {
 		errs = append(errs, errorMissmatch(res, "椅子の数が異なります"))
-		return 0, errs
+		return nil, errs
 	}
 	for i, isu := range isuList {
-		// isu.latest_isu_condition が nil &&  前回の latestIsuCondition の timestamp が初期値ならば
-		// この ISU はまだ poster から condition を受け取っていないため skip
-		if isu.LatestIsuCondition == nil && s.GetLatestConditionTimestampFromID(isu.ID) == 0 {
-			continue
-		}
 
 		expected := expectedReverse[length-1-i]
+
+		// isu.latest_isu_condition が nil &&  前回の latestIsuCondition の timestamp が初期値ならば
+		// この ISU はまだ poster から condition を受け取っていないため skip
+		if isu.LatestIsuCondition == nil && expected.LastLatestConditionTimestamp == 0 {
+			continue
+		}
 
 		// isu の検証 (jia_isu_uuid)
 		if expected.JIAIsuUUID == isu.JIAIsuUUID {
@@ -152,9 +152,9 @@ func (s *Scenario) verifyIsuList(res *http.Response, expectedReverse []*model.Is
 								errs = append(errs, errorMissmatch(res, "%d番目の椅子 (ID=%s) の情報が異なります: latest_isu_conditionの内容が不正です", i+1, isu.JIAIsuUUID))
 							}
 							// もし前回の latestIsuCondition の timestamp と異なるならばカウンタをインクリメント && キャッシュを更新
-							if isu.LatestIsuCondition.Timestamp != s.GetLatestConditionTimestampFromID(isu.ID) {
-								s.SetLatestConditionTimestampFromID(isu.ID, isu.LatestIsuCondition.Timestamp)
-								newConditionNum++
+							if isu.LatestIsuCondition.Timestamp != expected.LastLatestConditionTimestamp {
+								expected.LastLatestConditionTimestamp = isu.LatestIsuCondition.Timestamp
+								newConditionUUIDs = append(newConditionUUIDs, isu.JIAIsuUUID)
 							}
 							break
 						}
@@ -170,7 +170,7 @@ func (s *Scenario) verifyIsuList(res *http.Response, expectedReverse []*model.Is
 			errs = append(errs, errorMissmatch(res, "%d番目の椅子 (ID=%s) が異なります: expected: ID=%s", i+1, isu.JIAIsuUUID, expected.JIAIsuUUID))
 		}
 	}
-	return newConditionNum, errs
+	return newConditionUUIDs, errs
 }
 
 //mustExistUntil: この値以下のtimestampを持つものは全て反映されているべき

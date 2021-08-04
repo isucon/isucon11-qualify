@@ -233,18 +233,6 @@ func addErrorWithContext(ctx context.Context, step *isucandar.BenchmarkStep, err
 	}
 }
 
-func (s *Scenario) SetLatestConditionTimestampFromID(id int, timestamp int64) {
-	s.latestConditionTimestampFromIDMutex.Lock()
-	defer s.latestConditionTimestampFromIDMutex.Unlock()
-	s.latestConditionTimestampFromID[id] = timestamp
-}
-
-func (s *Scenario) GetLatestConditionTimestampFromID(id int) int64 {
-	s.latestConditionTimestampFromIDMutex.RLock()
-	defer s.latestConditionTimestampFromIDMutex.RUnlock()
-	return s.latestConditionTimestampFromID[id] // value がないならば 0 を返せば良い
-}
-
 func (s *Scenario) UpdateIsuFromID(isu *model.Isu) {
 	s.isuFromIDMutex.Lock()
 	defer s.isuFromIDMutex.Unlock()
