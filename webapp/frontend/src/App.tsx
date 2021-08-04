@@ -13,9 +13,9 @@ const App = () => {
         <PageHeader></PageHeader>
         <div className="flex-1 bg-primary">
           <Switch>
-            <GuardedRoute path="/" exact>
+            <Route path="/" exact>
               <Home />
-            </GuardedRoute>
+            </Route>
             <GuardedRoute path="/isu/:id">
               <IsuRoot />
             </GuardedRoute>
