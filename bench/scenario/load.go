@@ -22,7 +22,7 @@ import (
 var (
 	// ユーザーが持つ ISU の数を確定させたいので、そのための乱数生成器。ソースは適当に決めた
 	isuCountRandEngine      = rand.New(rand.NewSource(-8679036))
-	isuCountRandEngineMutex sync.RWMutex
+	isuCountRandEngineMutex sync.Mutex
 )
 
 func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) error {
@@ -253,9 +253,9 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 	//椅子作成
 	// TODO: 実際に解いてみてこの isu 数の上限がいい感じに働いているか検証する
 	const isuCountMax = 15
-	isuCountRandEngineMutex.RLock()
+	isuCountRandEngineMutex.Lock()
 	isuCount := isuCountRandEngine.Intn(isuCountMax) + 1
-	isuCountRandEngineMutex.RUnlock()
+	isuCountRandEngineMutex.Unlock()
 
 	for i := 0; i < isuCount; i++ {
 		isu := s.NewIsu(ctx, step, user, true, nil)
