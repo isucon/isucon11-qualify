@@ -1,3 +1,4 @@
+import Auth from '../components/Home/Auth'
 import Isus from '../components/Home/Isus'
 import TrendList from '../components/Home/TrendList'
 import Card from '../components/UI/Card'
@@ -16,6 +17,7 @@ const Home = () => {
 const LandingPage = () => {
   return (
     <div className="flex flex-col gap-10 items-center p-10">
+      <Auth />
       <Card>
         <TrendList />
       </Card>

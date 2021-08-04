@@ -1,6 +1,5 @@
-import { BrowserRouter, Switch, Route } from 'react-router-dom'
+import { BrowserRouter, Switch } from 'react-router-dom'
 import PageHeader from './components/PageHeader/PageHeader'
-import Auth from './pages/Auth'
 import Home from './pages/Home'
 import IsuRoot from './pages/IsuRoot'
 import Register from './pages/Register'
@@ -22,9 +21,6 @@ const App = () => {
             <GuardedRoute path="/register" exact>
               <Register />
             </GuardedRoute>
-            <Route path="/login">
-              <Auth />
-            </Route>
           </Switch>
         </div>
       </BrowserRouter>

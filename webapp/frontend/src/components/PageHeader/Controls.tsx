@@ -7,7 +7,6 @@ import UserControlModal from './UserControlModal'
 import ControlLinkItem from './ControlLinkItem'
 import { IoIosNotifications } from 'react-icons/io'
 import { TiPlus } from 'react-icons/ti'
-import { BiLogInCircle } from 'react-icons/bi'
 
 const Controls = () => {
   const [isOpenModal, setIsOpenModal] = useState(false)
@@ -16,15 +15,7 @@ const Controls = () => {
   }
   const me = useStateContext().me
   if (!me) {
-    return (
-      <div className="flex items-center justify-between ml-auto">
-        <ControlLinkItem
-          to="/login"
-          label="ログイン"
-          icon={<BiLogInCircle />}
-        />
-      </div>
-    )
+    return <></>
   }
 
   return (
