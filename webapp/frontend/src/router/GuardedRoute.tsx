@@ -20,7 +20,10 @@ const GuardedRoute = <T extends { path: string; children?: JSX.Element }>(
   }
 
   if (!state.me) {
-    return <Redirect to={`/login`} />
+    if (props.path === '/login') {
+      return <Redirect to={`/login`} />
+    }
+    return <Redirect to={`/`} />
   }
 
   return <Route {...props} />
