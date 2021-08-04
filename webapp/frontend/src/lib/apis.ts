@@ -31,10 +31,12 @@ class Apis {
     for (const v of data) {
       res.push({
         ...v,
-        latest_isu_condition: {
-          ...v.latest_isu_condition,
-          date: timestampToDate(v.latest_isu_condition.timestamp)
-        }
+        latest_isu_condition: v.latest_isu_condition
+          ? {
+              ...v.latest_isu_condition,
+              date: timestampToDate(v.latest_isu_condition.timestamp)
+            }
+          : null
       })
     }
     return res
@@ -130,11 +132,11 @@ export interface Isu {
 }
 
 interface ApiGetIsuListResponse extends Isu {
-  latest_isu_condition?: ApiCondition
+  latest_isu_condition: ApiCondition | null
 }
 
 export interface GetIsuListResponse extends Isu {
-  latest_isu_condition: Condition
+  latest_isu_condition: Condition | null
 }
 
 export interface GraphData {

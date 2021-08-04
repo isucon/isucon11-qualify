@@ -13,8 +13,12 @@ const IsuList = ({ isus }: Props) => {
       {isus.map(isu => (
         <div key={isu.jia_isu_uuid} className="flex flex-col items-center">
           <Isu isu={isu} />
-          <div>{getConditionTime(isu.latest_isu_condition)}</div>
-          <Tip variant={isu.latest_isu_condition.condition_level} />
+          {isu.latest_isu_condition ? (
+            <div>{getConditionTime(isu.latest_isu_condition)}</div>
+          ) : null}
+          {isu.latest_isu_condition ? (
+            <Tip variant={isu.latest_isu_condition.condition_level} />
+          ) : null}
         </div>
       ))}
     </div>
