@@ -31,6 +31,15 @@ const SignoutPercentage = 20
 // ReadCondition 系のスコアタグが何件ごとに付与されるか
 const ReadConditionTagStep = 50
 
+// User を増やすかどうかの閾値
+const AddUserStep = 1000
+
+// User を増やすとき何人増やすか
+const AddUserCount = 5
+
+// Viewer が何回エラーしたら drop するか
+const ViewerDropCount = 1
+
 type PageType int
 
 const (

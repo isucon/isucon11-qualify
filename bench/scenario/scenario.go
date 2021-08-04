@@ -49,7 +49,7 @@ type Scenario struct {
 	viewerMtx sync.Mutex
 	viewers   []*model.Viewer
 
-	// GET trend にて isuID から isu を取得するのに利用
+	// GET /api/trend にて isuID から isu を取得するのに利用
 	isuFromID      map[int]*model.Isu
 	isuFromIDMutex sync.RWMutex
 
@@ -171,7 +171,14 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 		req.Img = img.Img
 		isu.SetImage(req.Img)
 	}
-	isuResponse, res := postIsuInfinityRetry(ctx, owner.Agent, req, step) //TODO:画像
+	res := postIsuInfinityRetry(ctx, owner.Agent, req, step) //TODO:画像
+	// res == nil => ctx.Done
+	if res == nil {
+		return nil
+	}
+
+	isuResponse, res := getIsuInfinityRetry(ctx, owner.Agent, req.JIAIsuUUID, step)
+	// isuResponse == nil => ctx.Done
 	if isuResponse == nil {
 		return nil
 	}
