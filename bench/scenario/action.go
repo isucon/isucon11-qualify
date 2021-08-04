@@ -453,10 +453,13 @@ func postIsuConditionAction(httpClient http.Client, targetUrl string, req *[]ser
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 	}
-	res, err := httpClient.Post(
-		targetUrl, "application/json",
-		bytes.NewBuffer(conditionByte),
-	)
+	httpReq, err := http.NewRequest("POST", targetUrl, bytes.NewBuffer(conditionByte))
+	if err != nil {
+		logger.AdminLogger.Panic(err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("User-Agent", "JIA-Members-Client/1.2")
+	res, err := httpClient.Do(httpReq)
 	if err != nil {
 		return nil, err
 	}
