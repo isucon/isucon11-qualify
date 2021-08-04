@@ -1,5 +1,3 @@
-import { Condition } from './apis'
-
 export const getNowDate = () => {
   return new Date()
 }
