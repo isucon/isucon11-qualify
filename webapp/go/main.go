@@ -259,6 +259,7 @@ func main() {
 		e.Logger.Fatalf("DB connection failed : %v", err)
 		return
 	}
+	db.SetMaxOpenConns(10)
 	defer db.Close()
 
 	isuConditionPublicAddress = os.Getenv("SERVER_PUBLIC_ADDRESS")
