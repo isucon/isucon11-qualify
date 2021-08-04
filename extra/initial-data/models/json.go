@@ -62,8 +62,6 @@ type JsonCondition struct {
 	IsBroken       bool           `json:"is_broken"`
 	Message        string         `json:"message"`
 	CreatedAt      time.Time      `json:"created_at"`
-	OwnerIsuUUID   string         `json:"owner_isu_uuid"`
-	OwnerIsuID     int            `json:"owner_isu_id"`
 	ConditionLevel ConditionLevel `json:"condition_level"`
 }
 
@@ -76,8 +74,6 @@ func (j *JsonConditions) AddCondition(condition Condition, isuId int) error {
 		condition.IsBroken,
 		condition.Message,
 		condition.CreatedAt,
-		condition.Isu.JIAIsuUUID,
-		isuId,
 		condition.ConditionLevel(),
 	}
 	switch condition.ConditionLevel() {
