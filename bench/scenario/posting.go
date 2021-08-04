@@ -119,7 +119,6 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 			continue
 		}
 
-		//TODO: ユーザー Goroutineが詰まると詰まるのでいや
 		select {
 		case <-ctx.Done():
 			return
