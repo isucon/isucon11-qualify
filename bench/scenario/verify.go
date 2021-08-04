@@ -534,7 +534,7 @@ func verifyGraph(
 		// conditionsBaseOfScore から組み立てた data が actual と等値であることの検証
 		expectedGraph := model.NewGraph(conditionsBaseOfScore)
 
-		if expectedGraph.Match(
+		if !expectedGraph.Match(
 			graphOne.Data.Score,
 			graphOne.Data.Percentage.Sitting,
 			graphOne.Data.Percentage.IsBroken,
@@ -725,7 +725,7 @@ func verifyPrepareGraph(res *http.Response, targetUser *model.User, targetIsuUUI
 
 		// conditionsBaseOfScore から組み立てた data が actual と等値であることの検証
 		expectedGraph := model.NewGraph(conditionsBaseOfScore)
-		if expectedGraph.Match(
+		if !expectedGraph.Match(
 			graphOne.Data.Score,
 			graphOne.Data.Percentage.Sitting,
 			graphOne.Data.Percentage.IsBroken,
