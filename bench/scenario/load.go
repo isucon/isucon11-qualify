@@ -774,14 +774,33 @@ func authInfinityRetry(ctx context.Context, a *agent.Agent, userID string, step 
 	}
 }
 
-func postIsuInfinityRetry(ctx context.Context, a *agent.Agent, req service.PostIsuRequest, step *isucandar.BenchmarkStep) (*service.Isu, *http.Response) {
+func postIsuInfinityRetry(ctx context.Context, a *agent.Agent, req service.PostIsuRequest, step *isucandar.BenchmarkStep) *http.Response {
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+		}
+		_, res, err := postIsuAction(ctx, a, req)
+		if err != nil {
+			if res != nil && res.StatusCode == http.StatusConflict {
+				return res
+			}
+			addErrorWithContext(ctx, step, err)
+			continue
+		}
+		return res
+	}
+}
+
+func getIsuInfinityRetry(ctx context.Context, a *agent.Agent, id string, step *isucandar.BenchmarkStep) (*service.Isu, *http.Response) {
 	for {
 		select {
 		case <-ctx.Done():
 			return nil, nil
 		default:
 		}
-		isu, res, err := postIsuAction(ctx, a, req)
+		isu, res, err := getIsuIdAction(ctx, a, id)
 		if err != nil {
 			addErrorWithContext(ctx, step, err)
 			continue
