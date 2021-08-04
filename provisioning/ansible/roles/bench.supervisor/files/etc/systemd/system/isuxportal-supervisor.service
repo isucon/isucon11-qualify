@@ -5,7 +5,7 @@ After=network.target
 [Service]
 # 基本設定
 User=isucon
-ExecStart=/usr/local/bin/isuxportal-supervisor /home/isucon/bench/bench
+ExecStart=/home/isucon/bin/isuxportal-supervisor /home/isucon/bench/bench
 WorkingDirectory=/home/isucon/bench
 LogsDirectory=isuxportal-supervisor
 LimitNOFILE=2000000
@@ -23,7 +23,7 @@ AmbientCapabilities=CAP_NET_BIND_SERVICE
 CapabilityBoundingSet=CAP_NET_BIND_SERVICE
 
 # bench 差し替えを graceful に行うための設定
-ExecStartPre=-/bin/mv /tmp/isuxportal-supervisor /usr/local/bin/isuxportal-supervisor
+ExecStartPre=-/bin/mv /tmp/isuxportal-supervisor /home/isucon/bin/isuxportal-supervisor
 ExecStartPre=-/bin/mv /tmp/bench /home/isucon/bench/bench
 TimeoutStopSec=200s
 KillMode=mixed
