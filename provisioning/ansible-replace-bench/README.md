@@ -16,10 +16,12 @@ ansible-replace-bench
 python generate_hosts.py > hosts
 ```
 
-* 差し替えたいコンパイル済みのベンチバイナリ・supervisorバイナリを配置
+* 差し替えたいコンパイル済みのベンチバイナリ (`bench`) 、supervisorバイナリ (`isuxportal-supervisor`) をこのディレクトリに配置
     * 配置してない場合、task は skip されます
 
-```
-```
 
 * Ansible の実行
+
+```
+ansible-playbook -i hosts tasks.yml
+```

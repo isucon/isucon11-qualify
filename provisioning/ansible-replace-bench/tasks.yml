@@ -10,6 +10,7 @@
       dest: /tmp/bench
       owner: isucon
       group: isucon
+    ignore_errors: yes
   - name: "Deploy supervisor binary"
     become_user: isucon
     copy:
@@ -17,6 +18,7 @@
       dest: /tmp/isuxportal-supervisor
       owner: isucon
       group: isucon
+    ignore_errors: yes
   - name: "Restart isuxportal-supervisor.service"
     become_user: isucon
     systemd:
