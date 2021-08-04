@@ -13,7 +13,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -43,9 +42,6 @@ const (
 	scoreConditionLevelWarning  = 2
 	scoreConditionLevelCritical = 1
 )
-
-//"is_dirty=true/false,is_overweight=true/false,..."
-var conditionFormat = regexp.MustCompile(`^[-a-zA-Z_]+=(true|false)(,[-a-zA-Z_]+=(true|false))*$`)
 
 var (
 	templates           *template.Template
@@ -898,16 +894,11 @@ func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, erro
 		// conditionを読み込む
 		for _, condStr := range strings.Split(condition.Condition, ",") {
 			keyValue := strings.Split(condStr, "=")
-			if len(keyValue) != 2 {
-				continue // 形式に従っていないものは無視
-			}
 
 			conditionName := keyValue[0]
-			if _, ok := conditionsCount[conditionName]; ok {
-				if keyValue[1] == "true" {
-					conditionsCount[conditionName] += 1
-					badConditionsCount++
-				}
+			if keyValue[1] == "true" {
+				conditionsCount[conditionName] += 1
+				badConditionsCount++
 			}
 		}
 
@@ -1160,7 +1151,7 @@ func postIsuCondition(c echo.Context) error {
 		// parse
 		timestamp := time.Unix(cond.Timestamp, 0)
 
-		if !conditionFormat.MatchString(cond.Condition) {
+		if !isValidConditionFormat(cond.Condition) {
 			return c.String(http.StatusBadRequest, "bad request body")
 		}
 
@@ -1185,6 +1176,40 @@ func postIsuCondition(c echo.Context) error {
 	}
 
 	return c.NoContent(http.StatusCreated)
+}
+
+// conditionの文字列がcsv形式になっているか検証
+func isValidConditionFormat(conditionStr string) bool {
+
+	keys := []string{"is_dirty=", "is_overweight=", "is_broken="}
+	const valueTrue = "true"
+	const valueFalse = "false"
+
+	idxCondStr := 0
+
+	for idxKeys, key := range keys {
+		if !strings.HasPrefix(conditionStr[idxCondStr:], key) {
+			return false
+		}
+		idxCondStr += len(key)
+
+		if strings.HasPrefix(conditionStr[idxCondStr:], valueTrue) {
+			idxCondStr += len(valueTrue)
+		} else if strings.HasPrefix(conditionStr[idxCondStr:], valueFalse) {
+			idxCondStr += len(valueFalse)
+		} else {
+			return false
+		}
+
+		if idxKeys < (len(keys) - 1) {
+			if conditionStr[idxCondStr] != ',' {
+				return false
+			}
+			idxCondStr++
+		}
+	}
+
+	return (idxCondStr == len(conditionStr))
 }
 
 //分以下を切り捨て、一時間単位にする関数
