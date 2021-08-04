@@ -302,9 +302,6 @@ func (s *Scenario) requestNewConditionScenario(ctx context.Context, step *isucan
 		}
 		return
 	}
-	if len(conditions) == 0 {
-		return
-	}
 
 	// GETに成功したのでその分を加点
 	for _, cond := range conditions {
