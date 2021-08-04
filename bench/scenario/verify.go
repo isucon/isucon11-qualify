@@ -627,10 +627,13 @@ func (s *Scenario) verifyTrend(
 						}
 						isuIDSet[condition.IsuID] = struct{}{}
 
-						// 該当 condition が新規のものである場合はカウンタをインクリメント && キャッシュを更新
+						// 該当 condition が新規のものである場合はキャッシュを更新
 						if !s.ConditionAlreadyVerified(condition.IsuID, condition.Timestamp) {
-							newConditionNum += 1
 							s.SetVerifiedCondition(condition.IsuID, condition.Timestamp)
+							// 一秒前(仮想時間で8時間20分以上前)よりあとのものならカウンタをインクリメント
+							if condition.Timestamp > s.ToVirtualTime(time.Now().Add(-1*time.Second)).Unix() {
+								newConditionNum += 1
+							}
 						}
 
 						break
