@@ -247,11 +247,13 @@ type ApiTrendResponse = ApiTrendResponseElement[]
 
 export interface Trend {
   character: string
-  conditions: {
-    isu_id: number
-    condition_level: 'critical' | 'warning' | 'info'
-    date: Date
-  }[]
+  conditions: TrendCondition[]
+}
+
+export interface TrendCondition {
+  isu_id: number
+  condition_level: 'critical' | 'warning' | 'info'
+  date: Date
 }
 
 export type TrendResponse = Trend[]
