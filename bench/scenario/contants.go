@@ -35,7 +35,7 @@ const ReadConditionTagStep = 50
 const AddUserStep = 1000
 
 // User を増やすとき何人増やすか
-const AddUserCount = 20
+const AddUserCount = 5
 
 // Viewer が何回エラーしたら drop するか
 const ViewerDropCount = 1

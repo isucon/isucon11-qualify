@@ -64,7 +64,7 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	s.AddNormalUser(ctx, step, 10)
 
 	//非ログインユーザーを増やす
-	s.AddViewer(ctx, step, 5)
+	s.AddViewer(ctx, step, 2)
 	//ユーザーを増やす
 	s.loadWaitGroup.Add(1)
 	go func() {
@@ -94,14 +94,13 @@ func (s *Scenario) userAdder(ctx context.Context, step *isucandar.BenchmarkStep)
 			return
 		}
 
-		logger.ContestantLogger.Println(viewUpdatedTrendCounter)
 		if viewUpdatedTrendCounter > AddUserStep {
 			logger.ContestantLogger.Println("現レベルの負荷へ応答ができているため、負荷レベルを上昇させます")
-			s.AddNormalUser(ctx, step, AddUserCount)
-			atomic.AddInt32(&viewUpdatedTrendCounter, -AddUserStep)
+			addCount := viewUpdatedTrendCounter / AddUserStep
+			s.AddNormalUser(ctx, step, AddUserCount*int(addCount))
+			atomic.AddInt32(&viewUpdatedTrendCounter, -AddUserStep*addCount)
 		} else {
 			logger.ContestantLogger.Println("負荷レベルは上昇しませんでした")
-			// return
 		}
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 	"os"
 	"runtime/pprof"
@@ -67,6 +68,10 @@ func init() {
 		panic(err)
 	}
 
+	// https://github.com/golang/go/issues/16012#issuecomment-224948823
+	// "connect: cannot assign requested address" 対策
+	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = 100
+
 	agent.DefaultTLSConfig.ClientCAs = certs
 	agent.DefaultTLSConfig.ClientAuth = tls.RequireAndVerifyClientCert
 	agent.DefaultTLSConfig.MinVersion = tls.VersionTLS12
@@ -81,7 +86,7 @@ func init() {
 
 	var jiaServiceURLStr, timeoutDuration, initializeTimeoutDuration string
 	flag.StringVar(&jiaServiceURLStr, "jia-service-url", getEnv("JIA_SERVICE_URL", "http://apitest:5000"), "jia service url")
-	flag.StringVar(&timeoutDuration, "timeout", "10s", "request timeout duration")
+	flag.StringVar(&timeoutDuration, "timeout", "40s", "request timeout duration")
 	flag.StringVar(&initializeTimeoutDuration, "initialize-timeout", "20s", "request timeout duration of POST /initialize")
 
 	flag.Parse()
