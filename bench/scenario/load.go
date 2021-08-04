@@ -264,7 +264,7 @@ func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep
 			addErrorWithContext(ctx, step, err)
 			continue
 		}
-		updatedCount, err := s.verifyTrend(ctx, res, trend, requestTime)
+		updatedCount, err := s.verifyTrend(ctx, res, viewer, trend, requestTime)
 		if err != nil {
 			addErrorWithContext(ctx, step, err)
 			viewer.ErrorCount += 1
