@@ -215,7 +215,7 @@ func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep
 			return
 		default:
 		}
-		logger.AdminLogger.Println("viewer load")
+		// logger.AdminLogger.Println("viewer load")
 
 		// TODO: ちゃんとシナリオを実装する
 		trend, res, err := getTrendAction(ctx, userAgent)
@@ -531,6 +531,11 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 		}
 		// 「今日のグラフじゃない」&「完成しているグラフ」なら加点
 		if behindDay != 0 && targetIsu.LastCompletedGraphTime <= virtualToday-(int64(behindDay)*OneDay) {
+			// AddScoreはconditionのGETまで待つためここでタグを入れておく
+			scoreTags = append(scoreTags, getGraphScoreTag(minTimestampCount))
+		}
+		// 「今日のグラフ」についても加点
+		if behindDay == 0 {
 			// AddScoreはconditionのGETまで待つためここでタグを入れておく
 			scoreTags = append(scoreTags, getGraphScoreTag(minTimestampCount))
 		}
