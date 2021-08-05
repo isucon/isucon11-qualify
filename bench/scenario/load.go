@@ -815,15 +815,20 @@ func postIsuInfinityRetry(ctx context.Context, a *agent.Agent, req service.PostI
 }
 
 func getIsuInfinityRetry(ctx context.Context, a *agent.Agent, id string, step *isucandar.BenchmarkStep) (*service.Isu, *http.Response) {
+	retry := 0
 	for {
 		select {
 		case <-ctx.Done():
 			return nil, nil
 		default:
 		}
+		if retry > 100 {
+			return nil, nil
+		}
 		isu, res, err := getIsuIdAction(ctx, a, id)
 		if err != nil {
 			addErrorWithContext(ctx, step, err)
+			retry += 1
 			continue
 		}
 		return isu, res
