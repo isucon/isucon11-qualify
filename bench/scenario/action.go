@@ -601,6 +601,7 @@ func browserGetHomeAction(ctx context.Context, a *agent.Agent,
 				defer wg.Done()
 				icon, _, err := getIsuIconAction(ctx, a, isu.JIAIsuUUID, allowNotModified)
 				if err != nil {
+					isu.Icon = nil
 					errMutex.Lock()
 					errors = append(errors, err)
 					errMutex.Unlock()
@@ -644,9 +645,11 @@ func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string,
 	if isu != nil {
 		icon, _, err := getIsuIconAction(ctx, a, id, allowNotModified)
 		if err != nil {
+			isu.Icon = nil
 			errors = append(errors, err)
+		} else {
+			isu.Icon = icon
 		}
-		isu.Icon = icon
 
 		return isu, errors
 	}
