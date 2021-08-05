@@ -791,11 +791,15 @@ func authInfinityRetry(ctx context.Context, a *agent.Agent, userID string, step 
 }
 
 func postIsuInfinityRetry(ctx context.Context, a *agent.Agent, req service.PostIsuRequest, step *isucandar.BenchmarkStep) *http.Response {
+	retry := 0
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
 		default:
+		}
+		if retry > 100 {
+			return nil
 		}
 		_, res, err := postIsuAction(ctx, a, req)
 		if err != nil {
@@ -803,6 +807,7 @@ func postIsuInfinityRetry(ctx context.Context, a *agent.Agent, req service.PostI
 				return res
 			}
 			addErrorWithContext(ctx, step, err)
+			retry += 1
 			continue
 		}
 		return res
