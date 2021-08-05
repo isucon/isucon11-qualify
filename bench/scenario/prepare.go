@@ -112,13 +112,13 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 	//ユーザー作成
-	guestAgent, err := s.NewAgent()
+	guestAgent, err := s.NewAgent(agent.WithTimeout(s.prepareTimeout))
 	if err != nil {
 		logger.AdminLogger.Panicln(err)
 	}
 	s.prepareNormal(ctx, step)
 
-	noIsuAgent, err := s.NewAgent()
+	noIsuAgent, err := s.NewAgent(agent.WithTimeout(s.prepareTimeout))
 	if err != nil {
 		logger.AdminLogger.Panicln(err)
 	}
@@ -126,7 +126,7 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 
 	// 初期データで生成しているisuconユーザを利用
 	isuconUser := s.normalUsers[0]
-	agt, err := s.NewAgent()
+	agt, err := s.NewAgent(agent.WithTimeout(s.prepareTimeout))
 	if err != nil {
 		logger.AdminLogger.Panicln(err)
 	}
@@ -173,7 +173,7 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 	w, err := worker.NewWorker(func(ctx context.Context, index int) {
 		randomUser := s.normalUsers[userIdx[index]]
 		// ユーザのAgent設定
-		agt, err := s.NewAgent()
+		agt, err := s.NewAgent(agent.WithTimeout(s.prepareTimeout))
 		if err != nil {
 			logger.AdminLogger.Panicln(err)
 		}
@@ -504,7 +504,7 @@ func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.Benchma
 
 	w, err := worker.NewWorker(func(ctx context.Context, index int) {
 
-		agt, err := s.NewAgent()
+		agt, err := s.NewAgent(agent.WithTimeout(s.prepareTimeout))
 		if err != nil {
 			logger.AdminLogger.Panic(err)
 			return
@@ -539,7 +539,7 @@ func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.Benchma
 	//MEMO: ctx.Done()の場合は、プロセスが終了していない可能性がある。
 
 	//作成済みユーザーへのログイン確認
-	agt, err := s.NewAgent()
+	agt, err := s.NewAgent(agent.WithTimeout(s.prepareTimeout))
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 		return nil
@@ -561,26 +561,12 @@ func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.Benchma
 }
 
 func (s *Scenario) prepareCheckIrregularPostSignout(ctx context.Context, step *isucandar.BenchmarkStep) {
-	// 正常にサインアウト実行
-	agt, err := s.NewAgent()
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	userID := random.UserName()
-	_, errs := authAction(ctx, agt, userID)
-	for _, err := range errs {
-		step.AddError(err)
-		return
-	}
-
-	_, err = signoutAction(ctx, agt)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-
 	// サインインしてない状態でサインアウト実行
+	agt, err := s.NewAgent(agent.WithTimeout(s.prepareTimeout))
+	if err != nil {
+		step.AddError(err)
+		return
+	}
 	resBody, res, err := signoutErrorAction(ctx, agt)
 	if err != nil {
 		step.AddError(err)
