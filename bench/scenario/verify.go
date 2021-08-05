@@ -127,7 +127,7 @@ func (s *Scenario) verifyIsuList(res *http.Response, expectedReverse []*model.Is
 			// isu の検証 (character, name, image)
 			if expected.Character == isu.Character && expected.Name == isu.Name && expected.ImageHash == md5.Sum(isu.Icon) {
 				// isu の検証 (latest_isu_condition)
-				if err := func() error {
+				func() {
 					expected.CondMutex.RLock()
 					defer expected.CondMutex.RUnlock()
 
@@ -156,10 +156,7 @@ func (s *Scenario) verifyIsuList(res *http.Response, expectedReverse []*model.Is
 							break
 						}
 					}
-					return nil
-				}(); err != nil {
-					errs = append(errs, errorMissmatch(res, "%d番目の椅子 (ID=%s) の情報が異なります", i+1, isu.JIAIsuUUID))
-				}
+				}()
 			} else {
 				errs = append(errs, errorMissmatch(res, "%d番目の椅子 (ID=%s) の情報が異なります", i+1, isu.JIAIsuUUID))
 			}
