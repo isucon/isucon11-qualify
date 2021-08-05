@@ -137,13 +137,13 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	}
 	isuconUser.Agent = agt
 
-	s.prepareCheckIrregularPostSignout(ctx, step)
-	s.prepareCheckIrregularGetMe(ctx, guestAgent, step)
-	s.prepareCheckIrregularGetIsuList(ctx, noIsuUser, guestAgent, step)
-	s.prepareCheckIrregularGetIsu(ctx, isuconUser, noIsuUser, guestAgent, step)
-	s.prepareCheckIrregularGetIsuIcon(ctx, isuconUser, noIsuUser, guestAgent, step)
-	s.prepareCheckIrregularGetIsuGraph(ctx, isuconUser, noIsuUser, guestAgent, step)
-	s.prepareCheckIrregularGetIsuConditions(ctx, isuconUser, noIsuUser, guestAgent, step)
+	s.prepareIrregularCheckPostSignout(ctx, step)
+	s.prepareIrregularCheckGetMe(ctx, guestAgent, step)
+	s.prepareIrregularCheckGetIsuList(ctx, noIsuUser, guestAgent, step)
+	s.prepareIrregularCheckGetIsu(ctx, isuconUser, noIsuUser, guestAgent, step)
+	s.prepareIrregularCheckGetIsuIcon(ctx, isuconUser, noIsuUser, guestAgent, step)
+	s.prepareIrregularCheckGetIsuGraph(ctx, isuconUser, noIsuUser, guestAgent, step)
+	s.prepareIrregularCheckGetIsuConditions(ctx, isuconUser, noIsuUser, guestAgent, step)
 
 	// MEMO: postIsuConditionのprepareチェックは確率で失敗して安定しないため、prepareステップでは行わない
 
@@ -560,7 +560,7 @@ func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.Benchma
 	return nil
 }
 
-func (s *Scenario) prepareCheckIrregularPostSignout(ctx context.Context, step *isucandar.BenchmarkStep) {
+func (s *Scenario) prepareIrregularCheckPostSignout(ctx context.Context, step *isucandar.BenchmarkStep) {
 	// サインインしてない状態でサインアウト実行
 	agt, err := s.NewAgent(agent.WithTimeout(s.prepareTimeout))
 	if err != nil {
@@ -578,7 +578,7 @@ func (s *Scenario) prepareCheckIrregularPostSignout(ctx context.Context, step *i
 	}
 }
 
-func (s *Scenario) prepareCheckIrregularGetMe(ctx context.Context, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
+func (s *Scenario) prepareIrregularCheckGetMe(ctx context.Context, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
 	// サインインしてない状態で取得
 	resBody, res, err := getMeErrorAction(ctx, guestAgent)
 	if err != nil {
@@ -591,7 +591,7 @@ func (s *Scenario) prepareCheckIrregularGetMe(ctx context.Context, guestAgent *a
 	}
 }
 
-func (s *Scenario) prepareCheckIrregularGetIsuList(ctx context.Context, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
+func (s *Scenario) prepareIrregularCheckGetIsuList(ctx context.Context, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
 	// check: 椅子未所持の場合は椅子が存在しない
 	if err := BrowserAccess(ctx, noIsuUser.Agent, "/", HomePage); err != nil {
 		step.AddError(err)
@@ -779,7 +779,7 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 	}
 }
 
-func (s *Scenario) prepareCheckIrregularGetIsu(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
+func (s *Scenario) prepareIrregularCheckGetIsu(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
 	isu := loginUser.IsuListOrderByCreatedAt[0]
 	// check: 未ログイン状態
 	resBody, res, err := getIsuIdErrorAction(ctx, guestAgent, isu.JIAIsuUUID)
@@ -823,7 +823,7 @@ func (s *Scenario) prepareCheckIrregularGetIsu(ctx context.Context, loginUser *m
 	}
 }
 
-func (s *Scenario) prepareCheckIrregularGetIsuIcon(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
+func (s *Scenario) prepareIrregularCheckGetIsuIcon(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
 	isu := loginUser.IsuListOrderByCreatedAt[0]
 	// check: 未ログイン状態
 	resBody, res, err := getIsuIconErrorAction(ctx, guestAgent, isu.JIAIsuUUID)
@@ -869,7 +869,7 @@ func (s *Scenario) prepareCheckIrregularGetIsuIcon(ctx context.Context, loginUse
 
 }
 
-func (s *Scenario) prepareCheckIrregularGetIsuGraph(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
+func (s *Scenario) prepareIrregularCheckGetIsuGraph(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
 	// check: 未ログイン状態
 	isu := loginUser.IsuListOrderByCreatedAt[0]
 	query := url.Values{}
@@ -952,7 +952,7 @@ func (s *Scenario) prepareCheckIrregularGetIsuGraph(ctx context.Context, loginUs
 	}
 }
 
-func (s *Scenario) prepareCheckIrregularGetIsuConditions(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
+func (s *Scenario) prepareIrregularCheckGetIsuConditions(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
 	isu := loginUser.IsuListOrderByCreatedAt[0]
 
 	// condition の read lock を取得
