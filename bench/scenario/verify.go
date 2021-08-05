@@ -124,8 +124,17 @@ func (s *Scenario) verifyIsuList(res *http.Response, expectedReverse []*model.Is
 
 		// isu の検証 (jia_isu_uuid)
 		if expected.JIAIsuUUID == isu.JIAIsuUUID {
-			// isu の検証 (character, name, image)
-			if expected.Character == isu.Character && expected.Name == isu.Name && expected.ImageHash == md5.Sum(isu.Icon) {
+			//iconはエンドポイントが別なので、別枠で検証
+			if isu.Icon == nil {
+				//icon取得失敗(エラー追加済み)
+				continue
+			}
+			if expected.ImageHash == md5.Sum(isu.Icon) {
+				errs = append(errs, errorMissmatch(res, "%d番目の椅子 (ID=%s) のiconが異なります", i+1, isu.JIAIsuUUID))
+			}
+
+			// isu の検証 (character, name)
+			if expected.Character == isu.Character && expected.Name == isu.Name {
 				// isu の検証 (latest_isu_condition)
 				func() {
 					expected.CondMutex.RLock()
