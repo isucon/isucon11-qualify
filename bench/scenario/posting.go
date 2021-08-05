@@ -9,6 +9,7 @@ import (
 
 	"github.com/isucon/isucandar"
 	"github.com/isucon/isucon11-qualify/bench/model"
+	"github.com/isucon/isucon11-qualify/bench/random"
 	"github.com/isucon/isucon11-qualify/bench/service"
 )
 
@@ -150,7 +151,7 @@ func (state *posterState) GetNewestCondition(stateChange model.IsuStateChange, i
 	}
 
 	//message
-	condition.Message = "今日もいい天気" //TODO: メッセージをちゃんと生成
+	condition.Message = random.MessageWithCondition(state.lastConditionIsDirty, state.lastConditionIsOverweight, state.lastConditionIsBroken, isu.CharacterID)
 
 	//conditionLevel
 	condition.ConditionLevel = calcConditionLevel(condition)
