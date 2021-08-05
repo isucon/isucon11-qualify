@@ -662,9 +662,8 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 	expectedImg := md5.Sum(data)
 	actualImg := md5.Sum(imgByte)
 	if expectedImg != actualImg {
-		// TODO: backendの画像変更待ち
-		//step.AddError(errorInvalid(res, "期待するISUアイコンと一致しません"))
-		//return
+		step.AddError(errorInvalid(res, "期待するISUアイコンと一致しません"))
+		return
 	}
 
 	// check: 椅子の登録が成功する（画像あり）

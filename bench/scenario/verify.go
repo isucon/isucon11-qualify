@@ -124,10 +124,19 @@ func (s *Scenario) verifyIsuList(res *http.Response, expectedReverse []*model.Is
 
 		// isu の検証 (jia_isu_uuid)
 		if expected.JIAIsuUUID == isu.JIAIsuUUID {
-			// isu の検証 (character, name, image)
-			if expected.Character == isu.Character && expected.Name == isu.Name && expected.ImageHash == md5.Sum(isu.Icon) {
+			//iconはエンドポイントが別なので、別枠で検証
+			if isu.Icon == nil {
+				//icon取得失敗(エラー追加済み)
+				continue
+			}
+			if expected.ImageHash != md5.Sum(isu.Icon) {
+				errs = append(errs, errorMissmatch(res, "%d番目の椅子 (ID=%s) のiconが異なります", i+1, isu.JIAIsuUUID))
+			}
+
+			// isu の検証 (character, name)
+			if expected.Character == isu.Character && expected.Name == isu.Name {
 				// isu の検証 (latest_isu_condition)
-				if err := func() error {
+				func() {
 					expected.CondMutex.RLock()
 					defer expected.CondMutex.RUnlock()
 
@@ -148,19 +157,15 @@ func (s *Scenario) verifyIsuList(res *http.Response, expectedReverse []*model.Is
 								expectedCondition.ConditionLevel.Equal(isu.LatestIsuCondition.ConditionLevel) &&
 								expectedCondition.Message == isu.LatestIsuCondition.Message) {
 								errs = append(errs, errorMissmatch(res, "%d番目の椅子 (ID=%s) の情報が異なります: latest_isu_conditionの内容が不正です", i+1, isu.JIAIsuUUID))
-							}
-							// もし前回の latestIsuCondition の timestamp より新しいならばカウンタをインクリメント
-							if expected.LastReadConditionTimestamp < isu.LatestIsuCondition.Timestamp {
-								//↑ここではなく、conditionを見て加点したタイミングで更新
+							} else if expected.LastReadConditionTimestamp < isu.LatestIsuCondition.Timestamp {
+								// もし前回の latestIsuCondition の timestamp より新しいならばカウンタをインクリメント
+								// 更新はここではなく、conditionを見て加点したタイミングで更新
 								newConditionUUIDs = append(newConditionUUIDs, isu.JIAIsuUUID)
 							}
 							break
 						}
 					}
-					return nil
-				}(); err != nil {
-					errs = append(errs, errorMissmatch(res, "%d番目の椅子 (ID=%s) の情報が異なります", i+1, isu.JIAIsuUUID))
-				}
+				}()
 			} else {
 				errs = append(errs, errorMissmatch(res, "%d番目の椅子 (ID=%s) の情報が異なります", i+1, isu.JIAIsuUUID))
 			}
@@ -624,7 +629,14 @@ func (s *Scenario) verifyTrend(
 			// condition.ID から isu を取得する
 			isu, ok := s.GetIsuFromID(condition.IsuID)
 			if !ok {
-				return 0, errorMissmatch(res, "condition.isu_id に紐づく ISU が存在しません")
+				// 次のループでまた bench の知らない IsuID の ISU を見つけたら落とせるように
+				if _, exist := isuIDSet[condition.IsuID]; exist {
+					return 0, errorMissmatch(res, "同じ ISU のコンディションが複数登録されています")
+				}
+				isuIDSet[condition.IsuID] = struct{}{}
+
+				// POST /api/isu などのレスポンス待ちなためここで落とすことはできない
+				continue
 			}
 
 			if err := func() error {
@@ -673,12 +685,6 @@ func (s *Scenario) verifyTrend(
 	// characterSet の検証
 	if !characterSet.IsFull() {
 		return 0, errorInvalid(res, "全ての性格のトレンドが取得できていません")
-	}
-	// isuIDSet の検証
-	for isuID := range isuIDSet {
-		if _, exist := s.GetIsuFromID(isuID); !exist {
-			return 0, errorInvalid(res, "POSTに成功していない時刻のデータが返されました")
-		}
 	}
 	return newConditionNum, nil
 }
