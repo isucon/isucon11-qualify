@@ -129,7 +129,7 @@ func (s *Scenario) verifyIsuList(res *http.Response, expectedReverse []*model.Is
 				//icon取得失敗(エラー追加済み)
 				continue
 			}
-			if expected.ImageHash == md5.Sum(isu.Icon) {
+			if expected.ImageHash != md5.Sum(isu.Icon) {
 				errs = append(errs, errorMissmatch(res, "%d番目の椅子 (ID=%s) のiconが異なります", i+1, isu.JIAIsuUUID))
 			}
 
