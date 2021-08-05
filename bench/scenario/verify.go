@@ -148,10 +148,9 @@ func (s *Scenario) verifyIsuList(res *http.Response, expectedReverse []*model.Is
 								expectedCondition.ConditionLevel.Equal(isu.LatestIsuCondition.ConditionLevel) &&
 								expectedCondition.Message == isu.LatestIsuCondition.Message) {
 								errs = append(errs, errorMissmatch(res, "%d番目の椅子 (ID=%s) の情報が異なります: latest_isu_conditionの内容が不正です", i+1, isu.JIAIsuUUID))
-							}
-							// もし前回の latestIsuCondition の timestamp より新しいならばカウンタをインクリメント
-							if expected.LastReadConditionTimestamp < isu.LatestIsuCondition.Timestamp {
-								//↑ここではなく、conditionを見て加点したタイミングで更新
+							} else if expected.LastReadConditionTimestamp < isu.LatestIsuCondition.Timestamp {
+								// もし前回の latestIsuCondition の timestamp より新しいならばカウンタをインクリメント
+								// 更新はここではなく、conditionを見て加点したタイミングで更新
 								newConditionUUIDs = append(newConditionUUIDs, isu.JIAIsuUUID)
 							}
 							break
