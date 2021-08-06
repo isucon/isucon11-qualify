@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	// MEMO: 最大でも一秒に一件しか送れないので点数上限になるが、解決できるとは思えないので良い
+	// MEMO: 最大でも60秒に一件しか送れないので点数上限になるが、解決できるとは思えないので良い
 	PostIntervalSecond = 60 //Virtual Timeでのpost間隔
 	PostContentNum     = 10 //一回のpostで何要素postするか virtualTimeMulti * timerDuration(20ms) / PostIntervalSecond
 )
@@ -207,19 +207,21 @@ func (state *posterState) UpdateToNextState(randEngine *rand.Rand, stateChange m
 	}
 	//overweight
 	if state.lastConditionIsSitting && timeStamp-state.lastDetectOverweightTimestamp > 60*60 {
-		if randEngine.Intn(100) <= 5 {
+		if randEngine.Intn(500) <= 1 {
 			state.lastConditionIsOverweight = true
 		}
 	}
 	//dirty
 	if timeStamp-state.lastCleanTimestamp > 75*60 {
-		if randEngine.Intn(100) <= 5 {
+		if randEngine.Intn(500) <= 1 {
 			state.lastConditionIsDirty = true
 		}
 	}
 	//broken
 	if timeStamp-state.lastRepairTimestamp > 120*60 {
-		state.lastConditionIsBroken = true
+		if randEngine.Intn(1000) <= 1 {
+			state.lastConditionIsBroken = true
+		}
 	}
 }
 
