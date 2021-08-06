@@ -98,8 +98,8 @@ func (s *Scenario) userAdder(ctx context.Context, step *isucandar.BenchmarkStep)
 			return
 		}
 
-		addStep := AddUserStep * userLoopCount
-		addCount := viewUpdatedTrendCounter / addStep
+		addStep := AddUserStep * atomic.LoadInt32(&userLoopCount)
+		addCount := atomic.LoadInt32(&viewUpdatedTrendCounter) / addStep
 		if addCount > 0 {
 			logger.ContestantLogger.Printf("現レベルの負荷へ応答ができているため、負荷レベルを%d上昇させます", addCount)
 			s.AddNormalUser(ctx, step, int(addStep)*int(addCount))
