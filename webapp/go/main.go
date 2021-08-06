@@ -416,7 +416,7 @@ func postAuthentication(c echo.Context) error {
 func postSignout(c echo.Context) error {
 	_, err := getUserIDFromSession(c)
 	if err != nil {
-		return c.String(http.StatusUnauthorized, "you are not signed in")
+		return err
 	}
 
 	session, err := getSession(c.Request())
@@ -438,7 +438,7 @@ func postSignout(c echo.Context) error {
 func getMe(c echo.Context) error {
 	jiaUserID, err := getUserIDFromSession(c)
 	if err != nil {
-		return c.String(http.StatusUnauthorized, "you are not signed in")
+		return err
 	}
 
 	res := GetMeResponse{JIAUserID: jiaUserID}
@@ -450,7 +450,7 @@ func getMe(c echo.Context) error {
 func getIsuList(c echo.Context) error {
 	jiaUserID, err := getUserIDFromSession(c)
 	if err != nil {
-		return c.String(http.StatusUnauthorized, "you are not signed in")
+		return err
 	}
 
 	tx, err := db.Beginx()
@@ -527,7 +527,7 @@ func getIsuList(c echo.Context) error {
 func postIsu(c echo.Context) error {
 	jiaUserID, err := getUserIDFromSession(c)
 	if err != nil {
-		return c.String(http.StatusUnauthorized, "you are not signed in")
+		return err
 	}
 
 	useDefaultImage := false
@@ -656,7 +656,7 @@ func postIsu(c echo.Context) error {
 func getIsu(c echo.Context) error {
 	jiaUserID, err := getUserIDFromSession(c)
 	if err != nil {
-		return c.String(http.StatusUnauthorized, "you are not signed in")
+		return err
 	}
 
 	jiaIsuUUID := c.Param("jia_isu_uuid")
@@ -685,7 +685,7 @@ func getIsu(c echo.Context) error {
 func getIsuIcon(c echo.Context) error {
 	jiaUserID, err := getUserIDFromSession(c)
 	if err != nil {
-		return c.String(http.StatusUnauthorized, "you are not signed in")
+		return err
 	}
 
 	jiaIsuUUID := c.Param("jia_isu_uuid")
@@ -714,7 +714,7 @@ func getIsuIcon(c echo.Context) error {
 func getIsuGraph(c echo.Context) error {
 	jiaUserID, err := getUserIDFromSession(c)
 	if err != nil {
-		return c.String(http.StatusUnauthorized, "you are not signed in")
+		return err
 	}
 
 	jiaIsuUUID := c.Param("jia_isu_uuid")
@@ -925,7 +925,7 @@ func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, erro
 func getIsuConditions(c echo.Context) error {
 	jiaUserID, err := getUserIDFromSession(c)
 	if err != nil {
-		return c.String(http.StatusUnauthorized, "you are not signed in")
+		return err
 	}
 	jiaIsuUUID := c.Param("jia_isu_uuid")
 	if jiaIsuUUID == "" {
