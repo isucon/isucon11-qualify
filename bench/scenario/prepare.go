@@ -380,15 +380,11 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 		return
 	}
 
-	img, err := ioutil.ReadFile("./images/CIMG8423_resize.jpg")
+	img, err := random.Image()
 	if err != nil {
-		logger.AdminLogger.Panicln(err)
+		logger.AdminLogger.Panic(err)
 	}
-	isuImg := &service.IsuImg{
-		ImgName: "CIMG8423_resize.jpg",
-		Img:     img,
-	}
-	isuWithImg := s.NewIsu(ctx, step, loginUser, true, isuImg)
+	isuWithImg := s.NewIsu(ctx, step, loginUser, true, img)
 	if isuWithImg == nil {
 		return
 	}

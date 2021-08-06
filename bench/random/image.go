@@ -20,11 +20,7 @@ func init() {
 	}
 }
 
-func Image() []byte {
+func Image() ([]byte, error) {
 	fileInfo := files[rand.Intn(len(files))]
-	bytes, err := ioutil.ReadFile(filepath.Join(imageFolderPath, fileInfo.Name()))
-	if err != nil {
-		log.Fatalf("%+v", fmt.Errorf("%w", err))
-	}
-	return bytes
+	return ioutil.ReadFile(filepath.Join(imageFolderPath, fileInfo.Name()))
 }
