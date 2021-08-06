@@ -16,9 +16,21 @@ ansible-replace-bench
 python generate_hosts.py > hosts
 ```
 
+* `ssh_config` にて jump サーバの指定
+    * 本番環境の構成上、手元から ansible を実行する場合は jump サーバ経由で ssh する必要があります
+
+```diff
+  Host *
+    User isucon-admin
+    ControlMaster auto
+    ControlPath ~/.ssh/%C
+    ControlPersist 60s
++   IdentityFile <秘密鍵のPATH>
++   ProxyJump <jumpサーバのアドレス>
+```
+
 * 差し替えたいコンパイル済みのベンチバイナリ (`bench`) 、supervisorバイナリ (`isuxportal-supervisor`) をこのディレクトリに配置
     * 配置してない場合、task は skip されます
-
 
 * Ansible の実行
 
