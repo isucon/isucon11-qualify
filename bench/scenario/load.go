@@ -183,7 +183,7 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 				expected := user.IsuListOrderByCreatedAt
 
 				var errs []error
-				newConditionUUIDs, errs = s.verifyIsuList(res, expected, isuList)
+				newConditionUUIDs, errs = verifyIsuList(res, expected, isuList)
 				return errs
 			},
 		)

@@ -104,7 +104,7 @@ func verifyIsuNotFound(res *http.Response, text string) error {
 
 //データ整合性チェック
 
-func (s *Scenario) verifyIsuList(res *http.Response, expectedReverse []*model.Isu, isuList []*service.Isu) ([]string, []error) {
+func verifyIsuList(res *http.Response, expectedReverse []*model.Isu, isuList []*service.Isu) ([]string, []error) {
 	errs := []error{}
 	var newConditionUUIDs []string
 	length := len(expectedReverse)
