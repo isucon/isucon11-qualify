@@ -34,14 +34,14 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 	//TODO: 得点調整
 	step.Result().Score.Set(ScoreStartBenchmark, 1000)
 	step.Result().Score.Set(ScoreNormalUserInitialize, 0)
-	step.Result().Score.Set(ScoreGraphExcellent, 100)
-	step.Result().Score.Set(ScoreGraphGood, 75)
-	step.Result().Score.Set(ScoreGraphNormal, 50)
-	step.Result().Score.Set(ScoreGraphBad, 30)
-	step.Result().Score.Set(ScoreGraphWorst, 5)
-	step.Result().Score.Set(ScoreReadInfoCondition, 20)
-	step.Result().Score.Set(ScoreReadWarningCondition, 10)
-	step.Result().Score.Set(ScoreReadCriticalCondition, 5)
+	step.Result().Score.Set(ScoreGraphExcellent, 200)
+	step.Result().Score.Set(ScoreGraphGood, 150)
+	step.Result().Score.Set(ScoreGraphNormal, 100)
+	step.Result().Score.Set(ScoreGraphBad, 60)
+	step.Result().Score.Set(ScoreGraphWorst, 10)
+	step.Result().Score.Set(ScoreReadInfoCondition, 40)
+	step.Result().Score.Set(ScoreReadWarningCondition, 20)
+	step.Result().Score.Set(ScoreReadCriticalCondition, 10)
 
 	//初期データの生成
 	logger.AdminLogger.Println("start: load initial data")
