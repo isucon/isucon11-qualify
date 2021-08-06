@@ -3,6 +3,7 @@ package scenario
 import (
 	"context"
 	"math"
+	"net/http"
 	"net/url"
 	"sync"
 	"time"
@@ -141,7 +142,7 @@ func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a
 
 //新しい登録済みISUの生成
 //失敗したらnilを返す
-func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, owner *model.User, addToUser bool, img []byte) *model.Isu {
+func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, owner *model.User, addToUser bool, img []byte, retry bool) *model.Isu {
 	isu, streamsForPoster, err := model.NewRandomIsuRaw(owner)
 	if err != nil {
 		logger.AdminLogger.Panic(err)
@@ -161,16 +162,35 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 		req.Img = img
 		isu.SetImage(req.Img)
 	}
-	res := postIsuInfinityRetry(ctx, owner.Agent, req, step) //TODO:画像
-	// res == nil => ctx.Done
-	if res == nil {
-		return nil
+
+	if retry {
+		res := postIsuInfinityRetry(ctx, owner.Agent, req, step)
+		// res == nil => ctx.Done
+		if res == nil {
+			return nil
+		}
+	} else {
+		_, _, err := postIsuAction(ctx, owner.Agent, req)
+		if err != nil {
+			addErrorWithContext(ctx, step, err)
+			return nil
+		}
 	}
 
-	isuResponse, res := getIsuInfinityRetry(ctx, owner.Agent, req.JIAIsuUUID, step)
-	// isuResponse == nil => ctx.Done
-	if isuResponse == nil {
-		return nil
+	var res *http.Response
+	var isuResponse *service.Isu
+	if retry {
+		isuResponse, res = getIsuInfinityRetry(ctx, owner.Agent, req.JIAIsuUUID, step)
+		// isuResponse == nil => ctx.Done
+		if isuResponse == nil {
+			return nil
+		}
+	} else {
+		isuResponse, res, err = getIsuIdAction(ctx, owner.Agent, req.JIAIsuUUID)
+		if err != nil {
+			addErrorWithContext(ctx, step, err)
+			return nil
+		}
 	}
 	// TODO: これは validate でやるべきなきがする
 	if isuResponse.JIAIsuUUID != isu.JIAIsuUUID ||

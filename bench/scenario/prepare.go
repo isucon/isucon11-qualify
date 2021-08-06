@@ -338,7 +338,7 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 		return
 	}
 
-	isu := s.NewIsu(ctx, step, loginUser, true, nil)
+	isu := s.NewIsu(ctx, step, loginUser, true, nil, false)
 	if isu == nil {
 		return
 	}
@@ -384,7 +384,7 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 	}
-	isuWithImg := s.NewIsu(ctx, step, loginUser, true, img)
+	isuWithImg := s.NewIsu(ctx, step, loginUser, true, img, false)
 	if isuWithImg == nil {
 		return
 	}

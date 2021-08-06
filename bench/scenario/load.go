@@ -309,7 +309,7 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 		if err != nil {
 			logger.AdminLogger.Panic(err)
 		}
-		isu := s.NewIsu(ctx, step, user, true, image)
+		isu := s.NewIsu(ctx, step, user, true, image, true)
 		if isu == nil {
 			user.CloseAllIsuStateChan()
 			return nil
