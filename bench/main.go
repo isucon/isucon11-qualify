@@ -162,6 +162,10 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 		reason = "Score"
 	}
 
+	if !passed {
+		score = 0
+	}
+
 	logger.ContestantLogger.Printf("score: %d(%d - %d) : %s", score, scoreRaw, deductionTotal, reason)
 	logger.ContestantLogger.Printf("deduction: %d / timeout: %d", deduction, timeoutCount)
 
