@@ -56,9 +56,30 @@ func reqNoContentResPng(ctx context.Context, agent *agent.Agent, method string, 
 		logger.AdminLogger.Panic(err)
 	}
 
-	httpres, err := doRequest(ctx, agent, httpreq, allowedStatusCodes)
+	var httpres *http.Response
+	httpres, err = doRequest(ctx, agent, httpreq, allowedStatusCodes)
 	if err != nil {
 		return nil, nil, err
+	}
+
+	for {
+		if httpres.StatusCode != http.StatusFound {
+			break
+		}
+
+		// redirect 時今までのBodyはClose
+		httpres.Body.Close()
+
+		location := httpres.Header.Get("Location")
+		req, err := agent.NewRequest(method, location, nil)
+		if err != nil {
+			logger.AdminLogger.Panic(err)
+		}
+
+		httpres, err = doRequest(ctx, agent, req, allowedStatusCodes)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 	defer httpres.Body.Close()
 
