@@ -358,7 +358,7 @@ func postInitialize(c echo.Context) error {
 }
 
 // POST /api/auth
-// サインイン
+// サインアップ・サインイン
 func postAuthentication(c echo.Context) error {
 	reqJwt := strings.TrimPrefix(c.Request().Header.Get("Authorization"), "Bearer ")
 
@@ -451,7 +451,7 @@ func getMe(c echo.Context) error {
 }
 
 // GET /api/isu
-// 自分のISUの一覧を取得
+// ISUの一覧を取得
 func getIsuList(c echo.Context) error {
 	jiaUserID, err := getUserIDFromSession(c)
 	if err != nil {
@@ -528,7 +528,7 @@ func getIsuList(c echo.Context) error {
 }
 
 // POST /api/isu
-// 自分のISUを登録
+// ISUを登録
 func postIsu(c echo.Context) error {
 	jiaUserID, err := getUserIDFromSession(c)
 	if err != nil {
@@ -707,7 +707,7 @@ func getIsuIcon(c echo.Context) error {
 }
 
 // GET /api/isu/{jia_isu_uuid}/graph
-// ISUのグラフのための情報を取得
+// ISUのコンディショングラフ描画のための情報を取得
 func getIsuGraph(c echo.Context) error {
 	jiaUserID, err := getUserIDFromSession(c)
 	if err != nil {
@@ -862,7 +862,7 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 	return responseList, nil
 }
 
-// 複数のISUの通知(condition)からグラフの一つのデータ点を計算
+// 複数のISUのconditionからグラフの一つのデータ点を計算
 func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, error) {
 	conditionsCount := map[string]int{"is_broken": 0, "is_dirty": 0, "is_overweight": 0}
 	rawScore := 0
@@ -917,7 +917,7 @@ func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, erro
 }
 
 // GET /api/condition/{jia_isu_uuid}
-// ISUの通知を取得
+// ISUのconditionを取得
 func getIsuConditions(c echo.Context) error {
 	jiaUserID, err := getUserIDFromSession(c)
 	if err != nil {
@@ -982,7 +982,7 @@ func getIsuConditions(c echo.Context) error {
 	return c.JSON(http.StatusOK, conditionsResponse)
 }
 
-// ISUの通知をDBから取得
+// ISUのconditionをDBから取得
 func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, endTime time.Time, conditionLevel map[string]interface{}, startTime time.Time,
 	limit int, isuName string) ([]*GetIsuConditionResponse, error) {
 
