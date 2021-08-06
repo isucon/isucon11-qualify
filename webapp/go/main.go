@@ -13,7 +13,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -29,26 +28,20 @@ import (
 )
 
 const (
-	sessionName               = "isucondition"
-	conditionLimit            = 20
-	frontendContentsPath      = "../public"
-	jwtVerificationKeyPath    = "../ec256-public.pem"
-	defaultIconFilePath       = "../NoImage.jpg"
-	defaultJIAServiceURL      = "http://localhost:5000"
-	mysqlErrNumDuplicateEntry = 1062
-	conditionLevelInfo        = "info"
-	conditionLevelWarning     = "warning"
-	conditionLevelCritical    = "critical"
+	sessionName                 = "isucondition"
+	conditionLimit              = 20
+	frontendContentsPath        = "../public"
+	jwtVerificationKeyPath      = "../ec256-public.pem"
+	defaultIconFilePath         = "../NoImage.jpg"
+	defaultJIAServiceURL        = "http://localhost:5000"
+	mysqlErrNumDuplicateEntry   = 1062
+	conditionLevelInfo          = "info"
+	conditionLevelWarning       = "warning"
+	conditionLevelCritical      = "critical"
+	scoreConditionLevelInfo     = 3
+	scoreConditionLevelWarning  = 2
+	scoreConditionLevelCritical = 1
 )
-
-var scorePerCondition = map[string]int{
-	"is_dirty":      -1,
-	"is_overweight": -1,
-	"is_broken":     -5,
-}
-
-//"is_dirty=true/false,is_overweight=true/false,..."
-var conditionFormat = regexp.MustCompile(`^[-a-zA-Z_]+=(true|false)(,[-a-zA-Z_]+=(true|false))*$`)
 
 var (
 	templates           *template.Template
@@ -127,14 +120,18 @@ type GraphResponse struct {
 	ConditionTimestamps []int64         `json:"condition_timestamps"`
 }
 
-// グラフにおける一つのデータ点の情報
 type GraphDataPoint struct {
-	Score   int            `json:"score"`
-	Sitting int            `json:"sitting"`
-	Detail  map[string]int `json:"detail"`
+	Score      int                  `json:"score"`
+	Percentage ConditionsPercentage `json:"percentage"`
 }
 
-// グラフ作成の計算に使用
+type ConditionsPercentage struct {
+	Sitting      int `json:"sitting"`
+	IsBroken     int `json:"is_broken"`
+	IsDirty      int `json:"is_dirty"`
+	IsOverweight int `json:"is_overweight"`
+}
+
 type GraphDataPointWithInfo struct {
 	JIAIsuUUID          string
 	StartAt             time.Time
@@ -194,7 +191,6 @@ func NewMySQLConnectionEnv() *MySQLConnectionEnv {
 	}
 }
 
-//ConnectDB データベースに接続する
 func (mc *MySQLConnectionEnv) ConnectDB() (*sqlx.DB, error) {
 	dsn := fmt.Sprintf("%v:%v@tcp(%v:%v)/%v?parseTime=true&loc=Local", mc.User, mc.Password, mc.Host, mc.Port, mc.DBName)
 	return sqlx.Open("mysql", dsn)
@@ -218,18 +214,15 @@ func init() {
 }
 
 func main() {
-	// Echo instance
 	e := echo.New()
 	e.Debug = true
 	e.Logger.SetLevel(log.DEBUG)
 
-	// Middleware
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 
-	// Initialize
 	e.POST("/initialize", postInitialize)
-	// API for User
+
 	e.POST("/api/auth", postAuthentication)
 	e.POST("/api/signout", postSignout)
 	e.GET("/api/user/me", getMe)
@@ -240,15 +233,14 @@ func main() {
 	e.GET("/api/isu/:jia_isu_uuid/graph", getIsuGraph)
 	e.GET("/api/condition/:jia_isu_uuid", getIsuConditions)
 	e.GET("/api/trend", getTrend)
-	// API for Isu
+
 	e.POST("/api/condition/:jia_isu_uuid", postIsuCondition)
-	// Frontend
+
 	e.GET("/", getIndex)
 	e.GET("/condition", getIndex)
 	e.GET("/isu/:jia_isu_uuid", getIndex)
 	e.GET("/register", getIndex)
 	e.GET("/login", getIndex)
-	// Assets
 	e.Static("/assets", frontendContentsPath+"/assets")
 
 	mySQLConnectionData = NewMySQLConnectionEnv()
@@ -273,7 +265,6 @@ func main() {
 		return
 	}
 
-	// Start server
 	serverPort := fmt.Sprintf(":%v", getEnv("SERVER_APP_PORT", "3000"))
 	e.Logger.Fatal(e.Start(serverPort))
 }
@@ -291,11 +282,25 @@ func getUserIDFromSession(c echo.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	userID, ok := session.Values["jia_user_id"]
+	_jiaUserID, ok := session.Values["jia_user_id"]
 	if !ok {
 		return "", fmt.Errorf("no session")
 	}
-	return userID.(string), nil
+
+	jiaUserID := _jiaUserID.(string)
+	var count int
+
+	err = db.Get(&count, "SELECT COUNT(*) FROM `user` WHERE `jia_user_id` = ?",
+		jiaUserID)
+	if err != nil {
+		return "", err
+	}
+
+	if count == 0 {
+		return "", fmt.Errorf("not found: user")
+	}
+
+	return jiaUserID, nil
 }
 
 func getJIAServiceURL(tx *sqlx.Tx) string {
@@ -354,7 +359,6 @@ func postInitialize(c echo.Context) error {
 func postAuthentication(c echo.Context) error {
 	reqJwt := strings.TrimPrefix(c.Request().Header.Get("Authorization"), "Bearer ")
 
-	// verify JWT
 	token, err := jwt.Parse(reqJwt, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodECDSA); !ok {
 			return nil, jwt.NewValidationError(fmt.Sprintf("Unexpected signing method: %v", token.Header["alg"]), jwt.ValidationErrorSignatureInvalid)
@@ -371,7 +375,6 @@ func postAuthentication(c echo.Context) error {
 		}
 	}
 
-	// get jia_user_id from JWT Payload
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
 		c.Logger().Errorf("type assertion error")
@@ -449,7 +452,6 @@ func getIsuList(c echo.Context) error {
 		return c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 
-	// トランザクション開始
 	tx, err := db.Beginx()
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
@@ -467,7 +469,6 @@ func getIsuList(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	// 各ISUの最近のconditionをそれぞれ取得し，レスポンスを生成
 	responseList := []GetIsuListResponse{}
 	for _, isu := range isuList {
 		var lastCondition IsuCondition
@@ -511,7 +512,6 @@ func getIsuList(c echo.Context) error {
 		responseList = append(responseList, res)
 	}
 
-	// トランザクション終了
 	err = tx.Commit()
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
@@ -544,7 +544,6 @@ func postIsu(c echo.Context) error {
 	var image []byte
 
 	if useDefaultImage {
-		// デフォルト画像を準備
 		image, err = ioutil.ReadFile(defaultIconFilePath)
 		if err != nil {
 			c.Logger().Errorf("failed to read default icon: %v", err)
@@ -565,7 +564,6 @@ func postIsu(c echo.Context) error {
 		}
 	}
 
-	// トランザクション開始
 	tx, err := db.Beginx()
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
@@ -573,7 +571,6 @@ func postIsu(c echo.Context) error {
 	}
 	defer tx.Rollback()
 
-	// 新しいisuのデータをinsert
 	_, err = tx.Exec("INSERT INTO `isu`"+
 		"	(`jia_isu_uuid`, `name`, `image`, `jia_user_id`) VALUES (?, ?, ?, ?)",
 		jiaIsuUUID, isuName, image, jiaUserID)
@@ -588,7 +585,6 @@ func postIsu(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	// JIAにisuのactivateをリクエスト
 	targetURL := getJIAServiceURL(tx) + "/api/activate"
 	body := JIAServiceRequest{isuConditionPublicAddress, isuConditionPublicPort, jiaIsuUUID}
 	bodyJSON, err := json.Marshal(body)
@@ -645,7 +641,6 @@ func postIsu(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	// トランザクション終了
 	err = tx.Commit()
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
@@ -768,10 +763,6 @@ func getIsuGraph(c echo.Context) error {
 // GET /api/isu/{jia_isu_uuid}/graph のレスポンス作成のため，
 // グラフのデータ点を一日分生成
 func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Time) ([]GraphResponse, error) {
-
-	//
-	// 指定されたISUについて，グラフにおける一時間ごとのデータ点を計算
-	//
 	dataPoints := []GraphDataPointWithInfo{}
 	conditionsInThisHour := []IsuCondition{}
 	timestampsInThisHour := []int64{}
@@ -782,7 +773,7 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 	if err != nil {
 		return nil, err
 	}
-	// isu conditionを順番に読んでいき，一時間ごとにデータ点を計算
+
 	for rows.Next() {
 		err = rows.StructScan(&condition)
 		if err != nil {
@@ -811,7 +802,7 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 		conditionsInThisHour = append(conditionsInThisHour, condition)
 		timestampsInThisHour = append(timestampsInThisHour, condition.Timestamp.Unix())
 	}
-	// 残った一時間分を計算
+
 	if len(conditionsInThisHour) > 0 {
 		data, err := calculateGraphDataPoint(conditionsInThisHour)
 		if err != nil {
@@ -825,9 +816,6 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 				ConditionTimestamps: timestampsInThisHour})
 	}
 
-	//
-	// graphDateの範囲にデータ点を絞る
-	//
 	endTime := graphDate.Add(time.Hour * 24)
 	startIndex := 0
 	endNextIndex := len(dataPoints)
@@ -845,9 +833,6 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 		filteredDataPoints = dataPoints[startIndex:endNextIndex]
 	}
 
-	//
-	// データがない時間を埋めて，24時間分のレスポンスに整形
-	//
 	responseList := []GraphResponse{}
 	index := 0
 	thisTime := graphDate
@@ -882,78 +867,61 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 
 // 複数のISU conditionからグラフの一つのデータ点を計算
 func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, error) {
-	var dataPoint GraphDataPoint
+	conditionsCount := map[string]int{"is_broken": 0, "is_dirty": 0, "is_overweight": 0}
+	rawScore := 0
+	for _, condition := range isuConditions {
+		badConditionsCount := 0
 
-	//sitting
+		for _, condStr := range strings.Split(condition.Condition, ",") {
+			keyValue := strings.Split(condStr, "=")
+
+			conditionName := keyValue[0]
+			if keyValue[1] == "true" {
+				conditionsCount[conditionName] += 1
+				badConditionsCount++
+			}
+		}
+
+		if badConditionsCount >= 3 {
+			rawScore += scoreConditionLevelCritical
+		} else if badConditionsCount >= 1 {
+			rawScore += scoreConditionLevelWarning
+		} else {
+			rawScore += scoreConditionLevelInfo
+		}
+	}
+
 	sittingCount := 0
 	for _, condition := range isuConditions {
 		if condition.IsSitting {
 			sittingCount++
 		}
 	}
-	dataPoint.Sitting = sittingCount * 100 / len(isuConditions)
 
-	//score&detail
-	dataPoint.Score = 100
-	//condition要因の減点
-	dataPoint.Detail = map[string]int{}
-	for key := range scorePerCondition {
-		dataPoint.Detail[key] = 0
-	}
-	for _, condition := range isuConditions {
-		conditionMapList := map[string]bool{}
-		//DB上にある is_dirty=true/false,is_overweight=true/false,... 形式のデータを
-		//map[string]bool形式に変換
-		for _, condStr := range strings.Split(condition.Condition, ",") {
-			keyValue := strings.Split(condStr, "=")
-			if len(keyValue) != 2 {
-				continue //形式に従っていないものは無視
-			}
-			conditionMapList[keyValue[0]] = (keyValue[1] != "false")
-		}
+	isuConditionsLength := len(isuConditions)
 
-		//trueになっているものは減点
-		for key, enabled := range conditionMapList {
-			if enabled {
-				score, ok := scorePerCondition[key]
-				if ok {
-					dataPoint.Score += score
-					dataPoint.Detail[key] += score
-				}
-			}
-		}
-	}
-	//スコアに影響がないDetailを削除
-	for key := range scorePerCondition {
-		if dataPoint.Detail[key] == 0 {
-			delete(dataPoint.Detail, key)
-		}
-	}
-	//個数減点
-	if len(isuConditions) < 50 {
-		minus := -(50 - len(isuConditions)) * 2
-		dataPoint.Score += minus
-		dataPoint.Detail["missing_data"] = minus
-	}
-	if dataPoint.Score < 0 {
-		dataPoint.Score = 0
-	}
+	score := rawScore / isuConditionsLength
 
+	sittingPercentage := sittingCount * 100 / isuConditionsLength
+	isBrokenPercentage := conditionsCount["is_broken"] * 100 / isuConditionsLength
+	isOverweightPercentage := conditionsCount["is_overweight"] * 100 / isuConditionsLength
+	isDirtyPercentage := conditionsCount["is_dirty"] * 100 / isuConditionsLength
+
+	dataPoint := GraphDataPoint{
+		Score: score,
+		Percentage: ConditionsPercentage{
+			Sitting:      sittingPercentage,
+			IsBroken:     isBrokenPercentage,
+			IsOverweight: isOverweightPercentage,
+			IsDirty:      isDirtyPercentage,
+		},
+	}
 	return dataPoint, nil
 }
 
 //  GET /api/condition/{jia_isu_uuid}?
 // 自分の所持椅子のうち、指定した椅子の通知を取得する
 func getIsuConditions(c echo.Context) error {
-	// input
-	//     * jia_isu_uuid: 椅子の固有番号(path_param)
-	//     * start_time: 開始時間
-	//     * end_time: 終了時間 (required)
-	//     * condition_level: critical,warning,info (csv)
-	//               critical: conditions (is_dirty,is_overweight,is_broken) のうちtrueが3個
-	//               warning: conditionsのうちtrueのものが1 or 2個
-	//               info: warning無し
-
 	jiaUserID, err := getUserIDFromSession(c)
 	if err != nil {
 		return c.String(http.StatusUnauthorized, "you are not signed in")
@@ -962,7 +930,7 @@ func getIsuConditions(c echo.Context) error {
 	if jiaIsuUUID == "" {
 		return c.String(http.StatusBadRequest, "missing: jia_isu_uuid")
 	}
-	//required query param
+
 	endTimeInt64, err := strconv.ParseInt(c.QueryParam("end_time"), 10, 64)
 	if err != nil {
 		return c.String(http.StatusBadRequest, "bad format: end_time")
@@ -976,7 +944,7 @@ func getIsuConditions(c echo.Context) error {
 	for _, level := range strings.Split(conditionLevelCSV, ",") {
 		conditionLevel[level] = struct{}{}
 	}
-	//optional query param
+
 	startTimeStr := c.QueryParam("start_time")
 	var startTime time.Time
 	if startTimeStr != "" {
@@ -995,7 +963,6 @@ func getIsuConditions(c echo.Context) error {
 		}
 	}
 
-	// isu_id存在確認、ユーザの所持椅子か確認
 	var isuName string
 	err = db.Get(&isuName,
 		"SELECT name FROM `isu` WHERE `jia_isu_uuid` = ? AND `jia_user_id` = ?",
@@ -1010,7 +977,6 @@ func getIsuConditions(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	// 対象isu_idの通知を取得(limit, startTime, endTimeで絞り込み）
 	conditionsResponse, err := getIsuConditionsFromDB(db, jiaIsuUUID, endTime, conditionLevel, startTime, limit, isuName)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
@@ -1045,7 +1011,6 @@ func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, endTime time.Time, c
 		return nil, err
 	}
 
-	//condition_levelでの絞り込み
 	conditionsResponse := []*GetIsuConditionResponse{}
 	for _, c := range conditions {
 		cLevel, err := calculateConditionLevel(c.Condition)
@@ -1054,7 +1019,6 @@ func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, endTime time.Time, c
 		}
 
 		if _, ok := conditionLevel[cLevel]; ok {
-			//GetIsuConditionResponseに変換
 			data := GetIsuConditionResponse{
 				JIAIsuUUID:     c.JIAIsuUUID,
 				IsuName:        isuName,
@@ -1068,7 +1032,6 @@ func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, endTime time.Time, c
 		}
 	}
 
-	//limit
 	if len(conditionsResponse) > limit {
 		conditionsResponse = conditionsResponse[:limit]
 	}
@@ -1098,14 +1061,6 @@ func calculateConditionLevel(condition string) (string, error) {
 // POST /api/condition/{jia_isu_uuid}
 // ISUからのセンサデータを受け取る
 func postIsuCondition(c echo.Context) error {
-	// input (path_param)
-	//	* jia_isu_uuid
-	// input (body)
-	//  * is_sitting:  true/false,
-	// 	* condition: "is_dirty=true/false,is_overweight=true/false,..."
-	//  * message
-	//	* timestamp（秒まで）
-
 	// TODO: これ良くないので後でなんとかする
 	dropProbability := 0.1
 	if rand.Float64() <= dropProbability {
@@ -1126,7 +1081,6 @@ func postIsuCondition(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "bad request body")
 	}
 
-	// トランザクション開始
 	tx, err := db.Beginx()
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
@@ -1134,7 +1088,6 @@ func postIsuCondition(c echo.Context) error {
 	}
 	defer tx.Rollback()
 
-	// jia_isu_uuid が存在するかを確認
 	var count int
 	err = tx.Get(&count, "SELECT COUNT(*) FROM `isu` WHERE `jia_isu_uuid` = ?", jiaIsuUUID)
 	if err != nil {
@@ -1146,16 +1099,13 @@ func postIsuCondition(c echo.Context) error {
 		return c.String(http.StatusNotFound, "not found: isu")
 	}
 
-	//isu_conditionに記録
 	for _, cond := range req {
-		// parse
 		timestamp := time.Unix(cond.Timestamp, 0)
 
-		if !conditionFormat.MatchString(cond.Condition) {
+		if !isValidConditionFormat(cond.Condition) {
 			return c.String(http.StatusBadRequest, "bad request body")
 		}
 
-		// insert
 		_, err = tx.Exec(
 			"INSERT INTO `isu_condition`"+
 				"	(`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`)"+
@@ -1168,7 +1118,6 @@ func postIsuCondition(c echo.Context) error {
 
 	}
 
-	// トランザクション終了
 	err = tx.Commit()
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
@@ -1176,6 +1125,40 @@ func postIsuCondition(c echo.Context) error {
 	}
 
 	return c.NoContent(http.StatusCreated)
+}
+
+// conditionの文字列がcsv形式になっているか検証
+func isValidConditionFormat(conditionStr string) bool {
+
+	keys := []string{"is_dirty=", "is_overweight=", "is_broken="}
+	const valueTrue = "true"
+	const valueFalse = "false"
+
+	idxCondStr := 0
+
+	for idxKeys, key := range keys {
+		if !strings.HasPrefix(conditionStr[idxCondStr:], key) {
+			return false
+		}
+		idxCondStr += len(key)
+
+		if strings.HasPrefix(conditionStr[idxCondStr:], valueTrue) {
+			idxCondStr += len(valueTrue)
+		} else if strings.HasPrefix(conditionStr[idxCondStr:], valueFalse) {
+			idxCondStr += len(valueFalse)
+		} else {
+			return false
+		}
+
+		if idxKeys < (len(keys) - 1) {
+			if conditionStr[idxCondStr] != ',' {
+				return false
+			}
+			idxCondStr++
+		}
+	}
+
+	return (idxCondStr == len(conditionStr))
 }
 
 //分以下を切り捨て、一時間単位にする関数
@@ -1235,7 +1218,7 @@ func getTrend(c echo.Context) error {
 			}
 
 		}
-		// timestampを降順ソート
+
 		sort.Slice(characterIsuConditions, func(i, j int) bool {
 			return characterIsuConditions[i].Timestamp > characterIsuConditions[j].Timestamp
 		})

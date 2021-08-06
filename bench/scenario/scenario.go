@@ -49,7 +49,7 @@ type Scenario struct {
 	viewerMtx sync.Mutex
 	viewers   []*model.Viewer
 
-	// GET trend にて isuID から isu を取得するのに利用
+	// GET /api/trend にて isuID から isu を取得するのに利用
 	isuFromID      map[int]*model.Isu
 	isuFromIDMutex sync.RWMutex
 }
@@ -102,7 +102,7 @@ func (s *Scenario) AddNormalUser(ctx context.Context, step *isucandar.BenchmarkS
 }
 
 //load用
-//マニアユーザーのシナリオ Goroutineを追加する
+//非ログインユーザーのシナリオ Goroutineを追加する
 func (s *Scenario) AddViewer(ctx context.Context, step *isucandar.BenchmarkStep, count int) {
 	if count <= 0 {
 		return
@@ -141,7 +141,7 @@ func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a
 
 //新しい登録済みISUの生成
 //失敗したらnilを返す
-func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, owner *model.User, addToUser bool, img *service.IsuImg) *model.Isu {
+func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, owner *model.User, addToUser bool, img []byte) *model.Isu {
 	isu, streamsForPoster, err := model.NewRandomIsuRaw(owner)
 	if err != nil {
 		logger.AdminLogger.Panic(err)
@@ -158,10 +158,20 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 		IsuName:    isu.Name,
 	}
 	if img != nil {
-		req.Img = img.Img
+		req.Img = img
 		isu.SetImage(req.Img)
 	}
-	isuResponse, res := postIsuInfinityRetry(ctx, owner.Agent, req, step) //TODO:画像
+	res := postIsuInfinityRetry(ctx, owner.Agent, req, step) //TODO:画像
+	// res == nil => ctx.Done
+	if res == nil {
+		return nil
+	}
+
+	isuResponse, res := getIsuInfinityRetry(ctx, owner.Agent, req.JIAIsuUUID, step)
+	// isuResponse == nil => ctx.Done
+	if isuResponse == nil {
+		return nil
+	}
 	// TODO: これは validate でやるべきなきがする
 	if isuResponse.JIAIsuUUID != isu.JIAIsuUUID ||
 		isuResponse.Name != isu.Name ||

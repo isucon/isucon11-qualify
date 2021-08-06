@@ -105,31 +105,6 @@ func (c *ActivationController) PostActivate(ctx echo.Context) error {
 	return ctx.JSON(http.StatusAccepted, isuState)
 }
 
-func (c *ActivationController) PostDeactivate(ctx echo.Context) error {
-	req := &ActivationRequest{}
-	err := ctx.Bind(req)
-	if err != nil {
-		ctx.Logger().Errorf("failed to bind: %v", err)
-		return echo.NewHTTPError(http.StatusBadRequest)
-	}
-	if !(0 <= req.TargetPort && req.TargetPort < 0x1000) {
-		ctx.Logger().Errorf("bad port: %v", req.TargetPort)
-		return echo.NewHTTPError(http.StatusBadRequest)
-	}
-	if _, ok := validIsu[req.IsuUUID]; !ok {
-		ctx.Logger().Errorf("bad isu_uuid: %v", req.IsuUUID)
-		return echo.NewHTTPError(http.StatusNotFound)
-	}
-
-	err = c.isuConditionPosterManager.StopPosting(req.TargetIP, req.TargetPort, req.IsuUUID)
-	if err != nil {
-		ctx.Logger().Errorf("failed to stopPosting: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
-	}
-
-	return ctx.NoContent(http.StatusNoContent)
-}
-
 func isPrivateIP(ipstr string) bool {
 
 	ipAddr, err := net.ResolveIPAddr("ip", ipstr)

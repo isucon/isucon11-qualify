@@ -19,15 +19,6 @@
     state: present
     system: no
 
-- name: "roles/common/tasks/user: Add sudoers"
-  become_user: root
-  copy:
-    content: "isucon  ALL=(ALL) NOPASSWD:ALL\n"
-    dest: /etc/sudoers.d/99-isucon-user
-    owner: root
-    group: root
-    mode: 0440
-
 - name: "roles/common/tasks/user: Create isucon-admin group"
   become_user: root
   group:
@@ -47,6 +38,17 @@
     shell: /bin/bash
     state: present
     system: no
+
+- name: "roles/common/tasks/user: Add sudoers"
+  become_user: root
+  copy:
+    content: |
+      isucon        ALL=(ALL) NOPASSWD:ALL
+      isucon-admin  ALL=(ALL) NOPASSWD:ALL
+    dest: /etc/sudoers.d/99-isucon-user
+    owner: root
+    group: root
+    mode: 0440
 
 - name: "roles/common/tasks/user: Create .ssh directory for isucon-admin user"
   become_user: isucon-admin

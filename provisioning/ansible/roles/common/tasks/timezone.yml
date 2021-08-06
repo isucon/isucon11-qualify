@@ -1,0 +1,17 @@
+---
+- name: "roles/common/tasks/timezone: Set timezone to Asia/Tokyo"
+  become_user: root
+  timezone:
+    name: Asia/Tokyo
+
+- name: "roles/common/tasks/timezone: Set NTP Server"
+  become_user: root
+  shell:
+    perl -pi -e 's|^#(NTP)=.*$|$1=169.254.169.123|g' /etc/systemd/timesyncd.conf
+
+- name: "roles/common/tasks/timezone: Restart systemd-timesyncd.service"
+  become_user: root
+  systemd:
+    state: restarted
+    name: "systemd-timesyncd.service"
+    enabled: "yes"

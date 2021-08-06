@@ -40,7 +40,6 @@ func main() {
 	// APIs
 	e.POST("/api/auth", authController.PostAuth)
 	e.POST("/api/activate", activationController.PostActivate)
-	e.POST("/api/deactivate", activationController.PostDeactivate)
 	e.POST("/api/die", func(ctx echo.Context) error {
 		input := &struct {
 			Password string `json:"password" validate:"required"`

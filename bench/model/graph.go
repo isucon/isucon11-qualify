@@ -4,6 +4,10 @@ const (
 	// graph の1要素 (1h) を構成するコンディション数のボーダー値
 	// この値を下回った分だけ減点処理される
 	missingDataBorder = 50
+
+	scoreConditionLevelInfo     = 3
+	scoreConditionLevelWarning  = 2
+	scoreConditionLevelCritical = 1
 )
 
 var (
@@ -20,16 +24,15 @@ var (
 type Graph struct {
 	conditions []*IsuCondition
 
-	score   int
-	sitting int
-	detail  GraphDetail
+	score      int
+	percentage GraphDetail
 }
 
 type GraphDetail struct {
+	sitting      int
 	isBroken     int
 	isDirty      int
 	isOverweight int
-	missingData  int
 }
 
 func NewGraph(c []*IsuCondition) Graph {
@@ -40,64 +43,54 @@ func NewGraph(c []*IsuCondition) Graph {
 
 // g.condition を元に他フィールドを埋めるメソッド
 func (g *Graph) calculate() {
+	rawScore := 0
 	sittingCount := 0
-	for _, log := range g.conditions {
-		if log.IsSitting {
+	brokenCount := 0
+	overweightCount := 0
+	dirtyCount := 0
+	for _, c := range g.conditions {
+		warnCount := 0
+		if c.IsSitting {
 			sittingCount++
 		}
-	}
-	if sittingCount != 0 {
-		g.sitting = sittingCount * 100 / len(g.conditions)
-	} else {
-		g.sitting = 0
-	}
-
-	//score&detail
-	g.score = 100
-	//condition要因の減点
-	for _, c := range g.conditions {
-		//trueになっているものは減点
 		if c.IsDirty {
-			g.score += scorePerCondition["is_dirty"]
-			g.detail.isDirty += scorePerCondition["is_dirty"]
+			warnCount++
+			dirtyCount++
 		}
 		if c.IsOverweight {
-			g.score += scorePerCondition["is_overweight"]
-			g.detail.isOverweight += scorePerCondition["is_overweight"]
+			warnCount++
+			overweightCount++
 		}
 		if c.IsBroken {
-			g.score += scorePerCondition["is_broken"]
-			g.detail.isBroken += scorePerCondition["is_broken"]
+			warnCount++
+			brokenCount++
+		}
+		switch warnCount {
+		case 0:
+			rawScore += scoreConditionLevelInfo
+		case 1, 2:
+			rawScore += scoreConditionLevelWarning
+		case 3:
+			rawScore += scoreConditionLevelCritical
 		}
 	}
-	//個数減点
-	if len(g.conditions) < missingDataBorder {
-		minus := -(missingDataBorder - len(g.conditions)) * 2
-		g.score += minus
-		g.detail.missingData = minus
-	}
-	if g.score < 0 {
-		g.score = 0
-	}
+	g.score = rawScore / len(g.conditions)
+	g.percentage.sitting = sittingCount * 100 / len(g.conditions)
+	g.percentage.isBroken = brokenCount * 100 / len(g.conditions)
+	g.percentage.isOverweight = overweightCount * 100 / len(g.conditions)
+	g.percentage.isDirty = dirtyCount * 100 / len(g.conditions)
 }
 
-// getters
-
-func (g Graph) Score() int {
-	return g.score
-}
-func (g Graph) Sitting() int {
-	return g.sitting
-}
-func (g Graph) IsBroken() int {
-	return g.detail.isBroken
-}
-func (g Graph) IsDirty() int {
-	return g.detail.isDirty
-}
-func (g Graph) IsOverweight() int {
-	return g.detail.isOverweight
-}
-func (g Graph) MissingData() int {
-	return g.detail.missingData
+func (g Graph) Match(
+	score int,
+	sittingPercentage int,
+	isBrokenPercentage int,
+	isDirtyPercentage int,
+	isOverweightPercentage int,
+) bool {
+	return score == g.score &&
+		sittingPercentage == g.percentage.sitting &&
+		isBrokenPercentage == g.percentage.isBroken &&
+		isDirtyPercentage == g.percentage.isDirty &&
+		isOverweightPercentage == g.percentage.isOverweight
 }
