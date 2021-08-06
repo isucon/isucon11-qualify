@@ -23,11 +23,6 @@ type PostIsuRequest struct {
 	Img        []byte
 }
 
-type IsuImg struct {
-	ImgName string
-	Img     []byte
-}
-
 type GetIsuConditionRequest struct {
 	StartTime      *int64
 	EndTime        int64

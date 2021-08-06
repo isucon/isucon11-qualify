@@ -141,7 +141,7 @@ func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a
 
 //新しい登録済みISUの生成
 //失敗したらnilを返す
-func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, owner *model.User, addToUser bool, img *service.IsuImg) *model.Isu {
+func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, owner *model.User, addToUser bool, img []byte) *model.Isu {
 	isu, streamsForPoster, err := model.NewRandomIsuRaw(owner)
 	if err != nil {
 		logger.AdminLogger.Panic(err)
@@ -158,7 +158,7 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 		IsuName:    isu.Name,
 	}
 	if img != nil {
-		req.Img = img.Img
+		req.Img = img
 		isu.SetImage(req.Img)
 	}
 	res := postIsuInfinityRetry(ctx, owner.Agent, req, step) //TODO:画像
