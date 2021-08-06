@@ -2,6 +2,8 @@ package scenario
 
 // prepare.go
 // シナリオの内、prepareフェーズの処理
+// 130 0
+// 132 fail but score
 
 import (
 	"context"
@@ -32,15 +34,15 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 
 	//TODO: 他の得点源
 	//TODO: 得点調整
-	step.Result().Score.Set(ScoreNormalUserInitialize, 10)
-	step.Result().Score.Set(ScoreGraphExcellent, 5)
-	step.Result().Score.Set(ScoreGraphGood, 4)
-	step.Result().Score.Set(ScoreGraphNormal, 3)
-	step.Result().Score.Set(ScoreGraphBad, 2)
-	step.Result().Score.Set(ScoreGraphWorst, 1)
-	step.Result().Score.Set(ScoreReadInfoCondition, 3)
-	step.Result().Score.Set(ScoreReadWarningCondition, 2)
-	step.Result().Score.Set(ScoreReadCriticalCondition, 1)
+	step.Result().Score.Set(ScoreNormalUserInitialize, 0)
+	step.Result().Score.Set(ScoreGraphExcellent, 100)
+	step.Result().Score.Set(ScoreGraphGood, 75)
+	step.Result().Score.Set(ScoreGraphNormal, 50)
+	step.Result().Score.Set(ScoreGraphBad, 30)
+	step.Result().Score.Set(ScoreGraphWorst, 5)
+	step.Result().Score.Set(ScoreReadInfoCondition, 20)
+	step.Result().Score.Set(ScoreReadWarningCondition, 10)
+	step.Result().Score.Set(ScoreReadCriticalCondition, 5)
 
 	//初期データの生成
 	logger.AdminLogger.Println("start: load initial data")
