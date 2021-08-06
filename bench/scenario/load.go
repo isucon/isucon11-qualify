@@ -301,6 +301,18 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 		s.normalUsers = append(s.normalUsers, user)
 	}()
 
+	// s.NewUser() 内で POST /api/auth をしているためトップページに飛ぶ
+	isuList, hres, err := getIsuAction(ctx, user.Agent)
+	if err != nil {
+		addErrorWithContext(ctx, step, err)
+		// 致命的なエラーではないため return しない
+	}
+	_, errs := verifyIsuList(hres, user.IsuListOrderByCreatedAt, isuList)
+	for _, err := range errs {
+		addErrorWithContext(ctx, step, err)
+		// 致命的なエラーではないため return しない
+	}
+
 	//椅子作成
 	// TODO: 実際に解いてみてこの isu 数の上限がいい感じに働いているか検証する
 	const isuCountMax = 15
