@@ -244,6 +244,13 @@ func main() {
 	s.BaseURL = fmt.Sprintf("%s://%s/", scheme, targetAddress)
 	s.NoLoad = noLoad
 
+	// JIA API
+	go func() {
+		s.JiaCancel = cancel
+		s.JiaAPIService(ctx)
+	}()
+
+	// Benchmarker
 	b, err := isucandar.NewBenchmark(isucandar.WithoutPanicRecover())
 	if err != nil {
 		panic(err)

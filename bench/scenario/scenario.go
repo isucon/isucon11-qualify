@@ -41,7 +41,7 @@ type Scenario struct {
 	Language string
 
 	loadWaitGroup sync.WaitGroup
-	jiaCancel     context.CancelFunc
+	JiaCancel     context.CancelFunc
 
 	//内部状態
 	normalUsersMtx sync.Mutex

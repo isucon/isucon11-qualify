@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/isucon/isucandar"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
 	"github.com/labstack/echo/v4"
@@ -24,7 +23,6 @@ var (
 	isuTargetBaseUrl = map[string]string{} // 本当はISUに紐付けたい
 
 	jiaAPIContext context.Context
-	jiaAPIStep    *isucandar.BenchmarkStep
 )
 
 type IsuDetailInfomation struct {
@@ -51,11 +49,10 @@ func RegisterToJiaAPI(isu *model.Isu, streams *model.StreamsForPoster) {
 	streamsForPoster[isu.JIAIsuUUID] = streams
 }
 
-func (s *Scenario) JiaAPIService(ctx context.Context, step *isucandar.BenchmarkStep) {
+func (s *Scenario) JiaAPIService(ctx context.Context) {
 	defer logger.AdminLogger.Println("--- JiaAPIService END")
 
 	jiaAPIContext = ctx
-	jiaAPIStep = step
 
 	// Echo instance
 	e := echo.New()
@@ -151,7 +148,7 @@ func (s *Scenario) postActivate(c echo.Context) error {
 	s.loadWaitGroup.Add(1)
 	go func() {
 		defer s.loadWaitGroup.Done()
-		s.keepPosting(posterContext, jiaAPIStep, targetBaseURL, isu, scenarioChan)
+		s.keepPosting(posterContext, targetBaseURL, isu, scenarioChan)
 	}()
 
 	time.Sleep(50 * time.Millisecond)
