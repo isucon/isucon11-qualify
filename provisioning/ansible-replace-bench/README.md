@@ -20,7 +20,7 @@ python generate_hosts.py > hosts
     * 本番環境の構成上、手元から ansible を実行する場合は jump サーバ経由で ssh する必要があります
 
 ```diff
-  Host *
+  Host 192.168.*
     User isucon-admin
     ControlMaster auto
     ControlPath ~/.ssh/%C
