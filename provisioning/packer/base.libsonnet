@@ -7,18 +7,12 @@
   variables: {
     revision: 'unknown',
     name: 'isucon11q-' + $.arg_arch + '-' + $.arg_variant + '-{{isotime "20060102-1504"}}-{{user "revision"}}',
-    aws_access_key: "{{env `AWS_ACCESS_KEY_ID`}}",
-    aws_secret_key: "{{env `AWS_SECRET_ACCESS_KEY`}}",
-    aws_session_token: "{{env `AWS_SESSION_TOKEN`}}",
     git_tag: "{{env `GIT_TAG`}}",
   },
 
   builder_ec2:: {
     type: 'amazon-ebs',
 
-    access_key: "{{user `aws_access_key`}}",
-    secret_key: "{{user `aws_secret_key`}}",
-    token: "{{user `aws_session_token`}}",
     region: 'ap-northeast-1',
 
     source_ami_filter: {
