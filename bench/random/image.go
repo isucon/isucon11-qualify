@@ -49,7 +49,6 @@ func init() {
 }
 
 func Image() ([]byte, error) {
-	// fileInfo := files[rand.Intn(len(files))]
-	// return ioutil.ReadFile(filepath.Join(imageFolderPath, fileInfo.Name()))
+	// MEMO: 現状 error は返してないがメモリがやばければファイル読み込みに変える
 	return images[atomic.AddInt32(&index, 1)%imageNum], nil
 }
