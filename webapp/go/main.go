@@ -280,7 +280,8 @@ func getSession(r *http.Request) (*sessions.Session, error) {
 func getUserIDFromSession(c echo.Context) (string, error) {
 	session, err := getSession(c.Request())
 	if err != nil {
-		return "", c.String(http.StatusUnauthorized, "you are not signed in")
+		c.Logger().Errorf("failed to get session: %v", err)
+		return "", c.NoContent(http.StatusInternalServerError)
 	}
 	_jiaUserID, ok := session.Values["jia_user_id"]
 	if !ok {
