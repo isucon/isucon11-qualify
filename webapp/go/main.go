@@ -417,10 +417,10 @@ func postSignout(c echo.Context) error {
 	if err != nil {
 		if errStatusCode == http.StatusUnauthorized {
 			return c.String(http.StatusUnauthorized, "you are not signed in")
-		} else {
-			c.Logger().Errorf("failed to getUserIDFromSession: %v", err)
-			return c.NoContent(http.StatusInternalServerError)
 		}
+
+		c.Logger().Errorf("failed to getUserIDFromSession: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	session, err := getSession(c.Request())
