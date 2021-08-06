@@ -59,6 +59,7 @@ func (s *Scenario) JiaAPIService(ctx context.Context, step *isucandar.BenchmarkS
 
 	// Echo instance
 	e := echo.New()
+	e.HideBanner = true
 	//e.Debug = true
 	//e.Logger.SetLevel(log.DEBUG)
 
