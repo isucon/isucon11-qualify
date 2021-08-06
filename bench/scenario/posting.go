@@ -132,8 +132,10 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 	}
 }
 
-func (state *posterState) NextConditionTimeStamp() int64 {
-	return state.lastConditionTimestamp + PostIntervalSecond
+func (state *posterState) NextConditionTimeStamp(randEngine *rand.Rand) int64 {
+	// ハック対策に PostIntervalSecond に -10 ~ 10 s のずれを出してる
+	blur := randEngine.Int63n(21) - 10
+	return state.lastConditionTimestamp + PostIntervalSecond + blur
 }
 
 func (state *posterState) GetNewestCondition(stateChange model.IsuStateChange, isu *model.Isu) model.IsuCondition {
@@ -161,7 +163,7 @@ func (state *posterState) GetNewestCondition(stateChange model.IsuStateChange, i
 
 func (state *posterState) UpdateToNextState(randEngine *rand.Rand, stateChange model.IsuStateChange) {
 
-	timeStamp := state.NextConditionTimeStamp()
+	timeStamp := state.NextConditionTimeStamp(randEngine)
 	state.lastConditionTimestamp = timeStamp
 
 	//状態変化
