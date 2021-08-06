@@ -19,16 +19,16 @@ var (
 func init() {
 	characterList = []string{"Normal", "clean freak"}
 	validIsu = map[string]ActivateResponse{
-		"0694e4d7-dfce-4aec-b7ca-887ac42cfb8f": {CatalogID: "550e8400-e29b-41d4-a716-446655440000", Character: characterList[0]},
-		"3a8ae675-3702-45b5-b1eb-1e56e96738ea": {CatalogID: "550e8400-e29b-41d4-a716-446655440000", Character: characterList[1]},
-		"3efff0fa-75bc-4e3c-8c9d-ebfa89ecd15e": {CatalogID: "550e8400-e29b-41d4-a716-446655440000", Character: characterList[0]},
-		"f67fcb64-f91c-4e7b-a48d-ddf1164194d0": {CatalogID: "550e8400-e29b-41d4-a716-446655440000", Character: characterList[1]},
-		"32d1c708-e6ef-49d0-8ca9-4fd51844dcc8": {CatalogID: "550e8400-e29b-41d4-a716-446655440000", Character: characterList[0]},
-		"f012233f-c50e-4349-9473-95681becff1e": {CatalogID: "562dc0df-2d4f-4e38-98c0-9333f4ff3e38", Character: characterList[1]},
-		"af64735c-667a-4d95-a75e-22d0c76083e0": {CatalogID: "562dc0df-2d4f-4e38-98c0-9333f4ff3e38", Character: characterList[0]},
-		"cb68f47f-25ef-46ec-965b-d72d9328160f": {CatalogID: "562dc0df-2d4f-4e38-98c0-9333f4ff3e38", Character: characterList[1]},
-		"57d600ef-15b4-43bc-ab79-6399fab5c497": {CatalogID: "562dc0df-2d4f-4e38-98c0-9333f4ff3e38", Character: characterList[0]},
-		"aa0844e6-812d-41d2-908a-eeb82a50b627": {CatalogID: "562dc0df-2d4f-4e38-98c0-9333f4ff3e38", Character: characterList[1]},
+		"0694e4d7-dfce-4aec-b7ca-887ac42cfb8f": {Character: characterList[0]},
+		"3a8ae675-3702-45b5-b1eb-1e56e96738ea": {Character: characterList[1]},
+		"3efff0fa-75bc-4e3c-8c9d-ebfa89ecd15e": {Character: characterList[0]},
+		"f67fcb64-f91c-4e7b-a48d-ddf1164194d0": {Character: characterList[1]},
+		"32d1c708-e6ef-49d0-8ca9-4fd51844dcc8": {Character: characterList[0]},
+		"f012233f-c50e-4349-9473-95681becff1e": {Character: characterList[1]},
+		"af64735c-667a-4d95-a75e-22d0c76083e0": {Character: characterList[0]},
+		"cb68f47f-25ef-46ec-965b-d72d9328160f": {Character: characterList[1]},
+		"57d600ef-15b4-43bc-ab79-6399fab5c497": {Character: characterList[0]},
+		"aa0844e6-812d-41d2-908a-eeb82a50b627": {Character: characterList[1]},
 	}
 
 	//privateIPBlocks
@@ -55,7 +55,6 @@ func init() {
 /// Struct for Req/Resp ///
 
 type ActivateResponse struct {
-	CatalogID string `json:"catalog_id"`
 	Character string `json:"character"`
 }
 
