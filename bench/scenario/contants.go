@@ -10,13 +10,15 @@ type IScoreGraphTimestampCount struct {
 	Worst     int
 }
 
-// 現状 virtualTimeMulti は 30000、timeout は 5ms、PostContentNum は 100 なので、仮想時間において 150s につき 100 件のデータが送られる。
-// 一時間は 60 * 60 秒なので、 60 * 60 * (100 / 150) = 24 * 100 個のデータが入りうる(timeoutよりはやくレスポンスが帰ってきた時はこれより多いがとりあえず気にしない)。
+// 現状 virtualTimeMulti は 30000、で timeout は 5ms、より timeout の間隔で仮想時間では 1500s たっている。
+// PostConditionIntervalSecond が 60s なので timeout の時間に最高で 1500s / 60s = 25 個の condition が存在する
+// しかし PostConditionNum が 10 なので backend がめちゃくちゃ早くレスポンスを返さないと、理論上存在する 25個の condition は 10個になり点数のソースを失う
+// ScoreGraph で関心がある1時間の condition の timestamp の数については、理論値(60sに一件)は max60個、timeout はするが全件 insert するのは 24個
 var ScoreGraphTimestampCount = IScoreGraphTimestampCount{
-	Excellent: 2000,
-	Good:      1500,
-	Normal:    1000,
-	Bad:       500,
+	Excellent: 30,
+	Good:      20,
+	Normal:    10,
+	Bad:       5,
 	Worst:     0,
 }
 
@@ -35,7 +37,7 @@ const ReadConditionTagStep = 50
 const AddUserStep = 1000
 
 // User を増やすとき何人増やすか
-const AddUserCount = 5
+const AddUserCount = 1
 
 // Viewer が何回エラーしたら drop するか
 const ViewerDropCount = 1
