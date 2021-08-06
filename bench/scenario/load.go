@@ -33,6 +33,9 @@ var (
 
 	// Viewer が増やす更新された
 	viewUpdatedTrendCounter int32 = 0
+
+	// user loop の数
+	userLoopCount int32 = 0
 )
 
 type ReadConditionCount struct {
@@ -62,10 +65,10 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	// 実際の負荷走行シナリオ
 
 	//通常ユーザー
-	s.AddNormalUser(ctx, step, 10)
+	s.AddNormalUser(ctx, step, 2)
 
 	//非ログインユーザーを増やす
-	s.AddViewer(ctx, step, 2)
+	//s.AddViewer(ctx, step, 2)
 	//ユーザーを増やす
 	s.loadWaitGroup.Add(1)
 	go func() {
@@ -99,11 +102,12 @@ func (s *Scenario) userAdder(ctx context.Context, step *isucandar.BenchmarkStep)
 			return
 		}
 
-		if viewUpdatedTrendCounter > AddUserStep {
-			logger.ContestantLogger.Println("現レベルの負荷へ応答ができているため、負荷レベルを上昇させます")
-			addCount := viewUpdatedTrendCounter / AddUserStep
-			s.AddNormalUser(ctx, step, AddUserCount*int(addCount))
-			atomic.AddInt32(&viewUpdatedTrendCounter, -AddUserStep*addCount)
+		addStep := AddUserStep * atomic.LoadInt32(&userLoopCount)
+		addCount := atomic.LoadInt32(&viewUpdatedTrendCounter) / addStep
+		if addCount > 0 {
+			logger.ContestantLogger.Printf("現レベルの負荷へ応答ができているため、負荷レベルを%d上昇させます", addCount)
+			s.AddNormalUser(ctx, step, int(addStep)*int(addCount))
+			atomic.AddInt32(&viewUpdatedTrendCounter, -addStep*addCount)
 		} else {
 			logger.ContestantLogger.Println("負荷レベルは上昇しませんでした")
 		}
@@ -111,6 +115,7 @@ func (s *Scenario) userAdder(ctx context.Context, step *isucandar.BenchmarkStep)
 }
 
 func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.BenchmarkStep) {
+	atomic.AddInt32(&userLoopCount, 1)
 
 	userTimer, userTimerCancel := context.WithDeadline(ctx, s.realTimeLoadFinishedAt.Add(-agent.DefaultRequestTimeout))
 	defer userTimerCancel()
