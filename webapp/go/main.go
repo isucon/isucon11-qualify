@@ -280,11 +280,11 @@ func getSession(r *http.Request) (*sessions.Session, error) {
 func getUserIDFromSession(c echo.Context) (string, error) {
 	session, err := getSession(c.Request())
 	if err != nil {
-		return "", err
+		return "", c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 	_jiaUserID, ok := session.Values["jia_user_id"]
 	if !ok {
-		return "", fmt.Errorf("no session")
+		return "", c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 
 	jiaUserID := _jiaUserID.(string)
@@ -293,11 +293,12 @@ func getUserIDFromSession(c echo.Context) (string, error) {
 	err = db.Get(&count, "SELECT COUNT(*) FROM `user` WHERE `jia_user_id` = ?",
 		jiaUserID)
 	if err != nil {
-		return "", err
+		c.Logger().Errorf("db error: %v", err)
+		return "", c.NoContent(http.StatusInternalServerError)
 	}
 
 	if count == 0 {
-		return "", fmt.Errorf("not found: user")
+		return "", c.String(http.StatusUnauthorized, "you are not signed in")
 	}
 
 	return jiaUserID, nil
