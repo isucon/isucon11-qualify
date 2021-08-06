@@ -79,7 +79,11 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	s.loadWaitGroup.Wait()
 
 	// 余りの加点
-	addConditionScoreTag(step, &ReadConditionCount{Info: readInfoConditionFraction, Warn: readWarnConditionFraction, Critical: readCriticalConditionFraction})
+	addConditionScoreTag(step, &ReadConditionCount{
+		Info:     atomic.LoadInt32(&readInfoConditionFraction),
+		Warn:     atomic.LoadInt32(&readWarnConditionFraction),
+		Critical: atomic.LoadInt32(&readCriticalConditionFraction),
+	})
 
 	return nil
 }
