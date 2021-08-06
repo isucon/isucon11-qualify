@@ -1,10 +1,11 @@
 package main
 
 import (
-	"github.com/google/uuid"
 	"log"
 	"math/rand"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/isucon/isucon11-qualify/bench/random"
 	"github.com/isucon/isucon11-qualify/extra/initial-data/models"
@@ -71,8 +72,12 @@ func main() {
 				isuCounter += 1
 				isu := models.NewIsu(d.user)
 				isu.CreatedAt = d.user.CreatedAt.Add(time.Minute) // ISU は User 作成の1分後に作成される
-				isu = isu.WithUpdateName()
-				isu = isu.WithUpdateImage()
+				if err := isu.WithUpdateName(); err != nil {
+					log.Fatalf("%+v", err)
+				}
+				if err := isu.WithUpdateImage(); err != nil {
+					log.Fatalf("%+v", err)
+				}
 				// INSERT isu
 				if err := isu.Create(); err != nil {
 					log.Fatal(err)
@@ -138,10 +143,14 @@ func main() {
 				isu := models.NewIsu(user)
 				// 確率で ISU を更新
 				if rand.Intn(4) < 1 { // 1/4
-					isu = isu.WithUpdateName()
+					if err := isu.WithUpdateName(); err != nil {
+						log.Fatalf("%+v", err)
+					}
 				}
 				if rand.Intn(10) < 9 { // 9/10
-					isu = isu.WithUpdateImage()
+					if err := isu.WithUpdateImage(); err != nil {
+						log.Fatalf("%+v", err)
+					}
 				}
 				// INSERT isu
 				if err := isu.Create(); err != nil {

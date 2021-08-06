@@ -32,16 +32,3 @@ func (m *IsuConditionPosterManager) StartPosting(targetIP string, targetPort int
 	}
 	return nil
 }
-
-func (m *IsuConditionPosterManager) StopPosting(targetIp string, targetPort int, IsuUUID string) error {
-	key := getKey(targetIp, targetPort, IsuUUID)
-
-	m.activatedIsuMtx.Lock()
-	defer m.activatedIsuMtx.Unlock()
-	isu, ok := m.activatedIsu[key]
-	if ok {
-		isu.StopPosting()
-		delete(m.activatedIsu, key)
-	}
-	return nil
-}

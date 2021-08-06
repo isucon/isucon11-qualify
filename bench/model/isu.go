@@ -119,24 +119,6 @@ func NewIsuRawForInitData(isu *Isu, owner *User, jiaIsuUUID string) (*Isu, *Stre
 	return isu, streamsForPoster, nil
 }
 
-// func (isu *Isu) getConditionFromChan(ctx context.Context) {
-// 	for {
-// 		select {
-// 		case <-ctx.Done():
-// 			return
-// 		case conditions, ok := <-isu.StreamsForScenario.ConditionChan:
-// 			if !ok {
-// 				return
-// 			}
-// 			for i := range conditions {
-// 				isu.conditions.Add(&conditions[i]) //copyなので問題ない
-// 			}
-// 		default:
-// 			return
-// 		}
-// 	}
-// }
-
 var defaultIconHash [md5.Size]byte
 
 const defaultIconFilePath = "./images/default.jpg"

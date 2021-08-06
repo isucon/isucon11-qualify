@@ -3,8 +3,8 @@ import { useCallback } from 'react'
 import NowLoading from '../UI/NowLoading'
 import TransitionGraph from './TransitionGraph'
 import SittingGraph from './SittingGraph'
-import DateInput from './DateInput'
 import useGraph from './use/graph'
+import GraphNavigator from './GraphNavigator'
 
 interface Props {
   isu: Isu
@@ -25,7 +25,9 @@ const IsuGraphCardContent = ({ isu }: Props) => {
     timeCategories,
     day,
     tooltipData,
-    fetchGraphs
+    fetchGraphs,
+    prev,
+    next
   } = useGraph(getGraphs)
 
   if (graphs.length === 0) {
@@ -33,8 +35,13 @@ const IsuGraphCardContent = ({ isu }: Props) => {
   }
   return (
     <div className="flex flex-col gap-12">
-      <div className="flex">
-        <DateInput day={day} fetchGraphs={fetchGraphs} />
+      <div className="flex justify-center w-full">
+        <GraphNavigator
+          prev={prev}
+          next={next}
+          day={day}
+          fetchGraphs={fetchGraphs}
+        />
       </div>
       <div className="relative flex flex-col gap-8">
         <div className="z-10">

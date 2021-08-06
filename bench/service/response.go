@@ -14,10 +14,11 @@ type GetMeResponse struct {
 }
 
 type Isu struct {
-	ID         int    `json:"id"`
-	JIAIsuUUID string `json:"jia_isu_uuid"`
-	Name       string `json:"name"`
-	Character  string `json:"character"`
+	ID                 int                      `json:"id"`
+	JIAIsuUUID         string                   `json:"jia_isu_uuid"`
+	Name               string                   `json:"name"`
+	Character          string                   `json:"character"`
+	LatestIsuCondition *GetIsuConditionResponse `json:"latest_isu_condition"`
 	// TODO: これはmodelの方にあるのが正しそう
 	Icon []byte `json:"-"`
 }
@@ -42,9 +43,15 @@ type GraphResponseOne struct {
 }
 
 type GraphData struct {
-	Score   int            `json:"score"`
-	Sitting int            `json:"sitting"`
-	Detail  map[string]int `json:"detail"`
+	Score      int                 `json:"score"`
+	Percentage GraphDataPercentage `json:"percentage"`
+}
+
+type GraphDataPercentage struct {
+	Sitting      int `json:"sitting"`
+	IsBroken     int `json:"is_broken"`
+	IsDirty      int `json:"is_dirty"`
+	IsOverweight int `json:"is_overweight"`
 }
 
 type GetTrendResponse []GetTrendResponseOne

@@ -23,11 +23,23 @@ class Apis {
   }
 
   async getIsus(options?: { limit: number }, axiosConfig?: AxiosRequestConfig) {
-    const { data } = await axios.get<Isu[]>(`/api/isu`, {
+    const { data } = await axios.get<ApiGetIsuListResponse[]>(`/api/isu`, {
       params: options,
       ...axiosConfig
     })
-    return data
+    const res: GetIsuListResponse[] = []
+    for (const v of data) {
+      res.push({
+        ...v,
+        latest_isu_condition: v.latest_isu_condition
+          ? {
+              ...v.latest_isu_condition,
+              date: timestampToDate(v.latest_isu_condition.timestamp)
+            }
+          : null
+      })
+    }
+    return res
   }
 
   async postIsu(req: PostIsuRequest, axiosConfig?: AxiosRequestConfig) {
@@ -41,17 +53,6 @@ class Apis {
       headers: { 'content-type': 'multipart/form-data' },
       ...axiosConfig
     })
-  }
-
-  async getIsuSearch(
-    option?: IsuSearchRequest,
-    axiosConfig?: AxiosRequestConfig
-  ) {
-    const { data } = await axios.get<Isu[]>(`/api/isu/search`, {
-      params: option,
-      ...axiosConfig
-    })
-    return data
   }
 
   async getIsu(jiaIsuUuid: string, axiosConfig?: AxiosRequestConfig) {
@@ -115,6 +116,25 @@ class Apis {
 
     return conditions
   }
+
+  async getTrend(axiosConfig?: AxiosRequestConfig) {
+    const { data } = await axios.get<ApiTrendResponse>(`/api/trend`, {
+      ...axiosConfig
+    })
+
+    const trends: TrendResponse = []
+    data.forEach(trend => {
+      trends.push({
+        ...trend,
+        conditions: trend.conditions.map(v => ({
+          ...v,
+          date: timestampToDate(v.timestamp)
+        }))
+      })
+    })
+
+    return trends
+  }
 }
 
 const apis = new Apis()
@@ -130,19 +150,24 @@ export interface Isu {
   character: string
 }
 
-export interface IsuLog {
-  jia_isu_uuid: string
-  timestamp: number
-  is_sitting: boolean
-  condition: string
-  message: string
-  created_at: string
+interface ApiGetIsuListResponse extends Isu {
+  latest_isu_condition: ApiCondition | null
+}
+
+export interface GetIsuListResponse extends Isu {
+  latest_isu_condition: Condition | null
 }
 
 export interface GraphData {
   score: number
+  percentage: ConditionPercentage
+}
+
+export interface ConditionPercentage {
   sitting: number
-  detail: { [key: string]: number }
+  is_broken: number
+  is_dirty: number
+  is_overweight: number
 }
 
 interface ApiGraph {
@@ -159,16 +184,6 @@ export interface Graph {
   end_at: Date
   data: GraphData | null
   condition_timestamps: number[]
-}
-
-export interface IsuSearchRequest {
-  name?: string
-  charactor?: string
-  catalog_name?: string
-  min_limit_weight?: number
-  max_limit_weight?: number
-  catalog_tags?: string
-  page?: string
 }
 
 export const DEFAULT_SEARCH_LIMIT = 20
@@ -224,3 +239,27 @@ export interface GraphRequest {
 }
 
 export const DEFAULT_CONDITION_LIMIT = 20
+
+interface ApiTrendResponseElement {
+  character: string
+  conditions: {
+    isu_id: number
+    condition_level: 'critical' | 'warning' | 'info'
+    timestamp: number
+  }[]
+}
+
+type ApiTrendResponse = ApiTrendResponseElement[]
+
+export interface Trend {
+  character: string
+  conditions: TrendCondition[]
+}
+
+export interface TrendCondition {
+  isu_id: number
+  condition_level: 'critical' | 'warning' | 'info'
+  date: Date
+}
+
+export type TrendResponse = Trend[]
