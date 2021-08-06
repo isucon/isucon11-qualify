@@ -2,8 +2,6 @@ package scenario
 
 // prepare.go
 // シナリオの内、prepareフェーズの処理
-// 130 0
-// 132 fail but score
 
 import (
 	"context"
