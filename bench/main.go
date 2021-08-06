@@ -124,7 +124,11 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 	timeoutCount := int64(0)
 
 	for tag, count := range result.Score.Breakdown() {
-		logger.ContestantLogger.Printf("SCORE: %s: %d", tag, count)
+		if finish {
+			logger.ContestantLogger.Printf("SCORE: %s: %d", tag, count)
+		} else {
+			logger.AdminLogger.Printf("SCORE: %s: %d", tag, count)
+		}
 	}
 
 	for _, err := range errors {
