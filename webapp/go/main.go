@@ -315,15 +315,6 @@ func getJIAServiceURL(tx *sqlx.Tx) string {
 	return config.URL
 }
 
-func getIndex(c echo.Context) error {
-	err := templates.ExecuteTemplate(c.Response().Writer, "index.html", struct{}{})
-	if err != nil {
-		c.Logger().Errorf("getIndex error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	return nil
-}
-
 func postInitialize(c echo.Context) error {
 	var request InitializeRequest
 	err := c.Bind(&request)
@@ -1099,6 +1090,69 @@ func calculateConditionLevel(condition string) (string, error) {
 	return conditionLevel, nil
 }
 
+// GET /api/trend
+// ISUの性格毎の最新のコンディション情報
+func getTrend(c echo.Context) error {
+	characterList := []Isu{}
+	err := db.Select(&characterList, "SELECT `character` FROM `isu` GROUP BY `character`")
+	if err != nil {
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	res := []TrendResponse{}
+
+	// TODO: 処理が重すぎるのでなんとかする
+	for _, character := range characterList {
+		isuList := []Isu{}
+		err = db.Select(&isuList,
+			"SELECT * FROM `isu` WHERE `character` = ?",
+			character.Character,
+		)
+		if err != nil {
+			c.Logger().Errorf("db error: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+
+		characterIsuConditions := []*TrendCondition{}
+		for _, isu := range isuList {
+			conditions := []IsuCondition{}
+			err = db.Select(&conditions,
+				"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY timestamp DESC",
+				isu.JIAIsuUUID,
+			)
+			if err != nil {
+				c.Logger().Errorf("db error: %v", err)
+				return c.NoContent(http.StatusInternalServerError)
+			}
+
+			if len(conditions) > 0 {
+				isuLastCondition := conditions[0]
+				conditionLevel, err := calculateConditionLevel(isuLastCondition.Condition)
+				if err != nil {
+					c.Logger().Errorf("failed to get condition level: %v", err)
+					return c.NoContent(http.StatusInternalServerError)
+				}
+				trendCondition := TrendCondition{
+					ID:             isu.ID,
+					Timestamp:      isuLastCondition.Timestamp.Unix(),
+					ConditionLevel: conditionLevel,
+				}
+				characterIsuConditions = append(characterIsuConditions, &trendCondition)
+			}
+
+		}
+
+		sort.Slice(characterIsuConditions, func(i, j int) bool {
+			return characterIsuConditions[i].Timestamp > characterIsuConditions[j].Timestamp
+		})
+		res = append(res,
+			TrendResponse{Character: character.Character, Conditions: characterIsuConditions})
+	}
+
+	return c.JSON(http.StatusOK, res)
+}
+
 // POST /api/condition/{jia_isu_uuid}
 // ISUからのセンサデータを受け取る
 func postIsuCondition(c echo.Context) error {
@@ -1207,65 +1261,11 @@ func truncateAfterHours(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), 0, 0, 0, t.Location())
 }
 
-// GET /api/trend
-// ISUの性格毎の最新のコンディション情報
-func getTrend(c echo.Context) error {
-	characterList := []Isu{}
-	err := db.Select(&characterList, "SELECT `character` FROM `isu` GROUP BY `character`")
+func getIndex(c echo.Context) error {
+	err := templates.ExecuteTemplate(c.Response().Writer, "index.html", struct{}{})
 	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
+		c.Logger().Errorf("getIndex error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
-
-	res := []TrendResponse{}
-
-	// TODO: 処理が重すぎるのでなんとかする
-	for _, character := range characterList {
-		isuList := []Isu{}
-		err = db.Select(&isuList,
-			"SELECT * FROM `isu` WHERE `character` = ?",
-			character.Character,
-		)
-		if err != nil {
-			c.Logger().Errorf("db error: %v", err)
-			return c.NoContent(http.StatusInternalServerError)
-		}
-
-		characterIsuConditions := []*TrendCondition{}
-		for _, isu := range isuList {
-			conditions := []IsuCondition{}
-			err = db.Select(&conditions,
-				"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY timestamp DESC",
-				isu.JIAIsuUUID,
-			)
-			if err != nil {
-				c.Logger().Errorf("db error: %v", err)
-				return c.NoContent(http.StatusInternalServerError)
-			}
-
-			if len(conditions) > 0 {
-				isuLastCondition := conditions[0]
-				conditionLevel, err := calculateConditionLevel(isuLastCondition.Condition)
-				if err != nil {
-					c.Logger().Errorf("failed to get condition level: %v", err)
-					return c.NoContent(http.StatusInternalServerError)
-				}
-				trendCondition := TrendCondition{
-					ID:             isu.ID,
-					Timestamp:      isuLastCondition.Timestamp.Unix(),
-					ConditionLevel: conditionLevel,
-				}
-				characterIsuConditions = append(characterIsuConditions, &trendCondition)
-			}
-
-		}
-
-		sort.Slice(characterIsuConditions, func(i, j int) bool {
-			return characterIsuConditions[i].Timestamp > characterIsuConditions[j].Timestamp
-		})
-		res = append(res,
-			TrendResponse{Character: character.Character, Conditions: characterIsuConditions})
-	}
-
-	return c.JSON(http.StatusOK, res)
+	return nil
 }
