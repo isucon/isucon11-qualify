@@ -17,6 +17,11 @@ RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSI
 
 ### runner
 FROM alpine:3.13 AS runner
+
+#install ca.crt
+COPY development/certificates/ca.crt /usr/local/share/ca-certificates/ca.crt
+RUN apk add --no-cache ca-certificates && update-ca-certificates
+
 RUN apk add tzdata && \
     cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime && \
     echo "Asia/Tokyo" > /etc/timezone && \

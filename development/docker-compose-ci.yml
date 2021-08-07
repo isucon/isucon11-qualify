@@ -21,6 +21,19 @@ services:
     depends_on:
       - mysql-backend
 
+  nginx-backend:
+    image: nginx:1.18.0
+    restart: always
+    volumes:
+      - "./nginx-backend/isucondition.conf:/etc/nginx/conf.d/default.conf"
+      - "./certificates:/etc/nginx/certificates"
+    expose:
+      - "443"
+    ports:
+      - "10443:443"
+    links:
+      - backend:backend-application
+
   mysql-backend:
     build:
       context: .
@@ -45,7 +58,14 @@ services:
     environment:
       ISUXBENCH_TARGET: backend:3000
     entrypoint: dockerize -wait http://backend:3000 -timeout 60s
-    command: ["/bench", "--no-load", "--exit-status", "--tls-cert=../extra/certificates/jiaapi.crt", "--tls-key=../extra/certificates/jiaapi.key"]
+    command:
+      - "/bench"
+      - "--no-load"
+      - "--exit-status"
+      - "--target=nginx-backend"
+      - "--tls"
+      - "--tls-cert=../extra/certificates/jiaapi.crt"
+      - "--tls-key=../extra/certificates/jiaapi.key"
     volumes:
       - "../bench/images:/images"
       - "../bench/key:/key"

@@ -21,16 +21,19 @@ up-bench-detach:
 .PHONY: run-bench
 run-bench:
 	target=go docker compose -f docker-compose-bench.yml exec apitest go run ./main.go \
+		--target nginx-backend --tls \
 		--tls-cert=../extra/certificates/jiaapi.crt --tls-key=../extra/certificates/jiaapi.key
 
 .PHONY: run-bench-race
 run-bench-race:
 	target=go docker compose -f docker-compose-bench.yml exec apitest go run -race ./main.go \
+		--target nginx-backend --tls \
 		--tls-cert=../extra/certificates/jiaapi.crt --tls-key=../extra/certificates/jiaapi.key
 
 .PHONY: run-bench-noload
 run-bench-noload:
 	target=go docker compose -f docker-compose-bench.yml exec apitest go run ./main.go \
+		--target nginx-backend --tls \
 		--tls-cert=../extra/certificates/jiaapi.crt --tls-key=../extra/certificates/jiaapi.key --no-load
 
 .PHONY: down-bench

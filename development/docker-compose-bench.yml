@@ -28,16 +28,18 @@ services:
     depends_on:
       - mysql-backend
 
-  #nginx-backend:
-  #  image: nginx:1.18.0
-  #  restart: always
-  #  volumes:
-  #    - "nginx-backend/isucondition.conf:/etc/nginx/sites-enabled/isucondition.conf"
-  #    - "./certificates:/etc/nginx/certificates"
-  #  expose:
-  #    - "443"
-  #  ports:
-  #    - "10443:443"
+  nginx-backend:
+    image: nginx:1.18.0
+    restart: always
+    volumes:
+      - "./nginx-backend/isucondition.conf:/etc/nginx/conf.d/default.conf"
+      - "./certificates:/etc/nginx/certificates"
+    expose:
+      - "443"
+    ports:
+      - "10443:443"
+    links:
+      - backend:backend-application
 
   mysql-backend:
     build:
