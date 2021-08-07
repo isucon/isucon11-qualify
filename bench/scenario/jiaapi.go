@@ -104,11 +104,9 @@ func (s *Scenario) postActivate(c echo.Context) error {
 	state := &IsuConditionPosterRequest{}
 	err := c.Bind(state)
 	if err != nil {
-		fmt.Println(err)
 		return echo.NewHTTPError(http.StatusBadRequest)
 	}
 	if !(0 <= state.TargetPort && state.TargetPort < 0x1000) {
-		fmt.Println(err)
 		return echo.NewHTTPError(http.StatusBadRequest)
 	}
 
