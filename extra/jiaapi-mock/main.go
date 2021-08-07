@@ -12,15 +12,23 @@ import (
 	"github.com/labstack/gommon/log"
 )
 
-//go:embed ec256-private.pem
-var privateKey []byte
+var (
+	//go:embed tls-cert.pem
+	tlsCert []byte
 
-//go:embed index.html
-var htmlTopPage []byte
+	//go:embed tls-key.pem
+	tlsKey []byte
+
+	//go:embed ec256-private.pem
+	jwtPrivateKey []byte
+
+	//go:embed index.html
+	htmlTopPage []byte
+)
 
 func main() {
 	// Controllers
-	authController, err := controller.NewAuthController(privateKey)
+	authController, err := controller.NewAuthController(jwtPrivateKey)
 	if err != nil {
 		panic(err)
 	}
@@ -58,7 +66,7 @@ func main() {
 
 	// Start server
 	serverPort := fmt.Sprintf(":%v", getEnv("JIAAPI_SERVER_PORT", "5000"))
-	e.Logger.Fatal(e.Start(serverPort))
+	e.Logger.Fatal(e.StartTLS(serverPort, tlsCert, tlsKey))
 }
 
 func getEnv(key string, defaultValue string) string {

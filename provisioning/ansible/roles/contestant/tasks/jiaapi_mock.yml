@@ -1,4 +1,16 @@
 ---
+- name: "roles/contestant/tasks/jiaapi_mock: Deploy tls certs (*.t.isucon.dev)"
+  become_user: root
+  copy:
+    src: "{{ item }}"
+    dest: "/{{ item }}"
+    owner: "root"
+    group: "root"
+    mode: "0755"
+  with_items:
+    - tmp/isucon11-qualify/extra/jiaapi-mock/jiaapi-mock/tls-cert.pem
+    - tmp/isucon11-qualify/extra/jiaapi-mock/jiaapi-mock/tls-key.pem
+
 - name: "roles/contestant/tasks/jiaapi_mock: Build jiaapi-mock"
   become_user: isucon
   args:
