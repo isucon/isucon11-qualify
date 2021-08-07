@@ -1061,7 +1061,7 @@ func calculateConditionLevel(condition string) (string, error) {
 // POST /api/condition/{jia_isu_uuid}
 // ISUからのセンサデータを受け取る
 func postIsuCondition(c echo.Context) error {
-	// TODO: これ良くないので後でなんとかする
+	// TODO: リクエストをdropしないようにしたい
 	dropProbability := 0.1
 	if rand.Float64() <= dropProbability {
 		c.Logger().Warnf("drop post isu condition request")
