@@ -302,12 +302,15 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 	}()
 
 	// s.NewUser() 内で POST /api/auth をしているためトップページに飛ぶ
-	isuList, hres, err := getIsuAction(ctx, user.Agent)
-	if err != nil {
-		addErrorWithContext(ctx, step, err)
-		// 致命的なエラーではないため return しない
-	}
-	_, errs := verifyIsuList(hres, user.IsuListOrderByCreatedAt, isuList)
+	_, errs := browserGetHomeAction(ctx, user.Agent, true,
+		func(res *http.Response, isuList []*service.Isu) []error {
+			expected := user.IsuListOrderByCreatedAt
+
+			var errs []error
+			_, errs = verifyIsuList(res, expected, isuList)
+			return errs
+		},
+	)
 	for _, err := range errs {
 		addErrorWithContext(ctx, step, err)
 		// 致命的なエラーではないため return しない
