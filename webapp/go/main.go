@@ -808,10 +808,7 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 		truncatedConditionTime := truncateAfterHours(condition.Timestamp)
 		if truncatedConditionTime != startTimeInThisHour {
 			if len(conditionsInThisHour) > 0 {
-				data, err := calculateGraphDataPoint(conditionsInThisHour)
-				if err != nil {
-					return nil, fmt.Errorf("failed to calculate graph: %v", err)
-				}
+				data := calculateGraphDataPoint(conditionsInThisHour)
 				dataPoints = append(dataPoints,
 					GraphDataPointWithInfo{
 						JIAIsuUUID:          jiaIsuUUID,
@@ -829,10 +826,7 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 	}
 
 	if len(conditionsInThisHour) > 0 {
-		data, err := calculateGraphDataPoint(conditionsInThisHour)
-		if err != nil {
-			return nil, fmt.Errorf("failed to calculate graph: %v", err)
-		}
+		data := calculateGraphDataPoint(conditionsInThisHour)
 		dataPoints = append(dataPoints,
 			GraphDataPointWithInfo{
 				JIAIsuUUID:          jiaIsuUUID,
@@ -891,7 +885,7 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 }
 
 // 複数のISU conditionからグラフの一つのデータ点を計算
-func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, error) {
+func calculateGraphDataPoint(isuConditions []IsuCondition) GraphDataPoint {
 	conditionsCount := map[string]int{"is_broken": 0, "is_dirty": 0, "is_overweight": 0}
 	rawScore := 0
 	for _, condition := range isuConditions {
@@ -941,7 +935,7 @@ func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, erro
 			IsDirty:      isDirtyPercentage,
 		},
 	}
-	return dataPoint, nil
+	return dataPoint
 }
 
 //  GET /api/condition/{jia_isu_uuid}?
