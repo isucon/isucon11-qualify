@@ -48,6 +48,7 @@ func NewConditionFromLastCondition(c Condition, durationMinute int) Condition {
 	c.IsDirty = random.IsDirtyFromLastCondition(c.IsDirty)
 	c.IsOverweight = random.IsOverweightFromLastCondition(c.IsOverweight)
 	c.IsBroken = random.IsBrokenFromLastCondition(c.IsBroken)
+	c.Message = random.MessageWithCondition(c.IsDirty, c.IsOverweight, c.IsBroken, c.Isu.CharacterId)
 	return c
 }
 
