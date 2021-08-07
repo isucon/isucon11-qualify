@@ -143,7 +143,7 @@ func authActionWithInvalidJWT(ctx context.Context, a *agent.Agent, invalidJWT st
 	//データの検証
 	responseBody, _ := ioutil.ReadAll(res.Body)
 	if string(responseBody) != expectedBody {
-		err = errorMissmatch(res, "エラーメッセージが不正確です: `%s` (expected: `%s`)", string(responseBody), expectedBody)
+		err = errorMismatch(res, "エラーメッセージが不正確です: `%s` (expected: `%s`)", string(responseBody), expectedBody)
 		errors = append(errors, err)
 	}
 
@@ -177,7 +177,7 @@ func authActionWithoutJWT(ctx context.Context, a *agent.Agent) []error {
 	const expectedBody = "forbidden"
 	responseBody, _ := ioutil.ReadAll(res.Body)
 	if string(responseBody) != expectedBody {
-		err = errorMissmatch(res, "エラーメッセージが不正確です: `%s` (expected: `%s`)", string(responseBody), expectedBody)
+		err = errorMismatch(res, "エラーメッセージが不正確です: `%s` (expected: `%s`)", string(responseBody), expectedBody)
 		errors = append(errors, err)
 	}
 
@@ -581,7 +581,6 @@ func getTrendAction(ctx context.Context, a *agent.Agent) (service.GetTrendRespon
 }
 
 func browserGetHomeAction(ctx context.Context, a *agent.Agent,
-	virtualNowUnix int64,
 	allowNotModified bool,
 	validateIsu func(*http.Response, []*service.Isu) []error,
 ) ([]*service.Isu, []error) {
