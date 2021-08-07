@@ -3,6 +3,7 @@ module github.com/isucon/isucon11-qualify/bench
 go 1.16
 
 require (
+	github.com/anthonynsimon/bild v0.13.0
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/docker/docker v20.10.8+incompatible
 	github.com/emirpasic/gods v1.12.0

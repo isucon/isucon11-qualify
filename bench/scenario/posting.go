@@ -9,11 +9,12 @@ import (
 
 	"github.com/isucon/isucandar"
 	"github.com/isucon/isucon11-qualify/bench/model"
+	"github.com/isucon/isucon11-qualify/bench/random"
 	"github.com/isucon/isucon11-qualify/bench/service"
 )
 
 const (
-	// MEMO: 最大でも一秒に一件しか送れないので点数上限になるが、解決できるとは思えないので良い
+	// MEMO: 最大でも60秒に一件しか送れないので点数上限になるが、解決できるとは思えないので良い
 	PostIntervalSecond = 60 //Virtual Timeでのpost間隔
 	PostContentNum     = 10 //一回のpostで何要素postするか virtualTimeMulti * timerDuration(20ms) / PostIntervalSecond
 )
@@ -131,8 +132,10 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 	}
 }
 
-func (state *posterState) NextConditionTimeStamp() int64 {
-	return state.lastConditionTimestamp + PostIntervalSecond
+func (state *posterState) NextConditionTimeStamp(randEngine *rand.Rand) int64 {
+	// ハック対策に PostIntervalSecond に -10 ~ 10 s のずれを出してる
+	blur := randEngine.Int63n(21) - 10
+	return state.lastConditionTimestamp + PostIntervalSecond + blur
 }
 
 func (state *posterState) GetNewestCondition(stateChange model.IsuStateChange, isu *model.Isu) model.IsuCondition {
@@ -150,7 +153,7 @@ func (state *posterState) GetNewestCondition(stateChange model.IsuStateChange, i
 	}
 
 	//message
-	condition.Message = "今日もいい天気" //TODO: メッセージをちゃんと生成
+	condition.Message = random.MessageWithCondition(state.lastConditionIsDirty, state.lastConditionIsOverweight, state.lastConditionIsBroken, isu.CharacterID)
 
 	//conditionLevel
 	condition.ConditionLevel = calcConditionLevel(condition)
@@ -160,7 +163,7 @@ func (state *posterState) GetNewestCondition(stateChange model.IsuStateChange, i
 
 func (state *posterState) UpdateToNextState(randEngine *rand.Rand, stateChange model.IsuStateChange) {
 
-	timeStamp := state.NextConditionTimeStamp()
+	timeStamp := state.NextConditionTimeStamp(randEngine)
 	state.lastConditionTimestamp = timeStamp
 
 	//状態変化
@@ -207,19 +210,21 @@ func (state *posterState) UpdateToNextState(randEngine *rand.Rand, stateChange m
 	}
 	//overweight
 	if state.lastConditionIsSitting && timeStamp-state.lastDetectOverweightTimestamp > 60*60 {
-		if randEngine.Intn(100) <= 5 {
+		if randEngine.Intn(500) <= 1 {
 			state.lastConditionIsOverweight = true
 		}
 	}
 	//dirty
 	if timeStamp-state.lastCleanTimestamp > 75*60 {
-		if randEngine.Intn(100) <= 5 {
+		if randEngine.Intn(500) <= 1 {
 			state.lastConditionIsDirty = true
 		}
 	}
 	//broken
 	if timeStamp-state.lastRepairTimestamp > 120*60 {
-		state.lastConditionIsBroken = true
+		if randEngine.Intn(1000) <= 1 {
+			state.lastConditionIsBroken = true
+		}
 	}
 }
 

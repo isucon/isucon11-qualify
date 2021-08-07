@@ -32,15 +32,16 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 
 	//TODO: 他の得点源
 	//TODO: 得点調整
-	step.Result().Score.Set(ScoreNormalUserInitialize, 10)
-	step.Result().Score.Set(ScoreGraphExcellent, 5)
-	step.Result().Score.Set(ScoreGraphGood, 4)
-	step.Result().Score.Set(ScoreGraphNormal, 3)
-	step.Result().Score.Set(ScoreGraphBad, 2)
-	step.Result().Score.Set(ScoreGraphWorst, 1)
-	step.Result().Score.Set(ScoreReadInfoCondition, 3)
-	step.Result().Score.Set(ScoreReadWarningCondition, 2)
-	step.Result().Score.Set(ScoreReadCriticalCondition, 1)
+	step.Result().Score.Set(ScoreStartBenchmark, 1000)
+	step.Result().Score.Set(ScoreNormalUserInitialize, 0)
+	step.Result().Score.Set(ScoreGraphExcellent, 200)
+	step.Result().Score.Set(ScoreGraphGood, 150)
+	step.Result().Score.Set(ScoreGraphNormal, 100)
+	step.Result().Score.Set(ScoreGraphBad, 60)
+	step.Result().Score.Set(ScoreGraphWorst, 10)
+	step.Result().Score.Set(ScoreReadInfoCondition, 40)
+	step.Result().Score.Set(ScoreReadWarningCondition, 20)
+	step.Result().Score.Set(ScoreReadCriticalCondition, 10)
 
 	//初期データの生成
 	logger.AdminLogger.Println("start: load initial data")
@@ -630,7 +631,7 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 		return
 	}
 
-	isu := s.NewIsu(ctx, step, loginUser, true, nil)
+	isu := s.NewIsu(ctx, step, loginUser, true, nil, false)
 	if isu == nil {
 		return
 	}
@@ -672,15 +673,11 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 		return
 	}
 
-	img, err := ioutil.ReadFile("./images/CIMG8423_resize.jpg")
+	img, err := random.Image()
 	if err != nil {
-		logger.AdminLogger.Panicln(err)
+		logger.AdminLogger.Panic(err)
 	}
-	isuImg := &service.IsuImg{
-		ImgName: "CIMG8423_resize.jpg",
-		Img:     img,
-	}
-	isuWithImg := s.NewIsu(ctx, step, loginUser, true, isuImg)
+	isuWithImg := s.NewIsu(ctx, step, loginUser, true, img, false)
 	if isuWithImg == nil {
 		return
 	}

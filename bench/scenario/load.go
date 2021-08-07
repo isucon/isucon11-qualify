@@ -17,6 +17,7 @@ import (
 	"github.com/isucon/isucandar/score"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
+	"github.com/isucon/isucon11-qualify/bench/random"
 	"github.com/isucon/isucon11-qualify/bench/service"
 )
 
@@ -32,6 +33,9 @@ var (
 
 	// Viewer が増やす更新された
 	viewUpdatedTrendCounter int32 = 0
+
+	// user loop の数
+	userLoopCount int32 = 0
 )
 
 type ReadConditionCount struct {
@@ -61,10 +65,10 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	// 実際の負荷走行シナリオ
 
 	//通常ユーザー
-	s.AddNormalUser(ctx, step, 10)
+	s.AddNormalUser(ctx, step, 2)
 
 	//非ログインユーザーを増やす
-	s.AddViewer(ctx, step, 2)
+	//s.AddViewer(ctx, step, 2)
 	//ユーザーを増やす
 	s.loadWaitGroup.Add(1)
 	go func() {
@@ -78,7 +82,11 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	s.loadWaitGroup.Wait()
 
 	// 余りの加点
-	addConditionScoreTag(step, &ReadConditionCount{Info: readInfoConditionFraction, Warn: readWarnConditionFraction, Critical: readCriticalConditionFraction})
+	addConditionScoreTag(step, &ReadConditionCount{
+		Info:     atomic.LoadInt32(&readInfoConditionFraction),
+		Warn:     atomic.LoadInt32(&readWarnConditionFraction),
+		Critical: atomic.LoadInt32(&readCriticalConditionFraction),
+	})
 
 	return nil
 }
@@ -94,11 +102,12 @@ func (s *Scenario) userAdder(ctx context.Context, step *isucandar.BenchmarkStep)
 			return
 		}
 
-		if viewUpdatedTrendCounter > AddUserStep {
-			logger.ContestantLogger.Println("現レベルの負荷へ応答ができているため、負荷レベルを上昇させます")
-			addCount := viewUpdatedTrendCounter / AddUserStep
+		addStep := AddUserStep * atomic.LoadInt32(&userLoopCount)
+		addCount := atomic.LoadInt32(&viewUpdatedTrendCounter) / addStep
+		if addCount > 0 {
+			logger.ContestantLogger.Printf("現レベルの負荷へ応答ができているため、負荷レベルを%d上昇させます", addCount)
 			s.AddNormalUser(ctx, step, AddUserCount*int(addCount))
-			atomic.AddInt32(&viewUpdatedTrendCounter, -AddUserStep*addCount)
+			atomic.AddInt32(&viewUpdatedTrendCounter, -addStep*addCount)
 		} else {
 			logger.ContestantLogger.Println("負荷レベルは上昇しませんでした")
 		}
@@ -106,6 +115,7 @@ func (s *Scenario) userAdder(ctx context.Context, step *isucandar.BenchmarkStep)
 }
 
 func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.BenchmarkStep) {
+	atomic.AddInt32(&userLoopCount, 1)
 
 	userTimer, userTimerCancel := context.WithDeadline(ctx, s.realTimeLoadFinishedAt.Add(-agent.DefaultRequestTimeout))
 	defer userTimerCancel()
@@ -167,9 +177,8 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 		targetIsu := user.IsuListOrderByCreatedAt[nextTargetIsuIndex]
 
 		//GET /
-		dataExistTimestamp := GetConditionDataExistTimestamp(s, user)
 		var newConditionUUIDs []string
-		_, errs := browserGetHomeAction(ctx, user.Agent, dataExistTimestamp, true,
+		_, errs := browserGetHomeAction(ctx, user.Agent, true,
 			func(res *http.Response, isuList []*service.Isu) []error {
 				expected := user.IsuListOrderByCreatedAt
 
@@ -300,7 +309,11 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 	isuCountRandEngineMutex.Unlock()
 
 	for i := 0; i < isuCount; i++ {
-		isu := s.NewIsu(ctx, step, user, true, nil)
+		image, err := random.Image()
+		if err != nil {
+			logger.AdminLogger.Panic(err)
+		}
+		isu := s.NewIsu(ctx, step, user, true, image, true)
 		if isu == nil {
 			user.CloseAllIsuStateChan()
 			return nil

@@ -2,7 +2,7 @@
 
 variable "defaultGitTag" {
   type    = string
-  default = "08.04.0"
+  default = "08.05.0"
 }
 
 locals {
@@ -10,6 +10,38 @@ locals {
     "qualify-dev" : {
       gitTag   = var.defaultGitTag
       baseAddr = 10 # 11, 12, 13
+    }
+    "sorah" : {
+      gitTag   = var.defaultGitTag
+      baseAddr = 20
+    }
+    "toki" : {
+      gitTag   = var.defaultGitTag
+      baseAddr = 30
+    }
+    "temma" : {
+      gitTag   = var.defaultGitTag
+      baseAddr = 40
+    }
+    "takonomura" : {
+      gitTag   = var.defaultGitTag
+      baseAddr = 50
+    }
+    "eagletmt" : {
+      gitTag   = var.defaultGitTag
+      baseAddr = 60
+    }
+    "hosshii" : {
+      gitTag   = var.defaultGitTag
+      baseAddr = 70
+    }
+    "sapphi_red" : {
+      gitTag   = var.defaultGitTag
+      baseAddr = 80
+    }
+    "karino" : {
+      gitTag   = var.defaultGitTag
+      baseAddr = 90
     }
   }
 }
@@ -25,6 +57,19 @@ data "aws_ami" "bench" {
   filter {
     name   = "tag:GitTag"
     values = [var.defaultGitTag]
+  }
+}
+data "aws_ami" "monitoring" {
+  # Ubuntu 20.04 latest
+  most_recent = true
+  owners = ["099720109477"] # Canonical
+  filter {
+      name   = "name"
+      values = ["ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*"]
+  }
+  filter {
+      name   = "virtualization-type"
+      values = ["hvm"]
   }
 }
 data "aws_ami" "contestant" {
@@ -49,6 +94,17 @@ data "template_cloudinit_config" "config" {
   part {
     content_type = "text/x-shellscript"
     content      = data.template_file.set-pubkey.rendered
+  }
+}
+data "template_file" "set-pubkey-for-monitoring" {
+  template = file("./set-pubkey-for-monitoring.sh")
+}
+data "template_cloudinit_config" "config-for-monitoring" {
+  gzip          = true
+  base64_encode = true
+  part {
+    content_type = "text/x-shellscript"
+    content      = data.template_file.set-pubkey-for-monitoring.rendered
   }
 }
 
@@ -130,8 +186,7 @@ resource "aws_security_group_rule" "isucon11-qualify-dev-egress" {
   security_group_id = aws_security_group.isucon11-qualify-dev.id
 }
 
-
-### Bench VM (1 台)
+### Bench VM (2 台: 競技者がポータルから実行する用と予選チーム用)
 
 resource "aws_eip" "bench" {
   vpc                       = true
@@ -141,7 +196,7 @@ resource "aws_eip" "bench" {
 }
 resource "aws_instance" "bench" {
   ami                    = data.aws_ami.bench.id
-  instance_type          = "c5.large" # TODO
+  instance_type          = "c5.large"
   subnet_id              = aws_subnet.isucon11-qualify-dev.id
   private_ip             = "192.168.0.10"
   vpc_security_group_ids = [aws_security_group.isucon11-qualify-dev.id]
@@ -155,8 +210,49 @@ resource "aws_instance" "bench" {
 }
 output "bench_public_ip" {
   description = "bench"
-  value       = aws_instance.bench.public_ip
+  value       = aws_eip.bench.public_ip
 }
+
+resource "aws_instance" "bench-dev" {
+  ami                    = data.aws_ami.bench.id
+  instance_type          = "c5.large"
+  subnet_id              = aws_subnet.isucon11-qualify-dev.id
+  private_ip             = "192.168.0.8"
+  vpc_security_group_ids = [aws_security_group.isucon11-qualify-dev.id]
+  root_block_device {
+    volume_size = 20
+  }
+  user_data = data.template_cloudinit_config.config.rendered
+  tags = {
+    Name    = "isucon11-qualify-dev-bench-dev"
+  }
+}
+output "bench-dev_public_ip" {
+  description = "monitoring"
+  value       = aws_instance.bench-dev.public_ip
+}
+
+
+### Monitoring VM (1 台)
+resource "aws_instance" "monitoring" {
+  ami                    = data.aws_ami.monitoring.id
+  instance_type          = "c5.large"
+  subnet_id              = aws_subnet.isucon11-qualify-dev.id
+  private_ip             = "192.168.0.9"
+  vpc_security_group_ids = [aws_security_group.isucon11-qualify-dev.id]
+  root_block_device {
+    volume_size = 20
+  }
+  user_data = data.template_cloudinit_config.config-for-monitoring.rendered
+  tags = {
+    Name    = "isucon11-qualify-dev-monitoring"
+  }
+}
+output "monitoring_public_ip" {
+  description = "monitoring"
+  value       = aws_instance.monitoring.public_ip
+}
+
 
 ### Contestant VM (3 * N 台)
 

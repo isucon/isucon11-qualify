@@ -1,4 +1,9 @@
 ---
+- name: "roles/bench/tasks/bench: Run assets gen"
+  environment:
+    PATH: "/home/isucon/local/go/bin:{{ ansible_env.PATH }}"
+  shell: go generate /tmp/isucon11-qualify/bench/gen/assets.go
+
 - name: "roles/bench/tasks/bench: Deploy isucon11-qualify bench"
   become_user: isucon
   copy:

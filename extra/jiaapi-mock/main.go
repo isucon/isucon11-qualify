@@ -24,7 +24,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	catalogController := controller.CatalogController{}
 	activationController := controller.NewActivationController()
 
 	// Echo instance
@@ -40,7 +39,6 @@ func main() {
 	e.GET("/", func(ctx echo.Context) error { return ctx.Blob(200, "text/html; charset=utf-8", htmlTopPage) })
 	// APIs
 	e.POST("/api/auth", authController.PostAuth)
-	e.GET("/api/catalog/:catalog_id", catalogController.GetCatalog)
 	e.POST("/api/activate", activationController.PostActivate)
 	e.POST("/api/die", func(ctx echo.Context) error {
 		input := &struct {

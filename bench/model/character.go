@@ -6,24 +6,24 @@ import (
 	"github.com/isucon/isucon11-qualify/bench/random"
 )
 
-type IsuCharacter string
+type IsuCharacterID int
 
-func NewIsuCharacter(character string) (IsuCharacter, error) {
+func NewIsuCharacter(character string) (IsuCharacterID, error) {
 	expected := random.CharacterData
 
 	// contains check
-	for _, v := range expected {
+	for id, v := range expected {
 		if character == v {
-			return IsuCharacter(character), nil
+			return IsuCharacterID(id), nil
 		}
 	}
-	return "", fmt.Errorf("性格が正しくありません")
+	return -1, fmt.Errorf("性格が正しくありません")
 }
 
-type IsuCharacterSet []IsuCharacter
+type IsuCharacterSet []IsuCharacterID
 
 // 重複チェック & append
-func (cs IsuCharacterSet) Append(newCharacter IsuCharacter) IsuCharacterSet {
+func (cs IsuCharacterSet) Append(newCharacter IsuCharacterID) IsuCharacterSet {
 	var flag bool
 	for _, c := range cs {
 		if c == newCharacter {

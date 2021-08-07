@@ -35,7 +35,7 @@ func NewCondition(isu Isu) Condition {
 		isDirty,
 		isOverweigh,
 		isBroken,
-		random.MessageWithCondition(isSitting, isDirty, isOverweigh, isBroken, isu.Character),
+		random.MessageWithCondition(isDirty, isOverweigh, isBroken, isu.CharacterId),
 		t,
 	}
 }
