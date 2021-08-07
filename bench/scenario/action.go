@@ -581,7 +581,6 @@ func getTrendAction(ctx context.Context, a *agent.Agent) (service.GetTrendRespon
 }
 
 func browserGetHomeAction(ctx context.Context, a *agent.Agent,
-	virtualNowUnix int64,
 	allowNotModified bool,
 	validateIsu func(*http.Response, []*service.Isu) []error,
 ) ([]*service.Isu, []error) {
