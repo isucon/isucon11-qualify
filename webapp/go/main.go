@@ -410,7 +410,7 @@ func postSignout(c echo.Context) error {
 			return c.String(http.StatusUnauthorized, "you are not signed in")
 		}
 
-		c.Logger().Errorf("failed to getUserIDFromSession: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -437,7 +437,7 @@ func getMe(c echo.Context) error {
 			return c.String(http.StatusUnauthorized, "you are not signed in")
 		}
 
-		c.Logger().Errorf("failed to getUserIDFromSession: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -454,7 +454,7 @@ func getIsuList(c echo.Context) error {
 			return c.String(http.StatusUnauthorized, "you are not signed in")
 		}
 
-		c.Logger().Errorf("failed to getUserIDFromSession: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -536,7 +536,7 @@ func postIsu(c echo.Context) error {
 			return c.String(http.StatusUnauthorized, "you are not signed in")
 		}
 
-		c.Logger().Errorf("failed to getUserIDFromSession: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -670,7 +670,7 @@ func getIsu(c echo.Context) error {
 			return c.String(http.StatusUnauthorized, "you are not signed in")
 		}
 
-		c.Logger().Errorf("failed to getUserIDFromSession: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -704,7 +704,7 @@ func getIsuIcon(c echo.Context) error {
 			return c.String(http.StatusUnauthorized, "you are not signed in")
 		}
 
-		c.Logger().Errorf("failed to getUserIDFromSession: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -738,7 +738,7 @@ func getIsuGraph(c echo.Context) error {
 			return c.String(http.StatusUnauthorized, "you are not signed in")
 		}
 
-		c.Logger().Errorf("failed to getUserIDFromSession: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -954,7 +954,7 @@ func getIsuConditions(c echo.Context) error {
 			return c.String(http.StatusUnauthorized, "you are not signed in")
 		}
 
-		c.Logger().Errorf("failed to getUserIDFromSession: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
