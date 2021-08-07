@@ -24,19 +24,15 @@ type User struct {
 	Agent *agent.Agent
 }
 
-func NewRandomUserRaw(userType UserType) (*User, error) {
+func NewRandomUserRaw(userType UserType, isIsuconUser bool) (*User, error) {
+	var id string
+	if isIsuconUser {
+		id = "isucon"
+	} else {
+		id = random.UserName()
+	}
 	return &User{
-		UserID:                  random.UserName(),
-		Type:                    userType,
-		IsuListOrderByCreatedAt: []*Isu{},
-		IsuListByID:             map[string]*Isu{},
-		Agent:                   nil,
-	}, nil
-}
-
-func NewIsuconUserRaw(userType UserType) (*User, error) {
-	return &User{
-		UserID:                  "isucon",
+		UserID:                  id,
 		Type:                    userType,
 		IsuListOrderByCreatedAt: []*Isu{},
 		IsuListByID:             map[string]*Isu{},

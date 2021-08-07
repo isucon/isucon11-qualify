@@ -115,7 +115,7 @@ func (s *Scenario) userAdder(ctx context.Context, step *isucandar.BenchmarkStep)
 	}
 }
 
-func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User) {
+func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.BenchmarkStep, isIsuconUser bool) {
 	atomic.AddInt32(&userLoopCount, 1)
 
 	userTimer, userTimerCancel := context.WithDeadline(ctx, s.realTimeLoadFinishedAt.Add(-agent.DefaultRequestTimeout))
@@ -129,6 +129,14 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 	}
 	// logger.AdminLogger.Println("Normal User start")
 	// defer logger.AdminLogger.Println("Normal User END")
+
+	user := s.initNormalUser(ctx, step, isIsuconUser)
+	if user == nil {
+		return
+	}
+	defer user.CloseAllIsuStateChan()
+
+	step.AddScore(ScoreNormalUserInitialize)
 
 	readConditionCount := ReadConditionCount{Info: 0, Warn: 0, Critical: 0}
 	defer func() {
@@ -278,14 +286,14 @@ func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep
 	}
 }
 
-// ユーザーの作成
-func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.BenchmarkStep) *model.User {
+// ユーザーとISUの作成
+func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.BenchmarkStep, isIsuconUser bool) *model.User {
 	//ユーザー作成
 	userAgent, err := s.NewAgent()
 	if err != nil {
 		logger.AdminLogger.Panicln(err)
 	}
-	user := s.NewUser(ctx, step, userAgent, model.UserTypeNormal)
+	user := s.NewUser(ctx, step, userAgent, model.UserTypeNormal, isIsuconUser)
 	if user == nil {
 		//logger.AdminLogger.Println("Normal User fail: NewUser")
 		return nil //致命的でないエラー
@@ -296,32 +304,6 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 		s.normalUsers = append(s.normalUsers, user)
 	}()
 
-	return user
-}
-
-// isucon ユーザーの作成
-func (s *Scenario) initIsuconUser(ctx context.Context, step *isucandar.BenchmarkStep) *model.User {
-	//ユーザー作成
-	userAgent, err := s.NewAgent()
-	if err != nil {
-		logger.AdminLogger.Panicln(err)
-	}
-	user := s.NewIsuconUser(ctx, step, userAgent, model.UserTypeNormal)
-	if user == nil {
-		//logger.AdminLogger.Println("Normal User fail: NewUser")
-		return nil //致命的でないエラー
-	}
-	func() {
-		s.normalUsersMtx.Lock()
-		defer s.normalUsersMtx.Unlock()
-		s.normalUsers = append(s.normalUsers, user)
-	}()
-
-	return user
-}
-
-//ユーザーのISUの作成
-func (s *Scenario) initNormalUserIsu(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User) *model.User {
 	//椅子作成
 	// TODO: 実際に解いてみてこの isu 数の上限がいい感じに働いているか検証する
 	const isuCountMax = 15

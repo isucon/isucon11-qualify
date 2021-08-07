@@ -98,20 +98,7 @@ func (s *Scenario) AddNormalUser(ctx context.Context, step *isucandar.BenchmarkS
 	for i := 0; i < count; i++ {
 		go func(ctx context.Context, step *isucandar.BenchmarkStep) {
 			defer s.loadWaitGroup.Done()
-
-			user := s.initNormalUser(ctx, step)
-			if user == nil {
-				return
-			}
-			user = s.initNormalUserIsu(ctx, step, user)
-			if user == nil {
-				return
-			}
-			defer user.CloseAllIsuStateChan()
-
-			step.AddScore(ScoreNormalUserInitialize)
-
-			s.loadNormalUser(ctx, step, user)
+			s.loadNormalUser(ctx, step, false)
 		}(ctx, step)
 	}
 }
@@ -121,20 +108,7 @@ func (s *Scenario) AddIsuconUser(ctx context.Context, step *isucandar.BenchmarkS
 	s.loadWaitGroup.Add(1)
 	go func(ctx context.Context, step *isucandar.BenchmarkStep) {
 		defer s.loadWaitGroup.Done()
-
-		user := s.initIsuconUser(ctx, step)
-		if user == nil {
-			return
-		}
-		user = s.initNormalUserIsu(ctx, step, user)
-		if user == nil {
-			return
-		}
-		defer user.CloseAllIsuStateChan()
-
-		step.AddScore(ScoreNormalUserInitialize)
-
-		s.loadNormalUser(ctx, step, user)
+		s.loadNormalUser(ctx, step, true)
 	}(ctx, step)
 }
 
@@ -155,31 +129,8 @@ func (s *Scenario) AddViewer(ctx context.Context, step *isucandar.BenchmarkStep,
 
 //新しい登録済みUserの生成
 //失敗したらnilを返す
-func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a *agent.Agent, userType model.UserType) *model.User {
-	user, err := model.NewRandomUserRaw(userType)
-	if err != nil {
-		logger.AdminLogger.Panic(err)
-		return nil
-	}
-
-	//backendにpostする
-	//TODO: 確率で失敗してリトライする
-	_, errs := authAction(ctx, a, user.UserID)
-	for _, err := range errs {
-		addErrorWithContext(ctx, step, err)
-	}
-	if len(errs) > 0 {
-		return nil
-	}
-	user.Agent = a
-
-	return user
-}
-
-//　isucon Userの生成
-//　失敗したらnilを返す
-func (s *Scenario) NewIsuconUser(ctx context.Context, step *isucandar.BenchmarkStep, a *agent.Agent, userType model.UserType) *model.User {
-	user, err := model.NewIsuconUserRaw(userType)
+func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a *agent.Agent, userType model.UserType, isIsuconUser bool) *model.User {
+	user, err := model.NewRandomUserRaw(userType, isIsuconUser)
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 		return nil
