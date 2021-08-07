@@ -98,9 +98,32 @@ func (s *Scenario) AddNormalUser(ctx context.Context, step *isucandar.BenchmarkS
 	for i := 0; i < count; i++ {
 		go func(ctx context.Context, step *isucandar.BenchmarkStep) {
 			defer s.loadWaitGroup.Done()
-			s.loadNormalUser(ctx, step)
+
+			user := s.initNormalUser(ctx, step)
+			if user == nil {
+				return
+			}
+			defer user.CloseAllIsuStateChan()
+
+			s.loadNormalUser(ctx, step, user)
 		}(ctx, step)
 	}
+}
+
+// load 中に name が isucon なユーザーを特別に走らせるようにする
+func (s *Scenario) AddIsuconUser(ctx context.Context, step *isucandar.BenchmarkStep) {
+	s.loadWaitGroup.Add(1)
+	go func(ctx context.Context, step *isucandar.BenchmarkStep) {
+		defer s.loadWaitGroup.Done()
+
+		user := s.initNormalUser(ctx, step)
+		if user == nil {
+			return
+		}
+		defer user.CloseAllIsuStateChan()
+
+		s.loadNormalUser(ctx, step, user)
+	}(ctx, step)
 }
 
 //load用

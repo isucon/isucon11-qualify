@@ -114,7 +114,7 @@ func (s *Scenario) userAdder(ctx context.Context, step *isucandar.BenchmarkStep)
 	}
 }
 
-func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.BenchmarkStep) {
+func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User) {
 	atomic.AddInt32(&userLoopCount, 1)
 
 	userTimer, userTimerCancel := context.WithDeadline(ctx, s.realTimeLoadFinishedAt.Add(-agent.DefaultRequestTimeout))
@@ -128,12 +128,6 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 	}
 	// logger.AdminLogger.Println("Normal User start")
 	// defer logger.AdminLogger.Println("Normal User END")
-
-	user := s.initNormalUser(ctx, step)
-	if user == nil {
-		return
-	}
-	defer user.CloseAllIsuStateChan()
 
 	readConditionCount := ReadConditionCount{Info: 0, Warn: 0, Critical: 0}
 	defer func() {
