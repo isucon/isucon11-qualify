@@ -388,7 +388,7 @@ func postAuthentication(c echo.Context) error {
 
 	session, err := getSession(c.Request())
 	if err != nil {
-		c.Logger().Errorf("failed to get session: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -416,7 +416,7 @@ func postSignout(c echo.Context) error {
 
 	session, err := getSession(c.Request())
 	if err != nil {
-		c.Logger().Errorf("failed to get session: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
