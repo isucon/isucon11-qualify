@@ -7,18 +7,12 @@
   variables: {
     revision: 'unknown',
     name: 'isucon11q-' + $.arg_arch + '-' + $.arg_variant + '-{{isotime "20060102-1504"}}-{{user "revision"}}',
-    aws_access_key: "{{env `AWS_ACCESS_KEY_ID`}}",
-    aws_secret_key: "{{env `AWS_SECRET_ACCESS_KEY`}}",
-    aws_session_token: "{{env `AWS_SESSION_TOKEN`}}",
     git_tag: "{{env `GIT_TAG`}}",
   },
 
   builder_ec2:: {
     type: 'amazon-ebs',
 
-    access_key: "{{user `aws_access_key`}}",
-    secret_key: "{{user `aws_secret_key`}}",
-    token: "{{user `aws_session_token`}}",
     region: 'ap-northeast-1',
 
     source_ami_filter: {
@@ -139,6 +133,7 @@
         'sudo cp /dev/shm/files-generated/REVISION /etc/',
         'sudo mv /dev/shm/files-generated/isucon11-qualify.tar /dev/shm/ansible/roles/common/files/',
         'sudo mv /dev/shm/files-generated/initial-data.sql /dev/shm/ansible/roles/contestant/files/',
+        'sudo mv /dev/shm/files-generated/initialize.json /dev/shm/ansible/roles/bench/files/',
         'sudo echo "[target]\n127.0.0.1" >> /dev/shm/ansible/hosts',
         'sudo ssh-keygen -f /root/.ssh/id_rsa -t rsa -N ""',
         'sudo su -c "cat /root/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys"',
@@ -148,7 +143,7 @@
     run_ansible: {
       type: 'shell',
       inline: [
-        '( cd /dev/shm/ansible && sudo ansible-playbook -u root -i hosts -t aws -t ' + $.arg_variant + ' site.yml )',
+        '( cd /dev/shm/ansible && sudo ansible-playbook -u root -i ' + $.arg_variant + '.hosts -t aws -t ' + $.arg_variant + ' site.yml )',
       ],
     },
     remove_ansible: {
@@ -157,7 +152,7 @@
         'sudo apt remove -y ansible',
         'sudo apt-add-repository -y --remove ppa:ansible/ansible',
         'sudo rm -rf /etc/ansible',
-        'sudo rm -f /root/.ssh/*',
+        'sudo su -c "rm -rf /root/.ssh/*"',
       ],
     },
 

@@ -1,11 +1,8 @@
-import { BrowserRouter, Switch, Route } from 'react-router-dom'
+import { BrowserRouter, Switch } from 'react-router-dom'
 import PageHeader from './components/PageHeader/PageHeader'
-import Auth from './pages/Auth'
-import Condition from './pages/Condition'
 import Home from './pages/Home'
 import IsuRoot from './pages/IsuRoot'
 import Register from './pages/Register'
-import Search from './pages/Search'
 import GuardedRoute from './router/GuardedRoute'
 
 const App = () => {
@@ -18,21 +15,12 @@ const App = () => {
             <GuardedRoute path="/" exact>
               <Home />
             </GuardedRoute>
-            <GuardedRoute path="/condition" exact>
-              <Condition />
-            </GuardedRoute>
-            <GuardedRoute path="/search" exact>
-              <Search />
-            </GuardedRoute>
             <GuardedRoute path="/isu/:id">
               <IsuRoot />
             </GuardedRoute>
             <GuardedRoute path="/register" exact>
               <Register />
             </GuardedRoute>
-            <Route path="/login">
-              <Auth />
-            </Route>
           </Switch>
         </div>
       </BrowserRouter>

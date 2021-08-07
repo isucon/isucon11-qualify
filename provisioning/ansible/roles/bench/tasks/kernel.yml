@@ -1,13 +1,15 @@
 ---
 - name: "roles/bench/tasks/kernel: Increase file limits for sysctl"
   copy:
-    dest: /etc/sysctl.d/50-fs.conf
+    dest: /etc/sysctl.d/99-isucon.conf
     content: |
-      fs.file-max=655360
-
-- name: "roles/bench/tasks/kernel: Tune up network"
-  become: yes
-  copy:
-    dest: /etc/sysctl.d/92-net.conf
-    content: |
+      # Increase file limits
+      fs.file-max=1048576
+      # Tune up network
       net.core.somaxconn=65535
+      net.core.rmem_max=16777216
+      net.core.wmem_max=16777216
+      net.ipv4.tcp_rmem=4096 87380 16777216
+      net.ipv4.tcp_wmem=4096 65536 16777216
+      net.ipv4.tcp_tw_reuse=1
+      net.ipv4.tcp_fin_timeout=10

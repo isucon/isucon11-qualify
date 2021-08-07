@@ -10,18 +10,21 @@ services:
       MYSQL_DATABASE: isucondition
       MYSQL_USER: isucon
       MYSQL_PASSWORD: isucon
-      ISU_CONDITION_IP: backend
+      SERVER_PUBLIC_ADDRESS: backend
+      SERVER_PUBLIC_PORT: 3000
     ports:
       - "3000:3000"
     volumes:
       - "../webapp/ec256-public.pem:/webapp/ec256-public.pem"
-      - "../webapp/NoImage.png:/webapp/NoImage.png"
+      - "../webapp/NoImage.jpg:/webapp/NoImage.jpg"
       - "../webapp/sql:/webapp/sql"
     depends_on:
       - mysql-backend
 
   mysql-backend:
-    image: mariadb:10.6.2-focal
+    build:
+      context: .
+      dockerfile: mysql-backend/Dockerfile
     restart: always
     environment:
       MYSQL_DATABASE: isucondition
@@ -46,6 +49,7 @@ services:
     volumes:
       - "../bench/images:/images"
       - "../bench/key:/key"
+      - "../bench/data:/data"
     depends_on:
       - mysql-backend
       - backend

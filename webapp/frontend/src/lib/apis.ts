@@ -1,91 +1,139 @@
-import axios from 'axios'
+import axios, { AxiosRequestConfig } from 'axios'
+import { dateToTimestamp, timestampToDate } from './date'
 
 class Apis {
-  async postAuth(jwt: string) {
+  async postAuth(jwt: string, axiosConfig?: AxiosRequestConfig) {
     await axios.post<void>(
       '/api/auth',
       {},
       {
-        headers: { Authorization: `Bearer ${jwt}` }
+        headers: { Authorization: `Bearer ${jwt}` },
+        ...axiosConfig
       }
     )
   }
 
-  async postSignout() {
-    await axios.post<void>('/api/signout')
+  async postSignout(axiosConfig?: AxiosRequestConfig) {
+    await axios.post<void>('/api/signout', axiosConfig)
   }
 
-  async getUserMe() {
-    const { data } = await axios.get<User>('/api/user/me')
+  async getUserMe(axiosConfig?: AxiosRequestConfig) {
+    const { data } = await axios.get<User>('/api/user/me', axiosConfig)
     return data
   }
 
-  async getCatalog(catalogId: string) {
-    const { data } = await axios.get<Catalog>(`/api/catalog/${catalogId}`)
-    return data
-  }
-
-  async getIsus(options?: { limit: number }) {
-    const { data } = await axios.get<Isu[]>(`/api/isu`, { params: options })
-    return data
-  }
-
-  async postIsu(isu: { jia_isu_uuid: string; isu_name: string }) {
-    await axios.post<void>(`/api/isu`, isu)
-  }
-
-  async getIsuSearch(option?: IsuSearchRequest) {
-    const { data } = await axios.get<Isu[]>(`/api/isu/search`, {
-      params: option
+  async getIsus(options?: { limit: number }, axiosConfig?: AxiosRequestConfig) {
+    const { data } = await axios.get<ApiGetIsuListResponse[]>(`/api/isu`, {
+      params: options,
+      ...axiosConfig
     })
-    return data
+    const res: GetIsuListResponse[] = []
+    for (const v of data) {
+      res.push({
+        ...v,
+        latest_isu_condition: v.latest_isu_condition
+          ? {
+              ...v.latest_isu_condition,
+              date: timestampToDate(v.latest_isu_condition.timestamp)
+            }
+          : null
+      })
+    }
+    return res
   }
 
-  async getIsu(jiaIsuUuid: string) {
-    const { data } = await axios.get<Isu>(`/api/isu/${jiaIsuUuid}`)
-    return data
-  }
-
-  async putIsu(jiaIsuUuid: string, putIsuRequest: PutIsuRequest) {
-    const { data } = await axios.put<Isu>(
-      `/api/isu/${jiaIsuUuid}`,
-      putIsuRequest
-    )
-    return data
-  }
-
-  async deleteIsu(jiaIsuUuid: string) {
-    await axios.delete<Isu>(`/api/isu/${jiaIsuUuid}`)
-  }
-
-  async putIsuIcon(jiaIsuUuid: string, file: File) {
+  async postIsu(req: PostIsuRequest, axiosConfig?: AxiosRequestConfig) {
     const data = new FormData()
-    data.append('image', file, file.name)
-    await axios.put<void>(`/api/isu/${jiaIsuUuid}/icon`, data, {
-      headers: { 'content-type': 'multipart/form-data' }
+    data.append('jia_isu_uuid', req.jia_isu_uuid)
+    data.append('isu_name', req.isu_name)
+    if (req.image) {
+      data.append('image', req.image, req.image.name)
+    }
+    await axios.post<void>(`/api/isu`, data, {
+      headers: { 'content-type': 'multipart/form-data' },
+      ...axiosConfig
     })
   }
 
-  async getIsuGraphs(jiaIsuUuid: string, params: GraphRequest) {
-    const { data } = await axios.get<Graph[]>(`/api/isu/${jiaIsuUuid}/graph`, {
-      params
-    })
+  async getIsu(jiaIsuUuid: string, axiosConfig?: AxiosRequestConfig) {
+    const { data } = await axios.get<Isu>(`/api/isu/${jiaIsuUuid}`, axiosConfig)
     return data
   }
 
-  async getConditions(req: ConditionRequest) {
-    const { data } = await axios.get<Condition[]>(`/api/condition`, {
-      params: req
-    })
-    return data
+  async deleteIsu(jiaIsuUuid: string, axiosConfig?: AxiosRequestConfig) {
+    await axios.delete<Isu>(`/api/isu/${jiaIsuUuid}`, axiosConfig)
   }
 
-  async getIsuConditions(jiaIsuUuid: string, params: ConditionRequest) {
-    const { data } = await axios.get<Condition[]>(
-      `/api/condition/${jiaIsuUuid}`,
-      { params }
+  async getIsuGraphs(
+    jiaIsuUuid: string,
+    req: GraphRequest,
+    axiosConfig?: AxiosRequestConfig
+  ) {
+    const params: ApiGraphRequest = {
+      datetime: dateToTimestamp(req.date)
+    }
+    const { data } = await axios.get<ApiGraph[]>(
+      `/api/isu/${jiaIsuUuid}/graph`,
+      {
+        params,
+        ...axiosConfig
+      }
     )
-    return data
+
+    const graphs: Graph[] = []
+    data.forEach(apiGraph => {
+      graphs.push({
+        ...apiGraph,
+        start_at: timestampToDate(apiGraph.start_at),
+        end_at: timestampToDate(apiGraph.end_at)
+      })
+    })
+    return graphs
+  }
+
+  async getIsuConditions(
+    jiaIsuUuid: string,
+    req: ConditionRequest,
+    axiosConfig?: AxiosRequestConfig
+  ) {
+    const params: ApiConditionRequest = {
+      ...req,
+      start_time: req.start_time ? dateToTimestamp(req.start_time) : undefined,
+      end_time: dateToTimestamp(req.end_time)
+    }
+    const { data } = await axios.get<ApiCondition[]>(
+      `/api/condition/${jiaIsuUuid}`,
+      { params, ...axiosConfig }
+    )
+
+    const conditions: Condition[] = []
+    data.forEach(apiCondition => {
+      conditions.push({
+        ...apiCondition,
+        date: timestampToDate(apiCondition.timestamp)
+      })
+    })
+
+    return conditions
+  }
+
+  async getTrend(axiosConfig?: AxiosRequestConfig) {
+    const { data } = await axios.get<ApiTrendResponse>(`/api/trend`, {
+      ...axiosConfig
+    })
+
+    const trends: TrendResponse = []
+    data.forEach(trend => {
+      trends.push({
+        ...trend,
+        conditions: trend.conditions.map(v => ({
+          ...v,
+          date: timestampToDate(v.timestamp)
+        }))
+      })
+    })
+
+    return trends
   }
 }
 
@@ -99,59 +147,54 @@ export interface User {
 export interface Isu {
   jia_isu_uuid: string
   name: string
-  jia_catalog_id: string
   character: string
 }
 
-export interface Catalog {
-  jia_catalog_id: string
-  name: string
-  limit_weight: number
-  weight: number
-  size: string
-  maker: string
-  tags: string
+interface ApiGetIsuListResponse extends Isu {
+  latest_isu_condition: ApiCondition | null
 }
 
-export interface IsuLog {
-  jia_isu_uuid: string
-  timestamp: number
-  is_sitting: boolean
-  condition: string
-  message: string
-  created_at: string
+export interface GetIsuListResponse extends Isu {
+  latest_isu_condition: Condition | null
 }
 
 export interface GraphData {
   score: number
-  sitting: number
-  detail: { [key: string]: number }
+  percentage: ConditionPercentage
 }
 
-export interface Graph {
+export interface ConditionPercentage {
+  sitting: number
+  is_broken: number
+  is_dirty: number
+  is_overweight: number
+}
+
+interface ApiGraph {
   jia_isu_uuid: string
   start_at: number
   end_at: number
   data: GraphData | null
+  condition_timestamps: number[]
 }
 
-export interface IsuSearchRequest {
-  name?: string
-  charactor?: string
-  catalog_name?: string
-  min_limit_weight?: number
-  max_limit_weight?: number
-  catalog_tags?: string
-  page?: string
+export interface Graph {
+  jia_isu_uuid: string
+  start_at: Date
+  end_at: Date
+  data: GraphData | null
+  condition_timestamps: number[]
 }
 
 export const DEFAULT_SEARCH_LIMIT = 20
 
-export interface PutIsuRequest {
-  name: string
+export interface PostIsuRequest {
+  jia_isu_uuid: string
+  isu_name: string
+  image?: File
 }
 
-export interface Condition {
+interface ApiCondition {
   jia_isu_uuid: string
   isu_name: string
   timestamp: number
@@ -161,18 +204,62 @@ export interface Condition {
   message: string
 }
 
+export interface Condition {
+  jia_isu_uuid: string
+  isu_name: string
+  date: Date
+  is_sitting: boolean
+  condition: string
+  condition_level: ConditionLevel
+  message: string
+}
+
 type ConditionLevel = 'info' | 'warning' | 'critical'
 
-export interface ConditionRequest {
+interface ApiConditionRequest {
   start_time?: number
-  cursor_end_time: number
-  cursor_jia_isu_uuid: string
+  end_time: number
   // critical,warning,info をカンマ区切りで取り扱う
   condition_level: string
 }
 
+export interface ConditionRequest {
+  start_time?: Date
+  end_time: Date
+  // critical,warning,info をカンマ区切りで取り扱う
+  condition_level: string
+}
+
+interface ApiGraphRequest {
+  datetime: number
+}
+
 export interface GraphRequest {
-  date: number
+  date: Date
 }
 
 export const DEFAULT_CONDITION_LIMIT = 20
+
+interface ApiTrendResponseElement {
+  character: string
+  conditions: {
+    isu_id: number
+    condition_level: 'critical' | 'warning' | 'info'
+    timestamp: number
+  }[]
+}
+
+type ApiTrendResponse = ApiTrendResponseElement[]
+
+export interface Trend {
+  character: string
+  conditions: TrendCondition[]
+}
+
+export interface TrendCondition {
+  isu_id: number
+  condition_level: 'critical' | 'warning' | 'info'
+  date: Date
+}
+
+export type TrendResponse = Trend[]

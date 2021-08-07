@@ -50,6 +50,7 @@ func isCritical(err error) bool {
 }
 
 var (
+	ErrChecksum           failure.StringCode = "check-sum"
 	ErrInvalidStatusCode  failure.StringCode = "status code"
 	ErrInvalidContentType failure.StringCode = "content type"
 	ErrInvalidJSON        failure.StringCode = "json"
@@ -78,7 +79,8 @@ func isTimeout(err error) bool {
 			return true
 		}
 	}
-	if failure.Is(err, context.DeadlineExceeded) {
+	if failure.Is(err, context.DeadlineExceeded) ||
+		failure.Is(err, context.Canceled) {
 		return true
 	}
 	return failure.IsCode(err, failure.TimeoutErrorCode)
@@ -123,6 +125,9 @@ func errorInvalid(res *http.Response, message string, args ...interface{}) error
 	return failure.NewError(ErrInvalid, fmt.Errorf(message+": %d (%s: %s)", args...))
 }
 
+func errorCheckSum(message string, args ...interface{}) error {
+	return failure.NewError(ErrChecksum, fmt.Errorf(message, args...))
+}
 func errorBadResponse(res *http.Response, message string, args ...interface{}) error {
 	args = append(args, res.StatusCode, res.Request.Method, res.Request.URL.Path)
 	return failure.NewError(ErrBadResponse, fmt.Errorf(message+": %d (%s: %s)", args...))

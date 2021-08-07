@@ -17,6 +17,10 @@ RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSI
 
 ### runner
 FROM alpine:3.13 AS runner
+RUN apk add tzdata && \
+    cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime && \
+    echo "Asia/Tokyo" > /etc/timezone && \
+    apk del tzdata
 WORKDIR /
 ARG app app
 COPY --from=builder01 /workdir/bench/bench ./

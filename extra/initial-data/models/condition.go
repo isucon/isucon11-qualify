@@ -17,9 +17,16 @@ type Condition struct {
 	Message      string
 	CreatedAt    time.Time
 }
+type ConditionLevel int
+
+const (
+	ConditionLevelInfo     ConditionLevel = 1
+	ConditionLevelWarning  ConditionLevel = 2
+	ConditionLevelCritical ConditionLevel = 4
+)
 
 func NewCondition(isu Isu) Condition {
-	t := random.TimeAfterArg(isu.CreatedAt)
+	t := isu.CreatedAt.Add(time.Minute) // 初回 condition は ISU が作成された時間 + 1分後
 	isSitting, isDirty, isOverweigh, isBroken := random.Condition()
 	return Condition{
 		isu,
@@ -28,14 +35,14 @@ func NewCondition(isu Isu) Condition {
 		isDirty,
 		isOverweigh,
 		isBroken,
-		random.MessageWithCondition(isSitting, isDirty, isOverweigh, isBroken, isu.Character),
+		random.MessageWithCondition(isDirty, isOverweigh, isBroken, isu.Character),
 		t,
 	}
 }
 
 // MEMO: random.baseTime を超えた時間が入る可能性がある
 func NewConditionFromLastCondition(c Condition, durationMinute int) Condition {
-	c.Timestamp = c.Timestamp.Add(time.Duration(durationMinute) * time.Minute)
+	c.Timestamp = c.Timestamp.Add(time.Duration(durationMinute) * time.Minute) // 前回 condition を送信した時間の durationMinute 後
 	c.CreatedAt = c.Timestamp
 	c.IsSitting = random.IsSittingFromLastCondition(c.IsSitting)
 	c.IsDirty = random.IsDirtyFromLastCondition(c.IsDirty)
@@ -54,4 +61,24 @@ func (c Condition) Create() error {
 	}
 
 	return nil
+}
+
+func (c Condition) ConditionLevel() ConditionLevel {
+	warnCount := 0
+	if c.IsDirty {
+		warnCount += 1
+	}
+	if c.IsOverweight {
+		warnCount += 1
+	}
+	if c.IsBroken {
+		warnCount += 1
+	}
+	if warnCount == 0 {
+		return ConditionLevelInfo
+	} else if warnCount == 1 || warnCount == 2 {
+		return ConditionLevelWarning
+	} else {
+		return ConditionLevelCritical
+	}
 }

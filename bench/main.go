@@ -7,6 +7,8 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"net/http"
+	"net/url"
 	"os"
 	"runtime/pprof"
 	"strings"
@@ -38,7 +40,7 @@ var (
 	targetAddress      string
 	profileFile        string
 	hostAdvertise      string
-	jiaServiceURL      string
+	jiaServiceURL      *url.URL
 	tlsCertificatePath string
 	tlsKeyPath         string
 	useTLS             bool
@@ -66,6 +68,10 @@ func init() {
 		panic(err)
 	}
 
+	// https://github.com/golang/go/issues/16012#issuecomment-224948823
+	// "connect: cannot assign requested address" 対策
+	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = 100
+
 	agent.DefaultTLSConfig.ClientCAs = certs
 	agent.DefaultTLSConfig.ClientAuth = tls.RequireAndVerifyClientCert
 	agent.DefaultTLSConfig.MinVersion = tls.VersionTLS12
@@ -73,33 +79,35 @@ func init() {
 
 	flag.StringVar(&targetAddress, "target", benchrun.GetTargetAddress(), "ex: localhost:9292")
 	flag.StringVar(&profileFile, "profile", "", "ex: cpu.out")
-	flag.StringVar(&hostAdvertise, "host-advertise", "local.t.isucon.dev", "hostname to advertise against target")
-	flag.StringVar(&jiaServiceURL, "jia-service-url", "http://apitest:80", "jia service url")
-	flag.StringVar(&tlsCertificatePath, "tls-cert", "../secrets/cert.pem", "path to TLS certificate for a push service")
-	flag.StringVar(&tlsKeyPath, "tls-key", "../secrets/key.pem", "path to private key of TLS certificate for a push service")
 	flag.BoolVar(&exitStatusOnFail, "exit-status", false, "set exit status non-zero when a benchmark result is failing")
 	flag.BoolVar(&noLoad, "no-load", false, "exit on finished prepare")
 	flag.StringVar(&promOut, "prom-out", "", "Prometheus textfile output path")
 	flag.BoolVar(&showVersion, "version", false, "show version and exit 1")
 
-	timeoutDuration := ""
-	initializeTimeoutDuration := ""
-	flag.StringVar(&timeoutDuration, "timeout", "10s", "request timeout duration")
+	var jiaServiceURLStr, timeoutDuration, initializeTimeoutDuration string
+	flag.StringVar(&jiaServiceURLStr, "jia-service-url", getEnv("JIA_SERVICE_URL", "http://apitest:5000"), "jia service url")
+	flag.StringVar(&timeoutDuration, "timeout", "1s", "request timeout duration")
 	flag.StringVar(&initializeTimeoutDuration, "initialize-timeout", "20s", "request timeout duration of POST /initialize")
 
 	flag.Parse()
 
+	// validate jia-service-url
+	jiaServiceURL, err = url.Parse(jiaServiceURLStr)
+	if err != nil {
+		panic(err)
+	}
+	// validate timeout
 	timeout, err := time.ParseDuration(timeoutDuration)
 	if err != nil {
 		panic(err)
 	}
 	agent.DefaultRequestTimeout = timeout
 
+	// validate initialize-timeout
 	initializeTimeout, err = time.ParseDuration(initializeTimeoutDuration)
 	if err != nil {
 		panic(err)
 	}
-
 }
 
 func checkError(err error) (critical bool, timeout bool, deduction bool) {
@@ -116,7 +124,11 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 	timeoutCount := int64(0)
 
 	for tag, count := range result.Score.Breakdown() {
-		logger.AdminLogger.Printf("SCORE: %s: %d", tag, count)
+		if finish {
+			logger.ContestantLogger.Printf("SCORE: %s: %d", tag, count)
+		} else {
+			logger.AdminLogger.Printf("SCORE: %s: %d", tag, count)
+		}
 	}
 
 	for _, err := range errors {
@@ -148,6 +160,10 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 	if passed && !s.NoLoad && score <= 0 {
 		passed = false
 		reason = "Score"
+	}
+
+	if !passed {
+		score = 0
 	}
 
 	logger.ContestantLogger.Printf("score: %d(%d - %d) : %s", score, scoreRaw, deductionTotal, reason)
@@ -240,12 +256,12 @@ func main() {
 
 	errorCount := int64(0)
 	b.OnError(func(err error, step *isucandar.BenchmarkStep) {
+		critical, timeout, deduction := checkError(err)
+
 		// Load 中の timeout のみログから除外
-		if failure.IsCode(err, failure.TimeoutErrorCode) && failure.IsCode(err, isucandar.ErrLoad) {
+		if timeout && failure.IsCode(err, isucandar.ErrLoad) {
 			return
 		}
-
-		critical, _, deduction := checkError(err)
 
 		if critical || (deduction && atomic.AddInt64(&errorCount, 1) > FAIL_ERROR_COUNT) {
 			step.Cancel()
@@ -257,14 +273,35 @@ func main() {
 	b.AddScenario(s)
 
 	wg := sync.WaitGroup{}
-	wg.Add(1)
 	b.Load(func(parent context.Context, step *isucandar.BenchmarkStep) error {
+		//このWaitGroupで、sendResult(,,true)が呼ばれた後sendResult(,,false)が呼ばれないことを保証する
+		//isucandarのparallelはcontextが終了した場合に、スレッドの終了を待たずにWaitを終了する
+		//そこで、wg.Done()が呼ばれsendResult(,,false)の送信を終了した後に、sendResult(,,true)の処理に移る
+		//
+		//コーナーケースとして、wg.Add(1)する前にb.Start(ctx)が終了しwg.Wait()を突破する可能性がある（loadの開始直後にCriticalErrorの場合など）
+		//その場合でも、この関数はctx.Done()を検出して早期returnすることでsendResult(,,false)を実行しないため、保証できている
+		//
+		//補足：
+		//　wg.Addをgoroutine内で呼ぶとこのコーナーケースを引き起こすので一般にはgoroutine生成直前にAddするべき
+		//　今回は生成直前がisucandar内にあり、そのタイミングでのAddが出来ないためここに記述
+		//　b.Startの前にAddする実装も考えたが、Prepareフェーズでstep.Cancel()された場合に、
+		//　Load自体がスキップされwg.Doneが実行されずにデッドロックを起こしたためボツ
+		wg.Add(1)
 		defer wg.Done()
 		if s.NoLoad {
 			return nil
 		}
+
 		ctx, cancel := context.WithTimeout(parent, s.LoadTimeout)
 		defer cancel()
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+		}
+
+		// 初期実装だと fail してしまうため下駄をはかせる
+		step.AddScore(scenario.ScoreStartBenchmark)
 
 		for {
 			// 途中経過を3秒毎に送信

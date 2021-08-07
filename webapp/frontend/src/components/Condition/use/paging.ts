@@ -4,6 +4,7 @@ import {
   ConditionRequest,
   DEFAULT_CONDITION_LIMIT
 } from '../../../lib/apis'
+import { getNowDate } from '../../../lib/date'
 
 const usePaging = (
   getConditions: (req: ConditionRequest) => Promise<Condition[]>
@@ -13,9 +14,8 @@ const usePaging = (
     const fetchCondtions = async () => {
       setConditions(
         await getConditions({
-          cursor_end_time: Math.floor(new Date().getTime() / 1000),
+          end_time: getNowDate(),
           // 初回fetch時は'z'をセットすることで全件表示させてる
-          cursor_jia_isu_uuid: 'z',
           condition_level: 'critical,warning,info'
         })
       )
@@ -32,9 +32,7 @@ const usePaging = (
       cache[page] = conditions
       setCache(cache)
     }
-    const params = getNextRequestParams(
-      conditions[DEFAULT_CONDITION_LIMIT - 1].jia_isu_uuid
-    )
+    const params = getNextRequestParams()
     if (!params) {
       return
     }
@@ -65,44 +63,41 @@ const usePaging = (
       start_time = new Date(0)
     }
 
-    let cursor_end_time: Date
+    let end_time: Date
     if (payload.times[1]) {
       const date = validateTime(payload.times[1] + 'Z')
       if (date) {
-        cursor_end_time = date
+        end_time = date
       } else {
         alert('時間指定の上限が不正です')
         return
       }
     } else {
-      cursor_end_time = new Date()
+      end_time = getNowDate()
     }
 
     setQuery(payload.query)
     setTimes(payload.times)
 
     const params = {
-      start_time: Math.floor(start_time.getTime() / 1000),
-      cursor_end_time: Math.floor(cursor_end_time.getTime() / 1000),
-      condition_level: payload.query,
-      cursor_jia_isu_uuid: 'z'
+      start_time: start_time,
+      end_time: end_time,
+      condition_level: payload.query
     }
     setConditions(await getConditions(params))
     setPage(1)
     setCache([[]])
   }
 
-  // 初回fetch時はcursor_jia_isu_uuidに'z'をセットすることで全件表示させてる
-  const getNextRequestParams = (cursor_jia_isu_uuid = 'z') => {
+  const getNextRequestParams = () => {
     const start_time = times[0] ? new Date(times[0] + 'Z') : new Date(0)
-    const cursor_end_time = times[1]
+    const end_time = times[1]
       ? new Date(times[1] + 'Z')
-      : new Date(conditions[DEFAULT_CONDITION_LIMIT - 1].timestamp * 1000)
+      : conditions[DEFAULT_CONDITION_LIMIT - 1].date
 
     return {
-      cursor_end_time: Math.floor(cursor_end_time.getTime() / 1000),
-      start_time: Math.floor(start_time.getTime() / 1000),
-      cursor_jia_isu_uuid,
+      end_time: end_time,
+      start_time: start_time,
       condition_level: query
     }
   }
