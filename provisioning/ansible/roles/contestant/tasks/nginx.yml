@@ -5,6 +5,12 @@
     - nginx
     update_cache: yes
 
+- name: "roles/contestant/tasks/nginx: Mkdir for certificates"
+  file:
+    path: /etc/nginx/certificates
+    state: directory
+    mode: 0755
+
 - name: "roles/contestant/tasks/nginx: Deploy nginx configs"
   copy:
     src: "{{ item }}"
