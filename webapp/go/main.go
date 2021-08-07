@@ -277,14 +277,14 @@ func getSession(r *http.Request) (*sessions.Session, error) {
 	return session, nil
 }
 
-func getUserIDFromSession(c echo.Context) (string, error) {
+func getUserIDFromSession(c echo.Context) (string, int, error) {
 	session, err := getSession(c.Request())
 	if err != nil {
-		return "", err
+		return "", http.StatusInternalServerError, fmt.Errorf("failed to get session: %v", err)
 	}
 	_jiaUserID, ok := session.Values["jia_user_id"]
 	if !ok {
-		return "", fmt.Errorf("no session")
+		return "", http.StatusUnauthorized, fmt.Errorf("no session")
 	}
 
 	jiaUserID := _jiaUserID.(string)
@@ -293,14 +293,14 @@ func getUserIDFromSession(c echo.Context) (string, error) {
 	err = db.Get(&count, "SELECT COUNT(*) FROM `user` WHERE `jia_user_id` = ?",
 		jiaUserID)
 	if err != nil {
-		return "", err
+		return "", http.StatusInternalServerError, fmt.Errorf("db error: %v", err)
 	}
 
 	if count == 0 {
-		return "", fmt.Errorf("not found: user")
+		return "", http.StatusUnauthorized, fmt.Errorf("not found: user")
 	}
 
-	return jiaUserID, nil
+	return jiaUserID, 0, nil
 }
 
 func getJIAServiceURL(tx *sqlx.Tx) string {
@@ -313,15 +313,6 @@ func getJIAServiceURL(tx *sqlx.Tx) string {
 		return defaultJIAServiceURL
 	}
 	return config.URL
-}
-
-func getIndex(c echo.Context) error {
-	err := templates.ExecuteTemplate(c.Response().Writer, "index.html", struct{}{})
-	if err != nil {
-		c.Logger().Errorf("getIndex error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	return nil
 }
 
 func postInitialize(c echo.Context) error {
@@ -413,9 +404,14 @@ func postAuthentication(c echo.Context) error {
 
 //  POST /api/signout
 func postSignout(c echo.Context) error {
-	_, err := getUserIDFromSession(c)
+	_, errStatusCode, err := getUserIDFromSession(c)
 	if err != nil {
-		return c.String(http.StatusUnauthorized, "you are not signed in")
+		if errStatusCode == http.StatusUnauthorized {
+			return c.String(http.StatusUnauthorized, "you are not signed in")
+		}
+
+		c.Logger().Errorf("failed to getUserIDFromSession: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	session, err := getSession(c.Request())
@@ -435,9 +431,14 @@ func postSignout(c echo.Context) error {
 }
 
 func getMe(c echo.Context) error {
-	jiaUserID, err := getUserIDFromSession(c)
+	jiaUserID, errStatusCode, err := getUserIDFromSession(c)
 	if err != nil {
-		return c.String(http.StatusUnauthorized, "you are not signed in")
+		if errStatusCode == http.StatusUnauthorized {
+			return c.String(http.StatusUnauthorized, "you are not signed in")
+		}
+
+		c.Logger().Errorf("failed to getUserIDFromSession: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	res := GetMeResponse{JIAUserID: jiaUserID}
@@ -447,9 +448,14 @@ func getMe(c echo.Context) error {
 //  GET /api/isu
 // 自分のISUの一覧を取得
 func getIsuList(c echo.Context) error {
-	jiaUserID, err := getUserIDFromSession(c)
+	jiaUserID, errStatusCode, err := getUserIDFromSession(c)
 	if err != nil {
-		return c.String(http.StatusUnauthorized, "you are not signed in")
+		if errStatusCode == http.StatusUnauthorized {
+			return c.String(http.StatusUnauthorized, "you are not signed in")
+		}
+
+		c.Logger().Errorf("failed to getUserIDFromSession: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	tx, err := db.Beginx()
@@ -524,9 +530,14 @@ func getIsuList(c echo.Context) error {
 //  POST /api/isu
 // 自分のISUの登録
 func postIsu(c echo.Context) error {
-	jiaUserID, err := getUserIDFromSession(c)
+	jiaUserID, errStatusCode, err := getUserIDFromSession(c)
 	if err != nil {
-		return c.String(http.StatusUnauthorized, "you are not signed in")
+		if errStatusCode == http.StatusUnauthorized {
+			return c.String(http.StatusUnauthorized, "you are not signed in")
+		}
+
+		c.Logger().Errorf("failed to getUserIDFromSession: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	useDefaultImage := false
@@ -653,9 +664,14 @@ func postIsu(c echo.Context) error {
 //  GET /api/isu/{jia_isu_uuid}
 // 椅子の情報を取得する
 func getIsu(c echo.Context) error {
-	jiaUserID, err := getUserIDFromSession(c)
+	jiaUserID, errStatusCode, err := getUserIDFromSession(c)
 	if err != nil {
-		return c.String(http.StatusUnauthorized, "you are not signed in")
+		if errStatusCode == http.StatusUnauthorized {
+			return c.String(http.StatusUnauthorized, "you are not signed in")
+		}
+
+		c.Logger().Errorf("failed to getUserIDFromSession: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	jiaIsuUUID := c.Param("jia_isu_uuid")
@@ -682,9 +698,14 @@ func getIsu(c echo.Context) error {
 //       https://tech.jxpress.net/entry/2018/08/23/104123
 // MEMO: DB 内の image は longblob
 func getIsuIcon(c echo.Context) error {
-	jiaUserID, err := getUserIDFromSession(c)
+	jiaUserID, errStatusCode, err := getUserIDFromSession(c)
 	if err != nil {
-		return c.String(http.StatusUnauthorized, "you are not signed in")
+		if errStatusCode == http.StatusUnauthorized {
+			return c.String(http.StatusUnauthorized, "you are not signed in")
+		}
+
+		c.Logger().Errorf("failed to getUserIDFromSession: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	jiaIsuUUID := c.Param("jia_isu_uuid")
@@ -711,9 +732,14 @@ func getIsuIcon(c echo.Context) error {
 // 日毎時間単位グラフ
 // conditionを何件か集めて、ISUにとっての快適度数みたいな値を算出する
 func getIsuGraph(c echo.Context) error {
-	jiaUserID, err := getUserIDFromSession(c)
+	jiaUserID, errStatusCode, err := getUserIDFromSession(c)
 	if err != nil {
-		return c.String(http.StatusUnauthorized, "you are not signed in")
+		if errStatusCode == http.StatusUnauthorized {
+			return c.String(http.StatusUnauthorized, "you are not signed in")
+		}
+
+		c.Logger().Errorf("failed to getUserIDFromSession: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	jiaIsuUUID := c.Param("jia_isu_uuid")
@@ -922,10 +948,16 @@ func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, erro
 //  GET /api/condition/{jia_isu_uuid}?
 // 自分の所持椅子のうち、指定した椅子の通知を取得する
 func getIsuConditions(c echo.Context) error {
-	jiaUserID, err := getUserIDFromSession(c)
+	jiaUserID, errStatusCode, err := getUserIDFromSession(c)
 	if err != nil {
-		return c.String(http.StatusUnauthorized, "you are not signed in")
+		if errStatusCode == http.StatusUnauthorized {
+			return c.String(http.StatusUnauthorized, "you are not signed in")
+		}
+
+		c.Logger().Errorf("failed to getUserIDFromSession: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
+
 	jiaIsuUUID := c.Param("jia_isu_uuid")
 	if jiaIsuUUID == "" {
 		return c.String(http.StatusBadRequest, "missing: jia_isu_uuid")
@@ -1058,6 +1090,69 @@ func calculateConditionLevel(condition string) (string, error) {
 	return conditionLevel, nil
 }
 
+// GET /api/trend
+// ISUの性格毎の最新のコンディション情報
+func getTrend(c echo.Context) error {
+	characterList := []Isu{}
+	err := db.Select(&characterList, "SELECT `character` FROM `isu` GROUP BY `character`")
+	if err != nil {
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	res := []TrendResponse{}
+
+	// TODO: 処理が重すぎるのでなんとかする
+	for _, character := range characterList {
+		isuList := []Isu{}
+		err = db.Select(&isuList,
+			"SELECT * FROM `isu` WHERE `character` = ?",
+			character.Character,
+		)
+		if err != nil {
+			c.Logger().Errorf("db error: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+
+		characterIsuConditions := []*TrendCondition{}
+		for _, isu := range isuList {
+			conditions := []IsuCondition{}
+			err = db.Select(&conditions,
+				"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY timestamp DESC",
+				isu.JIAIsuUUID,
+			)
+			if err != nil {
+				c.Logger().Errorf("db error: %v", err)
+				return c.NoContent(http.StatusInternalServerError)
+			}
+
+			if len(conditions) > 0 {
+				isuLastCondition := conditions[0]
+				conditionLevel, err := calculateConditionLevel(isuLastCondition.Condition)
+				if err != nil {
+					c.Logger().Errorf("failed to get condition level: %v", err)
+					return c.NoContent(http.StatusInternalServerError)
+				}
+				trendCondition := TrendCondition{
+					ID:             isu.ID,
+					Timestamp:      isuLastCondition.Timestamp.Unix(),
+					ConditionLevel: conditionLevel,
+				}
+				characterIsuConditions = append(characterIsuConditions, &trendCondition)
+			}
+
+		}
+
+		sort.Slice(characterIsuConditions, func(i, j int) bool {
+			return characterIsuConditions[i].Timestamp > characterIsuConditions[j].Timestamp
+		})
+		res = append(res,
+			TrendResponse{Character: character.Character, Conditions: characterIsuConditions})
+	}
+
+	return c.JSON(http.StatusOK, res)
+}
+
 // POST /api/condition/{jia_isu_uuid}
 // ISUからのセンサデータを受け取る
 func postIsuCondition(c echo.Context) error {
@@ -1161,65 +1256,11 @@ func isValidConditionFormat(conditionStr string) bool {
 	return (idxCondStr == len(conditionStr))
 }
 
-// GET /api/trend
-// ISUの性格毎の最新のコンディション情報
-func getTrend(c echo.Context) error {
-	characterList := []Isu{}
-	err := db.Select(&characterList, "SELECT `character` FROM `isu` GROUP BY `character`")
+func getIndex(c echo.Context) error {
+	err := templates.ExecuteTemplate(c.Response().Writer, "index.html", struct{}{})
 	if err != nil {
-		c.Logger().Errorf("db error: %v", err)
+		c.Logger().Errorf("getIndex error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
-
-	res := []TrendResponse{}
-
-	// TODO: 処理が重すぎるのでなんとかする
-	for _, character := range characterList {
-		isuList := []Isu{}
-		err = db.Select(&isuList,
-			"SELECT * FROM `isu` WHERE `character` = ?",
-			character.Character,
-		)
-		if err != nil {
-			c.Logger().Errorf("db error: %v", err)
-			return c.NoContent(http.StatusInternalServerError)
-		}
-
-		characterIsuConditions := []*TrendCondition{}
-		for _, isu := range isuList {
-			conditions := []IsuCondition{}
-			err = db.Select(&conditions,
-				"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY timestamp DESC",
-				isu.JIAIsuUUID,
-			)
-			if err != nil {
-				c.Logger().Errorf("db error: %v", err)
-				return c.NoContent(http.StatusInternalServerError)
-			}
-
-			if len(conditions) > 0 {
-				isuLastCondition := conditions[0]
-				conditionLevel, err := calculateConditionLevel(isuLastCondition.Condition)
-				if err != nil {
-					c.Logger().Errorf("failed to get condition level: %v", err)
-					return c.NoContent(http.StatusInternalServerError)
-				}
-				trendCondition := TrendCondition{
-					ID:             isu.ID,
-					Timestamp:      isuLastCondition.Timestamp.Unix(),
-					ConditionLevel: conditionLevel,
-				}
-				characterIsuConditions = append(characterIsuConditions, &trendCondition)
-			}
-
-		}
-
-		sort.Slice(characterIsuConditions, func(i, j int) bool {
-			return characterIsuConditions[i].Timestamp > characterIsuConditions[j].Timestamp
-		})
-		res = append(res,
-			TrendResponse{Character: character.Character, Conditions: characterIsuConditions})
-	}
-
-	return c.JSON(http.StatusOK, res)
+	return nil
 }
