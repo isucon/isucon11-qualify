@@ -423,7 +423,7 @@ func postSignout(c echo.Context) error {
 	session.Options = &sessions.Options{MaxAge: -1, Path: "/"}
 	err = session.Save(c.Request(), c.Response())
 	if err != nil {
-		c.Logger().Errorf("cannot delete session: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -494,8 +494,7 @@ func getIsuList(c echo.Context) error {
 		if foundLastCondition {
 			conditionLevel, err := calculateConditionLevel(lastCondition.Condition)
 			if err != nil {
-				c.Logger().Errorf("failed to get condition level: %v", err)
-				return c.NoContent(http.StatusInternalServerError)
+				c.Logger().Error(err)
 			}
 
 			formattedCondition = &GetIsuConditionResponse{
@@ -557,20 +556,20 @@ func postIsu(c echo.Context) error {
 	if useDefaultImage {
 		image, err = ioutil.ReadFile(defaultIconFilePath)
 		if err != nil {
-			c.Logger().Errorf("failed to read default icon: %v", err)
+			c.Logger().Error(err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
 	} else {
 		file, err := fh.Open()
 		if err != nil {
-			c.Logger().Errorf("failed to open fh: %v", err)
+			c.Logger().Error(err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
 		defer file.Close()
 
 		image, err = ioutil.ReadAll(file)
 		if err != nil {
-			c.Logger().Errorf("failed to read file: %v", err)
+			c.Logger().Error(err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
 	}
@@ -600,13 +599,13 @@ func postIsu(c echo.Context) error {
 	body := JIAServiceRequest{isuConditionPublicAddress, isuConditionPublicPort, jiaIsuUUID}
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
-		c.Logger().Errorf("failed to marshal data: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	reqJIA, err := http.NewRequest(http.MethodPost, targetURL, bytes.NewBuffer(bodyJSON))
 	if err != nil {
-		c.Logger().Errorf("failed to build request: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -625,14 +624,14 @@ func postIsu(c echo.Context) error {
 
 	resBody, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		c.Logger().Errorf("error occurred while reading JIA response: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	var isuFromJIA IsuFromJIA
 	err = json.Unmarshal(resBody, &isuFromJIA)
 	if err != nil {
-		c.Logger().Errorf("cannot unmarshal JIA response: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -773,7 +772,7 @@ func getIsuGraph(c echo.Context) error {
 
 	res, err := generateIsuGraphResponse(tx, jiaIsuUUID, date)
 	if err != nil {
-		c.Logger().Errorf("failed to generating isu graph: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -1130,7 +1129,7 @@ func getTrend(c echo.Context) error {
 				isuLastCondition := conditions[0]
 				conditionLevel, err := calculateConditionLevel(isuLastCondition.Condition)
 				if err != nil {
-					c.Logger().Errorf("failed to get condition level: %v", err)
+					c.Logger().Error(err)
 					return c.NoContent(http.StatusInternalServerError)
 				}
 				trendCondition := TrendCondition{
@@ -1190,7 +1189,6 @@ func postIsuCondition(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	if count == 0 {
-		c.Logger().Errorf("isu not found")
 		return c.String(http.StatusNotFound, "not found: isu")
 	}
 
@@ -1264,7 +1262,7 @@ func truncateAfterHours(t time.Time) time.Time {
 func getIndex(c echo.Context) error {
 	err := templates.ExecuteTemplate(c.Response().Writer, "index.html", struct{}{})
 	if err != nil {
-		c.Logger().Errorf("getIndex error: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	return nil
