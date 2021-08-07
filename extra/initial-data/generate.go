@@ -54,7 +54,7 @@ func main() {
 			// isucon2 ユーザは企業ユーザ相当
 			{
 				models.User{JIAUserID: "isucon2", CreatedAt: random.Time()},
-				15,  // ISU の個数は 50
+				15,  // ISU の個数は 15
 				5,   // condition を 5 分おきに送信
 				288, // condition の総数は 24 時間分
 			},
