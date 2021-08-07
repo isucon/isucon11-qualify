@@ -352,7 +352,7 @@ func postAuthentication(c echo.Context) error {
 
 	token, err := jwt.Parse(reqJwt, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodECDSA); !ok {
-			return nil, jwt.NewValidationError(fmt.Sprintf("Unexpected signing method: %v", token.Header["alg"]), jwt.ValidationErrorSignatureInvalid)
+			return nil, jwt.NewValidationError(fmt.Sprintf("unexpected signing method: %v", token.Header["alg"]), jwt.ValidationErrorSignatureInvalid)
 		}
 		return jwtVerificationKey, nil
 	})
@@ -361,14 +361,14 @@ func postAuthentication(c echo.Context) error {
 		case *jwt.ValidationError:
 			return c.String(http.StatusForbidden, "forbidden")
 		default:
-			c.Logger().Errorf("unknown error: %v", err)
+			c.Logger().Error(err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		c.Logger().Errorf("type assertion error")
+		c.Logger().Errorf("invalid JWT payload")
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	jiaUserIDVar, ok := claims["jia_user_id"]
@@ -395,7 +395,7 @@ func postAuthentication(c echo.Context) error {
 	session.Values["jia_user_id"] = jiaUserID
 	err = session.Save(c.Request(), c.Response())
 	if err != nil {
-		c.Logger().Errorf("failed to set cookie: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
