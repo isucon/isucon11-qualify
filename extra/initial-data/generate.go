@@ -36,20 +36,17 @@ func main() {
 			conditionDurationMinutes int
 			conditionNum             int
 		}{
-			// isucon ユーザは個人ユーザ相当（prepare checkに利用）
+			// isucon ユーザは load 中に動かすため ISU は持たない
+			// {
+			// 	models.User{JIAUserID: "isucon", CreatedAt: random.Time().Add(-3 * 24 * time.Hour)},
+			// },
+			// isucon1 ユーザは個人ユーザ相当（prepare checkに利用）
 			{
-				// isuconユーザは3日分のconditionを持つので、作成日は3日分マイナスしておく
-				models.User{JIAUserID: "isucon", CreatedAt: random.Time().Add(-3 * 24 * time.Hour)},
+				// isucon1ユーザは3日分のconditionを持つので、作成日は3日分マイナスしておく
+				models.User{JIAUserID: "isucon1", CreatedAt: random.Time().Add(-3 * 24 * time.Hour)},
 				2,   // ISU の個数は 2
 				10,  // condition を 10 分おきに送信
 				432, // condition の総数は 72 時間分
-			},
-			// isucon1 ユーザは個人ユーザ相当
-			{
-				models.User{JIAUserID: "isucon1", CreatedAt: random.Time()},
-				2,   // ISU の個数は 2
-				3,   // condition を 3 分おきに送信
-				480, // condition の総数は 24 時間分
 			},
 			// isucon2 ユーザは企業ユーザ相当
 			{
