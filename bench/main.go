@@ -124,7 +124,11 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 	timeoutCount := int64(0)
 
 	for tag, count := range result.Score.Breakdown() {
-		logger.AdminLogger.Printf("SCORE: %s: %d", tag, count)
+		if finish {
+			logger.ContestantLogger.Printf("SCORE: %s: %d", tag, count)
+		} else {
+			logger.AdminLogger.Printf("SCORE: %s: %d", tag, count)
+		}
 	}
 
 	for _, err := range errors {
@@ -156,6 +160,10 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 	if passed && !s.NoLoad && score <= 0 {
 		passed = false
 		reason = "Score"
+	}
+
+	if !passed {
+		score = 0
 	}
 
 	logger.ContestantLogger.Printf("score: %d(%d - %d) : %s", score, scoreRaw, deductionTotal, reason)
@@ -291,6 +299,9 @@ func main() {
 			return nil
 		default:
 		}
+
+		// 初期実装だと fail してしまうため下駄をはかせる
+		step.AddScore(scenario.ScoreStartBenchmark)
 
 		for {
 			// 途中経過を3秒毎に送信

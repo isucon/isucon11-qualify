@@ -50,6 +50,7 @@ type Isu struct {
 	Name                          string              `json:"name"`
 	ImageHash                     [md5.Size]byte      `json:"image_file_hash"` // 画像の検証用
 	Character                     string              `json:"character"`
+	CharacterID                   int                 `json:"-"`
 	StreamsForScenario            *StreamsForScenario `json:"-"`          //poster Goroutineとの通信
 	Conditions                    IsuConditionArray   `json:"conditions"` //シナリオ Goroutineからのみ参照
 	CondMutex                     sync.RWMutex
@@ -73,12 +74,14 @@ func NewRandomIsuRaw(owner *User) (*Isu, *StreamsForPoster, error) {
 	if err != nil {
 		return nil, nil, err
 	}
+	character, characterID := random.CharacterWithID()
 	isu := &Isu{
-		Owner:      owner,
-		JIAIsuUUID: id.String(),
-		Name:       random.IsuName(),
-		ImageHash:  defaultIconHash,
-		Character:  random.Character(),
+		Owner:       owner,
+		JIAIsuUUID:  id.String(),
+		Name:        random.IsuName(),
+		ImageHash:   defaultIconHash,
+		Character:   character,
+		CharacterID: characterID,
 		StreamsForScenario: &StreamsForScenario{
 			StateChan: stateChan,
 			//ConditionChan: conditionChan,
