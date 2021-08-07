@@ -35,6 +35,7 @@ type Scenario struct {
 
 	// POST /initialize の猶予時間
 	initializeTimeout time.Duration
+	prepareTimeout    time.Duration // prepareのTimeoutデフォルト設定
 
 	// 競技者の実装言語
 	Language string
@@ -67,6 +68,7 @@ func NewScenario(jiaServiceURL *url.URL, loadTimeout time.Duration) (*Scenario, 
 		virtualTimeMulti:  30000,           //5分=300秒に一回 => 1秒に100回
 		jiaServiceURL:     jiaServiceURL,
 		initializeTimeout: 20 * time.Second,
+		prepareTimeout:    3 * time.Second,
 		normalUsers:       []*model.User{},
 		isuFromID:         make(map[int]*model.Isu, 8192),
 	}, nil
