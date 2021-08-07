@@ -197,7 +197,7 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 	if isuResponse.JIAIsuUUID != isu.JIAIsuUUID ||
 		isuResponse.Name != isu.Name ||
 		isuResponse.Character != isu.Character {
-		step.AddError(errorMissmatch(res, "レスポンスBodyが正しくありません"))
+		step.AddError(errorMismatch(res, "レスポンスBodyが正しくありません"))
 	}
 
 	// POST isu のレスポンスより ID を取得して isu モデルに代入する

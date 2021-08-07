@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	userNum            = 120
+	userNum            = 320
 	userPattern1Weight = 3
 	userPattern2Weight = 1
 	userPattern3Weight = 2
