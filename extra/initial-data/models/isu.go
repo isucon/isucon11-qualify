@@ -66,12 +66,12 @@ func defaultImage() []byte {
 	return bytes
 }
 
-func (i Isu) WithUpdateName() error {
+func (i *Isu) WithUpdateName() error {
 	i.Name = random.IsuName()
 	i.UpdatedAt = random.TimeAfterArg(i.UpdatedAt)
 	return nil
 }
-func (i Isu) WithUpdateImage() error {
+func (i *Isu) WithUpdateImage() error {
 	var err error
 	i.Image, err = random.Image()
 	i.UpdatedAt = random.TimeAfterArg(i.UpdatedAt)
