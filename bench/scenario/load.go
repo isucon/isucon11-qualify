@@ -177,9 +177,8 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 		targetIsu := user.IsuListOrderByCreatedAt[nextTargetIsuIndex]
 
 		//GET /
-		dataExistTimestamp := GetConditionDataExistTimestamp(s, user)
 		var newConditionUUIDs []string
-		_, errs := browserGetHomeAction(ctx, user.Agent, dataExistTimestamp, true,
+		_, errs := browserGetHomeAction(ctx, user.Agent, true,
 			func(res *http.Response, isuList []*service.Isu) []error {
 				expected := user.IsuListOrderByCreatedAt
 

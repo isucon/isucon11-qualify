@@ -15,9 +15,16 @@ import (
 
 const (
 	// MEMO: 最大でも60秒に一件しか送れないので点数上限になるが、解決できるとは思えないので良い
-	PostIntervalSecond = 60 //Virtual Timeでのpost間隔
-	PostContentNum     = 10 //一回のpostで何要素postするか virtualTimeMulti * timerDuration(20ms) / PostIntervalSecond
+	PostIntervalSecond     = 60 //Virtual Timeでのpost間隔
+	PostIntervalBlurSecond = 5  //Virtual Timeでのpost間隔のブレ幅(+-PostIntervalBlurSecond)
+	PostContentNum         = 10 //一回のpostで何要素postするか virtualTimeMulti * timerDuration(20ms) / PostIntervalSecond
 )
+
+func init() {
+	if !(2*PostIntervalBlurSecond < PostIntervalSecond) {
+		panic("assert: 2*PostIntervalBlurSecond < PostIntervalSecond")
+	}
+}
 
 type posterState struct {
 	lastConditionTimestamp        int64
@@ -34,10 +41,10 @@ type posterState struct {
 func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseURL string, isu *model.Isu, scenarioChan *model.StreamsForPoster) {
 	postConditionTimeout := 50 * time.Millisecond //MEMO: timeout は気にせずにズバズバ投げる
 
-	nowTime := s.ToVirtualTime(time.Now())
+	nowTimeStamp := s.ToVirtualTime(time.Now()).Unix()
 	state := posterState{
 		// lastConditionTimestamp: 0,
-		lastConditionTimestamp:        nowTime.Unix(),
+		lastConditionTimestamp:        nowTimeStamp,
 		lastCleanTimestamp:            0,
 		lastDetectOverweightTimestamp: 0,
 		lastRepairTimestamp:           0,
@@ -60,7 +67,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		case <-timer.C:
 		}
 
-		nowTimeStamp := s.ToVirtualTime(time.Now()).Unix()
+		nowTimeStamp = s.ToVirtualTime(time.Now()).Unix()
 
 		//状態変化
 		stateChange := model.IsuStateChangeNone
@@ -102,7 +109,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 			}
 
 			// 作った新しいstateに基づいてconditionを生成
-			condition := state.GetNewestCondition(stateChange, isu)
+			condition := state.GetNewestCondition(randEngine, stateChange, isu)
 			stateChange = model.IsuStateChangeNone //TODO: stateの適用タイミングをちゃんと考える
 
 			//リクエスト
@@ -136,8 +143,10 @@ func (state *posterState) NextConditionTimeStamp() int64 {
 	return state.lastConditionTimestamp + PostIntervalSecond
 }
 
-func (state *posterState) GetNewestCondition(stateChange model.IsuStateChange, isu *model.Isu) model.IsuCondition {
+func (state *posterState) GetNewestCondition(randEngine *rand.Rand, stateChange model.IsuStateChange, isu *model.Isu) model.IsuCondition {
 
+	// ハック対策に PostIntervalSecond にずれを出してる
+	blur := randEngine.Int63n(2*PostIntervalBlurSecond+1) - PostIntervalBlurSecond
 	//新しいConditionを生成
 	condition := model.IsuCondition{
 		StateChange:  stateChange,
@@ -147,7 +156,7 @@ func (state *posterState) GetNewestCondition(stateChange model.IsuStateChange, i
 		IsBroken:     state.lastConditionIsBroken,
 		//ConditionLevel: model.ConditionLevelCritical,
 		Message:       "",
-		TimestampUnix: state.lastConditionTimestamp,
+		TimestampUnix: state.lastConditionTimestamp + blur,
 	}
 
 	//message

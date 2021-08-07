@@ -110,7 +110,9 @@ jobs:
       # packer に渡すファイルを生成
       - run: make clean
       - run: make clean-output
-      - run: make files-generated
+      - run: |
+          export PATH=${HOME}/work/_tool/isucon11-qualify:${PATH}
+          make files-generated
 
       # packer build
       - name: "make build-contestant"
