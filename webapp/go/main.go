@@ -205,11 +205,11 @@ func init() {
 
 	key, err := ioutil.ReadFile(jwtVerificationKeyPath)
 	if err != nil {
-		log.Fatalf("Unable to read file: %v", err)
+		log.Fatalf("failed to read file: %v", err)
 	}
 	jwtVerificationKey, err = jwt.ParseECPublicKeyFromPEM(key)
 	if err != nil {
-		log.Fatalf("Unable to parse ECDSA public key: %v", err)
+		log.Fatalf("failed to parse ECDSA public key: %v", err)
 	}
 }
 
@@ -248,7 +248,7 @@ func main() {
 	var err error
 	db, err = mySQLConnectionData.ConnectDB()
 	if err != nil {
-		e.Logger.Fatalf("DB connection failed : %v", err)
+		e.Logger.Fatalf("failed to connect db: %v", err)
 		return
 	}
 	db.SetMaxOpenConns(10)
@@ -256,12 +256,12 @@ func main() {
 
 	isuConditionPublicAddress = os.Getenv("SERVER_PUBLIC_ADDRESS")
 	if isuConditionPublicAddress == "" {
-		e.Logger.Fatalf("env ver SERVER_PUBLIC_ADDRESS is missing")
+		e.Logger.Fatalf("missing: SERVER_PUBLIC_ADDRESS")
 		return
 	}
 	isuConditionPublicPort, err = strconv.Atoi(getEnv("SERVER_PUBLIC_PORT", "80"))
 	if err != nil {
-		e.Logger.Fatalf("env ver SERVER_PUBLIC_PORT is invalid: %v", err)
+		e.Logger.Fatalf("bad format: SERVER_PUBLIC_PORT: %v", err)
 		return
 	}
 
