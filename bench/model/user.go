@@ -34,6 +34,16 @@ func NewRandomUserRaw(userType UserType) (*User, error) {
 	}, nil
 }
 
+func NewIsuconUserRaw(userType UserType) (*User, error) {
+	return &User{
+		UserID:                  "isucon",
+		Type:                    userType,
+		IsuListOrderByCreatedAt: []*Isu{},
+		IsuListByID:             map[string]*Isu{},
+		Agent:                   nil,
+	}, nil
+}
+
 //CreatedAt順で挿入すること
 func (u *User) AddIsu(isu *Isu) {
 	u.IsuListOrderByCreatedAt = append(u.IsuListOrderByCreatedAt, isu)

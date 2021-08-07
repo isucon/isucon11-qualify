@@ -65,7 +65,8 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	// 実際の負荷走行シナリオ
 
 	//通常ユーザー
-	s.AddNormalUser(ctx, step, 2)
+	s.AddNormalUser(ctx, step, 1)
+	s.AddIsuconUser(ctx, step)
 
 	//非ログインユーザーを増やす
 	//s.AddViewer(ctx, step, 2)
@@ -277,7 +278,7 @@ func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep
 	}
 }
 
-//ユーザーとISUの作成
+// ユーザーの作成
 func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.BenchmarkStep) *model.User {
 	//ユーザー作成
 	userAgent, err := s.NewAgent()
@@ -295,6 +296,32 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 		s.normalUsers = append(s.normalUsers, user)
 	}()
 
+	return user
+}
+
+// isucon ユーザーの作成
+func (s *Scenario) initIsuconUser(ctx context.Context, step *isucandar.BenchmarkStep) *model.User {
+	//ユーザー作成
+	userAgent, err := s.NewAgent()
+	if err != nil {
+		logger.AdminLogger.Panicln(err)
+	}
+	user := s.NewIsuconUser(ctx, step, userAgent, model.UserTypeNormal)
+	if user == nil {
+		//logger.AdminLogger.Println("Normal User fail: NewUser")
+		return nil //致命的でないエラー
+	}
+	func() {
+		s.normalUsersMtx.Lock()
+		defer s.normalUsersMtx.Unlock()
+		s.normalUsers = append(s.normalUsers, user)
+	}()
+
+	return user
+}
+
+//ユーザーのISUの作成
+func (s *Scenario) initNormalUserIsu(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User) *model.User {
 	//椅子作成
 	// TODO: 実際に解いてみてこの isu 数の上限がいい感じに働いているか検証する
 	const isuCountMax = 15
@@ -313,7 +340,7 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 			return nil
 		}
 	}
-	step.AddScore(ScoreNormalUserInitialize)
+
 	return user
 }
 
