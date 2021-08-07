@@ -1069,7 +1069,7 @@ func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, endTime time.Time, c
 	return conditionsResponse, nil
 }
 
-// conditionの文字列からcondition levelを計算
+// conditionからコンディションレベルを計算
 func calculateConditionLevel(condition string) (string, error) {
 	var conditionLevel string
 
