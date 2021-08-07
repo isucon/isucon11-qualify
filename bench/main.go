@@ -87,7 +87,7 @@ func init() {
 	flag.BoolVar(&showVersion, "version", false, "show version and exit 1")
 
 	var jiaServiceURLStr, timeoutDuration, initializeTimeoutDuration string
-	flag.StringVar(&jiaServiceURLStr, "jia-service-url", getEnv("JIA_SERVICE_URL", "http://apitest:5000"), "jia service url")
+	flag.StringVar(&jiaServiceURLStr, "jia-service-url", getEnv("JIA_SERVICE_URL", "https://apitest:5000"), "jia service url")
 	flag.StringVar(&timeoutDuration, "timeout", "1s", "request timeout duration")
 	flag.StringVar(&initializeTimeoutDuration, "initialize-timeout", "20s", "request timeout duration of POST /initialize")
 

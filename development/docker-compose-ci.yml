@@ -45,11 +45,12 @@ services:
     environment:
       ISUXBENCH_TARGET: backend:3000
     entrypoint: dockerize -wait http://backend:3000 -timeout 60s
-    command: ["/bench", "--no-load", "--exit-status"]
+    command: ["/bench", "--no-load", "--exit-status", "--tls-cert=../extra/certificates/jiaapi.crt", "--tls-key=../extra/certificates/jiaapi.key"]
     volumes:
       - "../bench/images:/images"
       - "../bench/key:/key"
       - "../bench/data:/data"
+      - "./certificates:/extra/certificates"
     depends_on:
       - mysql-backend
       - backend
