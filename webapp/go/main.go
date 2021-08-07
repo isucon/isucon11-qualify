@@ -888,7 +888,7 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 	return responseList, nil
 }
 
-// 複数のISUのconditionからグラフの一つのデータ点を計算
+// 複数のISUのコンディションからグラフの一つのデータ点を計算
 func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, error) {
 	conditionsCount := map[string]int{"is_broken": 0, "is_dirty": 0, "is_overweight": 0}
 	rawScore := 0
@@ -943,7 +943,7 @@ func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, erro
 }
 
 // GET /api/condition/{jia_isu_uuid}
-// ISUのconditionを取得
+// ISUのコンディションを取得
 func getIsuConditions(c echo.Context) error {
 	jiaUserID, errStatusCode, err := getUserIDFromSession(c)
 	if err != nil {
@@ -1014,7 +1014,7 @@ func getIsuConditions(c echo.Context) error {
 	return c.JSON(http.StatusOK, conditionsResponse)
 }
 
-// ISUのconditionをDBから取得
+// ISUのコンディションをDBから取得
 func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, endTime time.Time, conditionLevel map[string]interface{}, startTime time.Time,
 	limit int, isuName string) ([]*GetIsuConditionResponse, error) {
 
@@ -1152,7 +1152,7 @@ func getTrend(c echo.Context) error {
 }
 
 // POST /api/condition/{jia_isu_uuid}
-// ISUからのセンサデータを受け取る
+// ISUからのコンディションを受け取る
 func postIsuCondition(c echo.Context) error {
 	// TODO: これ良くないので後でなんとかする
 	dropProbability := 0.1
@@ -1220,7 +1220,7 @@ func postIsuCondition(c echo.Context) error {
 	return c.NoContent(http.StatusCreated)
 }
 
-// conditionの文字列がcsv形式になっているか検証
+// ISUのコンディションの文字列がcsv形式になっているか検証
 func isValidConditionFormat(conditionStr string) bool {
 
 	keys := []string{"is_dirty=", "is_overweight=", "is_broken="}
