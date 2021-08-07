@@ -50,6 +50,7 @@ services:
       - "../bench/images:/images"
       - "../bench/key:/key"
       - "../bench/data:/data"
+      - "./certificates:/extra/certificates"
     depends_on:
       - mysql-backend
       - backend

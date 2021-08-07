@@ -13,6 +13,10 @@ FROM golang:1.16.5-buster
 WORKDIR /development
 COPY development/backend-go/air.toml .
 
+#install ca.crt
+COPY development/certificates/ca.crt /usr/local/share/ca-certificates/extra/ca.crt
+RUN apt-get update -y && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/* && update-ca-certificates
+
 #install mariadb-client
 RUN apt-get update \
     && apt-get install -y default-mysql-client

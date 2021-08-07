@@ -79,15 +79,15 @@ func init() {
 	flag.StringVar(&targetAddress, "target", benchrun.GetTargetAddress(), "ex: localhost:9292")
 	flag.StringVar(&profileFile, "profile", "", "ex: cpu.out")
 	flag.BoolVar(&exitStatusOnFail, "exit-status", false, "set exit status non-zero when a benchmark result is failing")
-	flag.StringVar(&tlsCertificatePath, "tls-cert", "../secrets/cert.pem", "path to TLS certificate for JIA API service")
-	flag.StringVar(&tlsKeyPath, "tls-key", "../secrets/key.pem", "path to private key of TLS certificate JIA API service")
+	flag.StringVar(&tlsCertificatePath, "tls-cert", "../extra/certificates/jiaapi.crt", "path to TLS certificate for JIA API service")
+	flag.StringVar(&tlsKeyPath, "tls-key", "../extra/certificates/jiaapi.key", "path to private key of TLS certificate JIA API service")
 	flag.BoolVar(&useTLS, "tls", false, "true if target server is a tls")
 	flag.BoolVar(&noLoad, "no-load", false, "exit on finished prepare")
 	flag.StringVar(&promOut, "prom-out", "", "Prometheus textfile output path")
 	flag.BoolVar(&showVersion, "version", false, "show version and exit 1")
 
 	var jiaServiceURLStr, timeoutDuration, initializeTimeoutDuration string
-	flag.StringVar(&jiaServiceURLStr, "jia-service-url", getEnv("JIA_SERVICE_URL", "http://apitest:5000"), "jia service url")
+	flag.StringVar(&jiaServiceURLStr, "jia-service-url", getEnv("JIA_SERVICE_URL", "https://apitest:5000"), "jia service url")
 	flag.StringVar(&timeoutDuration, "timeout", "1s", "request timeout duration")
 	flag.StringVar(&initializeTimeoutDuration, "initialize-timeout", "20s", "request timeout duration of POST /initialize")
 
