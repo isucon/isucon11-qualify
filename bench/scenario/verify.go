@@ -470,11 +470,12 @@ func errorChecksum(base string, resource *agent.Resource, name string) error {
 
 	res := resource.Response
 	defer res.Body.Close()
-	if res.StatusCode == 304 {
-		return nil
-	}
+	//前回の取得が成功している保証が無い為
+	// if res.StatusCode == http.StatusNotModified {
+	// 	return nil
+	// }
 
-	if err := verifyStatusCode(res, http.StatusOK); err != nil {
+	if err := verifyStatusCodes(res, []int{http.StatusOK, http.StatusNotModified}); err != nil {
 		return err
 	}
 
