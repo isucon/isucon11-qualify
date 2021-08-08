@@ -750,7 +750,7 @@ func getIsuGraph(c echo.Context) error {
 	if err != nil {
 		return c.String(http.StatusBadRequest, "bad format: datetime")
 	}
-	date := truncateAfterHours(time.Unix(datetimeInt64, 0))
+	date := time.Unix(datetimeInt64, 0).Truncate(time.Hour)
 
 	tx, err := db.Beginx()
 	if err != nil {
@@ -805,7 +805,7 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 			return nil, err
 		}
 
-		truncatedConditionTime := truncateAfterHours(condition.Timestamp)
+		truncatedConditionTime := condition.Timestamp.Truncate(time.Hour)
 		if truncatedConditionTime != startTimeInThisHour {
 			if len(conditionsInThisHour) > 0 {
 				data := calculateGraphDataPoint(conditionsInThisHour)
@@ -1246,11 +1246,6 @@ func isValidConditionFormat(conditionStr string) bool {
 	}
 
 	return (idxCondStr == len(conditionStr))
-}
-
-//分以下を切り捨て、一時間単位にする関数
-func truncateAfterHours(t time.Time) time.Time {
-	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), 0, 0, 0, t.Location())
 }
 
 func getIndex(c echo.Context) error {
