@@ -90,8 +90,6 @@ func (c *ActivationController) PostActivate(ctx echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest)
 	}
 
-	fmt.Println(parsedURL) // FIXME debug
-
 	split := strings.Split(parsedURL.Host, ":")
 	if len(split) != 2 {
 		ctx.Logger().Errorf("bad url")
