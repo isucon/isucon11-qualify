@@ -5,16 +5,23 @@ interface Props {
 }
 
 const ConditionIcons = ({ conditionCSV }: Props) => {
-  // 後でちゃんとパースする
-  const is_dirty = true
-  const is_overweight = true
-  const is_broken = false
+  const list = conditionCSV.split(',')
+  const statusPairs: [string, boolean][] = []
+  list.forEach(element => {
+    const sprited = element.split('=')
+    if (sprited.length !== 2) return
+
+    const status = sprited[1] === 'true' ? true : false
+    statusPairs.push([sprited[0], status])
+  })
 
   return (
     <div>
-      <ConditionIcon name={'is_dirty'} status={is_dirty} />
-      <ConditionIcon name={'is_overweight'} status={is_overweight} />
-      <ConditionIcon name={'is_broken'} status={is_broken} />
+      {statusPairs.map(pair => (
+        <div key={pair[0]}>
+          <ConditionIcon name={pair[0]} status={pair[1]} />
+        </div>
+      ))}
     </div>
   )
 }
