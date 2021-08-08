@@ -49,15 +49,8 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 	logger.AdminLogger.Println("finish: load initial data")
 	s.realTimePrepareStartedAt = time.Now()
 
-	//jiaの起動
-	s.loadWaitGroup.Add(1)
-	ctxJIA, jiaCancelFunc := context.WithCancel(context.Background())
-	s.jiaCancel = jiaCancelFunc
-	go func() {
-		defer s.loadWaitGroup.Done()
-		s.JiaAPIService(ctxJIA, step)
-	}()
-	jiaWait := time.After(10 * time.Second)
+	// TODO: JIA API が立ち上がるまで待つ方法をもうちょいマシにする
+	jiaWait := time.After(5 * time.Second)
 
 	//initialize
 	initializer, err := s.NewAgent(

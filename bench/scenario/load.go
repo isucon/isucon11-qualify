@@ -45,7 +45,6 @@ type ReadConditionCount struct {
 }
 
 func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) error {
-	defer s.jiaCancel()
 	step.Result().Score.Reset()
 	if s.NoLoad {
 		return nil
@@ -77,7 +76,7 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	}()
 
 	<-ctx.Done()
-	s.jiaCancel()
+	s.JiaCancel()
 	logger.AdminLogger.Println("LOAD WAIT")
 	s.loadWaitGroup.Wait()
 

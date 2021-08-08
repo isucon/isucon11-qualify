@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/isucon/isucandar"
 	"github.com/isucon/isucon11-qualify/bench/model"
 	"github.com/isucon/isucon11-qualify/bench/random"
 	"github.com/isucon/isucon11-qualify/bench/service"
@@ -38,7 +37,7 @@ type posterState struct {
 }
 
 //POST /api/condition/{jia_isu_id}をたたく Goroutine
-func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseURL string, isu *model.Isu, scenarioChan *model.StreamsForPoster) {
+func (s *Scenario) keepPosting(ctx context.Context, targetBaseURL string, isu *model.Isu, scenarioChan *model.StreamsForPoster) {
 	postConditionTimeout := 50 * time.Millisecond //MEMO: timeout は気にせずにズバズバ投げる
 
 	nowTimeStamp := s.ToVirtualTime(time.Now()).Unix()

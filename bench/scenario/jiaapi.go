@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/isucon/isucandar"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
 	"github.com/labstack/echo/v4"
@@ -24,7 +23,6 @@ var (
 	isuTargetBaseUrl = map[string]string{} // 本当はISUに紐付けたい
 
 	jiaAPIContext context.Context
-	jiaAPIStep    *isucandar.BenchmarkStep
 )
 
 type IsuDetailInfomation struct {
@@ -51,11 +49,10 @@ func RegisterToJiaAPI(isu *model.Isu, streams *model.StreamsForPoster) {
 	streamsForPoster[isu.JIAIsuUUID] = streams
 }
 
-func (s *Scenario) JiaAPIService(ctx context.Context, step *isucandar.BenchmarkStep) {
+func (s *Scenario) JiaAPIService(ctx context.Context, tlsCertPath, tlsKeyPath string) {
 	defer logger.AdminLogger.Println("--- JiaAPIService END")
 
 	jiaAPIContext = ctx
-	jiaAPIStep = step
 
 	// Echo instance
 	e := echo.New()
@@ -81,7 +78,12 @@ func (s *Scenario) JiaAPIService(ctx context.Context, step *isucandar.BenchmarkS
 	go func() {
 		defer logger.AdminLogger.Println("--- ISU協会サービス END")
 		defer s.loadWaitGroup.Done()
-		err := e.Start(bindPort)
+		var err error
+		if tlsCertPath != "" && tlsKeyPath != "" {
+			err = e.StartTLS(bindPort, tlsCertPath, tlsKeyPath)
+		} else {
+			err = e.Start(bindPort)
+		}
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			panic(fmt.Errorf("ISU協会サービスが異常終了しました: %v", err))
 		}
@@ -151,7 +153,7 @@ func (s *Scenario) postActivate(c echo.Context) error {
 	s.loadWaitGroup.Add(1)
 	go func() {
 		defer s.loadWaitGroup.Done()
-		s.keepPosting(posterContext, jiaAPIStep, targetBaseURL, isu, scenarioChan)
+		s.keepPosting(posterContext, targetBaseURL, isu, scenarioChan)
 	}()
 
 	time.Sleep(50 * time.Millisecond)
