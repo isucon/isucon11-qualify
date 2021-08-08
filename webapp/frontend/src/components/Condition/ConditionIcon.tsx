@@ -8,14 +8,15 @@ interface Props {
 }
 
 const ConditionIcon = ({ name, status }: Props) => {
+  const iconSize = 20
   const icon = (() => {
     switch (name) {
       case 'is_dirty':
-        return <GiSplash />
+        return <GiSplash size={iconSize} />
       case 'is_overweight':
-        return <FaWeightHanging />
+        return <FaWeightHanging size={iconSize} />
       case 'is_broken':
-        return <MdBrokenImage />
+        return <MdBrokenImage size={iconSize} />
     }
   })()
 

@@ -16,9 +16,9 @@ const ConditionIcons = ({ conditionCSV }: Props) => {
   })
 
   return (
-    <div>
+    <div className="flex">
       {statusPairs.map(pair => (
-        <div key={pair[0]}>
+        <div key={pair[0]} className="px-1">
           <ConditionIcon name={pair[0]} status={pair[1]} />
         </div>
       ))}
