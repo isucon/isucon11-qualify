@@ -167,9 +167,8 @@ type PostIsuConditionRequest struct {
 }
 
 type JIAServiceRequest struct {
-	TargetIP   string `json:"target_ip"`
-	TargetPort int    `json:"target_port"`
-	IsuUUID    string `json:"isu_uuid"`
+	TargetURL string `json:"target_url"`
+	IsuUUID   string `json:"isu_uuid"`
 }
 
 func getEnv(key string, defaultValue string) string {
