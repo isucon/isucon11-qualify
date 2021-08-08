@@ -259,7 +259,7 @@ func main() {
 		e.Logger.Fatalf("missing: POST_ISUCONDITION_TARGET_HOST")
 		return
 	}
-	postIsuConditionTargetPort, err = strconv.Atoi(getEnv("POST_ISU_CONDITION_TARGET_PORT", "80"))
+	postIsuConditionTargetPort, err = strconv.Atoi(getEnv("POST_ISUCONDITION_TARGET_PORT", "80"))
 	if err != nil {
 		e.Logger.Fatalf("bad format: POST_ISUCONDITION_TARGET_PORT: %v", err)
 		return
