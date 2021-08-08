@@ -315,6 +315,8 @@ func getJIAServiceURL(tx *sqlx.Tx) string {
 	return config.URL
 }
 
+// POST /initialize
+// サービスを初期化
 func postInitialize(c echo.Context) error {
 	var request InitializeRequest
 	err := c.Bind(&request)
@@ -346,7 +348,8 @@ func postInitialize(c echo.Context) error {
 	})
 }
 
-//  POST /api/auth
+// POST /api/auth
+// サインアップ・サインイン
 func postAuthentication(c echo.Context) error {
 	reqJwt := strings.TrimPrefix(c.Request().Header.Get("Authorization"), "Bearer ")
 
@@ -402,7 +405,8 @@ func postAuthentication(c echo.Context) error {
 	return c.NoContent(http.StatusOK)
 }
 
-//  POST /api/signout
+// POST /api/signout
+// サインアウト
 func postSignout(c echo.Context) error {
 	_, errStatusCode, err := getUserIDFromSession(c)
 	if err != nil {
@@ -430,6 +434,8 @@ func postSignout(c echo.Context) error {
 	return c.NoContent(http.StatusOK)
 }
 
+// GET /api/user/me
+// サインインしている自分自身の情報を取得
 func getMe(c echo.Context) error {
 	jiaUserID, errStatusCode, err := getUserIDFromSession(c)
 	if err != nil {
@@ -445,8 +451,8 @@ func getMe(c echo.Context) error {
 	return c.JSON(http.StatusOK, res)
 }
 
-//  GET /api/isu
-// 自分のISUの一覧を取得
+// GET /api/isu
+// ISUの一覧を取得
 func getIsuList(c echo.Context) error {
 	jiaUserID, errStatusCode, err := getUserIDFromSession(c)
 	if err != nil {
@@ -526,8 +532,8 @@ func getIsuList(c echo.Context) error {
 	return c.JSON(http.StatusOK, responseList)
 }
 
-//  POST /api/isu
-// 自分のISUの登録
+// POST /api/isu
+// ISUを登録
 func postIsu(c echo.Context) error {
 	jiaUserID, errStatusCode, err := getUserIDFromSession(c)
 	if err != nil {
@@ -660,8 +666,8 @@ func postIsu(c echo.Context) error {
 	return c.JSON(http.StatusCreated, isu)
 }
 
-//  GET /api/isu/{jia_isu_uuid}
-// 椅子の情報を取得する
+// GET /api/isu/{jia_isu_uuid}
+// ISUの情報を取得
 func getIsuID(c echo.Context) error {
 	jiaUserID, errStatusCode, err := getUserIDFromSession(c)
 	if err != nil {
@@ -690,12 +696,8 @@ func getIsuID(c echo.Context) error {
 	return c.JSON(http.StatusOK, res)
 }
 
-//  GET /api/isu/{jia_isu_uuid}/icon
-// ISUのアイコンを取得する
-// MEMO: ヘッダーとかでキャッシュ効くようにするのが想定解？(ただしPUTはあることに注意)
-//       nginxで認証だけ外部に投げるみたいなのもできるっぽい？（ちゃんと読んでいない）
-//       https://tech.jxpress.net/entry/2018/08/23/104123
-// MEMO: DB 内の image は longblob
+// GET /api/isu/{jia_isu_uuid}/icon
+// ISUのアイコンを取得
 func getIsuIcon(c echo.Context) error {
 	jiaUserID, errStatusCode, err := getUserIDFromSession(c)
 	if err != nil {
@@ -724,12 +726,8 @@ func getIsuIcon(c echo.Context) error {
 	return c.Blob(http.StatusOK, "", image)
 }
 
-//  GET /api/isu/{jia_isu_uuid}/graph
-// グラフ描画のための情報を計算して返却する
-// ユーザーがISUの機嫌を知りたい
-// この時間帯とか、この日とかの機嫌を知りたい
-// 日毎時間単位グラフ
-// conditionを何件か集めて、ISUにとっての快適度数みたいな値を算出する
+// GET /api/isu/{jia_isu_uuid}/graph
+// ISUのコンディショングラフ描画のための情報を取得
 func getIsuGraph(c echo.Context) error {
 	jiaUserID, errStatusCode, err := getUserIDFromSession(c)
 	if err != nil {
@@ -785,7 +783,6 @@ func getIsuGraph(c echo.Context) error {
 	return c.JSON(http.StatusOK, res)
 }
 
-// GET /api/isu/{jia_isu_uuid}/graph のレスポンス作成のため，
 // グラフのデータ点を一日分生成
 func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Time) ([]GraphResponse, error) {
 	dataPoints := []GraphDataPointWithInfo{}
@@ -884,7 +881,7 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 	return responseList, nil
 }
 
-// 複数のISU conditionからグラフの一つのデータ点を計算
+// 複数のISUのコンディションからグラフの一つのデータ点を計算
 func calculateGraphDataPoint(isuConditions []IsuCondition) GraphDataPoint {
 	conditionsCount := map[string]int{"is_broken": 0, "is_dirty": 0, "is_overweight": 0}
 	rawScore := 0
@@ -938,8 +935,8 @@ func calculateGraphDataPoint(isuConditions []IsuCondition) GraphDataPoint {
 	return dataPoint
 }
 
-//  GET /api/condition/{jia_isu_uuid}?
-// 自分の所持椅子のうち、指定した椅子の通知を取得する
+// GET /api/condition/{jia_isu_uuid}
+// ISUのコンディションを取得
 func getIsuConditions(c echo.Context) error {
 	jiaUserID, errStatusCode, err := getUserIDFromSession(c)
 	if err != nil {
@@ -1010,6 +1007,7 @@ func getIsuConditions(c echo.Context) error {
 	return c.JSON(http.StatusOK, conditionsResponse)
 }
 
+// ISUのコンディションをDBから取得
 func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, endTime time.Time, conditionLevel map[string]interface{}, startTime time.Time,
 	limit int, isuName string) ([]*GetIsuConditionResponse, error) {
 
@@ -1064,7 +1062,7 @@ func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, endTime time.Time, c
 	return conditionsResponse, nil
 }
 
-// conditionのcsvからcondition levelを計算
+// conditionからコンディションレベルを計算
 func calculateConditionLevel(condition string) (string, error) {
 	var conditionLevel string
 
@@ -1146,7 +1144,7 @@ func getTrend(c echo.Context) error {
 }
 
 // POST /api/condition/{jia_isu_uuid}
-// ISUからのセンサデータを受け取る
+// ISUからのコンディションを受け取る
 func postIsuCondition(c echo.Context) error {
 	// TODO: 一定割合リクエストを落としてしのぐようにしたが、本来は全量さばけるようにすべき
 	dropProbability := 0.1
@@ -1213,7 +1211,7 @@ func postIsuCondition(c echo.Context) error {
 	return c.NoContent(http.StatusCreated)
 }
 
-// conditionの文字列がcsv形式になっているか検証
+// ISUのコンディションの文字列がcsv形式になっているか検証
 func isValidConditionFormat(conditionStr string) bool {
 
 	keys := []string{"is_dirty=", "is_overweight=", "is_broken="}
