@@ -259,7 +259,7 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 
 			// check: ISU画像取得
 			{
-				imgByte, res, err := getIsuIconAction(ctx, randomUser.Agent, jiaIsuUUID, false)
+				imgByte, res, err := getIsuIconAction(ctx, randomUser.Agent, jiaIsuUUID)
 				if err != nil {
 					step.AddError(err)
 					return
@@ -275,7 +275,8 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 					return
 				}
 
-				imgByte, res, err = getIsuIconAction(ctx, randomUser.Agent, jiaIsuUUID, true)
+				//競技者が304を返した来た場合に、それがうまくいってるかのチェック
+				imgByte, res, err = getIsuIconAction(ctx, randomUser.Agent, jiaIsuUUID)
 				if err != nil {
 					step.AddError(err)
 					return
@@ -647,7 +648,7 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 		return
 	}
 
-	imgByte, res, err := getIsuIconAction(ctx, loginUser.Agent, isu.JIAIsuUUID, false)
+	imgByte, res, err := getIsuIconAction(ctx, loginUser.Agent, isu.JIAIsuUUID)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -693,7 +694,7 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 		return
 	}
 
-	imgByte, res, err = getIsuIconAction(ctx, loginUser.Agent, isuWithImg.JIAIsuUUID, false)
+	imgByte, res, err = getIsuIconAction(ctx, loginUser.Agent, isuWithImg.JIAIsuUUID)
 	if err != nil {
 		step.AddError(err)
 		return
