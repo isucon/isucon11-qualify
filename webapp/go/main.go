@@ -51,8 +51,8 @@ var (
 
 	jwtVerificationKey *ecdsa.PublicKey
 
-	isuConditionPublicAddress string
-	isuConditionPublicPort    int
+	postIsuConditionTargetHost string // JIAへのactivate時に登録する，ISUがconditionを送る先のhost
+	postIsuConditionTargetPort int    // JIAへのactivate時に登録する，ISUがconditionを送る先のport
 )
 
 type Config struct {
@@ -254,14 +254,14 @@ func main() {
 	db.SetMaxOpenConns(10)
 	defer db.Close()
 
-	isuConditionPublicAddress = os.Getenv("SERVER_PUBLIC_ADDRESS")
-	if isuConditionPublicAddress == "" {
-		e.Logger.Fatalf("missing: SERVER_PUBLIC_ADDRESS")
+	postIsuConditionTargetHost = os.Getenv("POST_ISUCONDITION_TARGET_HOST")
+	if postIsuConditionTargetHost == "" {
+		e.Logger.Fatalf("missing: POST_ISUCONDITION_TARGET_HOST")
 		return
 	}
-	isuConditionPublicPort, err = strconv.Atoi(getEnv("SERVER_PUBLIC_PORT", "80"))
+	postIsuConditionTargetPort, err = strconv.Atoi(getEnv("POST_ISUCONDITION_TARGET_PORT", "80"))
 	if err != nil {
-		e.Logger.Fatalf("bad format: SERVER_PUBLIC_PORT: %v", err)
+		e.Logger.Fatalf("bad format: POST_ISUCONDITION_TARGET_PORT: %v", err)
 		return
 	}
 
@@ -602,7 +602,7 @@ func postIsu(c echo.Context) error {
 	}
 
 	targetURL := getJIAServiceURL(tx) + "/api/activate"
-	body := JIAServiceRequest{isuConditionPublicAddress, isuConditionPublicPort, jiaIsuUUID}
+	body := JIAServiceRequest{postIsuConditionTargetHost, postIsuConditionTargetPort, jiaIsuUUID}
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
 		c.Logger().Error(err)
