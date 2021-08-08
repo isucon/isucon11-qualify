@@ -1,5 +1,7 @@
 package service
 
+import "github.com/francoispqt/gojay"
+
 type InitializeResponse struct {
 	Language string `json:"language"`
 }
@@ -55,14 +57,74 @@ type GraphDataPercentage struct {
 }
 
 type GetTrendResponse []GetTrendResponseOne
-
 type GetTrendResponseOne struct {
-	Character  string           `json:"character"`
-	Conditions []TrendCondition `json:"conditions"`
+	Character string          `json:"character"`
+	Info      TrendConditions `json:"info"`
+	Warning   TrendConditions `json:"warning"`
+	Critical  TrendConditions `json:"critical"`
+}
+type TrendConditions []TrendCondition
+type TrendCondition struct {
+	IsuID     int   `json:"isu_id"`
+	Timestamp int64 `json:"timestamp"`
 }
 
-type TrendCondition struct {
-	IsuID          int    `json:"isu_id"`
-	Timestamp      int64  `json:"timestamp"`
-	ConditionLevel string `json:"condition_level"`
+func (a *TrendCondition) UnmarshalJSONObject(dec *gojay.Decoder, key string) error {
+	switch key {
+	case "isu_id":
+		return dec.Int(&a.IsuID)
+	case "timestamp":
+		return dec.Int64(&a.Timestamp)
+	}
+	return nil
+}
+func (a *TrendCondition) NKeys() int {
+	return 2
+}
+
+func (b *TrendConditions) UnmarshalJSONArray(dec *gojay.Decoder) error {
+	cond := &TrendCondition{}
+	if err := dec.Object(cond); err != nil {
+		return err
+	}
+	*b = append(*b, *cond)
+	return nil
+}
+
+func (b *GetTrendResponseOne) UnmarshalJSONObject(dec *gojay.Decoder, key string) error {
+	switch key {
+	case "character":
+		return dec.String(&b.Character)
+	case "info":
+		conditions := TrendConditions{}
+		if err := dec.Array(&conditions); err != nil {
+			return err
+		}
+		b.Info = conditions
+	case "warning":
+		conditions := TrendConditions{}
+		if err := dec.Array(&conditions); err != nil {
+			return err
+		}
+		b.Warning = conditions
+	case "critical":
+		conditions := TrendConditions{}
+		if err := dec.Array(&conditions); err != nil {
+			return err
+		}
+		b.Critical = conditions
+	}
+	return nil
+}
+func (b *GetTrendResponseOne) NKeys() int {
+	return 2
+}
+
+func (b *GetTrendResponse) UnmarshalJSONArray(dec *gojay.Decoder) error {
+	GetTrendResponseOne := &GetTrendResponseOne{}
+	if err := dec.Object(GetTrendResponseOne); err != nil {
+		return err
+	}
+	*b = append(*b, *GetTrendResponseOne)
+	return nil
 }

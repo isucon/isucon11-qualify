@@ -7,6 +7,7 @@ require (
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/docker/docker v20.10.8+incompatible
 	github.com/emirpasic/gods v1.12.0
+	github.com/francoispqt/gojay v1.2.13
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/uuid v1.3.0
 	github.com/isucon/isucandar v0.0.0-20210720111100-eb5e03ab1e8c
