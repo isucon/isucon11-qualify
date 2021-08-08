@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
 
 	"github.com/isucon/isucon11-qualify/jiaapi-mock/model"
 	"github.com/labstack/echo/v4"
@@ -59,9 +62,8 @@ type ActivateResponse struct {
 }
 
 type ActivationRequest struct {
-	TargetIP   string `json:"target_ip" validate:"required"`
-	TargetPort int    `json:"target_port" validate:"required"`
-	IsuUUID    string `json:"isu_uuid" validate:"required"`
+	TargetURL string `json:"target_url" validate:"required"`
+	IsuUUID   string `json:"isu_uuid" validate:"required"`
 }
 
 /// Controller ///
@@ -81,8 +83,29 @@ func (c *ActivationController) PostActivate(ctx echo.Context) error {
 		ctx.Logger().Errorf("failed to bind: %v", err)
 		return echo.NewHTTPError(http.StatusBadRequest)
 	}
-	if !(0 <= req.TargetPort && req.TargetPort < 0x1000) {
-		ctx.Logger().Errorf("bad port: %v", req.TargetPort)
+
+	parsedURL, err := url.Parse(req.TargetURL)
+	if err != nil {
+		ctx.Logger().Errorf("bad url: %v", err)
+		return echo.NewHTTPError(http.StatusBadRequest)
+	}
+
+	fmt.Println(parsedURL) // FIXME debug
+
+	split := strings.Split(parsedURL.Host, ":")
+	if len(split) != 2 {
+		ctx.Logger().Errorf("bad url")
+		return echo.NewHTTPError(http.StatusBadRequest)
+	}
+	host := split[0]
+	port, err := strconv.Atoi(split[1])
+	if err != nil {
+		ctx.Logger().Errorf("bad url: %v", err)
+		return echo.NewHTTPError(http.StatusBadRequest)
+	}
+
+	if !(0 <= port && port < 0x1000) {
+		ctx.Logger().Errorf("bad port: %v", port)
 		return echo.NewHTTPError(http.StatusBadRequest)
 	}
 
@@ -91,12 +114,12 @@ func (c *ActivationController) PostActivate(ctx echo.Context) error {
 		ctx.Logger().Errorf("bad isu_uuid: %v", req.IsuUUID)
 		return echo.NewHTTPError(http.StatusNotFound)
 	}
-	if !isPrivateIP(req.TargetIP) {
-		ctx.Logger().Errorf("bad ip: %v", req.TargetIP)
+	if !isPrivateIP(host) {
+		ctx.Logger().Errorf("bad ip: %v", host)
 		return echo.NewHTTPError(http.StatusForbidden)
 	}
 
-	err = c.isuConditionPosterManager.StartPosting(req.TargetIP, req.TargetPort, req.IsuUUID)
+	err = c.isuConditionPosterManager.StartPosting(req.TargetURL, req.IsuUUID)
 	if err != nil {
 		ctx.Logger().Errorf("failed to startPosting: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError)
