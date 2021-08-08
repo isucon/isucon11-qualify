@@ -228,7 +228,7 @@ func main() {
 	e.GET("/api/user/me", getMe)
 	e.GET("/api/isu", getIsuList)
 	e.POST("/api/isu", postIsu)
-	e.GET("/api/isu/:jia_isu_uuid", getIsu)
+	e.GET("/api/isu/:jia_isu_uuid", getIsuID)
 	e.GET("/api/isu/:jia_isu_uuid/icon", getIsuIcon)
 	e.GET("/api/isu/:jia_isu_uuid/graph", getIsuGraph)
 	e.GET("/api/condition/:jia_isu_uuid", getIsuConditions)
@@ -668,7 +668,7 @@ func postIsu(c echo.Context) error {
 
 // GET /api/isu/{jia_isu_uuid}
 // ISUの情報を取得
-func getIsu(c echo.Context) error {
+func getIsuID(c echo.Context) error {
 	jiaUserID, errStatusCode, err := getUserIDFromSession(c)
 	if err != nil {
 		if errStatusCode == http.StatusUnauthorized {
@@ -1147,7 +1147,7 @@ func getTrend(c echo.Context) error {
 // POST /api/condition/{jia_isu_uuid}
 // ISUからのコンディションを受け取る
 func postIsuCondition(c echo.Context) error {
-	// TODO: これ良くないので後でなんとかする
+	// TODO: 一定割合リクエストを落としてしのぐようにしたが、本来は全量さばけるようにすべき
 	dropProbability := 0.1
 	if rand.Float64() <= dropProbability {
 		c.Logger().Warnf("drop post isu condition request")
