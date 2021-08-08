@@ -39,7 +39,7 @@ type posterState struct {
 
 //POST /api/condition/{jia_isu_id}をたたく Goroutine
 func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseURL string, isu *model.Isu, scenarioChan *model.StreamsForPoster) {
-	postConditionTimeout := 50 * time.Millisecond //MEMO: timeout は気にせずにズバズバ投げる
+	postConditionTimeout := 100 * time.Millisecond //MEMO: timeout は気にせずにズバズバ投げる
 
 	nowTimeStamp := s.ToVirtualTime(time.Now()).Unix()
 	state := posterState{
@@ -58,7 +58,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 	httpClient := http.Client{}
 	httpClient.Timeout = postConditionTimeout
 
-	timer := time.NewTicker(20 * time.Millisecond)
+	timer := time.NewTicker(40 * time.Millisecond)
 	defer timer.Stop()
 	for {
 		select {
@@ -216,20 +216,20 @@ func (state *posterState) UpdateToNextState(randEngine *rand.Rand, stateChange m
 		}
 	}
 	//overweight
-	if state.lastConditionIsSitting && timeStamp-state.lastDetectOverweightTimestamp > 60*60 {
-		if randEngine.Intn(500) <= 1 {
+	if state.lastConditionIsSitting && timeStamp-state.lastDetectOverweightTimestamp > 12*60*60 {
+		if randEngine.Intn(5000) <= 1 {
 			state.lastConditionIsOverweight = true
 		}
 	}
 	//dirty
-	if timeStamp-state.lastCleanTimestamp > 75*60 {
-		if randEngine.Intn(500) <= 1 {
+	if timeStamp-state.lastCleanTimestamp > 18*60*60 {
+		if randEngine.Intn(5000) <= 1 {
 			state.lastConditionIsDirty = true
 		}
 	}
 	//broken
-	if timeStamp-state.lastRepairTimestamp > 120*60 {
-		if randEngine.Intn(1000) <= 1 {
+	if timeStamp-state.lastRepairTimestamp > 24*60*60 {
+		if randEngine.Intn(10000) <= 1 {
 			state.lastConditionIsBroken = true
 		}
 	}
