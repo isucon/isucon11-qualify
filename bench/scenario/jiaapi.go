@@ -22,7 +22,7 @@ var (
 	isuFromUUID      = map[string]*model.Isu{}
 	isuTargetBaseUrl = map[string]string{} // 本当はISUに紐付けたい
 
-	jiaAPIContext context.Context
+	posterRootContext context.Context
 )
 
 type IsuDetailInfomation struct {
@@ -52,7 +52,7 @@ func RegisterToJiaAPI(isu *model.Isu, streams *model.StreamsForPoster) {
 func (s *Scenario) JiaAPIService(ctx context.Context, tlsCertPath, tlsKeyPath string) {
 	defer logger.AdminLogger.Println("--- JiaAPIService END")
 
-	jiaAPIContext = ctx
+	posterRootContext, s.JiaPosterCancel = context.WithCancel(ctx)
 
 	// Echo instance
 	e := echo.New()
@@ -74,10 +74,8 @@ func (s *Scenario) JiaAPIService(ctx context.Context, tlsCertPath, tlsKeyPath st
 	} else {
 		bindPort = "0.0.0.0:80"
 	}
-	s.loadWaitGroup.Add(1)
 	go func() {
 		defer logger.AdminLogger.Println("--- ISU協会サービス END")
-		defer s.loadWaitGroup.Done()
 		var err error
 		if tlsCertPath != "" && tlsKeyPath != "" {
 			err = e.StartTLS(bindPort, tlsCertPath, tlsKeyPath)
@@ -118,7 +116,7 @@ func (s *Scenario) postActivate(c echo.Context) error {
 	//poster Goroutineの起動
 	var isu *model.Isu
 	var scenarioChan *model.StreamsForPoster
-	posterContext, cancelFunc := context.WithCancel(jiaAPIContext)
+	posterContext, cancelFunc := context.WithCancel(posterRootContext)
 	err = func() error {
 		var ok bool
 		streamsForPosterMutex.Lock()

@@ -39,8 +39,8 @@ type Scenario struct {
 	// 競技者の実装言語
 	Language string
 
-	loadWaitGroup sync.WaitGroup
-	JiaCancel     context.CancelFunc
+	loadWaitGroup   sync.WaitGroup
+	JiaPosterCancel context.CancelFunc
 
 	//内部状態
 	normalUsersMtx sync.Mutex

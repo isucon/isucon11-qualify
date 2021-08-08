@@ -249,10 +249,7 @@ func main() {
 	s.NoLoad = noLoad
 
 	// JIA API
-	go func() {
-		s.JiaCancel = cancel
-		s.JiaAPIService(ctx, tlsCertificatePath, tlsKeyPath)
-	}()
+	go s.JiaAPIService(ctx, tlsCertificatePath, tlsKeyPath)
 
 	// Benchmarker
 	b, err := isucandar.NewBenchmark(isucandar.WithoutPanicRecover())
