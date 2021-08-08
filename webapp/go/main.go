@@ -1095,7 +1095,6 @@ func getTrend(c echo.Context) error {
 
 	res := []TrendResponse{}
 
-	// TODO: 処理が重すぎるのでなんとかする
 	for _, character := range characterList {
 		isuList := []Isu{}
 		err = db.Select(&isuList,
