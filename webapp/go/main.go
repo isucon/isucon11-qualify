@@ -51,7 +51,7 @@ var (
 
 	jwtVerificationKey *ecdsa.PublicKey
 
-	postIsuConditionTargetURL string
+	postIsuConditionTargetURL string // JIAへのactivate時に登録する，ISUがconditionを送る先のURL
 )
 
 type Config struct {
