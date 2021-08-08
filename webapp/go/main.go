@@ -228,7 +228,7 @@ func main() {
 	e.GET("/api/user/me", getMe)
 	e.GET("/api/isu", getIsuList)
 	e.POST("/api/isu", postIsu)
-	e.GET("/api/isu/:jia_isu_uuid", getIsu)
+	e.GET("/api/isu/:jia_isu_uuid", getIsuID)
 	e.GET("/api/isu/:jia_isu_uuid/icon", getIsuIcon)
 	e.GET("/api/isu/:jia_isu_uuid/graph", getIsuGraph)
 	e.GET("/api/condition/:jia_isu_uuid", getIsuConditions)
@@ -662,7 +662,7 @@ func postIsu(c echo.Context) error {
 
 //  GET /api/isu/{jia_isu_uuid}
 // 椅子の情報を取得する
-func getIsu(c echo.Context) error {
+func getIsuID(c echo.Context) error {
 	jiaUserID, errStatusCode, err := getUserIDFromSession(c)
 	if err != nil {
 		if errStatusCode == http.StatusUnauthorized {
