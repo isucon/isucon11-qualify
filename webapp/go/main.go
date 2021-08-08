@@ -205,11 +205,11 @@ func init() {
 
 	key, err := ioutil.ReadFile(jwtVerificationKeyPath)
 	if err != nil {
-		log.Fatalf("Unable to read file: %v", err)
+		log.Fatalf("failed to read file: %v", err)
 	}
 	jwtVerificationKey, err = jwt.ParseECPublicKeyFromPEM(key)
 	if err != nil {
-		log.Fatalf("Unable to parse ECDSA public key: %v", err)
+		log.Fatalf("failed to parse ECDSA public key: %v", err)
 	}
 }
 
@@ -248,7 +248,7 @@ func main() {
 	var err error
 	db, err = mySQLConnectionData.ConnectDB()
 	if err != nil {
-		e.Logger.Fatalf("DB connection failed : %v", err)
+		e.Logger.Fatalf("failed to connect db: %v", err)
 		return
 	}
 	db.SetMaxOpenConns(10)
@@ -256,12 +256,12 @@ func main() {
 
 	isuConditionPublicAddress = os.Getenv("SERVER_PUBLIC_ADDRESS")
 	if isuConditionPublicAddress == "" {
-		e.Logger.Fatalf("env ver SERVER_PUBLIC_ADDRESS is missing")
+		e.Logger.Fatalf("missing: SERVER_PUBLIC_ADDRESS")
 		return
 	}
 	isuConditionPublicPort, err = strconv.Atoi(getEnv("SERVER_PUBLIC_PORT", "80"))
 	if err != nil {
-		e.Logger.Fatalf("env ver SERVER_PUBLIC_PORT is invalid: %v", err)
+		e.Logger.Fatalf("bad format: SERVER_PUBLIC_PORT: %v", err)
 		return
 	}
 
@@ -352,7 +352,7 @@ func postAuthentication(c echo.Context) error {
 
 	token, err := jwt.Parse(reqJwt, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodECDSA); !ok {
-			return nil, jwt.NewValidationError(fmt.Sprintf("Unexpected signing method: %v", token.Header["alg"]), jwt.ValidationErrorSignatureInvalid)
+			return nil, jwt.NewValidationError(fmt.Sprintf("unexpected signing method: %v", token.Header["alg"]), jwt.ValidationErrorSignatureInvalid)
 		}
 		return jwtVerificationKey, nil
 	})
@@ -361,14 +361,14 @@ func postAuthentication(c echo.Context) error {
 		case *jwt.ValidationError:
 			return c.String(http.StatusForbidden, "forbidden")
 		default:
-			c.Logger().Errorf("unknown error: %v", err)
+			c.Logger().Error(err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		c.Logger().Errorf("type assertion error")
+		c.Logger().Errorf("invalid JWT payload")
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	jiaUserIDVar, ok := claims["jia_user_id"]
@@ -388,14 +388,14 @@ func postAuthentication(c echo.Context) error {
 
 	session, err := getSession(c.Request())
 	if err != nil {
-		c.Logger().Errorf("failed to get session: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	session.Values["jia_user_id"] = jiaUserID
 	err = session.Save(c.Request(), c.Response())
 	if err != nil {
-		c.Logger().Errorf("failed to set cookie: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -410,20 +410,20 @@ func postSignout(c echo.Context) error {
 			return c.String(http.StatusUnauthorized, "you are not signed in")
 		}
 
-		c.Logger().Errorf("failed to getUserIDFromSession: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	session, err := getSession(c.Request())
 	if err != nil {
-		c.Logger().Errorf("failed to get session: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	session.Options = &sessions.Options{MaxAge: -1, Path: "/"}
 	err = session.Save(c.Request(), c.Response())
 	if err != nil {
-		c.Logger().Errorf("cannot delete session: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -437,7 +437,7 @@ func getMe(c echo.Context) error {
 			return c.String(http.StatusUnauthorized, "you are not signed in")
 		}
 
-		c.Logger().Errorf("failed to getUserIDFromSession: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -454,7 +454,7 @@ func getIsuList(c echo.Context) error {
 			return c.String(http.StatusUnauthorized, "you are not signed in")
 		}
 
-		c.Logger().Errorf("failed to getUserIDFromSession: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -494,8 +494,7 @@ func getIsuList(c echo.Context) error {
 		if foundLastCondition {
 			conditionLevel, err := calculateConditionLevel(lastCondition.Condition)
 			if err != nil {
-				c.Logger().Errorf("failed to get condition level: %v", err)
-				return c.NoContent(http.StatusInternalServerError)
+				c.Logger().Error(err)
 			}
 
 			formattedCondition = &GetIsuConditionResponse{
@@ -536,7 +535,7 @@ func postIsu(c echo.Context) error {
 			return c.String(http.StatusUnauthorized, "you are not signed in")
 		}
 
-		c.Logger().Errorf("failed to getUserIDFromSession: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -557,20 +556,20 @@ func postIsu(c echo.Context) error {
 	if useDefaultImage {
 		image, err = ioutil.ReadFile(defaultIconFilePath)
 		if err != nil {
-			c.Logger().Errorf("failed to read default icon: %v", err)
+			c.Logger().Error(err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
 	} else {
 		file, err := fh.Open()
 		if err != nil {
-			c.Logger().Errorf("failed to open fh: %v", err)
+			c.Logger().Error(err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
 		defer file.Close()
 
 		image, err = ioutil.ReadAll(file)
 		if err != nil {
-			c.Logger().Errorf("failed to read file: %v", err)
+			c.Logger().Error(err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
 	}
@@ -600,13 +599,13 @@ func postIsu(c echo.Context) error {
 	body := JIAServiceRequest{isuConditionPublicAddress, isuConditionPublicPort, jiaIsuUUID}
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
-		c.Logger().Errorf("failed to marshal data: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	reqJIA, err := http.NewRequest(http.MethodPost, targetURL, bytes.NewBuffer(bodyJSON))
 	if err != nil {
-		c.Logger().Errorf("failed to build request: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -625,14 +624,14 @@ func postIsu(c echo.Context) error {
 
 	resBody, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		c.Logger().Errorf("error occurred while reading JIA response: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	var isuFromJIA IsuFromJIA
 	err = json.Unmarshal(resBody, &isuFromJIA)
 	if err != nil {
-		c.Logger().Errorf("cannot unmarshal JIA response: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -670,7 +669,7 @@ func getIsu(c echo.Context) error {
 			return c.String(http.StatusUnauthorized, "you are not signed in")
 		}
 
-		c.Logger().Errorf("failed to getUserIDFromSession: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -704,7 +703,7 @@ func getIsuIcon(c echo.Context) error {
 			return c.String(http.StatusUnauthorized, "you are not signed in")
 		}
 
-		c.Logger().Errorf("failed to getUserIDFromSession: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -738,7 +737,7 @@ func getIsuGraph(c echo.Context) error {
 			return c.String(http.StatusUnauthorized, "you are not signed in")
 		}
 
-		c.Logger().Errorf("failed to getUserIDFromSession: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -773,7 +772,7 @@ func getIsuGraph(c echo.Context) error {
 
 	res, err := generateIsuGraphResponse(tx, jiaIsuUUID, date)
 	if err != nil {
-		c.Logger().Errorf("failed to generating isu graph: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -797,7 +796,7 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 
 	rows, err := tx.Queryx("SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` ASC", jiaIsuUUID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("db error: %v", err)
 	}
 
 	for rows.Next() {
@@ -809,10 +808,7 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 		truncatedConditionTime := truncateAfterHours(condition.Timestamp)
 		if truncatedConditionTime != startTimeInThisHour {
 			if len(conditionsInThisHour) > 0 {
-				data, err := calculateGraphDataPoint(conditionsInThisHour)
-				if err != nil {
-					return nil, fmt.Errorf("failed to calculate graph: %v", err)
-				}
+				data := calculateGraphDataPoint(conditionsInThisHour)
 				dataPoints = append(dataPoints,
 					GraphDataPointWithInfo{
 						JIAIsuUUID:          jiaIsuUUID,
@@ -830,10 +826,7 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 	}
 
 	if len(conditionsInThisHour) > 0 {
-		data, err := calculateGraphDataPoint(conditionsInThisHour)
-		if err != nil {
-			return nil, fmt.Errorf("failed to calculate graph: %v", err)
-		}
+		data := calculateGraphDataPoint(conditionsInThisHour)
 		dataPoints = append(dataPoints,
 			GraphDataPointWithInfo{
 				JIAIsuUUID:          jiaIsuUUID,
@@ -892,7 +885,7 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 }
 
 // 複数のISU conditionからグラフの一つのデータ点を計算
-func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, error) {
+func calculateGraphDataPoint(isuConditions []IsuCondition) GraphDataPoint {
 	conditionsCount := map[string]int{"is_broken": 0, "is_dirty": 0, "is_overweight": 0}
 	rawScore := 0
 	for _, condition := range isuConditions {
@@ -942,7 +935,7 @@ func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, erro
 			IsDirty:      isDirtyPercentage,
 		},
 	}
-	return dataPoint, nil
+	return dataPoint
 }
 
 //  GET /api/condition/{jia_isu_uuid}?
@@ -954,7 +947,7 @@ func getIsuConditions(c echo.Context) error {
 			return c.String(http.StatusUnauthorized, "you are not signed in")
 		}
 
-		c.Logger().Errorf("failed to getUserIDFromSession: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -1040,7 +1033,7 @@ func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, endTime time.Time, c
 		)
 	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("db error: %v", err)
 	}
 
 	conditionsResponse := []*GetIsuConditionResponse{}
@@ -1130,7 +1123,7 @@ func getTrend(c echo.Context) error {
 				isuLastCondition := conditions[0]
 				conditionLevel, err := calculateConditionLevel(isuLastCondition.Condition)
 				if err != nil {
-					c.Logger().Errorf("failed to get condition level: %v", err)
+					c.Logger().Error(err)
 					return c.NoContent(http.StatusInternalServerError)
 				}
 				trendCondition := TrendCondition{
@@ -1190,7 +1183,6 @@ func postIsuCondition(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	if count == 0 {
-		c.Logger().Errorf("isu not found")
 		return c.String(http.StatusNotFound, "not found: isu")
 	}
 
@@ -1264,7 +1256,7 @@ func truncateAfterHours(t time.Time) time.Time {
 func getIndex(c echo.Context) error {
 	err := templates.ExecuteTemplate(c.Response().Writer, "index.html", struct{}{})
 	if err != nil {
-		c.Logger().Errorf("getIndex error: %v", err)
+		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	return nil
