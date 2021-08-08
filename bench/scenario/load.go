@@ -178,7 +178,7 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 
 		//GET /
 		var newConditionUUIDs []string
-		_, errs := browserGetHomeAction(ctx, user.Agent, true,
+		_, errs := browserGetHomeAction(ctx, user.Agent,
 			func(res *http.Response, isuList []*service.Isu) []error {
 				expected := user.IsuListOrderByCreatedAt
 
@@ -209,7 +209,7 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 		}
 
 		//GET /isu/{jia_isu_uuid}
-		_, errs = browserGetIsuDetailAction(ctx, user.Agent, targetIsu.JIAIsuUUID, true)
+		_, errs = browserGetIsuDetailAction(ctx, user.Agent, targetIsu.JIAIsuUUID)
 		for _, err := range errs {
 			addErrorWithContext(ctx, step, err)
 		}
