@@ -52,7 +52,6 @@ var (
 	jwtVerificationKey *ecdsa.PublicKey
 
 	isuConditionPublicAddress string
-	isuConditionPublicPort    int
 )
 
 type Config struct {
@@ -257,11 +256,6 @@ func main() {
 	isuConditionPublicAddress = os.Getenv("SERVER_PUBLIC_ADDRESS")
 	if isuConditionPublicAddress == "" {
 		e.Logger.Fatalf("missing: SERVER_PUBLIC_ADDRESS")
-		return
-	}
-	isuConditionPublicPort, err = strconv.Atoi(getEnv("SERVER_PUBLIC_PORT", "80"))
-	if err != nil {
-		e.Logger.Fatalf("bad format: SERVER_PUBLIC_PORT: %v", err)
 		return
 	}
 
@@ -602,7 +596,7 @@ func postIsu(c echo.Context) error {
 	}
 
 	targetURL := getJIAServiceURL(tx) + "/api/activate"
-	body := JIAServiceRequest{isuConditionPublicAddress, isuConditionPublicPort, jiaIsuUUID}
+	body := JIAServiceRequest{isuConditionPublicAddress, jiaIsuUUID}
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
 		c.Logger().Error(err)
