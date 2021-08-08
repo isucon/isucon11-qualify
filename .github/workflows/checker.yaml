@@ -1,4 +1,4 @@
-# 中間生成物が最新版担っていることを確認する Action
+# 中間生成物が最新版になっていることを確認する Action
 name: checker
 on: push
 jobs:
