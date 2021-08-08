@@ -30,7 +30,7 @@
     path: /home/isucon/bin
     owner: isucon
     group: isucon
-    mode: "0644"
+    mode: "0755"
 
 - name: "roles/bench.supervisor/tasks/main: Deploy isuxportal-supervisor"
   become_user: root
