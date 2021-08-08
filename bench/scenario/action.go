@@ -700,10 +700,8 @@ func BrowserAccess(ctx context.Context, a *agent.Agent, rpath string, page PageT
 	if err != nil {
 		return failure.NewError(ErrHTTP, err)
 	}
-	if err := verifyStatusCode(res, http.StatusOK); err != nil {
-		if err := verifyStatusCode(res, http.StatusNotModified); err != nil {
-			return failure.NewError(ErrInvalidStatusCode, err)
-		}
+	if err := verifyStatusCodes(res, []int{http.StatusOK, http.StatusNotModified}); err != nil {
+		return err
 	}
 
 	resources, err := a.ProcessHTML(ctx, res, res.Body)
