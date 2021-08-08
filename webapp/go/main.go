@@ -51,7 +51,7 @@ var (
 
 	jwtVerificationKey *ecdsa.PublicKey
 
-	isuConditionPublicAddress string
+	postIsuConditionTargetURL string
 )
 
 type Config struct {
@@ -253,9 +253,9 @@ func main() {
 	db.SetMaxOpenConns(10)
 	defer db.Close()
 
-	isuConditionPublicAddress = os.Getenv("SERVER_PUBLIC_ADDRESS")
-	if isuConditionPublicAddress == "" {
-		e.Logger.Fatalf("missing: SERVER_PUBLIC_ADDRESS")
+	postIsuConditionTargetURL = os.Getenv("POST_ISUCONDITION_TARGET_URL")
+	if postIsuConditionTargetURL == "" {
+		e.Logger.Fatalf("missing: POST_ISUCONDITION_TARGET_URL")
 		return
 	}
 
@@ -596,7 +596,7 @@ func postIsu(c echo.Context) error {
 	}
 
 	targetURL := getJIAServiceURL(tx) + "/api/activate"
-	body := JIAServiceRequest{isuConditionPublicAddress, jiaIsuUUID}
+	body := JIAServiceRequest{postIsuConditionTargetURL, jiaIsuUUID}
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
 		c.Logger().Error(err)
