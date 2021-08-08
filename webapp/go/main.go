@@ -1149,7 +1149,7 @@ func getTrend(c echo.Context) error {
 // POST /api/condition/{jia_isu_uuid}
 // ISUからのセンサデータを受け取る
 func postIsuCondition(c echo.Context) error {
-	// TODO: リクエストをdropしないようにしたい
+	// TODO: 一定割合リクエストを落としてしのぐようにしたが，本来は全量さばけるようにすべき
 	dropProbability := 0.1
 	if rand.Float64() <= dropProbability {
 		c.Logger().Warnf("drop post isu condition request")
