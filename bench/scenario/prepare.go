@@ -199,13 +199,10 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 		}
 		randomUser.Agent = agt
 		// check: ログイン成功
-		if err := BrowserAccess(ctx, agt, "/", TrendPage); err != nil {
-			step.AddError(err)
-			return
-		}
-		_, errs = authAction(ctx, agt, randomUser.UserID)
-		for _, err := range errs {
-			step.AddError(err)
+		if errs := browserGetAuthAction(ctx, randomUser.Agent, randomUser.UserID); errs != nil {
+			for _, err := range errs {
+				step.AddError(err)
+			}
 			return
 		}
 
@@ -511,7 +508,6 @@ func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.Benchma
 
 	//TODO: ユーザープール
 	//とりあえずは使い捨てのユーザーを使う
-
 	w, err := worker.NewWorker(func(ctx context.Context, index int) {
 
 		agt, err := s.NewAgent(agent.WithTimeout(s.prepareTimeout))
@@ -520,25 +516,13 @@ func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.Benchma
 			return
 		}
 		userID := random.UserName()
-		if (index % 10) < authActionErrorNum {
-			//各種ログイン失敗ケース
-			errs := authActionError(ctx, agt, userID, index%10)
-			for _, err := range errs {
-				step.AddError(err)
-			}
-		} else {
-			//ログイン成功
-			if err := BrowserAccess(ctx, agt, "/", TrendPage); err != nil {
-				step.AddError(err)
-				return
-			}
-
-			_, errs := authAction(ctx, agt, userID)
-			for _, err := range errs {
-				step.AddError(err)
-			}
+		//各種ログイン失敗ケース
+		errs := authActionError(ctx, agt, userID, index%authActionErrorNum)
+		for _, err := range errs {
+			step.AddError(err)
 		}
-	}, worker.WithLoopCount(20))
+
+	}, worker.WithLoopCount(authActionErrorNum))
 
 	if err != nil {
 		logger.AdminLogger.Panic(err)
