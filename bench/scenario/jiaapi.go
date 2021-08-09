@@ -5,12 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
-	"github.com/isucon/isucandar"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
+	"github.com/isucon/isucon11-qualify/bench/service"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
@@ -20,21 +21,13 @@ var (
 	isuIsActivated        = map[string]JiaAPI2PosterData{}
 	streamsForPoster      = map[string]*model.StreamsForPoster{}
 	//isuDetailInfomation   = map[string]*IsuDetailInfomation{}
-	isuFromUUID      = map[string]*model.Isu{}
-	isuTargetBaseUrl = map[string]string{} // 本当はISUに紐付けたい
+	isuFromUUID = map[string]*model.Isu{}
 
 	jiaAPIContext context.Context
-	jiaAPIStep    *isucandar.BenchmarkStep
 )
 
 type IsuDetailInfomation struct {
 	Character string `json:"character"`
-}
-
-type IsuConditionPosterRequest struct {
-	TargetIP   string `json:"target_ip"`
-	TargetPort int    `json:"target_port"`
-	IsuUUID    string `json:"isu_uuid"`
 }
 
 //ISU協会 Goroutineとposterの通信
@@ -51,11 +44,10 @@ func RegisterToJiaAPI(isu *model.Isu, streams *model.StreamsForPoster) {
 	streamsForPoster[isu.JIAIsuUUID] = streams
 }
 
-func (s *Scenario) JiaAPIService(ctx context.Context, step *isucandar.BenchmarkStep) {
+func (s *Scenario) JiaAPIService(ctx context.Context) {
 	defer logger.AdminLogger.Println("--- JiaAPIService END")
 
 	jiaAPIContext = ctx
-	jiaAPIStep = step
 
 	// Echo instance
 	e := echo.New()
@@ -99,19 +91,15 @@ func (s *Scenario) JiaAPIService(ctx context.Context, step *isucandar.BenchmarkS
 }
 
 func (s *Scenario) postActivate(c echo.Context) error {
-	state := &IsuConditionPosterRequest{}
+	state := &service.JIAServiceRequest{}
 	err := c.Bind(state)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest)
 	}
-	if !(0 <= state.TargetPort && state.TargetPort < 0x1000) {
+	targetBaseURL, err := url.Parse(state.TargetBaseURL)
+	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest)
 	}
-
-	targetBaseURL := fmt.Sprintf(
-		"http://%s:%d",
-		state.TargetIP, state.TargetPort,
-	)
 
 	//poster Goroutineの起動
 	var isu *model.Isu
@@ -136,7 +124,6 @@ func (s *Scenario) postActivate(c echo.Context) error {
 			activated:  true,
 			cancelFunc: cancelFunc,
 		}
-		isuTargetBaseUrl[state.IsuUUID] = targetBaseURL
 		// リクエストされた JIA_ISU_UUID が事前に scenario.NewIsu にて作成された isu と紐付かない場合 403 を返す
 		isu, ok = isuFromUUID[state.IsuUUID]
 		if !ok {
@@ -151,7 +138,7 @@ func (s *Scenario) postActivate(c echo.Context) error {
 	s.loadWaitGroup.Add(1)
 	go func() {
 		defer s.loadWaitGroup.Done()
-		s.keepPosting(posterContext, jiaAPIStep, targetBaseURL, isu, scenarioChan)
+		s.keepPosting(posterContext, targetBaseURL, isu, scenarioChan)
 	}()
 
 	time.Sleep(50 * time.Millisecond)

@@ -49,15 +49,8 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 	logger.AdminLogger.Println("finish: load initial data")
 	s.realTimePrepareStartedAt = time.Now()
 
-	//jiaの起動
-	s.loadWaitGroup.Add(1)
-	ctxJIA, jiaCancelFunc := context.WithCancel(context.Background())
-	s.jiaCancel = jiaCancelFunc
-	go func() {
-		defer s.loadWaitGroup.Done()
-		s.JiaAPIService(ctxJIA, step)
-	}()
-	jiaWait := time.After(10 * time.Second)
+	// TODO: JIA API が立ち上がるまで待つ方法をもうちょいマシにする
+	jiaWait := time.After(5 * time.Second)
 
 	//initialize
 	initializer, err := s.NewAgent(
@@ -123,7 +116,7 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	if err != nil {
 		logger.AdminLogger.Panicln(err)
 	}
-	noIsuUser := s.NewUser(ctx, step, noIsuAgent, model.UserTypeNormal)
+	noIsuUser := s.NewUser(ctx, step, noIsuAgent, model.UserTypeNormal, false)
 
 	// 初期データで生成しているisuconユーザを利用
 	isuconUser := s.normalUsers[0]
@@ -259,7 +252,7 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 
 			// check: ISU画像取得
 			{
-				imgByte, res, err := getIsuIconAction(ctx, randomUser.Agent, jiaIsuUUID, false)
+				imgByte, res, err := getIsuIconAction(ctx, randomUser.Agent, jiaIsuUUID)
 				if err != nil {
 					step.AddError(err)
 					return
@@ -275,7 +268,8 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 					return
 				}
 
-				imgByte, res, err = getIsuIconAction(ctx, randomUser.Agent, jiaIsuUUID, true)
+				//競技者が304を返した来た場合に、それがうまくいってるかのチェック
+				imgByte, res, err = getIsuIconAction(ctx, randomUser.Agent, jiaIsuUUID)
 				if err != nil {
 					step.AddError(err)
 					return
@@ -360,7 +354,6 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 					StartTime:      nil,
 					EndTime:        endTime,
 					ConditionLevel: "info,warning,critical",
-					Limit:          nil,
 				}
 				conditionsTmp, res, err := getIsuConditionAction(ctx, randomUser.Agent, jiaIsuUUID, req)
 				if err != nil {
@@ -378,11 +371,9 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 			// check: ISUコンディション取得（オプションあり1）
 			// - start_timeは0-11時間前でrandom
 			// - end_time指定を途中の時間で行う
-			// - limitは1-100でrandom
 			{
 				endTime := lastTime
 
-				limit := rand.Intn(100) + 1
 				// condition の read lock を取得
 				isu.CondMutex.RLock()
 				infoConditions := isu.Conditions.Info
@@ -398,7 +389,6 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 					StartTime:      &startTime,
 					EndTime:        endTime,
 					ConditionLevel: "info,warning,critical",
-					Limit:          &limit,
 				}
 
 				if err := BrowserAccess(ctx, randomUser.Agent, "/isu/"+jiaIsuUUID+"/condition", IsuConditionPage); err != nil {
@@ -423,7 +413,6 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 			// - condition random指定
 			// - start_time指定でlimitまで取得できない
 			{
-				limit := 10
 				endTime := lastTime
 
 				// condition の read lock を取得
@@ -449,7 +438,6 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 					StartTime:      &startTime,
 					EndTime:        endTime,
 					ConditionLevel: levelQuery,
-					Limit:          &limit,
 				}
 
 				if err := BrowserAccess(ctx, randomUser.Agent, "/isu/"+jiaIsuUUID+"/condition", IsuConditionPage); err != nil {
@@ -647,7 +635,7 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 		return
 	}
 
-	imgByte, res, err := getIsuIconAction(ctx, loginUser.Agent, isu.JIAIsuUUID, false)
+	imgByte, res, err := getIsuIconAction(ctx, loginUser.Agent, isu.JIAIsuUUID)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -693,7 +681,7 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 		return
 	}
 
-	imgByte, res, err = getIsuIconAction(ctx, loginUser.Agent, isuWithImg.JIAIsuUUID, false)
+	imgByte, res, err = getIsuIconAction(ctx, loginUser.Agent, isuWithImg.JIAIsuUUID)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -1041,44 +1029,6 @@ func (s *Scenario) prepareIrregularCheckGetIsuConditions(ctx context.Context, lo
 		return
 	}
 	if err := verifyText(res, resBody, "bad format: start_time"); err != nil {
-		step.AddError(err)
-		return
-	}
-
-	// check: limitフォーマット違反
-	query = url.Values{}
-	query.Set("end_time", strconv.FormatInt(lastTime, 10))
-	query.Set("condition_level", "info,warning,critical")
-	query.Set("limit", "-1")
-	resBody, res, err = getIsuConditionErrorAction(ctx, loginUser.Agent, isu.JIAIsuUUID, query)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyStatusCode(res, http.StatusBadRequest); err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyText(res, resBody, "bad format: limit"); err != nil {
-		step.AddError(err)
-		return
-	}
-
-	// check: limitフォーマット違反2
-	query = url.Values{}
-	query.Set("end_time", strconv.FormatInt(lastTime, 10))
-	query.Set("condition_level", "info,warning,critical")
-	query.Set("limit", "limit")
-	resBody, res, err = getIsuConditionErrorAction(ctx, loginUser.Agent, isu.JIAIsuUUID, query)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyStatusCode(res, http.StatusBadRequest); err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyText(res, resBody, "bad format: limit"); err != nil {
 		step.AddError(err)
 		return
 	}

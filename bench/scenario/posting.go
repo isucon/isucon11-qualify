@@ -2,12 +2,12 @@ package scenario
 
 import (
 	"context"
-	"fmt"
 	"math/rand"
 	"net/http"
+	"net/url"
+	"path"
 	"time"
 
-	"github.com/isucon/isucandar"
 	"github.com/isucon/isucon11-qualify/bench/model"
 	"github.com/isucon/isucon11-qualify/bench/random"
 	"github.com/isucon/isucon11-qualify/bench/service"
@@ -38,9 +38,10 @@ type posterState struct {
 }
 
 //POST /api/condition/{jia_isu_id}をたたく Goroutine
-func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseURL string, isu *model.Isu, scenarioChan *model.StreamsForPoster) {
+func (s *Scenario) keepPosting(ctx context.Context, targetBaseURL *url.URL, isu *model.Isu, scenarioChan *model.StreamsForPoster) {
 	postConditionTimeout := 100 * time.Millisecond //MEMO: timeout は気にせずにズバズバ投げる
 
+	targetBaseURL.Path = path.Join(targetBaseURL.Path, "/api/condition/", isu.JIAIsuUUID)
 	nowTimeStamp := s.ToVirtualTime(time.Now()).Unix()
 	state := posterState{
 		// lastConditionTimestamp: 0,
@@ -54,7 +55,6 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		lastConditionIsOverweight:     false,
 	}
 	randEngine := rand.New(rand.NewSource(rand.Int63()))
-	targetURL := fmt.Sprintf("%s/api/condition/%s", targetBaseURL, isu.JIAIsuUUID)
 	httpClient := http.Client{}
 	httpClient.Timeout = postConditionTimeout
 
@@ -135,7 +135,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		isu.AddIsuConditions(conditions)
 
 		// timeout も無視するので全てのエラーを見ない
-		postIsuConditionAction(ctx, httpClient, targetURL, &conditionsReq)
+		postIsuConditionAction(ctx, httpClient, targetBaseURL.String(), &conditionsReq)
 	}
 }
 

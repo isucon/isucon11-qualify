@@ -1,0 +1,18 @@
+# 中間生成物が最新版になっていることを確認する Action
+name: checker
+on: push
+jobs:
+  bench-assets:
+    runs-on: self-hosted
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: bench
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: ^1.16.5
+      - run: "mv scenario/assets.go{,.default}"
+      - run: "go generate gen/assets.go"
+      - run: "diff scenario/assets.go{,.default}"

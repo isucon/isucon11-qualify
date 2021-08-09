@@ -16,6 +16,7 @@ module.exports = {
       ...theme('colors'),
       primary: '#241E12',
       secondary: '#6B6965',
+      teritary: '#CCCCCC',
       error: '#CF1717',
       'white-primary': '#FFFFFF',
       'white-secondary': '#FFFFFF',
