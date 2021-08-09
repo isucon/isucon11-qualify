@@ -5,7 +5,7 @@ import session from "cookie-session";
 import express from "express";
 import jwt from "jsonwebtoken";
 import morgan from "morgan";
-import mysql, { FieldPacket } from "mysql2/promise";
+import mysql, { FieldPacket, RowDataPacket, Connection } from "mysql2/promise";
 
 declare global {
   namespace CookieSessionInterfaces {
@@ -15,16 +15,23 @@ declare global {
   }
 }
 
-interface IsuRow extends mysql.RowDataPacket {
+interface IsuRow extends RowDataPacket {
+  id: number;
   jia_isu_uuid: string;
   name: string;
   image: Buffer;
-  jia_catalog_id: string;
   character: string;
   jia_user_id: string;
-  is_deleted: boolean;
   created_at: Date;
   updated_at: Date;
+}
+
+interface GetIsuListResponse {
+  id: number;
+  jia_isu_uuid: string;
+  name: string;
+  character: string;
+  latest_isu_condition?: GetIsuConditionResponse;
 }
 
 interface GetIsuConditionResponse {
@@ -37,15 +44,29 @@ interface GetIsuConditionResponse {
   message: string;
 }
 
+interface IsuConditionRow extends RowDataPacket {
+  id: number;
+  jia_isu_uuid: string;
+  timestamp: Date;
+  is_sitting: boolean;
+  condition: string;
+  message: string;
+  created_at: Date;
+}
+
 const sessionName = "isucondition";
-const conditionLimit = 20;
-const isuListLimit = 200; // TODO 修正が必要なら変更
+// const conditionLimit = 20;
 const frontendContentsPath = "../public";
 const jwtVerificationKeyPath = "../ec256-public.pem";
 // defaultIconFilePath       = "../NoImage.png"
 // defaultJIAServiceURL      = "http://localhost:5000"
 // mysqlErrNumDuplicateEntry = 1062
-// )
+const conditionLevelInfo = "info";
+const conditionLevelWarning = "warning";
+const conditionLevelCritical = "critical";
+// const scoreConditionLevelInfo     = 3
+// const scoreConditionLevelWarning  = 2
+// const scoreConditionLevelCritical = 1
 
 const dbinfo: mysql.PoolOptions = {
   host: process.env["MYSQL_HOSTNAME"] ?? "127.0.0.1",
@@ -54,13 +75,14 @@ const dbinfo: mysql.PoolOptions = {
   database: process.env["MYSQL_DATABASE"] ?? "isucondition",
   password: process.env["MYSQL_PASS"] || "isucon",
   connectionLimit: 10,
+  timezone: "local",
 };
 
 const pool = mysql.createPool(dbinfo);
 
 const app = express();
 
-app.use(express.static(frontendContentsPath));
+app.use("/assets", express.static(frontendContentsPath + "/assets"));
 app.use(morgan("combined"));
 app.use(
   session({
@@ -116,65 +138,91 @@ app.post("/api/auth", async (req, res) => {
   }
 });
 
-// GET /api/user/me
-app.get("/api/user/me", async (req, res) => {
-  const jia_user_id = req.session?.jia_user_id;
-  if (!jia_user_id) {
-    console.error("you are not signed in");
-    return res.status(401).send("you are not signed in");
-  }
-  res.status(200).json({ jia_user_id });
-});
-
 // POST /api/signout
 app.post("/api/signout", async (req, res) => {
   const jia_user_id = req.session?.jia_user_id;
   if (!jia_user_id) {
     console.error("you are not signed in");
-    return res.status(401).send("you are not signed in");
+    return res.status(401).type("text").send("you are not signed in");
   }
   req.session = null;
   res.status(200).send();
 });
 
-interface GetIsuListQuery {
-  limit?: string;
-}
+// GET /api/user/me
+app.get("/api/user/me", async (req, res) => {
+  const jia_user_id = req.session?.jia_user_id;
+  if (!jia_user_id) {
+    console.error("you are not signed in");
+    return res.status(401).type("text").send("you are not signed in");
+  }
+  res.status(200).json({ jia_user_id });
+});
 
 // GET /api/isu
-app.get(
-  "/api/isu",
-  async (req: express.Request<{}, any, any, GetIsuListQuery>, res) => {
-    const jia_user_id = req.session?.jia_user_id;
-    if (!jia_user_id) {
-      console.error("you are not signed in");
-      return res.status(401).send("you are not signed in");
-    }
-
-    const limit = req.query.limit
-      ? parseInt(req.query.limit, 10)
-      : isuListLimit;
-    if (Number.isNaN(limit)) {
-      console.error("bad format: limit");
-      return res.status(400).send("bad format: limit");
-    }
-
-    const db = await pool.getConnection();
-    try {
-      const [isuList] = await db.query(
-        "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = false ORDER BY `created_at` DESC LIMIT ?",
-        [jia_user_id, limit]
-      );
-      res.status(200).json(isuList);
-    } catch (err) {
-      console.error(`db error: ${err}`);
-      return res.status(500).send();
-    } finally {
-      db.release();
-    }
+app.get("/api/isu", async (req, res) => {
+  const jiaUserId = req.session?.jia_user_id;
+  if (!jiaUserId) {
+    console.error("you are not signed in");
+    return res.status(401).send("you are not signed in");
   }
-);
 
+  const db = await pool.getConnection();
+  try {
+    await db.beginTransaction();
+    const [isuList]: [IsuRow[], FieldPacket[]] = await db.query(
+      "SELECT * FROM `isu` WHERE `jia_user_id` = ? ORDER BY `id` DESC",
+      [jiaUserId]
+    );
+    const responseList: Array<GetIsuListResponse> = [];
+    for (const isu of isuList) {
+      let foundLastCondition = true;
+      const [[lastCondition, ..._]]: [IsuConditionRow[], FieldPacket[]] =
+        await db.query(
+          "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` DESC LIMIT 1",
+          [isu.jia_isu_uuid]
+        );
+      if (lastCondition.length) {
+        foundLastCondition = false;
+      }
+      let formattedCondition = undefined;
+      if (foundLastCondition) {
+        const [conditionLevel, err] = calculateConditionLevel(
+          lastCondition.condition
+        );
+        if (err) {
+          console.error(`failed to get condition level: ${err}`);
+          return res.status(500).send();
+        }
+        formattedCondition = {
+          jia_isu_uuid: lastCondition.jia_isu_uuid,
+          isu_name: isu.name,
+          timestamp: lastCondition.timestamp.getTime() / 1000,
+          is_sitting: lastCondition.is_sitting,
+          condition: lastCondition.condition,
+          condition_level: conditionLevel,
+          message: lastCondition.message,
+        };
+      }
+      responseList.push({
+        id: isu.id,
+        jia_isu_uuid: isu.jia_isu_uuid,
+        name: isu.name,
+        character: isu.character,
+        latest_isu_condition: formattedCondition,
+      });
+    }
+    await db.commit();
+    res.status(200).json(responseList);
+  } catch (err) {
+    console.error(`db error: ${err}`);
+    return res.status(500).send();
+  } finally {
+    db.release();
+  }
+});
+
+/*
 interface GetAllIsuConditionsQuery {
   cursor_end_time: string;
   cursor_jia_isu_uuid: string;
@@ -273,5 +321,28 @@ const getIsuConditionsFromDB = async (
 ) => {
   // TODO:
 };
+*/
+
+// conditionのcsvからcondition levelを計算
+function calculateConditionLevel(condition: string): [string, Error?] {
+  var conditionLevel: string;
+
+  const warnCount = Array.from(condition.matchAll(/=true/g)).length;
+  switch (warnCount) {
+    case 0:
+      conditionLevel = conditionLevelInfo;
+      break;
+    case 1:
+    case 2:
+      conditionLevel = conditionLevelWarning;
+      break;
+    case 3:
+      conditionLevel = conditionLevelCritical;
+      break;
+    default:
+      return ["", new Error("unexpected warn count")];
+  }
+  return [conditionLevel, undefined];
+}
 
 app.listen(process.env.PORT ?? 3000, () => {});
