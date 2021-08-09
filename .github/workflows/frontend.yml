@@ -62,3 +62,12 @@ jobs:
       - run: npm ci
       - run: npm run fmt:check
       - run: npm run lint
+  message:
+      - uses: peter-evans/create-or-update-comment@v1
+        if: ${{ github.event.action == 'opened' }}
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            ### webapp/frontend 更新時のチェックリスト
+
+            - [ ] `npm run build` を実行し webapp/public の内容を更新した

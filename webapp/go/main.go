@@ -666,7 +666,7 @@ func postIsu(c echo.Context) error {
 	return c.JSON(http.StatusCreated, isu)
 }
 
-// GET /api/isu/{jia_isu_uuid}
+// GET /api/isu/:jia_isu_uuid
 // ISUの情報を取得
 func getIsuID(c echo.Context) error {
 	jiaUserID, errStatusCode, err := getUserIDFromSession(c)
@@ -696,7 +696,7 @@ func getIsuID(c echo.Context) error {
 	return c.JSON(http.StatusOK, res)
 }
 
-// GET /api/isu/{jia_isu_uuid}/icon
+// GET /api/isu/:jia_isu_uuid/icon
 // ISUのアイコンを取得
 func getIsuIcon(c echo.Context) error {
 	jiaUserID, errStatusCode, err := getUserIDFromSession(c)
@@ -726,7 +726,7 @@ func getIsuIcon(c echo.Context) error {
 	return c.Blob(http.StatusOK, "", image)
 }
 
-// GET /api/isu/{jia_isu_uuid}/graph
+// GET /api/isu/:jia_isu_uuid/graph
 // ISUのコンディショングラフ描画のための情報を取得
 func getIsuGraph(c echo.Context) error {
 	jiaUserID, errStatusCode, err := getUserIDFromSession(c)
@@ -935,7 +935,7 @@ func calculateGraphDataPoint(isuConditions []IsuCondition) GraphDataPoint {
 	return dataPoint
 }
 
-// GET /api/condition/{jia_isu_uuid}
+// GET /api/condition/:jia_isu_uuid
 // ISUのコンディションを取得
 func getIsuConditions(c echo.Context) error {
 	jiaUserID, errStatusCode, err := getUserIDFromSession(c)
@@ -976,14 +976,6 @@ func getIsuConditions(c echo.Context) error {
 		}
 		startTime = time.Unix(startTimeInt64, 0)
 	}
-	limitStr := c.QueryParam("limit")
-	limit := conditionLimit
-	if limitStr != "" {
-		limit, err = strconv.Atoi(limitStr)
-		if err != nil || limit <= 0 {
-			return c.String(http.StatusBadRequest, "bad format: limit")
-		}
-	}
 
 	var isuName string
 	err = db.Get(&isuName,
@@ -999,7 +991,7 @@ func getIsuConditions(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	conditionsResponse, err := getIsuConditionsFromDB(db, jiaIsuUUID, endTime, conditionLevel, startTime, limit, isuName)
+	conditionsResponse, err := getIsuConditionsFromDB(db, jiaIsuUUID, endTime, conditionLevel, startTime, conditionLimit, isuName)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -1143,7 +1135,7 @@ func getTrend(c echo.Context) error {
 	return c.JSON(http.StatusOK, res)
 }
 
-// POST /api/condition/{jia_isu_uuid}
+// POST /api/condition/:jia_isu_uuid
 // ISUからのコンディションを受け取る
 func postIsuCondition(c echo.Context) error {
 	// TODO: 一定割合リクエストを落としてしのぐようにしたが、本来は全量さばけるようにすべき
