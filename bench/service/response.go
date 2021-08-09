@@ -120,7 +120,7 @@ func (t *GetTrendResponseOne) UnmarshalJSONObject(dec *gojay.Decoder, key string
 	return nil
 }
 func (t *GetTrendResponseOne) NKeys() int {
-	return 2
+	return 4
 }
 
 func (t *GetTrendResponse) UnmarshalJSONArray(dec *gojay.Decoder) error {
