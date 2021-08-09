@@ -40,7 +40,7 @@ const AddUserStep = 500
 const AddUserCount = 1
 
 // Viewer が何回エラーしたら drop するか
-const ViewerDropCount = 0
+const ViewerDropCount = 1
 
 type PageType int
 
@@ -53,10 +53,14 @@ const (
 	AuthPage
 )
 
+// ユーザーがもってるISUの数の上限
 const IsuCountMax = 3
 
+// 1ユーザーのループが何回回れば Viewer が増えるか
 const ViewerAddLoopStep = 1
 
+// Viewer のユーザー数に対する上限
 const ViewerLimitPerUser = 3
 
+// ユーザーが追加されるとき、発生していて良い Timeout のユーザー数に対する上限
 const TimeoutLimitPerUser = 20
