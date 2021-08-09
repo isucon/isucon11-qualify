@@ -8,9 +8,9 @@ services:
     environment:
       MYSQL_HOST: mysql-backend
       MYSQL_PORT: 3306
-      MYSQL_DATABASE: isucondition
+      MYSQL_DBNAME: isucondition
       MYSQL_USER: isucon
-      MYSQL_PASSWORD: isucon
+      MYSQL_PASS: isucon
       POST_ISUCONDITION_TARGET_BASE_URL: http://backend-go:3000
     entrypoint: dockerize -wait tcp://mysql-backend:3306 -timeout 60s
     command: air -c /development/air.toml
@@ -36,9 +36,9 @@ services:
       dockerfile: mysql-backend/Dockerfile
     restart: always
     environment:
-      MYSQL_DATABASE: isucondition
+      MYSQL_DBNAME: isucondition
       MYSQL_USER: isucon
-      MYSQL_PASSWORD: isucon
+      MYSQL_PASS: isucon
       MYSQL_ROOT_PASSWORD: root
     volumes:
       # 開発環境用のものを使って初期化
