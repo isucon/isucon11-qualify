@@ -30,7 +30,7 @@ const (
 	sessionName                 = "isucondition"
 	conditionLimit              = 20
 	frontendContentsPath        = "../public"
-	jwtVerificationKeyPath      = "../ec256-public.pem"
+	jiaJWTSigningKeyPath        = "../ec256-public.pem"
 	defaultIconFilePath         = "../NoImage.jpg"
 	defaultJIAServiceURL        = "http://localhost:5000"
 	mysqlErrNumDuplicateEntry   = 1062
@@ -47,7 +47,7 @@ var (
 	sessionStore        sessions.Store
 	mySQLConnectionData *MySQLConnectionEnv
 
-	jwtVerificationKey *ecdsa.PublicKey
+	jiaJWTSigningKey *ecdsa.PublicKey
 
 	postIsuConditionTargetBaseURL string // JIAへのactivate時に登録する，ISUがconditionを送る先のURL
 )
@@ -195,11 +195,11 @@ func (mc *MySQLConnectionEnv) ConnectDB() (*sqlx.DB, error) {
 func init() {
 	sessionStore = sessions.NewCookieStore([]byte(getEnv("SESSION_KEY", "isucondition")))
 
-	key, err := ioutil.ReadFile(jwtVerificationKeyPath)
+	key, err := ioutil.ReadFile(jiaJWTSigningKeyPath)
 	if err != nil {
 		log.Fatalf("failed to read file: %v", err)
 	}
-	jwtVerificationKey, err = jwt.ParseECPublicKeyFromPEM(key)
+	jiaJWTSigningKey, err = jwt.ParseECPublicKeyFromPEM(key)
 	if err != nil {
 		log.Fatalf("failed to parse ECDSA public key: %v", err)
 	}
@@ -344,7 +344,7 @@ func postAuthentication(c echo.Context) error {
 		if _, ok := token.Method.(*jwt.SigningMethodECDSA); !ok {
 			return nil, jwt.NewValidationError(fmt.Sprintf("unexpected signing method: %v", token.Header["alg"]), jwt.ValidationErrorSignatureInvalid)
 		}
-		return jwtVerificationKey, nil
+		return jiaJWTSigningKey, nil
 	})
 	if err != nil {
 		switch err.(type) {
