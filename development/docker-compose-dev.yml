@@ -21,9 +21,7 @@ services:
       - "../webapp/ec256-public.pem:/webapp/ec256-public.pem"
       - "../webapp/NoImage.jpg:/webapp/NoImage.jpg"
       # SQLs
-      - "../webapp/sql/init.sh:/webapp/sql/init.sh"
-      - "../webapp/sql/0_Schema.sql:/webapp/sql/0_Schema.sql"
-      - "../development/mysql-backend/2_Init.sql:/webapp/sql/1_InitData.sql"
+      - "../webapp/sql:/webapp/sql"
     depends_on:
       - mysql-backend
   # MEMO: 各言語用のコンテナをここ以下に列挙
@@ -59,3 +57,19 @@ services:
       - "5000:5000"
     volumes:
       - "../extra/jiaapi-mock:/jiaapi"
+
+  apitest:
+    build:
+      context: ..
+      dockerfile: development/apitest/ci.dockerfile
+    environment:
+      ISUXBENCH_TARGET: backend-${target}:3000
+    entrypoint: dockerize -wait http://backend-${target}:3000 -timeout 60s
+    command: ["/bench", "--no-load", "--exit-status"]
+    volumes:
+      - "../bench/images:/images"
+      - "../bench/key:/key"
+      - "../bench/data:/data"
+    depends_on:
+      - mysql-backend
+      - backend-${target}
