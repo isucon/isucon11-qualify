@@ -1032,44 +1032,6 @@ func (s *Scenario) prepareIrregularCheckGetIsuConditions(ctx context.Context, lo
 		return
 	}
 
-	// check: limitフォーマット違反
-	query = url.Values{}
-	query.Set("end_time", strconv.FormatInt(lastTime, 10))
-	query.Set("condition_level", "info,warning,critical")
-	query.Set("limit", "-1")
-	resBody, res, err = getIsuConditionErrorAction(ctx, loginUser.Agent, isu.JIAIsuUUID, query)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyStatusCode(res, http.StatusBadRequest); err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyText(res, resBody, "bad format: limit"); err != nil {
-		step.AddError(err)
-		return
-	}
-
-	// check: limitフォーマット違反2
-	query = url.Values{}
-	query.Set("end_time", strconv.FormatInt(lastTime, 10))
-	query.Set("condition_level", "info,warning,critical")
-	query.Set("limit", "limit")
-	resBody, res, err = getIsuConditionErrorAction(ctx, loginUser.Agent, isu.JIAIsuUUID, query)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyStatusCode(res, http.StatusBadRequest); err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyText(res, resBody, "bad format: limit"); err != nil {
-		step.AddError(err)
-		return
-	}
-
 	// check: 他ユーザの椅子に対するリクエスト
 	query = url.Values{}
 	query.Set("end_time", strconv.FormatInt(lastTime, 10))
