@@ -57,12 +57,13 @@ type GraphDataPercentage struct {
 type GetTrendResponse []GetTrendResponseOne
 
 type GetTrendResponseOne struct {
-	Character  string           `json:"character"`
-	Conditions []TrendCondition `json:"conditions"`
+	Character string           `json:"character"`
+	Info      []TrendCondition `json:"info"`
+	Warning   []TrendCondition `json:"warning"`
+	Critical  []TrendCondition `json:"critical"`
 }
 
 type TrendCondition struct {
-	IsuID          int    `json:"isu_id"`
-	Timestamp      int64  `json:"timestamp"`
-	ConditionLevel string `json:"condition_level"`
+	IsuID     int   `json:"isu_id"`
+	Timestamp int64 `json:"timestamp"`
 }
