@@ -64,7 +64,8 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	// 実際の負荷走行シナリオ
 
 	//通常ユーザー
-	s.AddNormalUser(ctx, step, 2)
+	s.AddNormalUser(ctx, step, 1)
+	s.AddIsuconUser(ctx, step)
 
 	//非ログインユーザーを増やす
 	//s.AddViewer(ctx, step, 2)
@@ -113,7 +114,7 @@ func (s *Scenario) userAdder(ctx context.Context, step *isucandar.BenchmarkStep)
 	}
 }
 
-func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.BenchmarkStep) {
+func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.BenchmarkStep, isIsuconUser bool) {
 	atomic.AddInt32(&userLoopCount, 1)
 
 	userTimer, userTimerCancel := context.WithDeadline(ctx, s.realTimeLoadFinishedAt.Add(-agent.DefaultRequestTimeout))
@@ -128,11 +129,13 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 	// logger.AdminLogger.Println("Normal User start")
 	// defer logger.AdminLogger.Println("Normal User END")
 
-	user := s.initNormalUser(ctx, step)
+	user := s.initNormalUser(ctx, step, isIsuconUser)
 	if user == nil {
 		return
 	}
 	defer user.CloseAllIsuStateChan()
+
+	step.AddScore(ScoreNormalUserInitialize)
 
 	readConditionCount := ReadConditionCount{Info: 0, Warn: 0, Critical: 0}
 	defer func() {
@@ -282,14 +285,14 @@ func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep
 	}
 }
 
-//ユーザーとISUの作成
-func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.BenchmarkStep) *model.User {
+// ユーザーとISUの作成
+func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.BenchmarkStep, isIsuconUser bool) *model.User {
 	//ユーザー作成
 	userAgent, err := s.NewAgent()
 	if err != nil {
 		logger.AdminLogger.Panicln(err)
 	}
-	user := s.NewUser(ctx, step, userAgent, model.UserTypeNormal)
+	user := s.NewUser(ctx, step, userAgent, model.UserTypeNormal, isIsuconUser)
 	if user == nil {
 		//logger.AdminLogger.Println("Normal User fail: NewUser")
 		return nil //致命的でないエラー
@@ -318,7 +321,7 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 			return nil
 		}
 	}
-	step.AddScore(ScoreNormalUserInitialize)
+
 	return user
 }
 

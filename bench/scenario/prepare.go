@@ -116,7 +116,7 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	if err != nil {
 		logger.AdminLogger.Panicln(err)
 	}
-	noIsuUser := s.NewUser(ctx, step, noIsuAgent, model.UserTypeNormal)
+	noIsuUser := s.NewUser(ctx, step, noIsuAgent, model.UserTypeNormal, false)
 
 	// 初期データで生成しているisuconユーザを利用
 	isuconUser := s.normalUsers[0]
