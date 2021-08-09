@@ -125,7 +125,6 @@ func (s *Scenario) postActivate(c echo.Context) error {
 			//scenarioChanでチェックしているのでここには来ないはず
 			return echo.NewHTTPError(http.StatusNotFound)
 		}
-		// activate 済みであれば 403 を返す
 		v, ok := isuIsActivated[state.IsuUUID]
 		alreadyActivated = ok && v.activated
 		if alreadyActivated {
