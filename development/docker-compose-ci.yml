@@ -10,8 +10,7 @@ services:
       MYSQL_DATABASE: isucondition
       MYSQL_USER: isucon
       MYSQL_PASSWORD: isucon
-      POST_ISUCONDITION_TARGET_HOST: backend
-      POST_ISUCONDITION_TARGET_PORT: 3000
+      POST_ISUCONDITION_TARGET_BASE_URL: http://backend:3000
     ports:
       - "3000:3000"
     volumes:

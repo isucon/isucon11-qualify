@@ -49,8 +49,7 @@ var (
 
 	jwtVerificationKey *ecdsa.PublicKey
 
-	postIsuConditionTargetHost string // JIAへのactivate時に登録する，ISUがconditionを送る先のhost
-	postIsuConditionTargetPort int    // JIAへのactivate時に登録する，ISUがconditionを送る先のport
+	postIsuConditionTargetBaseURL string // JIAへのactivate時に登録する，ISUがconditionを送る先のURL
 )
 
 type Config struct {
@@ -166,9 +165,8 @@ type PostIsuConditionRequest struct {
 }
 
 type JIAServiceRequest struct {
-	TargetIP   string `json:"target_ip"`
-	TargetPort int    `json:"target_port"`
-	IsuUUID    string `json:"isu_uuid"`
+	TargetBaseURL string `json:"target_base_url"`
+	IsuUUID       string `json:"isu_uuid"`
 }
 
 func getEnv(key string, defaultValue string) string {
@@ -248,14 +246,9 @@ func main() {
 	db.SetMaxOpenConns(10)
 	defer db.Close()
 
-	postIsuConditionTargetHost = os.Getenv("POST_ISUCONDITION_TARGET_HOST")
-	if postIsuConditionTargetHost == "" {
-		e.Logger.Fatalf("missing: POST_ISUCONDITION_TARGET_HOST")
-		return
-	}
-	postIsuConditionTargetPort, err = strconv.Atoi(getEnv("POST_ISUCONDITION_TARGET_PORT", "80"))
-	if err != nil {
-		e.Logger.Fatalf("bad format: POST_ISUCONDITION_TARGET_PORT: %v", err)
+	postIsuConditionTargetBaseURL = os.Getenv("POST_ISUCONDITION_TARGET_BASE_URL")
+	if postIsuConditionTargetBaseURL == "" {
+		e.Logger.Fatalf("missing: POST_ISUCONDITION_TARGET_BASE_URL")
 		return
 	}
 
@@ -596,7 +589,7 @@ func postIsu(c echo.Context) error {
 	}
 
 	targetURL := getJIAServiceURL(tx) + "/api/activate"
-	body := JIAServiceRequest{postIsuConditionTargetHost, postIsuConditionTargetPort, jiaIsuUUID}
+	body := JIAServiceRequest{postIsuConditionTargetBaseURL, jiaIsuUUID}
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
 		c.Logger().Error(err)
@@ -1133,7 +1126,7 @@ func getTrend(c echo.Context) error {
 // ISUからのコンディションを受け取る
 func postIsuCondition(c echo.Context) error {
 	// TODO: 一定割合リクエストを落としてしのぐようにしたが、本来は全量さばけるようにすべき
-	dropProbability := 0.9
+	dropProbability := 0.1
 	if rand.Float64() <= dropProbability {
 		c.Logger().Warnf("drop post isu condition request")
 		return c.NoContent(http.StatusServiceUnavailable)

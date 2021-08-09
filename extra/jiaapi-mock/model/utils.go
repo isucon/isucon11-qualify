@@ -1,7 +1,5 @@
 package model
 
-import "strconv"
-
-func getKey(targetIP string, targetPort int, isuUUID string) string {
-	return isuUUID + targetIP + strconv.Itoa(targetPort)
+func getKey(targetURL string, isuUUID string) string {
+	return isuUUID + targetURL
 }
