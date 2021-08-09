@@ -18,7 +18,7 @@ import (
 
 var (
 	streamsForPosterMutex sync.Mutex
-	isuIsActivated        = map[string]JiaAPI2PosterData{}
+	isuIsActivated        = map[string]struct{}{}
 	streamsForPoster      = map[string]*model.StreamsForPoster{}
 	//isuDetailInfomation   = map[string]*IsuDetailInfomation{}
 	isuFromUUID = map[string]*model.Isu{}
@@ -28,12 +28,6 @@ var (
 
 type IsuDetailInfomation struct {
 	Character string `json:"character"`
-}
-
-//ISU協会 Goroutineとposterの通信
-type JiaAPI2PosterData struct {
-	activated  bool
-	cancelFunc context.CancelFunc
 }
 
 //シナリオ Goroutineからの呼び出し
@@ -109,8 +103,7 @@ func (s *Scenario) postActivate(c echo.Context) error {
 	//poster Goroutineの起動
 	var isu *model.Isu
 	var scenarioChan *model.StreamsForPoster
-	var alreadyActivated bool
-	posterContext, cancelFunc := context.WithCancel(jiaAPIContext)
+	posterContext, _ := context.WithCancel(jiaAPIContext)
 	err = func() error {
 		var ok bool
 		streamsForPosterMutex.Lock()
@@ -125,29 +118,25 @@ func (s *Scenario) postActivate(c echo.Context) error {
 			//scenarioChanでチェックしているのでここには来ないはず
 			return echo.NewHTTPError(http.StatusNotFound)
 		}
-		v, ok := isuIsActivated[state.IsuUUID]
-		alreadyActivated = ok && v.activated
-		if alreadyActivated {
+		_, ok = isuIsActivated[state.IsuUUID]
+		if ok {
+			//activate済み
 			return nil
 		}
 
 		// activate 済みフラグを立てる
-		isuIsActivated[state.IsuUUID] = JiaAPI2PosterData{
-			activated:  true,
-			cancelFunc: cancelFunc,
-		}
+		isuIsActivated[state.IsuUUID] = struct{}{}
 
-		return nil
-	}()
-	if err != nil {
-		return err
-	}
-	if !alreadyActivated {
+		//activate
 		s.loadWaitGroup.Add(1)
 		go func() {
 			defer s.loadWaitGroup.Done()
 			s.keepPosting(posterContext, targetBaseURL, isu, scenarioChan)
 		}()
+		return nil
+	}()
+	if err != nil {
+		return err
 	}
 
 	time.Sleep(50 * time.Millisecond)
