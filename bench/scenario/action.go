@@ -612,15 +612,11 @@ func browserGetRegisterAction(ctx context.Context, a *agent.Agent) []error {
 	return errors
 }
 
-func browserGetAuthAction(ctx context.Context, a *agent.Agent, userId string) []error {
-	if err := BrowserAccess(ctx, a, "/", TrendPage); err != nil {
-		return []error{err}
-	}
-	if _, errs := authAction(ctx, a, userId); errs != nil {
-		return errs
-	}
+func browserGetAuthAction(ctx context.Context, a *agent.Agent) []error {
+	// TODO: 静的ファイルのGET
 
-	return nil
+	errors := []error{}
+	return errors
 }
 
 func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string) (*service.Isu, []error) {

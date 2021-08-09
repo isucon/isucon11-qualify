@@ -184,14 +184,13 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 		if err != nil {
 			logger.AdminLogger.Panicln(err)
 		}
-		_, errs := authAction(ctx, agt, randomUser.UserID)
-		for _, err := range errs {
+		randomUser.Agent = agt
+		// check: ログイン成功
+		if err := BrowserAccess(ctx, agt, "/", TrendPage); err != nil {
 			step.AddError(err)
 			return
 		}
-		randomUser.Agent = agt
-		// check: ログイン成功
-		if errs := browserGetAuthAction(ctx, randomUser.Agent, randomUser.UserID); errs != nil {
+		if _, errs := authAction(ctx, agt, randomUser.UserID); errs != nil {
 			for _, err := range errs {
 				step.AddError(err)
 			}
