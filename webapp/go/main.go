@@ -1131,7 +1131,12 @@ func getTrend(c echo.Context) error {
 			return characterCriticalIsuConditions[i].Timestamp > characterCriticalIsuConditions[j].Timestamp
 		})
 		res = append(res,
-			TrendResponse{Character: character.Character, Info: characterInfoIsuConditions, Warning: characterWarningIsuConditions, Critical: characterCriticalIsuConditions})
+			TrendResponse{
+				Character: character.Character,
+				Info:      characterInfoIsuConditions,
+				Warning:   characterWarningIsuConditions,
+				Critical:  characterCriticalIsuConditions,
+			})
 	}
 
 	return c.JSON(http.StatusOK, res)
