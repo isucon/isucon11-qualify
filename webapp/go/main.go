@@ -51,7 +51,7 @@ var (
 
 	jwtVerificationKey *ecdsa.PublicKey
 
-	postIsuConditionTargetURL string // JIAへのactivate時に登録する，ISUがconditionを送る先のURL
+	postIsuConditionTargetBaseURL string // JIAへのactivate時に登録する，ISUがconditionを送る先のURL
 )
 
 type Config struct {
@@ -167,8 +167,8 @@ type PostIsuConditionRequest struct {
 }
 
 type JIAServiceRequest struct {
-	TargetURL string `json:"target_url"`
-	IsuUUID   string `json:"isu_uuid"`
+	TargetBaseURL string `json:"target_base_url"`
+	IsuUUID       string `json:"isu_uuid"`
 }
 
 func getEnv(key string, defaultValue string) string {
@@ -252,8 +252,8 @@ func main() {
 	db.SetMaxOpenConns(10)
 	defer db.Close()
 
-	postIsuConditionTargetURL = os.Getenv("POST_ISUCONDITION_TARGET_BASE_URL")
-	if postIsuConditionTargetURL == "" {
+	postIsuConditionTargetBaseURL = os.Getenv("POST_ISUCONDITION_TARGET_BASE_URL")
+	if postIsuConditionTargetBaseURL == "" {
 		e.Logger.Fatalf("missing: POST_ISUCONDITION_TARGET_BASE_URL")
 		return
 	}
@@ -595,7 +595,7 @@ func postIsu(c echo.Context) error {
 	}
 
 	targetURL := getJIAServiceURL(tx) + "/api/activate"
-	body := JIAServiceRequest{postIsuConditionTargetURL, jiaIsuUUID}
+	body := JIAServiceRequest{postIsuConditionTargetBaseURL, jiaIsuUUID}
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
 		c.Logger().Error(err)
