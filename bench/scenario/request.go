@@ -190,6 +190,9 @@ func doRequest(ctx context.Context, agent *agent.Agent, httpreq *http.Request, a
 	}
 
 	invalidStatusCode := true
+	if httpreq.Method == http.MethodGet {
+		allowedStatusCodes = append(allowedStatusCodes, http.StatusNotModified)
+	}
 	for _, c := range allowedStatusCodes {
 		if httpres.StatusCode == c {
 			invalidStatusCode = false

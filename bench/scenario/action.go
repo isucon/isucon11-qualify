@@ -426,12 +426,9 @@ func getIsuIdErrorAction(ctx context.Context, a *agent.Agent, id string) (string
 	return text, res, nil
 }
 
-func getIsuIconAction(ctx context.Context, a *agent.Agent, id string, allowNotModified bool) ([]byte, *http.Response, error) {
+func getIsuIconAction(ctx context.Context, a *agent.Agent, id string) ([]byte, *http.Response, error) {
 	reqUrl := fmt.Sprintf("/api/isu/%s/icon", id)
 	allowedStatusCodes := []int{http.StatusOK}
-	if allowNotModified {
-		allowedStatusCodes = append(allowedStatusCodes, http.StatusNotModified)
-	}
 	res, image, err := reqNoContentResPng(ctx, a, http.MethodGet, reqUrl, allowedStatusCodes)
 	if err != nil {
 		return nil, nil, err
@@ -574,7 +571,6 @@ func getTrendAction(ctx context.Context, a *agent.Agent) (service.GetTrendRespon
 }
 
 func browserGetHomeAction(ctx context.Context, a *agent.Agent,
-	allowNotModified bool,
 	validateIsu func(*http.Response, []*service.Isu) []error,
 ) ([]*service.Isu, []error) {
 	// TODO: 静的ファイルのGET
@@ -591,7 +587,7 @@ func browserGetHomeAction(ctx context.Context, a *agent.Agent,
 		for _, isu := range isuList {
 			go func(isu *service.Isu) {
 				defer wg.Done()
-				icon, _, err := getIsuIconAction(ctx, a, isu.JIAIsuUUID, allowNotModified)
+				icon, _, err := getIsuIconAction(ctx, a, isu.JIAIsuUUID)
 				if err != nil {
 					isu.Icon = nil
 					errMutex.Lock()
@@ -623,9 +619,7 @@ func browserGetAuthAction(ctx context.Context, a *agent.Agent) []error {
 	return errors
 }
 
-func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string,
-	allowNotModified bool,
-) (*service.Isu, []error) {
+func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string) (*service.Isu, []error) {
 	// TODO: 静的ファイルのGET
 
 	errors := []error{}
@@ -635,7 +629,7 @@ func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string,
 		errors = append(errors, err)
 	}
 	if isu != nil {
-		icon, _, err := getIsuIconAction(ctx, a, id, allowNotModified)
+		icon, _, err := getIsuIconAction(ctx, a, id)
 		if err != nil {
 			isu.Icon = nil
 			errors = append(errors, err)
@@ -699,10 +693,8 @@ func BrowserAccess(ctx context.Context, a *agent.Agent, rpath string, page PageT
 	if err != nil {
 		return failure.NewError(ErrHTTP, err)
 	}
-	if err := verifyStatusCode(res, http.StatusOK); err != nil {
-		if err := verifyStatusCode(res, http.StatusNotModified); err != nil {
-			return failure.NewError(ErrInvalidStatusCode, err)
-		}
+	if err := verifyStatusCodes(res, []int{http.StatusOK, http.StatusNotModified}); err != nil {
+		return err
 	}
 
 	resources, err := a.ProcessHTML(ctx, res, res.Body)
