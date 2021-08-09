@@ -6,6 +6,10 @@ up-go:
 down-dev:
 	docker-compose -f docker-compose-dev.yml down
 
+.PHONY: test-go
+test-go:
+	target=go docker-compose -f docker-compose-dev.yml up --build -- apitest
+
 .PHONY: up-bench
 up-bench:
 	target=go docker compose -f docker-compose-bench.yml up --build
