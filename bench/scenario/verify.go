@@ -182,13 +182,7 @@ func verifyIsuConditions(res *http.Response,
 	backendData []*service.GetIsuConditionResponse) error {
 
 	//limitを超えているかチェック
-	var limit int
-	if request.Limit != nil {
-		limit = int(*request.Limit)
-	} else {
-		limit = conditionLimit
-	}
-	if limit < len(backendData) {
+	if conditionLimit < len(backendData) {
 		return errorInvalid(res, "要素数が正しくありません")
 	}
 	//レスポンス側のstartTimeのチェック
@@ -207,7 +201,7 @@ func verifyIsuConditions(res *http.Response,
 		case 'c':
 			filter |= model.ConditionLevelCritical
 		default:
-			logger.AdminLogger.Panicf("verifyIsuCondtions: リクエストのクエリパラメータ condition_level が不正な値です: %v", level)
+			logger.AdminLogger.Panicf("verifyIsuConditions: リクエストのクエリパラメータ condition_level が不正な値です: %v", level)
 		}
 	}
 
@@ -294,13 +288,7 @@ func verifyPrepareIsuConditions(res *http.Response,
 	backendData []*service.GetIsuConditionResponse) error {
 
 	//limitを超えているかチェック
-	var limit int
-	if request.Limit != nil {
-		limit = int(*request.Limit)
-	} else {
-		limit = conditionLimit
-	}
-	if limit < len(backendData) {
+	if conditionLimit < len(backendData) {
 		return errorInvalid(res, "要素数が正しくありません")
 	}
 	//レスポンス側のstartTimeのチェック
@@ -319,7 +307,7 @@ func verifyPrepareIsuConditions(res *http.Response,
 		case 'c':
 			filter |= model.ConditionLevelCritical
 		default:
-			logger.AdminLogger.Panicf("verifyPrepareIsuCondtions: リクエストのクエリパラメータ condition_level が不正な値です: %v", level)
+			logger.AdminLogger.Panicf("verifyPrepareIsuConditions: リクエストのクエリパラメータ condition_level が不正な値です: %v", level)
 		}
 	}
 
@@ -389,7 +377,7 @@ func verifyPrepareIsuConditions(res *http.Response,
 		// limitの検証
 		// response件数がlimitの数より少ないときは、bench側で条件に合うデータを更にもっていなければ正しい
 		prev := baseIter.Prev()
-		if len(backendData) < limit && prev != nil {
+		if len(backendData) < conditionLimit && prev != nil {
 			if request.StartTime != nil && *request.StartTime <= prev.TimestampUnix {
 				return errorInvalid(res, "要素数が正しくありません")
 			}
@@ -440,7 +428,7 @@ func verifyResources(page PageType, res *http.Response, resources agent.Resource
 			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+vendorJs)], vendorJs),
 		}
 	default:
-		logger.AdminLogger.Panicf("意図していないpage(%s)のResourceCheckを行っています。(path: %s)", page, res.Request.URL.Path)
+		logger.AdminLogger.Panicf("意図していないpage(%d)のResourceCheckを行っています。(path: %s)", page, res.Request.URL.Path)
 	}
 	errs := []error{}
 	for _, err := range checks {

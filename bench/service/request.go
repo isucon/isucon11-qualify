@@ -27,7 +27,6 @@ type GetIsuConditionRequest struct {
 	StartTime      *int64
 	EndTime        int64
 	ConditionLevel string
-	Limit          *int
 }
 
 type GetGraphRequest struct {

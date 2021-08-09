@@ -347,7 +347,6 @@ func (s *Scenario) requestNewConditionScenario(ctx context.Context, step *isucan
 		StartTime:      nil,
 		EndTime:        nowVirtualTime.Unix(),
 		ConditionLevel: "info,warning,critical",
-		Limit:          nil,
 	}
 	conditions, newLastReadConditionTimestamp, errs := s.getIsuConditionUntilAlreadyRead(ctx, user, targetIsu, request, step, readConditionCount)
 	if len(errs) != 0 {
@@ -376,7 +375,6 @@ func (s *Scenario) requestLastBadConditionScenario(ctx context.Context, step *is
 		StartTime:      nil,
 		EndTime:        nowVirtualTime.Unix(),
 		ConditionLevel: "warning,critical",
-		Limit:          nil,
 	}
 	// GET condition/{jia_isu_uuid} を取得してバリデーション
 	_, conditions, errs := browserGetIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
@@ -438,12 +436,6 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 	// 今回のこの関数で取得した condition の配列
 	conditions := []*service.GetIsuConditionResponse{}
 
-	// limit を指定しているならそれに合わせて、指定してないならデフォルトの値を使う
-	limit := conditionLimit
-	if request.Limit != nil {
-		limit = *request.Limit
-	}
-
 	// GET condition/{jia_isu_uuid} を取得してバリデーション
 	_, firstPageConditions, errs := browserGetIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
 		request,
@@ -466,12 +458,12 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 		if isNewData(targetIsu, cond) {
 			conditions = append(conditions, cond)
 		} else {
-			// timestamp順なのは vaidation で保証しているので読んだやつが出てきたタイミングで return
+			// timestamp順なのは validation で保証しているので読んだやつが出てきたタイミングで return
 			return conditions, newLastReadConditionTimestamp, nil
 		}
 	}
 	// 最初のページが最後のページならやめる
-	if len(firstPageConditions) < limit {
+	if len(firstPageConditions) < conditionLimit {
 		return conditions, newLastReadConditionTimestamp, nil
 	}
 
@@ -482,7 +474,6 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 			StartTime:      request.StartTime,
 			EndTime:        conditions[len(conditions)-1].Timestamp,
 			ConditionLevel: request.ConditionLevel,
-			Limit:          request.Limit,
 		}
 
 		// ConditionPagingStep ページごとに現状の condition をスコアリング
@@ -512,7 +503,7 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 		}
 
 		// 最後のページまで見ちゃってるならやめる
-		if len(tmpConditions) != limit {
+		if len(tmpConditions) != conditionLimit {
 			return conditions, newLastReadConditionTimestamp, nil
 		}
 	}
@@ -762,7 +753,7 @@ func findBadIsuState(conditions []*service.GetIsuConditionResponse) (model.IsuSt
 				}
 			}
 		}
-		// TODO: これ == 0 で大丈夫？一度 virtualTimestamp に値を入れた時点で break したほうが良さそう(is_overweight も解消されないようにするなら braek させる)
+		// TODO: これ == 0 で大丈夫？一度 virtualTimestamp に値を入れた時点で break したほうが良さそう(is_overweight も解消されないようにするなら break させる)
 		if bad && virtualTimestamp == 0 {
 			virtualTimestamp = c.Timestamp
 		}
