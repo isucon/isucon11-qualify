@@ -107,10 +107,18 @@ jobs:
       - run: npm run build
         working-directory: webapp/frontend
 
+      # *.t.isucon.dev の証明書を配置
+      - name: Save TLS Certificate
+        run: |
+          echo "${{ secrets.TLS_CERT }}" > files/tls-cert.pem
+          echo "${{ secrets.TLS_KEY }}" > files/tls-key.pem
+
       # packer に渡すファイルを生成
       - run: make clean
       - run: make clean-output
-      - run: make files-generated
+      - run: |
+          export PATH=${HOME}/work/_tool/isucon11-qualify:${PATH}
+          make files-generated
 
       # packer build
       - name: "make build-contestant"

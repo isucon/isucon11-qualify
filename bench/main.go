@@ -39,10 +39,7 @@ var (
 	COMMIT             string
 	targetAddress      string
 	profileFile        string
-	hostAdvertise      string
 	jiaServiceURL      *url.URL
-	tlsCertificatePath string
-	tlsKeyPath         string
 	useTLS             bool
 	exitStatusOnFail   bool
 	noLoad             bool
@@ -80,6 +77,7 @@ func init() {
 	flag.StringVar(&targetAddress, "target", benchrun.GetTargetAddress(), "ex: localhost:9292")
 	flag.StringVar(&profileFile, "profile", "", "ex: cpu.out")
 	flag.BoolVar(&exitStatusOnFail, "exit-status", false, "set exit status non-zero when a benchmark result is failing")
+	flag.BoolVar(&useTLS, "tls", false, "true if target server is a tls")
 	flag.BoolVar(&noLoad, "no-load", false, "exit on finished prepare")
 	flag.StringVar(&promOut, "prom-out", "", "Prometheus textfile output path")
 	flag.BoolVar(&showVersion, "version", false, "show version and exit 1")
@@ -91,6 +89,10 @@ func init() {
 
 	flag.Parse()
 
+	// validate target
+	if targetAddress == "" {
+		targetAddress = "localhost:9292"
+	}
 	// validate jia-service-url
 	jiaServiceURL, err = url.Parse(jiaServiceURLStr)
 	if err != nil {
@@ -225,25 +227,30 @@ func main() {
 		pprof.StartCPUProfile(fs)
 		defer pprof.StopCPUProfile()
 	}
-	if targetAddress == "" {
-		targetAddress = "localhost:9292"
-	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	// for Scenario
 	s, err := scenario.NewScenario(jiaServiceURL, LOAD_TIMEOUT)
 	if err != nil {
 		panic(err)
 	}
 	s = s.WithInitializeTimeout(initializeTimeout)
-	scheme := "http"
 	if useTLS {
-		scheme = "https"
+		s.BaseURL = fmt.Sprintf("https://%s/", targetAddress)
+	} else {
+		s.BaseURL = fmt.Sprintf("http://%s/", targetAddress)
 	}
-	s.BaseURL = fmt.Sprintf("%s://%s/", scheme, targetAddress)
 	s.NoLoad = noLoad
 
+	// JIA API
+	go func() {
+		s.JiaCancel = cancel
+		s.JiaAPIService(ctx)
+	}()
+
+	// Benchmarker
 	b, err := isucandar.NewBenchmark(isucandar.WithoutPanicRecover())
 	if err != nil {
 		panic(err)

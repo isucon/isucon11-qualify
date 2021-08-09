@@ -1,3 +1,5 @@
+Host *
+  User isucon-admin
 Host 192.168.*
   User isucon-admin
   ControlMaster auto

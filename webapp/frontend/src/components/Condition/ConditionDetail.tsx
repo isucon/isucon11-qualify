@@ -1,6 +1,7 @@
 import { Condition } from '../../lib/apis'
 import { getConditionTime } from '../../lib/date'
 import Tip from '../UI/Tip'
+import ConditionIcons from './ConditionIcons'
 
 interface Props {
   condition: Condition
@@ -12,6 +13,9 @@ const ConditionDetail = ({ condition }: Props) => {
       <div className="mr-auto">
         <div>{condition.isu_name}</div>
         <div className="text-secondary">{condition.message}</div>
+      </div>
+      <div>
+        <ConditionIcons conditionCSV={condition.condition} />
       </div>
       <div className="flex justify-center w-24">
         {condition.is_sitting ? <Tip variant="sitting" /> : null}
