@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"runtime/pprof"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -19,6 +20,7 @@ import (
 	"github.com/isucon/isucandar"
 	"github.com/isucon/isucandar/agent"
 	"github.com/isucon/isucandar/failure"
+	"github.com/isucon/isucandar/score"
 
 	// TODO: isucon11-portal に差し替え
 	"github.com/isucon/isucon10-portal/bench-tool.go/benchrun"
@@ -120,6 +122,21 @@ func checkError(err error) (critical bool, timeout bool, deduction bool) {
 	return scenario.CheckError(err)
 }
 
+type TagCountPair struct {
+	Tag   score.ScoreTag
+	Count int64
+}
+type TagCountPairArray []TagCountPair
+
+func (s TagCountPairArray) Len() int {
+	return len(s)
+}
+func (s TagCountPairArray) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+func (s TagCountPairArray) Less(i, j int) bool {
+	return s[i].Tag < s[j].Tag
+}
 func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish bool) bool {
 	passed := true
 	reason := "pass"
@@ -129,11 +146,16 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 	deduction := int64(0)
 	timeoutCount := int64(0)
 
+	tagCountPair := make(TagCountPairArray, 0)
 	for tag, count := range result.Score.Breakdown() {
+		tagCountPair = append(tagCountPair, TagCountPair{Tag: tag, Count: count})
+	}
+	sort.Sort(tagCountPair)
+	for _, p := range tagCountPair {
 		if finish {
-			logger.ContestantLogger.Printf("SCORE: %s: %d", tag, count)
+			logger.ContestantLogger.Printf("SCORE: %s: %d", p.Tag, p.Count)
 		} else {
-			logger.AdminLogger.Printf("SCORE: %s: %d", tag, count)
+			logger.AdminLogger.Printf("SCORE: %s: %d", p.Tag, p.Count)
 		}
 	}
 
