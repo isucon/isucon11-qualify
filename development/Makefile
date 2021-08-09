@@ -45,3 +45,7 @@ update-assets:
 	rm -rf ../webapp/public
 	cd ../webapp/frontend && npm run build
 	cd ../bench && go generate ./gen/assets.go
+
+.PHONY: mysql
+mysql:
+	mysql -h 127.0.0.1 -P $(shell docker-compose -f docker-compose-dev.yml port mysql-backend 3306|cut -d: -f2) -uroot -proot isucondition
