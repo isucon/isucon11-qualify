@@ -2,6 +2,10 @@
 up-go:
 	docker-compose -f docker-compose-dev.yml up --build -- backend-go mysql-backend jiaapi-mock
 
+.PHONY: up-ruby
+up-ruby:
+	docker-compose -f docker-compose-dev.yml up --build -- backend-ruby mysql-backend jiaapi-mock
+
 .PHONY: down-dev
 down-dev:
 	docker-compose -f docker-compose-dev.yml down
