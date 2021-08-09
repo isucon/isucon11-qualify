@@ -8,7 +8,9 @@ down-dev:
 
 .PHONY: test-go
 test-go:
-	target=go docker-compose -f docker-compose-ci.yml -p isucon11q-ci up --build
+	target=go docker-compose -f docker-compose-ci.yml -p isucon11q-ci up -d --build backend mysql-backend
+	target=go docker-compose -f docker-compose-ci.yml -p isucon11q-ci up --build apitest
+	target=go docker-compose -f docker-compose-ci.yml -p isucon11q-ci stop
 
 .PHONY: up-bench
 up-bench:
