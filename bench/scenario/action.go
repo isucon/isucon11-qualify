@@ -16,6 +16,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
@@ -703,18 +704,24 @@ func BrowserAccess(ctx context.Context, a *agent.Agent, rpath string, page PageT
 	if err != nil {
 		return failure.NewError(ErrHTTP, err)
 	}
+	defer res.Body.Close()
+
 	if err := verifyStatusCode(res, http.StatusOK); err != nil {
 		if err := verifyStatusCode(res, http.StatusNotModified); err != nil {
 			return failure.NewError(ErrInvalidStatusCode, err)
 		}
 	}
 
-	resources, err := a.ProcessHTML(ctx, res, res.Body)
+	// res.Bodyの内容をhtmlの検証にも使いたいのでコピー
+	buf := new(bytes.Buffer)
+	teeReader := io.TeeReader(res.Body, buf)
+
+	resources, err := a.ProcessHTML(ctx, res, ioutil.NopCloser(teeReader))
 	if err != nil {
 		return failure.NewError(ErrCritical, err)
 	}
 	// resourceの検証
-	errs := verifyResources(page, res, resources)
+	errs := verifyResources(page, res, resources, buf)
 	for _, err := range errs {
 		if err != nil {
 			return err
