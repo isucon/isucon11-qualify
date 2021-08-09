@@ -109,6 +109,7 @@ func (s *Scenario) postActivate(c echo.Context) error {
 	//poster Goroutineの起動
 	var isu *model.Isu
 	var scenarioChan *model.StreamsForPoster
+	var alreadyActivated bool
 	posterContext, cancelFunc := context.WithCancel(jiaAPIContext)
 	err = func() error {
 		var ok bool
@@ -119,20 +120,22 @@ func (s *Scenario) postActivate(c echo.Context) error {
 		if !ok {
 			return echo.NewHTTPError(http.StatusNotFound)
 		}
+		isu, ok = isuFromUUID[state.IsuUUID]
+		if !ok {
+			//scenarioChanでチェックしているのでここには来ないはず
+			return echo.NewHTTPError(http.StatusNotFound)
+		}
 		// activate 済みであれば 403 を返す
 		v, ok := isuIsActivated[state.IsuUUID]
-		if ok && v.activated {
-			return echo.NewHTTPError(http.StatusForbidden)
+		alreadyActivated = ok && v.activated
+		if alreadyActivated {
+			return nil
 		}
+
 		// activate 済みフラグを立てる
 		isuIsActivated[state.IsuUUID] = JiaAPI2PosterData{
 			activated:  true,
 			cancelFunc: cancelFunc,
-		}
-		// リクエストされた JIA_ISU_UUID が事前に scenario.NewIsu にて作成された isu と紐付かない場合 403 を返す
-		isu, ok = isuFromUUID[state.IsuUUID]
-		if !ok {
-			return echo.NewHTTPError(http.StatusForbidden)
 		}
 
 		return nil
@@ -140,11 +143,13 @@ func (s *Scenario) postActivate(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	s.loadWaitGroup.Add(1)
-	go func() {
-		defer s.loadWaitGroup.Done()
-		s.keepPosting(posterContext, targetBaseURL, isu, scenarioChan)
-	}()
+	if !alreadyActivated {
+		s.loadWaitGroup.Add(1)
+		go func() {
+			defer s.loadWaitGroup.Done()
+			s.keepPosting(posterContext, targetBaseURL, isu, scenarioChan)
+		}()
+	}
 
 	time.Sleep(50 * time.Millisecond)
 	return c.JSON(http.StatusAccepted, IsuDetailInfomation{isu.Character})
