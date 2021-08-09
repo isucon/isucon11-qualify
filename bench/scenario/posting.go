@@ -30,7 +30,7 @@ type posterState struct {
 	lastConditionTimestamp int64
 	isSitting              bool
 	dirty                  badCondition
-	overWaight             badCondition
+	overWeight             badCondition
 	broken                 badCondition
 }
 
@@ -49,7 +49,7 @@ func (s *Scenario) keepPosting(ctx context.Context, targetBaseURL *url.URL, isu 
 		// lastConditionTimestamp: 0,
 		lastConditionTimestamp: nowTimeStamp,
 		dirty:                  badCondition{0, false},
-		overWaight:             badCondition{0, false},
+		overWeight:             badCondition{0, false},
 		broken:                 badCondition{0, false},
 		isSitting:              false,
 	}
@@ -151,7 +151,7 @@ func (state *posterState) GetNewestCondition(randEngine *rand.Rand, stateChange 
 		StateChange:  stateChange,
 		IsSitting:    state.isSitting,
 		IsDirty:      state.dirty.isNow,
-		IsOverweight: state.overWaight.isNow,
+		IsOverweight: state.overWeight.isNow,
 		IsBroken:     state.broken.isNow,
 		//ConditionLevel: model.ConditionLevelCritical,
 		Message:       "",
@@ -159,7 +159,7 @@ func (state *posterState) GetNewestCondition(randEngine *rand.Rand, stateChange 
 	}
 
 	//message
-	condition.Message = random.MessageWithCondition(state.dirty.isNow, state.overWaight.isNow, state.broken.isNow, isu.CharacterID)
+	condition.Message = random.MessageWithCondition(state.dirty.isNow, state.overWeight.isNow, state.broken.isNow, isu.CharacterID)
 
 	//conditionLevel
 	condition.ConditionLevel = calcConditionLevel(condition)
@@ -191,8 +191,8 @@ func (state *posterState) UpdateToNextState(randEngine *rand.Rand, stateChange m
 			state.dirty.fixedTime = timeStamp
 		}
 		if stateChange&model.IsuStateChangeDetectOverweight != 0 {
-			state.overWaight.isNow = false
-			state.overWaight.fixedTime = timeStamp
+			state.overWeight.isNow = false
+			state.overWeight.fixedTime = timeStamp
 		}
 		if stateChange&model.IsuStateChangeRepair != 0 {
 			state.broken.isNow = false
@@ -204,7 +204,7 @@ func (state *posterState) UpdateToNextState(randEngine *rand.Rand, stateChange m
 	//sitting
 	if state.isSitting {
 		// sitting が false になるのは over_weight が true じゃないとき
-		if !state.overWaight.isNow {
+		if !state.overWeight.isNow {
 			if randEngine.Intn(100) <= 10 {
 				state.isSitting = false
 			}
@@ -215,9 +215,9 @@ func (state *posterState) UpdateToNextState(randEngine *rand.Rand, stateChange m
 		}
 	}
 	//overweight
-	if state.isSitting && timeStamp-state.overWaight.fixedTime > 12*60*60 {
+	if state.isSitting && timeStamp-state.overWeight.fixedTime > 12*60*60 {
 		if randEngine.Intn(5000) <= 1 {
-			state.overWaight.isNow = true
+			state.overWeight.isNow = true
 		}
 	}
 	//dirty
