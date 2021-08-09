@@ -40,7 +40,7 @@ const AddUserStep = 500
 const AddUserCount = 1
 
 // Viewer が何回以上エラーに遭遇したら drop するか
-const ViewerDropCount = 0
+const ViewerDropCount = 1
 
 type PageType int
 
