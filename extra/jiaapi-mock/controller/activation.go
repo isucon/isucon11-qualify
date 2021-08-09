@@ -62,8 +62,8 @@ type ActivateResponse struct {
 }
 
 type ActivationRequest struct {
-	TargetURL string `json:"target_url" validate:"required"`
-	IsuUUID   string `json:"isu_uuid" validate:"required"`
+	TargetBaseURL string `json:"target_base_url" validate:"required"`
+	IsuUUID       string `json:"isu_uuid" validate:"required"`
 }
 
 /// Controller ///
@@ -84,7 +84,7 @@ func (c *ActivationController) PostActivate(ctx echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest)
 	}
 
-	parsedURL, err := url.Parse(req.TargetURL)
+	parsedURL, err := url.Parse(req.TargetBaseURL)
 	if err != nil {
 		ctx.Logger().Errorf("bad url: %v", err)
 		return echo.NewHTTPError(http.StatusBadRequest)
@@ -117,7 +117,7 @@ func (c *ActivationController) PostActivate(ctx echo.Context) error {
 		return echo.NewHTTPError(http.StatusForbidden)
 	}
 
-	err = c.isuConditionPosterManager.StartPosting(req.TargetURL, req.IsuUUID)
+	err = c.isuConditionPosterManager.StartPosting(req.TargetBaseURL, req.IsuUUID)
 	if err != nil {
 		ctx.Logger().Errorf("failed to startPosting: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError)
