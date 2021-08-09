@@ -103,7 +103,7 @@ func (s *Scenario) postActivate(c echo.Context) error {
 	//poster Goroutineの起動
 	var isu *model.Isu
 	var scenarioChan *model.StreamsForPoster
-	posterContext, _ := context.WithCancel(jiaAPIContext)
+	posterContext := jiaAPIContext
 	err = func() error {
 		var ok bool
 		streamsForPosterMutex.Lock()
