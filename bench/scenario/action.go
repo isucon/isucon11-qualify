@@ -529,9 +529,6 @@ func getIsuConditionRequestParams(base string, req service.GetIsuConditionReques
 	}
 	q.Set("end_time", fmt.Sprint(req.EndTime))
 	q.Set("condition_level", req.ConditionLevel)
-	if req.Limit != nil {
-		q.Set("limit", fmt.Sprint(*req.Limit))
-	}
 	targetURL.RawQuery = q.Encode()
 	return targetURL.String()
 }

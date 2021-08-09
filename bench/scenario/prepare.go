@@ -353,7 +353,6 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 					StartTime:      nil,
 					EndTime:        endTime,
 					ConditionLevel: "info,warning,critical",
-					Limit:          nil,
 				}
 				conditionsTmp, res, err := getIsuConditionAction(ctx, randomUser.Agent, jiaIsuUUID, req)
 				if err != nil {
@@ -371,11 +370,9 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 			// check: ISUコンディション取得（オプションあり1）
 			// - start_timeは0-11時間前でrandom
 			// - end_time指定を途中の時間で行う
-			// - limitは1-100でrandom
 			{
 				endTime := lastTime
 
-				limit := rand.Intn(100) + 1
 				// condition の read lock を取得
 				isu.CondMutex.RLock()
 				infoConditions := isu.Conditions.Info
@@ -391,7 +388,6 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 					StartTime:      &startTime,
 					EndTime:        endTime,
 					ConditionLevel: "info,warning,critical",
-					Limit:          &limit,
 				}
 
 				if err := BrowserAccess(ctx, randomUser.Agent, "/isu/"+jiaIsuUUID+"/condition", IsuConditionPage); err != nil {
@@ -416,7 +412,6 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 			// - condition random指定
 			// - start_time指定でlimitまで取得できない
 			{
-				limit := 10
 				endTime := lastTime
 
 				// condition の read lock を取得
@@ -442,7 +437,6 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 					StartTime:      &startTime,
 					EndTime:        endTime,
 					ConditionLevel: levelQuery,
-					Limit:          &limit,
 				}
 
 				if err := BrowserAccess(ctx, randomUser.Agent, "/isu/"+jiaIsuUUID+"/condition", IsuConditionPage); err != nil {
@@ -1034,44 +1028,6 @@ func (s *Scenario) prepareIrregularCheckGetIsuConditions(ctx context.Context, lo
 		return
 	}
 	if err := verifyText(res, resBody, "bad format: start_time"); err != nil {
-		step.AddError(err)
-		return
-	}
-
-	// check: limitフォーマット違反
-	query = url.Values{}
-	query.Set("end_time", strconv.FormatInt(lastTime, 10))
-	query.Set("condition_level", "info,warning,critical")
-	query.Set("limit", "-1")
-	resBody, res, err = getIsuConditionErrorAction(ctx, loginUser.Agent, isu.JIAIsuUUID, query)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyStatusCode(res, http.StatusBadRequest); err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyText(res, resBody, "bad format: limit"); err != nil {
-		step.AddError(err)
-		return
-	}
-
-	// check: limitフォーマット違反2
-	query = url.Values{}
-	query.Set("end_time", strconv.FormatInt(lastTime, 10))
-	query.Set("condition_level", "info,warning,critical")
-	query.Set("limit", "limit")
-	resBody, res, err = getIsuConditionErrorAction(ctx, loginUser.Agent, isu.JIAIsuUUID, query)
-	if err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyStatusCode(res, http.StatusBadRequest); err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyText(res, resBody, "bad format: limit"); err != nil {
 		step.AddError(err)
 		return
 	}
