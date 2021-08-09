@@ -44,7 +44,7 @@ func RegisterToJiaAPI(isu *model.Isu, streams *model.StreamsForPoster) {
 	streamsForPoster[isu.JIAIsuUUID] = streams
 }
 
-func (s *Scenario) JiaAPIService(ctx context.Context, tlsCertPath, tlsKeyPath string) {
+func (s *Scenario) JiaAPIService(ctx context.Context) {
 	defer logger.AdminLogger.Println("--- JiaAPIService END")
 
 	jiaAPIContext = ctx
@@ -73,12 +73,7 @@ func (s *Scenario) JiaAPIService(ctx context.Context, tlsCertPath, tlsKeyPath st
 	go func() {
 		defer logger.AdminLogger.Println("--- ISU協会サービス END")
 		defer s.loadWaitGroup.Done()
-		var err error
-		if tlsCertPath != "" && tlsKeyPath != "" {
-			err = e.StartTLS(bindPort, tlsCertPath, tlsKeyPath)
-		} else {
-			err = e.Start(bindPort)
-		}
+		err := e.Start(bindPort)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			panic(fmt.Errorf("ISU協会サービスが異常終了しました: %v", err))
 		}
