@@ -10,6 +10,10 @@ down-dev:
 test-go:
 	target=go make test
 
+.PHONY: test-rust
+test-rust:
+	target=rust make test
+
 .PHONY: test
 test:
 	docker-compose -f docker-compose-ci.yml -p isucon11q-ci up -d --build backend mysql-backend
