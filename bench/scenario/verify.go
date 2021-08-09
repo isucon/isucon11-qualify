@@ -611,6 +611,9 @@ func verifyGraph(
 	return nil
 }
 
+// verifyTrend 内で利用する定数
+var conditionList = []string{"info", "warning", "critical"}
+
 func (s *Scenario) verifyTrend(
 	ctx context.Context, res *http.Response,
 	viewer model.Viewer,
@@ -633,68 +636,72 @@ func (s *Scenario) verifyTrend(
 		}
 		characterSet = characterSet.Append(character)
 
-		var lastConditionTimestamp int64
-		for idx, condition := range trendOne.Conditions {
+		for conditionEnum, conditions := range [][]service.TrendCondition{trendOne.Info, trendOne.Warning, trendOne.Critical} {
+			conditionLevel := conditionList[conditionEnum]
 
-			// conditions が新しい順にソートされていることの検証
-			if idx != 0 && !(condition.Timestamp <= lastConditionTimestamp) {
-				return 0, errorInvalid(res, "整列順が正しくありません")
-			}
-			lastConditionTimestamp = condition.Timestamp
+			var lastConditionTimestamp int64
+			for idx, condition := range conditions {
 
-			// condition.ID から isu を取得する
-			isu, ok := s.GetIsuFromID(condition.IsuID)
-			if !ok {
-				// 次のループでまた bench の知らない IsuID の ISU を見つけたら落とせるように
-				if _, exist := isuIDSet[condition.IsuID]; exist {
-					return 0, errorMismatch(res, "同じ ISU のコンディションが複数登録されています")
+				// conditions が新しい順にソートされていることの検証
+				if idx != 0 && !(condition.Timestamp <= lastConditionTimestamp) {
+					return 0, errorInvalid(res, "整列順が正しくありません")
 				}
-				isuIDSet[condition.IsuID] = struct{}{}
+				lastConditionTimestamp = condition.Timestamp
 
-				// POST /api/isu などのレスポンス待ちなためここで落とすことはできない
-				continue
-			}
-
-			if err := func() error {
-				// isu.Condition の read lock を取る
-				isu.CondMutex.RLock()
-				defer isu.CondMutex.RUnlock()
-
-				// condition を最新順に取得するイテレータを生成
-				// TODO LowerBound(condition.Timestamp) で出来るようにする
-				filter := model.ConditionLevelInfo | model.ConditionLevelWarning | model.ConditionLevelCritical
-				conditions := isu.Conditions
-				baseIter := conditions.End(filter)
-
-				// condition.timestamp と condition.condition の値を検証
-				for {
-					expected := baseIter.Prev()
-
-					if expected == nil || expected.TimestampUnix < condition.Timestamp {
-						return errorMismatch(res, "POSTに成功していない時刻のデータが返されました")
+				// condition.ID から isu を取得する
+				isu, ok := s.GetIsuFromID(condition.IsuID)
+				if !ok {
+					// 次のループでまた bench の知らない IsuID の ISU を見つけたら落とせるように
+					if _, exist := isuIDSet[condition.IsuID]; exist {
+						return 0, errorMismatch(res, "同じ ISU のコンディションが複数登録されています")
 					}
-					if expected.TimestampUnix == condition.Timestamp && expected.ConditionLevel.Equal(condition.ConditionLevel) {
-						// 同じ isu の condition が複数返されてないことの検証
-						if _, exist := isuIDSet[condition.IsuID]; exist {
-							return errorMismatch(res, "同じ ISU のコンディションが複数登録されています")
-						}
-						isuIDSet[condition.IsuID] = struct{}{}
+					isuIDSet[condition.IsuID] = struct{}{}
 
-						// 該当 condition が新規のものである場合はキャッシュを更新
-						if !viewer.ConditionAlreadyVerified(condition.IsuID, condition.Timestamp) {
-							viewer.SetVerifiedCondition(condition.IsuID, condition.Timestamp)
-							// 一秒前(仮想時間で16時間40分以上前)よりあとのものならカウンタをインクリメント
-							if condition.Timestamp > s.ToVirtualTime(requestTime.Add(-2*time.Second)).Unix() {
-								newConditionNum += 1
+					// POST /api/isu などのレスポンス待ちなためここで落とすことはできない
+					continue
+				}
+
+				if err := func() error {
+					// isu.Condition の read lock を取る
+					isu.CondMutex.RLock()
+					defer isu.CondMutex.RUnlock()
+
+					// condition を最新順に取得するイテレータを生成
+					// TODO LowerBound(condition.Timestamp) で出来るようにする
+					filter := model.ConditionLevelInfo | model.ConditionLevelWarning | model.ConditionLevelCritical
+					conditions := isu.Conditions
+					baseIter := conditions.End(filter)
+
+					// condition.timestamp と condition.condition の値を検証
+					for {
+						expected := baseIter.Prev()
+
+						if expected == nil || expected.TimestampUnix < condition.Timestamp {
+							return errorMismatch(res, "POSTに成功していない時刻のデータが返されました")
+						}
+						if expected.TimestampUnix == condition.Timestamp && expected.ConditionLevel.Equal(conditionLevel) {
+							// 同じ isu の condition が複数返されてないことの検証
+							if _, exist := isuIDSet[condition.IsuID]; exist {
+								return errorMismatch(res, "同じ ISU のコンディションが複数登録されています")
 							}
-						}
+							isuIDSet[condition.IsuID] = struct{}{}
 
-						break
+							// 該当 condition が新規のものである場合はキャッシュを更新
+							if !viewer.ConditionAlreadyVerified(condition.IsuID, condition.Timestamp) {
+								viewer.SetVerifiedCondition(condition.IsuID, condition.Timestamp)
+								// 一秒前(仮想時間で16時間40分以上前)よりあとのものならカウンタをインクリメント
+								if condition.Timestamp > s.ToVirtualTime(requestTime.Add(-2*time.Second)).Unix() {
+									newConditionNum += 1
+								}
+							}
+
+							break
+						}
 					}
+					return nil
+				}(); err != nil {
+					return 0, err
 				}
-				return nil
-			}(); err != nil {
-				return 0, err
 			}
 		}
 	}
