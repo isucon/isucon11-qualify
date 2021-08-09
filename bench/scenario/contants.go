@@ -50,5 +50,5 @@ const (
 	IsuConditionPage
 	IsuGraphPage
 	RegisterPage
-	AuthPage
+	TrendPage
 )

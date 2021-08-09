@@ -199,7 +199,7 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 		}
 		randomUser.Agent = agt
 		// check: ログイン成功
-		if err := BrowserAccess(ctx, agt, "/login", AuthPage); err != nil {
+		if err := BrowserAccess(ctx, agt, "/", TrendPage); err != nil {
 			step.AddError(err)
 			return
 		}
@@ -528,7 +528,7 @@ func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.Benchma
 			}
 		} else {
 			//ログイン成功
-			if err := BrowserAccess(ctx, agt, "/login", AuthPage); err != nil {
+			if err := BrowserAccess(ctx, agt, "/", TrendPage); err != nil {
 				step.AddError(err)
 				return
 			}
