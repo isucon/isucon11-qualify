@@ -451,7 +451,7 @@ func errorHtmlChecksum(res *http.Response, body io.Reader, path string) error {
 	// md5でリソースの比較
 	expected := resourcesHash[path]
 	if expected == "" {
-		return nil
+		logger.AdminLogger.Panicf("意図していないpath(%s)のHtmlResourceCheckを行っています。", path)
 	}
 	hash := md5.New()
 	if _, err := io.Copy(hash, body); err != nil {
@@ -465,10 +465,10 @@ func errorHtmlChecksum(res *http.Response, body io.Reader, path string) error {
 	return nil
 }
 
-func errorChecksum(base string, resource *agent.Resource, name string) error {
+func errorChecksum(base string, resource *agent.Resource, path string) error {
 	if resource == nil {
-		logger.AdminLogger.Printf("resource not found: %s on %s\n", name, base)
-		return errorCheckSum("期待するリソースが読み込まれませんでした: %s", name)
+		logger.AdminLogger.Printf("resource not found: %s on %s\n", path, base)
+		return errorCheckSum("期待するリソースが読み込まれませんでした: %s", path)
 	}
 
 	if resource.Error != nil {
@@ -478,7 +478,7 @@ func errorChecksum(base string, resource *agent.Resource, name string) error {
 				return nerr
 			}
 		}
-		return errorCheckSum("リソースの取得に失敗しました: %s: %v", name, resource.Error)
+		return errorCheckSum("リソースの取得に失敗しました: %s: %v", path, resource.Error)
 	}
 
 	res := resource.Response
@@ -493,10 +493,9 @@ func errorChecksum(base string, resource *agent.Resource, name string) error {
 	}
 
 	// md5でリソースの比較
-	path := res.Request.URL.Path
 	expected := resourcesHash[path]
 	if expected == "" {
-		return nil
+		logger.AdminLogger.Panicf("意図していないpath(%s)のResourceCheckを行っています。", path)
 	}
 	hash := md5.New()
 	if _, err := io.Copy(hash, res.Body); err != nil {
