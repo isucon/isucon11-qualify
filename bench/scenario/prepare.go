@@ -106,6 +106,16 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
+
+	// NewUserでauth使うのでauthだけ先にチェック
+	err := s.prepareCheckAuth(ctx, step)
+	if err != nil {
+		return err
+	}
+	if hasErrors() {
+		return failure.NewError(ErrCritical, fmt.Errorf("アプリケーション互換性チェックに失敗しました"))
+	}
+
 	//ユーザー作成
 	guestAgent, err := s.NewAgent(agent.WithTimeout(s.prepareTimeout))
 	if err != nil {
@@ -138,10 +148,6 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	isuconUser.Agent = agt
 
 	// 各エンドポイントのチェック
-	err = s.prepareCheckAuth(ctx, step)
-	if err != nil {
-		return err
-	}
 	s.prepareIrregularCheckPostSignout(ctx, step)
 	s.prepareIrregularCheckGetMe(ctx, guestAgent, step)
 	s.prepareIrregularCheckGetIsuList(ctx, noIsuUser, guestAgent, step)
