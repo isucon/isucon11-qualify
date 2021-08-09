@@ -1,5 +1,7 @@
 package service
 
+import "github.com/francoispqt/gojay"
+
 type InitializeResponse struct {
 	Language string `json:"language"`
 }
@@ -57,13 +59,75 @@ type GraphDataPercentage struct {
 type GetTrendResponse []GetTrendResponseOne
 
 type GetTrendResponseOne struct {
-	Character string           `json:"character"`
-	Info      []TrendCondition `json:"info"`
-	Warning   []TrendCondition `json:"warning"`
-	Critical  []TrendCondition `json:"critical"`
+	Character string          `json:"character"`
+	Info      TrendConditions `json:"info"`
+	Warning   TrendConditions `json:"warning"`
+	Critical  TrendConditions `json:"critical"`
 }
+
+type TrendConditions []TrendCondition
 
 type TrendCondition struct {
 	IsuID     int   `json:"isu_id"`
 	Timestamp int64 `json:"timestamp"`
+}
+
+func (t *TrendCondition) UnmarshalJSONObject(dec *gojay.Decoder, key string) error {
+	switch key {
+	case "isu_id":
+		return dec.Int(&t.IsuID)
+	case "timestamp":
+		return dec.Int64(&t.Timestamp)
+	}
+	return nil
+}
+func (t *TrendCondition) NKeys() int {
+	return 2
+}
+
+func (t *TrendConditions) UnmarshalJSONArray(dec *gojay.Decoder) error {
+	cond := &TrendCondition{}
+	if err := dec.Object(cond); err != nil {
+		return err
+	}
+	*t = append(*t, *cond)
+	return nil
+}
+
+func (t *GetTrendResponseOne) UnmarshalJSONObject(dec *gojay.Decoder, key string) error {
+	switch key {
+	case "character":
+		return dec.String(&t.Character)
+	case "info":
+		conditions := TrendConditions{}
+		if err := dec.Array(&conditions); err != nil {
+			return err
+		}
+		t.Info = conditions
+	case "warning":
+		conditions := TrendConditions{}
+		if err := dec.Array(&conditions); err != nil {
+			return err
+		}
+		t.Warning = conditions
+	case "critical":
+		conditions := TrendConditions{}
+		if err := dec.Array(&conditions); err != nil {
+			return err
+		}
+		t.Critical = conditions
+	}
+	return nil
+}
+func (t *GetTrendResponseOne) NKeys() int {
+	return 4
+}
+
+func (t *GetTrendResponse) UnmarshalJSONArray(dec *gojay.Decoder) error {
+	GetTrendResponseOne := &GetTrendResponseOne{}
+	if err := dec.Object(GetTrendResponseOne); err != nil {
+		return err
+	}
+	*t = append(*t, *GetTrendResponseOne)
+	return nil
 }
