@@ -1007,7 +1007,7 @@ func getIsuConditions(c echo.Context) error {
 
 // ISUのコンディションをDBから取得
 func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, endTime time.Time, conditionLevel map[string]interface{}, startTime time.Time,
-	limit int, isuName string) ([]*GetIsuConditionResponse, error) {
+	isuName string) ([]*GetIsuConditionResponse, error) {
 
 	conditions := []IsuCondition{}
 	var err error
@@ -1053,8 +1053,8 @@ func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, endTime time.Time, c
 		}
 	}
 
-	if len(conditionsResponse) > limit {
-		conditionsResponse = conditionsResponse[:limit]
+	if len(conditionsResponse) > conditionLimit {
+		conditionsResponse = conditionsResponse[:conditionLimit]
 	}
 
 	return conditionsResponse, nil
