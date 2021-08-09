@@ -32,9 +32,16 @@
 
 ### 1. ユーザ登録/ログイン
 
-ユーザは、JIAのアカウントを利用してユーザ登録/ログイン (`/login`) を行います。JIAへログインし、そこで得たトークン（JWT:JSON Web Token）を元にISUCONDITIONへアクセスを行います。
+![ログインの動き](https://user-images.githubusercontent.com/210692/128741078-dfa3c27c-52d0-4a84-bfba-1ae7ad90019f.png)
+
+ユーザは、トップページ (`/`) からユーザ登録/ログインを行います。
+"JIAのアカウントでログイン" のボタンを押下するとJIAのページへ遷移します。
+JIAのページでJIAのアカウントを利用してログインを行い、そこで得たトークン（JWT:JSON Web Token）を元にISUCONDITIONへアクセスを行います。
+ISUCONDITIONは送られてきたJWTが正しいかを検証し、正しいと判断した場合にSession IDをユーザに返します。
 
 ### 2. ISUの登録とISUのコンディション送信処理
+
+![ISUのアクティベートイメージ](https://user-images.githubusercontent.com/210692/128740543-d4cbc6b8-d1b3-46ee-9e6b-9d660648edd5.png)
 
 ユーザは、自分の大事なパートナーであるISUを、JIAが発行するISU固有のID(以下、ISU UUID)を使い、ISUCONDITIONに登録 (`/register`) します。ユーザは、登録を行ったISUの詳細 (`/isu/:jia_isu_uuid`) や、ISUのコンディション (`/isu/:jia_isu_uuid/condition`) 、グラフとスコア (`/isu/:jia_isu_uuid/graph`) を見ることができます。
 

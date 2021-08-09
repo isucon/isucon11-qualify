@@ -54,7 +54,7 @@ ISUCON 11 サポート Discord サーバーは競技中ならびにその前後�
 ## サーバー、ネットワーク構成について
 
 **ToDo:構築方法についてポータルチーム、Infra班と確認**
-AWS CloudFormation で構築するサーバは 3 台あり、これらのサーバに SSH を用いて接続し競技を行います。
+AWS CloudFormation で構築するサーバーは 3 台あり、これらのサーバーに SSH を用いて接続し競技を行います。
 
 上記のサーバーに接続するために SSH 接続を行います。
 [ssh_config(5)](https://man.openbsd.org/ssh_config.5) の例を以下に示します。なお、あくまで例示であり必ず以下の設定を利用する必要はありません。
@@ -75,7 +75,8 @@ Host isucon-server3
 
 ### 重要事項
 
-- **競技に利用できる計算機資源は主催者が指定した 3 台の EC2 インスタンスのみです。** 
+- **競技に利用できる計算機資源は主催者が指定したリソースのみです。** 
+  - EC2 Instance Type c5.large, EBS Volume Type gp3 x 3 台
   - 特例として外部のメトリクス計測サービスの使用のみ許可をしますが、スコアを向上させるいかなる効果も持つものであってはいけません。
 - **競技終了後は、ベンチマーク走行成績の追試を行いますので、Discord サーバー および http://isucon.net/ にて主催者からお知らせをするまで、サーバーの操作はしないでください。**
   - 競技終了後の作業は禁止行為にあたり失格となります。
@@ -97,14 +98,14 @@ SSH ログインのユーザ名は `ubuntu` です。 (MEMO: 解く会では `is
 
 アプリケーションは Web ブラウザから利用することができます。
 
-踏み台を経由したブラウザアクセスには、 [SSH におけるローカルポートフォワーディング](https://help.ubuntu.com/community/SSH/OpenSSH/PortForwarding#Local_Port_Forwarding) などを用いて表示することができます。
+ブラウザアクセスには、 [SSH におけるローカルポートフォワーディング](https://help.ubuntu.com/community/SSH/OpenSSH/PortForwarding#Local_Port_Forwarding) などを用いて表示することができます。
 これ以外の方法で動作確認してもかまいません。
 
-以下に Team001 におけるローカルポートフォワーディングを実行するコマンドを例示します。
-これは「リモートホスト `isucon-server` に SSH 接続をした上で」「ローカルの `localhost:8080` への TCP 接続を」「リモートホストを通して `10.160.1.101:80` へ転送する」というコマンドです。
+以下にローカルポートフォワーディングを実行するコマンドを例示します。
+これは「リモートホスト `isucon-server1` に SSH 接続をした上で」「ローカルの `localhost:8080` への TCP 接続を」「リモートホストを通して `10.160.1.101:80` へ転送する」というコマンドです。
 
 ```shell
-$ ssh -L localhost:8080:10.160.1.101:80 isucon-server
+$ ssh -L localhost:8080:10.160.1.101:80 isucon-server1
 ```
 
 以上を踏まえると、上記のコマンド例を実行している場合、 http://localhost:8080 でアプリケーションへアクセスすることができます。
@@ -115,7 +116,7 @@ $ ssh -L localhost:8080:10.160.1.101:80 isucon-server
 上記のアプリケーション同様にJIAへローカルポートフォワーディングをするためには下記のようにします。
 
 ```shell
-$ ssh -L localhost:8080:10.160.1.101:80 -L localhost:5000:10.160.1.101:5000 isucon-server
+$ ssh -L localhost:8080:10.160.1.101:80 -L localhost:5000:10.160.1.101:5000 isucon-server1
 ```
 
 以下は http://localhost:8080 でアプリケーションへ、http://localhost:5000 でJIAへアクセスできるように設定した場合の例です。
@@ -138,7 +139,7 @@ MEMO: 本番ではHTTPSで接続できるようにするので `/etc/hosts` 周�
 | isucon2                     | isucon2    | 初期ユーザ |
 | isucon3                     | isucon3    | 初期ユーザ |
 
-#### ISUの登録に使えるJIA IsuIDについて
+#### ISUの登録に使えるJIA ISU IDについて
 
 アプリケーションの動作確認用に以下のJIA ISU IDが登録に使うことができます。
 
@@ -163,28 +164,50 @@ ISUの登録はログイン後に以下のURLで行うことができます。
 
 初期状態のアプリケーションでは、初期化処理（`POST /initialize`）においてデータベースのレコードを削除し、スキーマは初期化します。
 
+TODO: DBスキーマをいじって壊してしまった際の初期化方法を書く。
+
 #### 動作確認に必要なアプリケーション
 
-JIA　API MockはJIAのページを模したアプリケーションであり、ローカルでの動作検証に利用することができます。
+JIA　API Mock はJIAのページを模したアプリケーションであり、ローカルでの開発/動作検証に利用することができます。
 
-- ISUCONDITIONへのログイン
-- ISUの登録（アクティベート）
-- 登録したISUからのコンディション送信
-- 登録した全ISUの削除（ディアクティベーション）
+- ISUCONDITIONへログインするためのトークンの発行 (`POST /api/auth`)
+- 仮想ISUの登録（アクティベート） (`POST /api/activate`)
+- 登録した仮想ISUからISUCONDITIONへ向けたコンディションの送信
 
-登録したISUからのコンディション送信を止める場合は以下のどちらかで可能です。
-
-1. JIA API Mockのサービス再起動
+登録したISUからのコンディション送信を止める場合は JIA API Mockのサービスを以下のように再起動して下さい。
    
 ```shell
 sudo systemctl restart jiaapi-mock.service
 ```
 
-2. `POST /api/die`
+#### ローカルでの開発方法
 
-```shell
-curl -X POST -d "{'password': 'U,YaCLe9tAnW8EdYphW)Wc/dN)5pPQ/3ue_af4rz'}" http://localhost:5000/api/die
+ローカルでの動作検証には上記アプリケーションへのログイン方法を参考にサーバー上の JIA API Mock へのローカルポートフォワーディングが必要です。
+
 ```
+$ ssh -L localhost:5000:10.160.1.101:5000 isucon-server
+```
+
+アプリケーションの動作確認はWebブラウザから行うことができますが、下記のようにトークンの取得とcookieの設定を行うことでコンソールからもAPIへのアクセスが可能です。
+
+```
+TOKEN=`curl -sf -H 'content-type: application/json' http://localhost:5000/api/auth -d '{"user": "isucon", "password": "isucon"}'`
+curl -c cookie.txt -vf -XPOST -H "authorization: Bearer ${TOKEN}" http://localhost:3000/api/auth
+curl -b cookie.txt http://localhost:3000/api/isu
+```
+
+`POST /api/condition/:jia_isu_uuid` の検証
+
+"ISUの登録に使えるJIA ISU IDについて" に記載されている JIA ISU ID を用いてアクティベートを行ったISUから
+送信されるコンディションは下記の様にデータを送信することが可能です。
+
+```
+export JIA_ISU_UUID=0694e4d7-dfce-4aec-b7ca-887ac42cfb8f
+curl -XPOST -H 'content-type: application/json' http://localhost:3000/api/condition/${JIA_ISU_UUID} \
+-d '[{"is_sitting": true, "condition": "is_dirty=true,is_overweight=true,is_broken=true","message":"test","timestamp": 1628492991}]'
+```
+
+この他にも [SSH Remote Port Forwarding](https://help.ubuntu.com/community/SSH/OpenSSH/PortForwarding#Remote_Port_Forwarding) を利用する方法がありますが、詳細は省略します。
 
 ### 3. 負荷走行 (ベンチマーク)
 
@@ -279,14 +302,14 @@ ToDo: ベンチと確認&意識合わせ
 ```
 
 - ISUコンディションスコア
-  - ISUコンディションスコアはユーザが下記のISUの状態やグラフを確認することで加算されます。
-    - ISUの状態確認 (/isu/:jia_isu_uuid/condition) でユーザが新しく確認できた状態とその数に応じた得点を加算(過去に確認済みの状態では加算されません)
+  - ISUコンディションスコアはユーザが下記のようにISUのコンディションやグラフを確認することで加算されます。
+    - ISUのコンディション確認 (/isu/:jia_isu_uuid/condition) でユーザが新しく確認できたISUのコンディションとその数に応じた得点を加算(過去に確認済みのコンディションでは加算されません)
       - Info(3点)
       - Warning(2点)
       - Critical(1点)
     - ISUのグラフ確認でユーザがまだ確認していないグラフの確認に成功した時、確認したグラフを構成するデータに応じた得点を加算（後述）
-      - 過去のグラフは過去に見たことがある日付まで遡り、まだ見たことがないグラフを初めて見たときに得点を加算。
-      - コンディションが送られてきている当日のグラフは、前回のグラフ確認からグラフを構成するコンディションが増えている場合、再度得点を加算。
+      - 過去のグラフは過去に見たことがある日付まで遡り、まだ見たことがないグラフを最初に確認したときに得点を加算。
+      - コンディションが送られてきている当日のグラフは、前回のグラフ確認からグラフを構成するコンディションが増えていることを確認した場合、再度得点を加算。
 
 ### グラフの確認による得点
 
@@ -302,13 +325,13 @@ ToDo: ベンチと確認&意識合わせ
 
   - ToDo：上記の得点や条件は仮のもののため調整が終わり次第書き換える
 
-### 減点、即時失敗（fail) について
+### 負荷走行時における減点、即時失敗（fail) について
 
-負荷走行時に発生するエラーによっては、減点されたり、即時失敗（fail）したりします。条件は以下の通りです。
+負荷走行時に発生するエラーによっては、減点や即時失敗（fail）となります。条件は以下の通りです。
 
-- アプリケーション互換性チェック、もしくは整合性チェックに失敗した
+- アプリケーション互換性チェック、もしくはデータ整合性チェックに失敗した
   - 1 回あたり減点 1 点
-  - 100 回の失敗で即時失敗とする
+  - 100 回の失敗時点で即時失敗とする
 
 - リクエストがタイムアウトした場合 (条件は前項に記載)
   - 10 回あたり減点 1 点
@@ -325,7 +348,8 @@ ToDo: ベンチと確認&意識合わせ
 以下の事項に抵触すると失格 (fail) となり、点数が 0 点になります。
 
 - POST /initialize へのレスポンスを 20 秒以内に返さない場合
-- アプリケーション互換性チェックに失敗した場合
+- 負荷走行前のアプリケーション互換性チェックに失敗した場合
+- 負荷走行中のアプリケーション互換性チェック、もしくはデータ整合性チェックに　100　回失敗した
 - その他、ベンチマーカーが失敗を検出したケース
 
 最初に呼ばれる初期化処理 POST /initialize は用意された環境内で、チェッカツールが要求する範囲の整合性を担保します。 
