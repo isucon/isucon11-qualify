@@ -11,7 +11,7 @@ services:
       MYSQL_DATABASE: isucondition
       MYSQL_USER: isucon
       MYSQL_PASSWORD: isucon
-      POST_ISUCONDITION_TARGET_URL: http://backend-go:3000
+      POST_ISUCONDITION_TARGET_BASE_URL: http://backend-go:3000
     entrypoint: dockerize -wait tcp://mysql-backend:3306 -timeout 60s
     command: air -c /development/air.toml
     ports:

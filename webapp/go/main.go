@@ -252,9 +252,9 @@ func main() {
 	db.SetMaxOpenConns(10)
 	defer db.Close()
 
-	postIsuConditionTargetURL = os.Getenv("POST_ISUCONDITION_TARGET_URL")
+	postIsuConditionTargetURL = os.Getenv("POST_ISUCONDITION_TARGET_BASE_URL")
 	if postIsuConditionTargetURL == "" {
-		e.Logger.Fatalf("missing: POST_ISUCONDITION_TARGET_URL")
+		e.Logger.Fatalf("missing: POST_ISUCONDITION_TARGET_BASE_URL")
 		return
 	}
 
