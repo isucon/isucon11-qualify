@@ -9,7 +9,7 @@ interface Props {
 
 const getLatestStringTime = (trend: Trend) => {
   let latest: Date | null = null
-  for (const c of trend.conditions) {
+  for (const c of [trend.info, trend.warning, trend.critical].flat()) {
     if (!latest || latest < c.date) {
       latest = c.date
     }
@@ -28,10 +28,7 @@ const TrendElement = ({ trend, maxConditionCount }: Props) => {
         <div className="text-secondary">{getLatestStringTime(trend)}</div>
       </div>
       <div className="flex items-center">
-        <TrendGraph
-          conditions={trend.conditions}
-          maxConditionCount={maxConditionCount}
-        />
+        <TrendGraph trend={trend} maxConditionCount={maxConditionCount} />
       </div>
     </div>
   )
