@@ -396,34 +396,36 @@ func joinURL(base *url.URL, target string) string {
 
 // TODO: vendor.****.jsで取得処理が記述されているlogo_white, logo_orangeも取得できてない
 // TODO: trendページの追加もまだ
-func verifyResources(page PageType, res *http.Response, resources agent.Resources) []error {
+func verifyResources(page PageType, res *http.Response, resources agent.Resources, body io.Reader) []error {
 	base := res.Request.URL.String()
 
-	faviconSvg := resourcesMap["/favicon.svg"]
-	indexCss := resourcesMap["/index.css"]
-	indexJs := resourcesMap["/index.js"]
-	//logoOrange := resourcesMap["/logo_orange.svg"]
-	//logoWhite := resourcesMap["/logo_white.svg"]
-	vendorJs := resourcesMap["/vendor.js"]
+	faviconSvg := resourcesMap["/assets/favicon.svg"]
+	indexCss := resourcesMap["/assets/index.css"]
+	indexJs := resourcesMap["/assets/index.js"]
+	//logoOrange := resourcesMap["/assets/logo_orange.svg"]
+	//logoWhite := resourcesMap["/assets/logo_white.svg"]
+	vendorJs := resourcesMap["/assets/vendor.js"]
 
 	var checks []error
 	switch page {
 	case HomePage, IsuDetailPage, IsuConditionPage, IsuGraphPage, RegisterPage:
 		checks = []error{
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+faviconSvg)], faviconSvg),
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexCss)], indexCss),
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexJs)], indexJs),
-			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+logoWhite)], logoWhite),
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+vendorJs)], vendorJs),
+			errorHtmlChecksum(res, body, "/index.html"),
+			errorChecksum(base, resources[joinURL(res.Request.URL, faviconSvg)], faviconSvg),
+			errorChecksum(base, resources[joinURL(res.Request.URL, indexCss)], indexCss),
+			errorChecksum(base, resources[joinURL(res.Request.URL, indexJs)], indexJs),
+			//errorChecksum(base, resources[joinURL(res.Request.URL, logoWhite)], logoWhite),
+			errorChecksum(base, resources[joinURL(res.Request.URL, vendorJs)], vendorJs),
 		}
 	case AuthPage:
 		checks = []error{
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+faviconSvg)], faviconSvg),
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexCss)], indexCss),
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexJs)], indexJs),
-			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+logoOrange)], logoOrange),
-			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+logoWhite)], logoWhite),
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+vendorJs)], vendorJs),
+			errorHtmlChecksum(res, body, "/index.html"),
+			errorChecksum(base, resources[joinURL(res.Request.URL, faviconSvg)], faviconSvg),
+			errorChecksum(base, resources[joinURL(res.Request.URL, indexCss)], indexCss),
+			errorChecksum(base, resources[joinURL(res.Request.URL, indexJs)], indexJs),
+			//errorChecksum(base, resources[joinURL(res.Request.URL, logoOrange)], logoOrange),
+			//errorChecksum(base, resources[joinURL(res.Request.URL, logoWhite)], logoWhite),
+			errorChecksum(base, resources[joinURL(res.Request.URL, vendorJs)], vendorJs),
 		}
 	default:
 		logger.AdminLogger.Panicf("意図していないpage(%d)のResourceCheckを行っています。(path: %s)", page, res.Request.URL.Path)
@@ -438,10 +440,35 @@ func verifyResources(page PageType, res *http.Response, resources agent.Resource
 	return errs
 }
 
-func errorChecksum(base string, resource *agent.Resource, name string) error {
+func errorHtmlChecksum(res *http.Response, body io.Reader, path string) error {
+	if res.StatusCode == 304 {
+		return nil
+	}
+	if err := verifyStatusCode(res, http.StatusOK); err != nil {
+		return err
+	}
+
+	// md5でリソースの比較
+	expected := resourcesHash[path]
+	if expected == "" {
+		logger.AdminLogger.Panicf("意図していないpath(%s)のHtmlResourceCheckを行っています。", path)
+	}
+	hash := md5.New()
+	if _, err := io.Copy(hash, body); err != nil {
+		logger.AdminLogger.Printf("resource checksum: %v", err)
+		return errorCheckSum("リソースの取得に失敗しました: %s", path)
+	}
+	actual := fmt.Sprintf("%x", hash.Sum(nil))
+	if expected != actual {
+		return errorCheckSum("期待するチェックサムと一致しません: %s", path)
+	}
+	return nil
+}
+
+func errorChecksum(base string, resource *agent.Resource, path string) error {
 	if resource == nil {
-		logger.AdminLogger.Printf("resource not found: %s on %s\n", name, base)
-		return errorCheckSum("期待するリソースが読み込まれませんでした: %s", name)
+		logger.AdminLogger.Printf("resource not found: %s on %s\n", path, base)
+		return errorCheckSum("期待するリソースが読み込まれませんでした: %s", path)
 	}
 
 	if resource.Error != nil {
@@ -451,24 +478,24 @@ func errorChecksum(base string, resource *agent.Resource, name string) error {
 				return nerr
 			}
 		}
-		return errorCheckSum("リソースの取得に失敗しました: %s: %v", name, resource.Error)
+		return errorCheckSum("リソースの取得に失敗しました: %s: %v", path, resource.Error)
 	}
 
 	res := resource.Response
 	defer res.Body.Close()
-	if res.StatusCode == 304 {
-		return nil
-	}
+	//前回の取得が成功している保証が無い為
+	// if res.StatusCode == http.StatusNotModified {
+	// 	return nil
+	// }
 
-	if err := verifyStatusCode(res, http.StatusOK); err != nil {
+	if err := verifyStatusCodes(res, []int{http.StatusOK, http.StatusNotModified}); err != nil {
 		return err
 	}
 
 	// md5でリソースの比較
-	path := res.Request.URL.Path
 	expected := resourcesHash[path]
 	if expected == "" {
-		return nil
+		logger.AdminLogger.Panicf("意図していないpath(%s)のResourceCheckを行っています。", path)
 	}
 	hash := md5.New()
 	if _, err := io.Copy(hash, res.Body); err != nil {
@@ -584,6 +611,9 @@ func verifyGraph(
 	return nil
 }
 
+// verifyTrend 内で利用する定数
+var conditionList = []string{"info", "warning", "critical"}
+
 func (s *Scenario) verifyTrend(
 	ctx context.Context, res *http.Response,
 	viewer model.Viewer,
@@ -606,68 +636,72 @@ func (s *Scenario) verifyTrend(
 		}
 		characterSet = characterSet.Append(character)
 
-		var lastConditionTimestamp int64
-		for idx, condition := range trendOne.Conditions {
+		for conditionEnum, conditions := range [][]service.TrendCondition{trendOne.Info, trendOne.Warning, trendOne.Critical} {
+			conditionLevel := conditionList[conditionEnum]
 
-			// conditions が新しい順にソートされていることの検証
-			if idx != 0 && !(condition.Timestamp <= lastConditionTimestamp) {
-				return 0, errorInvalid(res, "整列順が正しくありません")
-			}
-			lastConditionTimestamp = condition.Timestamp
+			var lastConditionTimestamp int64
+			for idx, condition := range conditions {
 
-			// condition.ID から isu を取得する
-			isu, ok := s.GetIsuFromID(condition.IsuID)
-			if !ok {
-				// 次のループでまた bench の知らない IsuID の ISU を見つけたら落とせるように
-				if _, exist := isuIDSet[condition.IsuID]; exist {
-					return 0, errorMismatch(res, "同じ ISU のコンディションが複数登録されています")
+				// conditions が新しい順にソートされていることの検証
+				if idx != 0 && !(condition.Timestamp <= lastConditionTimestamp) {
+					return 0, errorInvalid(res, "整列順が正しくありません")
 				}
-				isuIDSet[condition.IsuID] = struct{}{}
+				lastConditionTimestamp = condition.Timestamp
 
-				// POST /api/isu などのレスポンス待ちなためここで落とすことはできない
-				continue
-			}
-
-			if err := func() error {
-				// isu.Condition の read lock を取る
-				isu.CondMutex.RLock()
-				defer isu.CondMutex.RUnlock()
-
-				// condition を最新順に取得するイテレータを生成
-				// TODO LowerBound(condition.Timestamp) で出来るようにする
-				filter := model.ConditionLevelInfo | model.ConditionLevelWarning | model.ConditionLevelCritical
-				conditions := isu.Conditions
-				baseIter := conditions.End(filter)
-
-				// condition.timestamp と condition.condition の値を検証
-				for {
-					expected := baseIter.Prev()
-
-					if expected == nil || expected.TimestampUnix < condition.Timestamp {
-						return errorMismatch(res, "POSTに成功していない時刻のデータが返されました")
+				// condition.ID から isu を取得する
+				isu, ok := s.GetIsuFromID(condition.IsuID)
+				if !ok {
+					// 次のループでまた bench の知らない IsuID の ISU を見つけたら落とせるように
+					if _, exist := isuIDSet[condition.IsuID]; exist {
+						return 0, errorMismatch(res, "同じ ISU のコンディションが複数登録されています")
 					}
-					if expected.TimestampUnix == condition.Timestamp && expected.ConditionLevel.Equal(condition.ConditionLevel) {
-						// 同じ isu の condition が複数返されてないことの検証
-						if _, exist := isuIDSet[condition.IsuID]; exist {
-							return errorMismatch(res, "同じ ISU のコンディションが複数登録されています")
-						}
-						isuIDSet[condition.IsuID] = struct{}{}
+					isuIDSet[condition.IsuID] = struct{}{}
 
-						// 該当 condition が新規のものである場合はキャッシュを更新
-						if !viewer.ConditionAlreadyVerified(condition.IsuID, condition.Timestamp) {
-							viewer.SetVerifiedCondition(condition.IsuID, condition.Timestamp)
-							// 一秒前(仮想時間で16時間40分以上前)よりあとのものならカウンタをインクリメント
-							if condition.Timestamp > s.ToVirtualTime(requestTime.Add(-2*time.Second)).Unix() {
-								newConditionNum += 1
+					// POST /api/isu などのレスポンス待ちなためここで落とすことはできない
+					continue
+				}
+
+				if err := func() error {
+					// isu.Condition の read lock を取る
+					isu.CondMutex.RLock()
+					defer isu.CondMutex.RUnlock()
+
+					// condition を最新順に取得するイテレータを生成
+					// TODO LowerBound(condition.Timestamp) で出来るようにする
+					filter := model.ConditionLevelInfo | model.ConditionLevelWarning | model.ConditionLevelCritical
+					conditions := isu.Conditions
+					baseIter := conditions.End(filter)
+
+					// condition.timestamp と condition.condition の値を検証
+					for {
+						expected := baseIter.Prev()
+
+						if expected == nil || expected.TimestampUnix < condition.Timestamp {
+							return errorMismatch(res, "POSTに成功していない時刻のデータが返されました")
+						}
+						if expected.TimestampUnix == condition.Timestamp && expected.ConditionLevel.Equal(conditionLevel) {
+							// 同じ isu の condition が複数返されてないことの検証
+							if _, exist := isuIDSet[condition.IsuID]; exist {
+								return errorMismatch(res, "同じ ISU のコンディションが複数登録されています")
 							}
-						}
+							isuIDSet[condition.IsuID] = struct{}{}
 
-						break
+							// 該当 condition が新規のものである場合はキャッシュを更新
+							if !viewer.ConditionAlreadyVerified(condition.IsuID, condition.Timestamp) {
+								viewer.SetVerifiedCondition(condition.IsuID, condition.Timestamp)
+								// 一秒前(仮想時間で16時間40分以上前)よりあとのものならカウンタをインクリメント
+								if condition.Timestamp > s.ToVirtualTime(requestTime.Add(-2*time.Second)).Unix() {
+									newConditionNum += 1
+								}
+							}
+
+							break
+						}
 					}
+					return nil
+				}(); err != nil {
+					return 0, err
 				}
-				return nil
-			}(); err != nil {
-				return 0, err
 			}
 		}
 	}
