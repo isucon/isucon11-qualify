@@ -813,11 +813,15 @@ func signoutScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *m
 	}
 
 	// signout したらトップページに飛ぶ(MEMO: 初期状態だと trend おもすぎて backend をころしてしまうかも)
-	_, _, err = getTrendAction(ctx, user.Agent)
-	if err != nil {
-		addErrorWithContext(ctx, step, err)
-		// return するとこのあとのログイン必須なシナリオが回らないから return はしない
-	}
+	go func() {
+		// 登録済みユーザーは trend に興味はないので verify はせず投げっぱなし
+		_, err = getTrendIgnoreAction(ctx, user.Agent)
+		if err != nil {
+			addErrorWithContext(ctx, step, err)
+			// return するとこのあとのログイン必須なシナリオが回らないから return はしない
+		}
+	}()
+
 	authInfinityRetry(ctx, user.Agent, user.UserID, step)
 }
 
