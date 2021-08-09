@@ -465,10 +465,6 @@ func postIsuConditionAction(ctx context.Context, httpClient http.Client, targetU
 		return nil, err
 	}
 	defer res.Body.Close()
-
-	if err := verifyStatusCodes(res, []int{http.StatusCreated, http.StatusServiceUnavailable}); err != nil {
-		return nil, err
-	}
 	return res, nil
 }
 
