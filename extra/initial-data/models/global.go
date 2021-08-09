@@ -18,7 +18,7 @@ var (
 func init() {
 	// connect to DB
 	var err error
-	db, err = sqlx.Open("mysql", "isucon:isucon@tcp(127.0.0.1:3306)/isucondition?parseTime=true&loc=Asia%%2FTokyo")
+	db, err = sqlx.Open("mysql", "isucon:isucon@tcp(127.0.0.1:3306)/isucondition?parseTime=true&loc=Asia%2FTokyo")
 	if err != nil {
 		log.Fatal(err)
 	}

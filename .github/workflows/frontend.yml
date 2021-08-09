@@ -63,6 +63,9 @@ jobs:
       - run: npm run fmt:check
       - run: npm run lint
   message:
+    runs-on: self-hosted
+    timeout-minutes: 15
+    steps:
       - uses: peter-evans/create-or-update-comment@v1
         if: ${{ github.event.action == 'opened' }}
         with:

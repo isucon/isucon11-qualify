@@ -40,8 +40,6 @@ var (
 	targetAddress      string
 	profileFile        string
 	jiaServiceURL      *url.URL
-	tlsCertificatePath string
-	tlsKeyPath         string
 	useTLS             bool
 	exitStatusOnFail   bool
 	noLoad             bool
@@ -79,8 +77,6 @@ func init() {
 	flag.StringVar(&targetAddress, "target", benchrun.GetTargetAddress(), "ex: localhost:9292")
 	flag.StringVar(&profileFile, "profile", "", "ex: cpu.out")
 	flag.BoolVar(&exitStatusOnFail, "exit-status", false, "set exit status non-zero when a benchmark result is failing")
-	flag.StringVar(&tlsCertificatePath, "tls-cert", "", "path to TLS certificate for JIA API service")
-	flag.StringVar(&tlsKeyPath, "tls-key", "", "path to private key of TLS certificate JIA API service")
 	flag.BoolVar(&useTLS, "tls", false, "true if target server is a tls")
 	flag.BoolVar(&noLoad, "no-load", false, "exit on finished prepare")
 	flag.StringVar(&promOut, "prom-out", "", "Prometheus textfile output path")
@@ -251,7 +247,7 @@ func main() {
 	// JIA API
 	go func() {
 		s.JiaCancel = cancel
-		s.JiaAPIService(ctx, tlsCertificatePath, tlsKeyPath)
+		s.JiaAPIService(ctx)
 	}()
 
 	// Benchmarker
