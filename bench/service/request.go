@@ -12,9 +12,8 @@ type PostIsuConditionRequest struct {
 }
 
 type JIAServiceRequest struct {
-	TargetIP   string `json:"target_ip"`
-	TargetPort int    `json:"target_port"`
-	IsuUUID    string `json:"isu_uuid"`
+	TargetBaseURL string `json:"target_base_url"`
+	IsuUUID       string `json:"isu_uuid"`
 }
 
 type PostIsuRequest struct {
