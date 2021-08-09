@@ -15,4 +15,4 @@ jobs:
           go-version: ^1.16.5
       - run: "mv scenario/assets.go{,.default}"
       - run: "go generate gen/assets.go"
-      - run: "diff scenario/assets.go{,.default}"
+      - run: "diff -w scenario/assets.go{,.default}"
