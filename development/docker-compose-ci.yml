@@ -7,9 +7,9 @@ services:
     environment:
       MYSQL_HOST: mysql-backend
       MYSQL_PORT: 3306
-      MYSQL_DATABASE: isucondition
+      MYSQL_DBNAME: isucondition
       MYSQL_USER: isucon
-      MYSQL_PASSWORD: isucon
+      MYSQL_PASS: isucon
       POST_ISUCONDITION_TARGET_BASE_URL: http://backend:3000
     ports:
       - "3000:3000"
