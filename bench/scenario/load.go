@@ -276,8 +276,8 @@ func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep
 		default:
 		}
 
-		// viewer が ViewerDropCount より多くエラーに遭遇していたらループから脱落
-		if viewer.ErrorCount > ViewerDropCount {
+		// viewer が ViewerDropCount 以上エラーに遭遇していたらループから脱落
+		if viewer.ErrorCount >= ViewerDropCount {
 			return
 		}
 
