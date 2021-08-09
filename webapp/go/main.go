@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
@@ -44,7 +43,6 @@ const (
 )
 
 var (
-	templates           *template.Template
 	db                  *sqlx.DB
 	sessionStore        sessions.Store
 	mySQLConnectionData *MySQLConnectionEnv
@@ -198,10 +196,6 @@ func (mc *MySQLConnectionEnv) ConnectDB() (*sqlx.DB, error) {
 
 func init() {
 	sessionStore = sessions.NewCookieStore([]byte(getEnv("SESSION_KEY", "isucondition")))
-
-	templates = template.Must(template.ParseFiles(
-		frontendContentsPath + "/index.html",
-	))
 
 	key, err := ioutil.ReadFile(jwtVerificationKeyPath)
 	if err != nil {
@@ -1238,10 +1232,5 @@ func isValidConditionFormat(conditionStr string) bool {
 }
 
 func getIndex(c echo.Context) error {
-	err := templates.ExecuteTemplate(c.Response().Writer, "index.html", struct{}{})
-	if err != nil {
-		c.Logger().Error(err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	return nil
+	return c.File(frontendContentsPath + "/index.html")
 }
