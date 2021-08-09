@@ -34,12 +34,12 @@ const SignoutPercentage = 20
 const ReadConditionTagStep = 50
 
 // User を増やすかどうかの閾値
-const AddUserStep = 1000
+const AddUserStep = 500
 
 // User を増やすとき何人増やすか
 const AddUserCount = 1
 
-// Viewer が何回エラーしたら drop するか
+// Viewer が何回以上エラーに遭遇したら drop するか
 const ViewerDropCount = 1
 
 type PageType int
@@ -52,3 +52,15 @@ const (
 	RegisterPage
 	AuthPage
 )
+
+// ユーザーがもってるISUの数の上限
+const IsuCountMax = 3
+
+// 1ユーザーのループが何回回れば Viewer が増えるか
+const ViewerAddLoopStep = 1
+
+// Viewer のユーザー数に対する上限
+const ViewerLimitPerUser = 3
+
+// ユーザーが追加されるとき、発生していて良い Timeout のユーザー数に対する上限
+const TimeoutLimitPerUser = 20
