@@ -976,14 +976,6 @@ func getIsuConditions(c echo.Context) error {
 		}
 		startTime = time.Unix(startTimeInt64, 0)
 	}
-	limitStr := c.QueryParam("limit")
-	limit := conditionLimit
-	if limitStr != "" {
-		limit, err = strconv.Atoi(limitStr)
-		if err != nil || limit <= 0 {
-			return c.String(http.StatusBadRequest, "bad format: limit")
-		}
-	}
 
 	var isuName string
 	err = db.Get(&isuName,
@@ -999,7 +991,7 @@ func getIsuConditions(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	conditionsResponse, err := getIsuConditionsFromDB(db, jiaIsuUUID, endTime, conditionLevel, startTime, limit, isuName)
+	conditionsResponse, err := getIsuConditionsFromDB(db, jiaIsuUUID, endTime, conditionLevel, startTime, conditionLimit, isuName)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
