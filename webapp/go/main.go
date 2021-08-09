@@ -623,21 +623,15 @@ func postIsu(c echo.Context) error {
 	}
 	defer res.Body.Close()
 
-	if res.StatusCode != http.StatusAccepted {
-		resBody, err := ioutil.ReadAll(res.Body)
-		if err != nil {
-			c.Logger().Errorf("error occurred while reading JIA response: %v", err)
-			return c.NoContent(http.StatusInternalServerError)
-		}
-
-		c.Logger().Errorf("JIAService returned error: status code %v, message: %v", res.StatusCode, string(resBody))
-		return c.String(res.StatusCode, "JIAService returned error")
-	}
-
 	resBody, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	if res.StatusCode != http.StatusAccepted {
+		c.Logger().Errorf("JIAService returned error: status code %v, message: %v", res.StatusCode, string(resBody))
+		return c.String(res.StatusCode, "JIAService returned error")
 	}
 
 	var isuFromJIA IsuFromJIA
