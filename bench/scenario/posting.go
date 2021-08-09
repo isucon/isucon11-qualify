@@ -41,7 +41,7 @@ type badCondition struct {
 
 //POST /api/condition/{jia_isu_id}をたたく Goroutine
 func (s *Scenario) keepPosting(ctx context.Context, targetBaseURL *url.URL, isu *model.Isu, scenarioChan *model.StreamsForPoster) {
-	postConditionTimeout := 50 * time.Millisecond //MEMO: timeout は気にせずにズバズバ投げる
+	postConditionTimeout := 100 * time.Millisecond //MEMO: timeout は気にせずにズバズバ投げる
 
 	targetBaseURL.Path = path.Join(targetBaseURL.Path, "/api/condition/", isu.JIAIsuUUID)
 	nowTimeStamp := s.ToVirtualTime(time.Now()).Unix()
@@ -57,7 +57,7 @@ func (s *Scenario) keepPosting(ctx context.Context, targetBaseURL *url.URL, isu 
 	httpClient := http.Client{}
 	httpClient.Timeout = postConditionTimeout
 
-	timer := time.NewTicker(20 * time.Millisecond)
+	timer := time.NewTicker(40 * time.Millisecond)
 	defer timer.Stop()
 	for {
 		select {
@@ -215,20 +215,20 @@ func (state *posterState) UpdateToNextState(randEngine *rand.Rand, stateChange m
 		}
 	}
 	//overweight
-	if state.isSitting && timeStamp-state.overWaight.fixedTime > 60*60 {
-		if randEngine.Intn(500) <= 1 {
+	if state.isSitting && timeStamp-state.overWaight.fixedTime > 12*60*60 {
+		if randEngine.Intn(5000) <= 1 {
 			state.overWaight.isNow = true
 		}
 	}
 	//dirty
-	if timeStamp-state.dirty.fixedTime > 75*60 {
-		if randEngine.Intn(500) <= 1 {
+	if timeStamp-state.dirty.fixedTime > 18*60*60 {
+		if randEngine.Intn(5000) <= 1 {
 			state.dirty.isNow = true
 		}
 	}
 	//broken
-	if timeStamp-state.broken.fixedTime > 120*60 {
-		if randEngine.Intn(1000) <= 1 {
+	if timeStamp-state.broken.fixedTime > 24*60*60 {
+		if randEngine.Intn(10000) <= 1 {
 			state.broken.isNow = true
 		}
 	}
