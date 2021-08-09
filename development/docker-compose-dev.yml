@@ -203,7 +203,7 @@ services:
     expose:
       - "3306"
     ports:
-      - "3306:3306"
+      - "127.0.0.1::3306"
 
   jiaapi-mock:
     image: golang:1.16.5-buster
