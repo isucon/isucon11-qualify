@@ -185,7 +185,7 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 				expected := user.IsuListOrderByCreatedAt
 
 				var errs []error
-				newConditionUUIDs, errs = s.verifyIsuList(res, expected, isuList)
+				newConditionUUIDs, errs = verifyIsuList(res, expected, isuList)
 				return errs
 			},
 		)
@@ -302,6 +302,21 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 		defer s.normalUsersMtx.Unlock()
 		s.normalUsers = append(s.normalUsers, user)
 	}()
+
+	// s.NewUser() 内で POST /api/auth をしているためトップページに飛ぶ
+	_, errs := browserGetHomeAction(ctx, user.Agent, true,
+		func(res *http.Response, isuList []*service.Isu) []error {
+			expected := user.IsuListOrderByCreatedAt
+
+			var errs []error
+			_, errs = verifyIsuList(res, expected, isuList)
+			return errs
+		},
+	)
+	for _, err := range errs {
+		addErrorWithContext(ctx, step, err)
+		// 致命的なエラーではないため return しない
+	}
 
 	//椅子作成
 	// TODO: 実際に解いてみてこの isu 数の上限がいい感じに働いているか検証する
