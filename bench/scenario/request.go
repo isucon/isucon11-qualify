@@ -120,9 +120,9 @@ func reqJSONResGojayArray(ctx context.Context, agent *agent.Agent, method string
 		return nil, errorInvalidContentType(httpres, "application/json")
 	}
 
-	afterDec := gojay.NewDecoder(httpres.Body)
-	defer afterDec.Release()
-	err = afterDec.DecodeArray(res)
+	dec := gojay.NewDecoder(httpres.Body)
+	defer dec.Release()
+	err = dec.DecodeArray(res)
 	if err != nil {
 		return nil, err
 	}
