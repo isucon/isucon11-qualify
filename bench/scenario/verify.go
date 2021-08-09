@@ -395,34 +395,36 @@ func joinURL(base *url.URL, target string) string {
 }
 
 // TODO: vendor.****.jsで取得処理が記述されているlogo_white, logo_orangeも取得できてない
-func verifyResources(page PageType, res *http.Response, resources agent.Resources) []error {
+func verifyResources(page PageType, res *http.Response, resources agent.Resources, body io.Reader) []error {
 	base := res.Request.URL.String()
 
-	faviconSvg := resourcesMap["/favicon.svg"]
-	indexCss := resourcesMap["/index.css"]
-	indexJs := resourcesMap["/index.js"]
-	//logoOrange := resourcesMap["/logo_orange.svg"]
-	//logoWhite := resourcesMap["/logo_white.svg"]
-	vendorJs := resourcesMap["/vendor.js"]
+	faviconSvg := resourcesMap["/assets/favicon.svg"]
+	indexCss := resourcesMap["/assets/index.css"]
+	indexJs := resourcesMap["/assets/index.js"]
+	//logoOrange := resourcesMap["/assets/logo_orange.svg"]
+	//logoWhite := resourcesMap["/assets/logo_white.svg"]
+	vendorJs := resourcesMap["/assets/vendor.js"]
 
 	var checks []error
 	switch page {
 	case HomePage, IsuDetailPage, IsuConditionPage, IsuGraphPage, RegisterPage:
 		checks = []error{
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+faviconSvg)], faviconSvg),
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexCss)], indexCss),
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexJs)], indexJs),
-			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+logoWhite)], logoWhite),
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+vendorJs)], vendorJs),
+			errorHtmlChecksum(res, body, "/index.html"),
+			errorChecksum(base, resources[joinURL(res.Request.URL, faviconSvg)], faviconSvg),
+			errorChecksum(base, resources[joinURL(res.Request.URL, indexCss)], indexCss),
+			errorChecksum(base, resources[joinURL(res.Request.URL, indexJs)], indexJs),
+			//errorChecksum(base, resources[joinURL(res.Request.URL, logoWhite)], logoWhite),
+			errorChecksum(base, resources[joinURL(res.Request.URL, vendorJs)], vendorJs),
 		}
 	case TrendPage:
 		checks = []error{
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+faviconSvg)], faviconSvg),
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexCss)], indexCss),
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+indexJs)], indexJs),
-			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+logoOrange)], logoOrange),
-			//errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+logoWhite)], logoWhite),
-			errorChecksum(base, resources[joinURL(res.Request.URL, "/assets"+vendorJs)], vendorJs),
+			errorHtmlChecksum(res, body, "/index.html"),
+			errorChecksum(base, resources[joinURL(res.Request.URL, faviconSvg)], faviconSvg),
+			errorChecksum(base, resources[joinURL(res.Request.URL, indexCss)], indexCss),
+			errorChecksum(base, resources[joinURL(res.Request.URL, indexJs)], indexJs),
+			//errorChecksum(base, resources[joinURL(res.Request.URL, logoOrange)], logoOrange),
+			//errorChecksum(base, resources[joinURL(res.Request.URL, logoWhite)], logoWhite),
+			errorChecksum(base, resources[joinURL(res.Request.URL, vendorJs)], vendorJs),
 		}
 	default:
 		logger.AdminLogger.Panicf("意図していないpage(%d)のResourceCheckを行っています。(path: %s)", page, res.Request.URL.Path)
@@ -437,10 +439,35 @@ func verifyResources(page PageType, res *http.Response, resources agent.Resource
 	return errs
 }
 
-func errorChecksum(base string, resource *agent.Resource, name string) error {
+func errorHtmlChecksum(res *http.Response, body io.Reader, path string) error {
+	if res.StatusCode == 304 {
+		return nil
+	}
+	if err := verifyStatusCode(res, http.StatusOK); err != nil {
+		return err
+	}
+
+	// md5でリソースの比較
+	expected := resourcesHash[path]
+	if expected == "" {
+		logger.AdminLogger.Panicf("意図していないpath(%s)のHtmlResourceCheckを行っています。", path)
+	}
+	hash := md5.New()
+	if _, err := io.Copy(hash, body); err != nil {
+		logger.AdminLogger.Printf("resource checksum: %v", err)
+		return errorCheckSum("リソースの取得に失敗しました: %s", path)
+	}
+	actual := fmt.Sprintf("%x", hash.Sum(nil))
+	if expected != actual {
+		return errorCheckSum("期待するチェックサムと一致しません: %s", path)
+	}
+	return nil
+}
+
+func errorChecksum(base string, resource *agent.Resource, path string) error {
 	if resource == nil {
-		logger.AdminLogger.Printf("resource not found: %s on %s\n", name, base)
-		return errorCheckSum("期待するリソースが読み込まれませんでした: %s", name)
+		logger.AdminLogger.Printf("resource not found: %s on %s\n", path, base)
+		return errorCheckSum("期待するリソースが読み込まれませんでした: %s", path)
 	}
 
 	if resource.Error != nil {
@@ -450,7 +477,7 @@ func errorChecksum(base string, resource *agent.Resource, name string) error {
 				return nerr
 			}
 		}
-		return errorCheckSum("リソースの取得に失敗しました: %s: %v", name, resource.Error)
+		return errorCheckSum("リソースの取得に失敗しました: %s: %v", path, resource.Error)
 	}
 
 	res := resource.Response
@@ -465,10 +492,9 @@ func errorChecksum(base string, resource *agent.Resource, name string) error {
 	}
 
 	// md5でリソースの比較
-	path := res.Request.URL.Path
 	expected := resourcesHash[path]
 	if expected == "" {
-		return nil
+		logger.AdminLogger.Panicf("意図していないpath(%s)のResourceCheckを行っています。", path)
 	}
 	hash := md5.New()
 	if _, err := io.Copy(hash, res.Body); err != nil {

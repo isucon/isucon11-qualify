@@ -18,7 +18,7 @@ import (
 
 var (
 	streamsForPosterMutex sync.Mutex
-	isuIsActivated        = map[string]JiaAPI2PosterData{}
+	isuIsActivated        = map[string]struct{}{}
 	streamsForPoster      = map[string]*model.StreamsForPoster{}
 	//isuDetailInfomation   = map[string]*IsuDetailInfomation{}
 	isuFromUUID = map[string]*model.Isu{}
@@ -28,12 +28,6 @@ var (
 
 type IsuDetailInfomation struct {
 	Character string `json:"character"`
-}
-
-//ISU協会 Goroutineとposterの通信
-type JiaAPI2PosterData struct {
-	activated  bool
-	cancelFunc context.CancelFunc
 }
 
 //シナリオ Goroutineからの呼び出し
@@ -104,7 +98,7 @@ func (s *Scenario) postActivate(c echo.Context) error {
 	//poster Goroutineの起動
 	var isu *model.Isu
 	var scenarioChan *model.StreamsForPoster
-	posterContext, cancelFunc := context.WithCancel(jiaAPIContext)
+	posterContext := jiaAPIContext
 	err = func() error {
 		var ok bool
 		streamsForPosterMutex.Lock()
@@ -114,32 +108,31 @@ func (s *Scenario) postActivate(c echo.Context) error {
 		if !ok {
 			return echo.NewHTTPError(http.StatusNotFound)
 		}
-		// activate 済みであれば 403 を返す
-		v, ok := isuIsActivated[state.IsuUUID]
-		if ok && v.activated {
-			return echo.NewHTTPError(http.StatusForbidden)
-		}
-		// activate 済みフラグを立てる
-		isuIsActivated[state.IsuUUID] = JiaAPI2PosterData{
-			activated:  true,
-			cancelFunc: cancelFunc,
-		}
-		// リクエストされた JIA_ISU_UUID が事前に scenario.NewIsu にて作成された isu と紐付かない場合 403 を返す
 		isu, ok = isuFromUUID[state.IsuUUID]
 		if !ok {
-			return echo.NewHTTPError(http.StatusForbidden)
+			//scenarioChanでチェックしているのでここには来ないはず
+			return echo.NewHTTPError(http.StatusNotFound)
+		}
+		_, ok = isuIsActivated[state.IsuUUID]
+		if ok {
+			//activate済み
+			return nil
 		}
 
+		// activate 済みフラグを立てる
+		isuIsActivated[state.IsuUUID] = struct{}{}
+
+		//activate
+		s.loadWaitGroup.Add(1)
+		go func() {
+			defer s.loadWaitGroup.Done()
+			s.keepPosting(posterContext, targetBaseURL, isu, scenarioChan)
+		}()
 		return nil
 	}()
 	if err != nil {
 		return err
 	}
-	s.loadWaitGroup.Add(1)
-	go func() {
-		defer s.loadWaitGroup.Done()
-		s.keepPosting(posterContext, targetBaseURL, isu, scenarioChan)
-	}()
 
 	time.Sleep(50 * time.Millisecond)
 	return c.JSON(http.StatusAccepted, IsuDetailInfomation{isu.Character})
