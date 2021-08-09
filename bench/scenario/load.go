@@ -613,7 +613,7 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 		minTimestampCount := int(^uint(0) >> 1)
 		for _, g := range *gr {
 			// 「今日のグラフ」＆「リクエストした時間より先」ならもう minTimestampCount についてカウントしない
-			if behindDay == 0 && nowVirtualTime.Unix() > g.StartAt {
+			if behindDay == 0 && nowVirtualTime.Unix() < g.EndAt {
 				break
 			}
 			if len(g.ConditionTimestamps) < minTimestampCount {
