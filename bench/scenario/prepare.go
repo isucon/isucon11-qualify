@@ -76,23 +76,18 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 	//jia起動待ち TODO: これで本当に良いのか？
 	<-jiaWait
 
-	//各エンドポイントのチェック
-	err = s.prepareCheckAuth(ctx, step)
-	if err != nil {
+	// prepareチェックの実行
+	if err := s.prepareCheck(ctx, step); err != nil {
 		return err
 	}
 
-	if err := s.prepareCheck(ctx, step); err != nil {
-		return failure.NewError(ErrCritical, err)
-	}
 	errors := step.Result().Errors
 	hasErrors := func() bool {
 		errors.Wait()
 		return len(errors.All()) > 0
 	}
-	// Prepare step でのエラーはすべて Critical の扱い
+
 	if hasErrors() {
-		//return ErrScenarioCancel
 		step.AddError(failure.NewError(ErrCritical, fmt.Errorf("アプリケーション互換性チェックに失敗しました")))
 		return nil
 	}
@@ -103,6 +98,12 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 
 //エンドポイント毎の単体テスト
 func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.BenchmarkStep) error {
+	errors := step.Result().Errors
+	hasErrors := func() bool {
+		errors.Wait()
+		return len(errors.All()) > 0
+	}
+
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 	//ユーザー作成
@@ -110,7 +111,12 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	if err != nil {
 		logger.AdminLogger.Panicln(err)
 	}
+
+	// 正常系Prepare Check
 	s.prepareNormal(ctx, step)
+	if hasErrors() {
+		return failure.NewError(ErrCritical, fmt.Errorf("アプリケーション互換性チェックに失敗しました"))
+	}
 
 	noIsuAgent, err := s.NewAgent(agent.WithTimeout(s.prepareTimeout))
 	if err != nil {
@@ -131,6 +137,11 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	}
 	isuconUser.Agent = agt
 
+	// 各エンドポイントのチェック
+	err = s.prepareCheckAuth(ctx, step)
+	if err != nil {
+		return err
+	}
 	s.prepareIrregularCheckPostSignout(ctx, step)
 	s.prepareIrregularCheckGetMe(ctx, guestAgent, step)
 	s.prepareIrregularCheckGetIsuList(ctx, noIsuUser, guestAgent, step)
@@ -143,6 +154,10 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 
 	// ユーザのISUが増えるので他の検証終わった後に実行
 	s.prepareCheckPostIsu(ctx, isuconUser, noIsuUser, guestAgent, step)
+	if hasErrors() {
+		return failure.NewError(ErrCritical, fmt.Errorf("アプリケーション互換性チェックに失敗しました"))
+	}
+
 	return nil
 }
 
