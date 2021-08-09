@@ -108,9 +108,14 @@ func (s *Scenario) userAdder(ctx context.Context, step *isucandar.BenchmarkStep)
 			timeoutCount = 0
 		}
 
+		if int32(timeoutCount) > TimeoutLimitPerUser*atomic.LoadInt32(&userLoopCount) {
+			logger.ContestantLogger.Println("タイムアウト数が上限に達したため、以降負荷レベルは上昇しません")
+			break
+		}
+
 		addStep := AddUserStep * atomic.LoadInt32(&userLoopCount)
 		addCount := atomic.LoadInt32(&viewUpdatedTrendCounter) / addStep
-		if addCount > 0 && int32(timeoutCount) < TimeoutLimitPerUser*atomic.LoadInt32(&userLoopCount) {
+		if addCount > 0 {
 			logger.ContestantLogger.Printf("現レベルの負荷へ応答ができているため、負荷レベルを%d上昇させます", addCount)
 			s.AddNormalUser(ctx, step, AddUserCount*int(addCount))
 			atomic.AddInt32(&viewUpdatedTrendCounter, -addStep*addCount)
