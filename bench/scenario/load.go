@@ -180,7 +180,7 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 
 			loopCount++
 
-			if loopCount > ViewerAddLoopStep {
+			if loopCount%ViewerAddLoopStep == 0 {
 				s.viewerMtx.Lock()
 				// 「1 set のシナリオが ViewerAddLoopStep 回終わった」＆「 viewer が ユーザー数×ViewerLimitPerUser 以下」なら Viewer を増やす
 				if len(s.viewers) < int(atomic.LoadInt32(&userLoopCount))*ViewerLimitPerUser {
