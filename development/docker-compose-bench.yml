@@ -33,9 +33,9 @@ services:
       dockerfile: mysql-backend/Dockerfile
     restart: always
     environment:
-      MYSQL_DBNAME: isucondition
+      MYSQL_DATABASE: isucondition
       MYSQL_USER: isucon
-      MYSQL_PASS: isucon
+      MYSQL_PASSWORD: isucon
       MYSQL_ROOT_PASSWORD: root
     volumes:
       # 開発環境用のものを使って初期化
