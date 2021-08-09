@@ -107,15 +107,6 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 
-	// NewUserでauth使うのでauthだけ先にチェック
-	err := s.prepareCheckAuth(ctx, step)
-	if err != nil {
-		return err
-	}
-	if hasErrors() {
-		return failure.NewError(ErrCritical, fmt.Errorf("アプリケーション互換性チェックに失敗しました"))
-	}
-
 	//ユーザー作成
 	guestAgent, err := s.NewAgent(agent.WithTimeout(s.prepareTimeout))
 	if err != nil {
@@ -148,6 +139,7 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	isuconUser.Agent = agt
 
 	// 各エンドポイントのチェック
+	s.prepareCheckAuth(ctx, step)
 	s.prepareIrregularCheckPostSignout(ctx, step)
 	s.prepareIrregularCheckGetMe(ctx, guestAgent, step)
 	s.prepareIrregularCheckGetIsuList(ctx, noIsuUser, guestAgent, step)
@@ -504,7 +496,7 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 
 }
 
-func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.BenchmarkStep) error {
+func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.BenchmarkStep) {
 
 	//TODO: ユーザープール
 	//とりあえずは使い捨てのユーザーを使う
@@ -536,7 +528,7 @@ func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.Benchma
 	agt, err := s.NewAgent(agent.WithTimeout(s.prepareTimeout))
 	if err != nil {
 		logger.AdminLogger.Panic(err)
-		return nil
+		return
 	}
 	userID := random.UserName()
 
@@ -551,7 +543,7 @@ func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.Benchma
 		step.AddError(err)
 	}
 
-	return nil
+	return
 }
 
 func (s *Scenario) prepareIrregularCheckPostSignout(ctx context.Context, step *isucandar.BenchmarkStep) {
