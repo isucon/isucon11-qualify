@@ -557,7 +557,7 @@ func getIsuGraphErrorAction(ctx context.Context, a *agent.Agent, id string, quer
 func getTrendAction(ctx context.Context, a *agent.Agent) (service.GetTrendResponse, *http.Response, error) {
 	trend := service.GetTrendResponse{}
 	reqUrl := "/api/trend"
-	res, err := reqJSONResJSON(ctx, a, http.MethodGet, reqUrl, nil, &trend, []int{http.StatusOK})
+	res, err := reqJSONResGojayArray(ctx, a, http.MethodGet, reqUrl, nil, &trend, []int{http.StatusOK})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -569,6 +569,16 @@ func getTrendAction(ctx context.Context, a *agent.Agent) (service.GetTrendRespon
 	// }
 
 	return trend, res, nil
+}
+
+func getTrendIgnoreAction(ctx context.Context, a *agent.Agent) (*http.Response, error) {
+	reqUrl := "/api/trend"
+	res, err := reqJSONResNoContent(ctx, a, http.MethodGet, reqUrl, nil, []int{http.StatusOK})
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }
 
 func browserGetHomeAction(ctx context.Context, a *agent.Agent,

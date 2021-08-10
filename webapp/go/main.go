@@ -30,7 +30,7 @@ const (
 	sessionName                 = "isucondition"
 	conditionLimit              = 20
 	frontendContentsPath        = "../public"
-	jwtVerificationKeyPath      = "../ec256-public.pem"
+	jiaJWTSigningKeyPath        = "../ec256-public.pem"
 	defaultIconFilePath         = "../NoImage.jpg"
 	defaultJIAServiceURL        = "http://localhost:5000"
 	mysqlErrNumDuplicateEntry   = 1062
@@ -47,7 +47,7 @@ var (
 	sessionStore        sessions.Store
 	mySQLConnectionData *MySQLConnectionEnv
 
-	jwtVerificationKey *ecdsa.PublicKey
+	jiaJWTSigningKey *ecdsa.PublicKey
 
 	postIsuConditionTargetBaseURL string // JIAへのactivate時に登録する，ISUがconditionを送る先のURL
 )
@@ -147,14 +147,15 @@ type GetIsuConditionResponse struct {
 }
 
 type TrendResponse struct {
-	Character  string            `json:"character"`
-	Conditions []*TrendCondition `json:"conditions"`
+	Character string            `json:"character"`
+	Info      []*TrendCondition `json:"info"`
+	Warning   []*TrendCondition `json:"warning"`
+	Critical  []*TrendCondition `json:"critical"`
 }
 
 type TrendCondition struct {
-	ID             int    `json:"isu_id"`
-	Timestamp      int64  `json:"timestamp"`
-	ConditionLevel string `json:"condition_level"`
+	ID        int   `json:"isu_id"`
+	Timestamp int64 `json:"timestamp"`
 }
 
 type PostIsuConditionRequest struct {
@@ -195,11 +196,11 @@ func (mc *MySQLConnectionEnv) ConnectDB() (*sqlx.DB, error) {
 func init() {
 	sessionStore = sessions.NewCookieStore([]byte(getEnv("SESSION_KEY", "isucondition")))
 
-	key, err := ioutil.ReadFile(jwtVerificationKeyPath)
+	key, err := ioutil.ReadFile(jiaJWTSigningKeyPath)
 	if err != nil {
 		log.Fatalf("failed to read file: %v", err)
 	}
-	jwtVerificationKey, err = jwt.ParseECPublicKeyFromPEM(key)
+	jiaJWTSigningKey, err = jwt.ParseECPublicKeyFromPEM(key)
 	if err != nil {
 		log.Fatalf("failed to parse ECDSA public key: %v", err)
 	}
@@ -344,7 +345,7 @@ func postAuthentication(c echo.Context) error {
 		if _, ok := token.Method.(*jwt.SigningMethodECDSA); !ok {
 			return nil, jwt.NewValidationError(fmt.Sprintf("unexpected signing method: %v", token.Header["alg"]), jwt.ValidationErrorSignatureInvalid)
 		}
-		return jwtVerificationKey, nil
+		return jiaJWTSigningKey, nil
 	})
 	if err != nil {
 		switch err.(type) {
@@ -1083,7 +1084,9 @@ func getTrend(c echo.Context) error {
 			return c.NoContent(http.StatusInternalServerError)
 		}
 
-		characterIsuConditions := []*TrendCondition{}
+		characterInfoIsuConditions := []*TrendCondition{}
+		characterWarningIsuConditions := []*TrendCondition{}
+		characterCriticalIsuConditions := []*TrendCondition{}
 		for _, isu := range isuList {
 			conditions := []IsuCondition{}
 			err = db.Select(&conditions,
@@ -1103,20 +1106,37 @@ func getTrend(c echo.Context) error {
 					return c.NoContent(http.StatusInternalServerError)
 				}
 				trendCondition := TrendCondition{
-					ID:             isu.ID,
-					Timestamp:      isuLastCondition.Timestamp.Unix(),
-					ConditionLevel: conditionLevel,
+					ID:        isu.ID,
+					Timestamp: isuLastCondition.Timestamp.Unix(),
 				}
-				characterIsuConditions = append(characterIsuConditions, &trendCondition)
+				switch conditionLevel {
+				case "info":
+					characterInfoIsuConditions = append(characterInfoIsuConditions, &trendCondition)
+				case "warning":
+					characterWarningIsuConditions = append(characterWarningIsuConditions, &trendCondition)
+				case "critical":
+					characterCriticalIsuConditions = append(characterCriticalIsuConditions, &trendCondition)
+				}
 			}
 
 		}
 
-		sort.Slice(characterIsuConditions, func(i, j int) bool {
-			return characterIsuConditions[i].Timestamp > characterIsuConditions[j].Timestamp
+		sort.Slice(characterInfoIsuConditions, func(i, j int) bool {
+			return characterInfoIsuConditions[i].Timestamp > characterInfoIsuConditions[j].Timestamp
+		})
+		sort.Slice(characterWarningIsuConditions, func(i, j int) bool {
+			return characterWarningIsuConditions[i].Timestamp > characterWarningIsuConditions[j].Timestamp
+		})
+		sort.Slice(characterCriticalIsuConditions, func(i, j int) bool {
+			return characterCriticalIsuConditions[i].Timestamp > characterCriticalIsuConditions[j].Timestamp
 		})
 		res = append(res,
-			TrendResponse{Character: character.Character, Conditions: characterIsuConditions})
+			TrendResponse{
+				Character: character.Character,
+				Info:      characterInfoIsuConditions,
+				Warning:   characterWarningIsuConditions,
+				Critical:  characterCriticalIsuConditions,
+			})
 	}
 
 	return c.JSON(http.StatusOK, res)

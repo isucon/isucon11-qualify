@@ -124,12 +124,33 @@ class Apis {
 
     const trends: TrendResponse = []
     data.forEach(trend => {
-      trends.push({
-        ...trend,
-        conditions: trend.conditions.map(v => ({
+      const info: TrendCondition[] = []
+      const warning: TrendCondition[] = []
+      const critical: TrendCondition[] = []
+      trend.info.forEach(v => {
+        info.push({
           ...v,
           date: timestampToDate(v.timestamp)
-        }))
+        })
+      })
+      trend.warning.forEach(v => {
+        warning.push({
+          ...v,
+          date: timestampToDate(v.timestamp)
+        })
+      })
+      trend.critical.forEach(v => {
+        critical.push({
+          ...v,
+          date: timestampToDate(v.timestamp)
+        })
+      })
+
+      trends.push({
+        ...trend,
+        info: info,
+        warning: warning,
+        critical: critical
       })
     })
 
@@ -242,23 +263,27 @@ export const DEFAULT_CONDITION_LIMIT = 20
 
 interface ApiTrendResponseElement {
   character: string
-  conditions: {
-    isu_id: number
-    condition_level: 'critical' | 'warning' | 'info'
-    timestamp: number
-  }[]
+  info: ApiTrendCondition[]
+  warning: ApiTrendCondition[]
+  critical: ApiTrendCondition[]
+}
+
+interface ApiTrendCondition {
+  isu_id: number
+  timestamp: number
 }
 
 type ApiTrendResponse = ApiTrendResponseElement[]
 
 export interface Trend {
   character: string
-  conditions: TrendCondition[]
+  info: TrendCondition[]
+  warning: TrendCondition[]
+  critical: TrendCondition[]
 }
 
 export interface TrendCondition {
   isu_id: number
-  condition_level: 'critical' | 'warning' | 'info'
   date: Date
 }
 
