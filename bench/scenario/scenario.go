@@ -135,6 +135,10 @@ func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a
 	}
 
 	//backendにpostする
+	go func() {
+		// 登録済みユーザーは trend に興味がないからリクエストを待たない
+		browserGetLandingPageIgnoreAction(ctx, a)
+	}()
 	//TODO: 確率で失敗してリトライする
 	_, errs := authAction(ctx, a, user.UserID)
 	for _, err := range errs {
