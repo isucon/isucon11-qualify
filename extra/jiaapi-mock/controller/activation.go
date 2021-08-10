@@ -101,13 +101,6 @@ func (c *ActivationController) PostActivate(ctx echo.Context) error {
 		ctx.Logger().Errorf("bad isu_uuid: %v", req.IsuUUID)
 		return ctx.String(http.StatusNotFound, "Bad isu_uuid")
 	}
-<<<<<<< HEAD
-	if !isPrivateIP(host) {
-		ctx.Logger().Errorf("bad ip: %v", host)
-		return ctx.String(http.StatusBadRequest, "Bad IP")
-	}
-=======
->>>>>>> main
 
 	err = c.isuConditionPosterManager.StartPosting(req.TargetBaseURL, req.IsuUUID)
 	if err != nil {
