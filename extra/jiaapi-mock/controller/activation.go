@@ -109,8 +109,8 @@ func (c *ActivationController) PostActivate(ctx echo.Context) error {
 	host := split[0]
 	port, err := strconv.Atoi(split[1])
 	if err != nil {
-		ctx.Logger().Errorf("bad url: %v", err)
-		return ctx.String(http.StatusBadRequest, "Bad URL")
+		ctx.Logger().Errorf("bad port: %v", err)
+		return ctx.String(http.StatusBadRequest, "Bad port")
 	}
 
 	if !(0 <= port && port < 0x1000) {
