@@ -35,3 +35,9 @@ down-bench:
 .PHONY: run-bench-noload
 run-bench-noload:
 	target=go docker compose -f docker-compose-bench.yml exec apitest go run ./main.go --no-load=true
+
+.PHONY: update-assets
+update-assets:
+	rm -rf ../webapp/public
+	cd ../webapp/frontend && npm run build
+	cd ../bench && go generate ./gen/assets.go

@@ -73,4 +73,4 @@ jobs:
           body: |
             ### webapp/frontend 更新時のチェックリスト
 
-            - [ ] `npm run build` を実行し webapp/public の内容を更新した
+            - [ ] `make update-assets` を実行し `webapp/public` と `bench/scenario/assets.go` の内容を更新した
