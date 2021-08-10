@@ -34,19 +34,19 @@ const (
 	// FAIL になるエラー回数
 	FAIL_ERROR_COUNT int64 = 100 //TODO:ちゃんと決める
 	//load context
-	LOAD_TIMEOUT time.Duration = 70 * time.Second
+	LOAD_TIMEOUT time.Duration = 60 * time.Second
 )
 
 var (
-	COMMIT             string
-	targetAddress      string
-	profileFile        string
-	jiaServiceURL      *url.URL
-	useTLS             bool
-	exitStatusOnFail   bool
-	noLoad             bool
-	promOut            string
-	showVersion        bool
+	COMMIT           string
+	targetAddress    string
+	profileFile      string
+	jiaServiceURL    *url.URL
+	useTLS           bool
+	exitStatusOnFail bool
+	noLoad           bool
+	promOut          string
+	showVersion      bool
 
 	initializeTimeout time.Duration
 	// TODO: isucon11-portal に差し替え

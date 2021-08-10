@@ -92,7 +92,6 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 		return nil
 	}
 
-	s.realTimeLoadFinishedAt = time.Now().Add(s.LoadTimeout)
 	return nil
 }
 
