@@ -135,12 +135,8 @@ func (s *Scenario) userAdder(ctx context.Context, step *isucandar.BenchmarkStep)
 func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.BenchmarkStep, isIsuconUser bool) {
 	atomic.AddInt32(&userLoopCount, 1)
 
-	userTimer, userTimerCancel := context.WithDeadline(ctx, s.realTimeLoadFinishedAt.Add(-agent.DefaultRequestTimeout))
-	defer userTimerCancel()
 	select {
 	case <-ctx.Done():
-		return
-	case <-userTimer.Done():
 		return
 	default:
 	}
@@ -170,14 +166,6 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 	for {
 		<-scenarioLoopStopper
 		scenarioLoopStopper = time.After(50 * time.Millisecond) //TODO: 頻度調整
-		select {
-		case <-ctx.Done():
-			return
-		case <-userTimer.Done(): //TODO: GETリクエスト系も早めに終わるかは要検討
-			return
-		default:
-		}
-
 		select {
 		case <-ctx.Done():
 			return
@@ -266,13 +254,9 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 
 func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep) {
 
-	viewerTimer, viewerTimerCancel := context.WithDeadline(ctx, s.realTimeLoadFinishedAt.Add(-agent.DefaultRequestTimeout))
-	defer viewerTimerCancel()
 	select {
 	case <-ctx.Done():
-		return
-	case <-viewerTimer.Done():
-		return
+
 	default:
 	}
 
@@ -284,8 +268,6 @@ func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep
 
 		select {
 		case <-ctx.Done():
-			return
-		case <-viewerTimer.Done(): //TODO: GETリクエスト系も早めに終わるかは要検討
 			return
 		default:
 		}
@@ -818,6 +800,17 @@ func signoutScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *m
 		// MEMO: ここで実は signout に成功していました、みたいな状況だと以降のこのユーザーループが死ぬがそれはユーザー責任とする
 		return
 	}
+
+	// signout したらトップページに飛ぶ(MEMO: 初期状態だと trend おもすぎて backend をころしてしまうかも)
+	go func() {
+		// 登録済みユーザーは trend に興味はないので verify はせず投げっぱなし
+		_, err = getTrendIgnoreAction(ctx, user.Agent)
+		if err != nil {
+			addErrorWithContext(ctx, step, err)
+			// return するとこのあとのログイン必須なシナリオが回らないから return はしない
+		}
+	}()
+
 	authInfinityRetry(ctx, user.Agent, user.UserID, step)
 }
 

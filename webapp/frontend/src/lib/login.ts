@@ -35,6 +35,8 @@ const useLogin = () => {
             setTryLogin(false)
             return
           }
+          url.searchParams.delete('jwt')
+          history.replaceState(null, '', url.href)
           await apis.postAuth(jwt, { cancelToken })
           const me = await apis.getUserMe({ cancelToken })
           setMe(me)

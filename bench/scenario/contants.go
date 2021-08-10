@@ -50,7 +50,7 @@ const (
 	IsuConditionPage
 	IsuGraphPage
 	RegisterPage
-	AuthPage
+	TrendPage
 )
 
 // ユーザーがもってるISUの数の上限
