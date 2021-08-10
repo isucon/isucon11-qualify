@@ -123,6 +123,10 @@ func checkError(err error) (critical bool, timeout bool, deduction bool) {
 }
 
 func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish bool) bool {
+	if finish {
+		logger.AdminLogger.Println("===> sendResult finish")
+	}
+
 	passed := true
 	reason := "pass"
 	errors := result.Errors.All()
