@@ -106,7 +106,6 @@ func (c *ActivationController) PostActivate(ctx echo.Context) error {
 		ctx.Logger().Errorf("bad url")
 		return echo.NewHTTPError(http.StatusBadRequest)
 	}
-	host := split[0]
 	port, err := strconv.Atoi(split[1])
 	if err != nil {
 		ctx.Logger().Errorf("bad url: %v", err)
@@ -123,10 +122,6 @@ func (c *ActivationController) PostActivate(ctx echo.Context) error {
 		ctx.Logger().Errorf("bad isu_uuid: %v", req.IsuUUID)
 		return echo.NewHTTPError(http.StatusNotFound)
 	}
-	if !isPrivateIP(host) {
-		ctx.Logger().Errorf("bad ip: %v", host)
-		return echo.NewHTTPError(http.StatusForbidden)
-	}
 
 	err = c.isuConditionPosterManager.StartPosting(req.TargetBaseURL, req.IsuUUID)
 	if err != nil {
@@ -135,23 +130,4 @@ func (c *ActivationController) PostActivate(ctx echo.Context) error {
 	}
 
 	return ctx.JSON(http.StatusAccepted, isuState)
-}
-
-func isPrivateIP(ipstr string) bool {
-
-	ipAddr, err := net.ResolveIPAddr("ip", ipstr)
-	if err != nil || ipAddr == nil {
-		return false
-	}
-	ip := ipAddr.IP
-
-	if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
-		return true
-	}
-	for _, block := range privateIPBlocks {
-		if block.Contains(ip) {
-			return true
-		}
-	}
-	return false
 }
