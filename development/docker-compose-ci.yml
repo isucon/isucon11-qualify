@@ -35,8 +35,9 @@ services:
       - "../webapp/sql/0_Schema.sql:/docker-entrypoint-initdb.d/0_Schema.sql"
     expose:
       - "3306"
-    # ports:
-    #   - "3306:3306"
+    ports:
+      # initial-data 実行時に必要
+      - "3306:3306"
 
   apitest:
     build:
