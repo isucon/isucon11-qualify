@@ -305,8 +305,10 @@ func (s *Scenario) keepPostingError(ctx context.Context) {
 		s.isuFromIDMutex.RLock()
 		targetCount := randEngine.Intn(len(s.isuFromID))
 		for _, isuP := range s.isuFromID {
-			if targetCount == 0 {
+			if !isuP.IsNoPoster() {
 				isu = isuP
+			}
+			if targetCount <= 0 && isu != nil {
 				break
 			}
 			targetCount--
@@ -369,7 +371,11 @@ func (s *Scenario) keepPostingError(ctx context.Context) {
 		}
 
 		//必ず一つは間違っているようにする
-		conditionsReq[len(conditionsReq)/2].Condition = "is_dirty=true,is_overweight=true,is_brokan=false"
+		if randEngine.Intn(2) == 0 {
+			conditionsReq[len(conditionsReq)/2].Condition = "is_dirty=true,is_overweight=true,is_brokan=false"
+		} else {
+			conditionsReq[len(conditionsReq)/2].Condition = "is_dirty:true,is_overweight:true,is_broken:false"
+		}
 
 		select {
 		case <-ctx.Done():
