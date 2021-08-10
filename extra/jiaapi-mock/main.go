@@ -51,7 +51,7 @@ func main() {
 		}
 		if input.Password != "U,YaCLe9tAnW8EdYphW)Wc/dN)5pPQ/3ue_af4rz" {
 			ctx.Logger().Errorf("invalid username or password")
-			return ctx.String(http.StatusNotFound, "Not Found")
+			return ctx.String(http.StatusUnauthorized, "Unauthorized")
 		}
 		os.Exit(0)
 		return nil
