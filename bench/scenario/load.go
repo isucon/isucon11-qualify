@@ -811,6 +811,17 @@ func signoutScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *m
 		// MEMO: ここで実は signout に成功していました、みたいな状況だと以降のこのユーザーループが死ぬがそれはユーザー責任とする
 		return
 	}
+
+	// signout したらトップページに飛ぶ(MEMO: 初期状態だと trend おもすぎて backend をころしてしまうかも)
+	go func() {
+		// 登録済みユーザーは trend に興味はないので verify はせず投げっぱなし
+		_, err = getTrendIgnoreAction(ctx, user.Agent)
+		if err != nil {
+			addErrorWithContext(ctx, step, err)
+			// return するとこのあとのログイン必須なシナリオが回らないから return はしない
+		}
+	}()
+
 	authInfinityRetry(ctx, user.Agent, user.UserID, step)
 }
 

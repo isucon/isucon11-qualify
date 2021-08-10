@@ -571,6 +571,16 @@ func getTrendAction(ctx context.Context, a *agent.Agent) (service.GetTrendRespon
 	return trend, res, nil
 }
 
+func getTrendIgnoreAction(ctx context.Context, a *agent.Agent) (*http.Response, error) {
+	reqUrl := "/api/trend"
+	res, err := reqJSONResNoContent(ctx, a, http.MethodGet, reqUrl, nil, []int{http.StatusOK})
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
 func browserGetHomeAction(ctx context.Context, a *agent.Agent,
 	validateIsu func(*http.Response, []*service.Isu) []error,
 ) ([]*service.Isu, []error) {
