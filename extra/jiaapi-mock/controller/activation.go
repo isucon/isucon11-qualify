@@ -92,46 +92,46 @@ func (c *ActivationController) PostActivate(ctx echo.Context) error {
 	err := ctx.Bind(req)
 	if err != nil {
 		ctx.Logger().Errorf("failed to bind: %v", err)
-		return echo.NewHTTPError(http.StatusBadRequest)
+		return ctx.String(http.StatusBadRequest, "Bad Request")
 	}
 
 	parsedURL, err := url.Parse(req.TargetBaseURL)
 	if err != nil {
 		ctx.Logger().Errorf("bad url: %v", err)
-		return echo.NewHTTPError(http.StatusBadRequest)
+		return ctx.String(http.StatusBadRequest, "Bad URL")
 	}
 
 	split := strings.Split(parsedURL.Host, ":")
 	if len(split) != 2 {
 		ctx.Logger().Errorf("bad url")
-		return echo.NewHTTPError(http.StatusBadRequest)
+		return ctx.String(http.StatusBadRequest, "Bad URL")
 	}
 	host := split[0]
 	port, err := strconv.Atoi(split[1])
 	if err != nil {
 		ctx.Logger().Errorf("bad url: %v", err)
-		return echo.NewHTTPError(http.StatusBadRequest)
+		return ctx.String(http.StatusBadRequest, "Bad URL")
 	}
 
 	if !(0 <= port && port < 0x1000) {
 		ctx.Logger().Errorf("bad port: %v", port)
-		return echo.NewHTTPError(http.StatusBadRequest)
+		return ctx.String(http.StatusBadRequest, "Bad port")
 	}
 
 	isuState, ok := validIsu[req.IsuUUID]
 	if !ok {
 		ctx.Logger().Errorf("bad isu_uuid: %v", req.IsuUUID)
-		return echo.NewHTTPError(http.StatusNotFound)
+		return ctx.String(http.StatusBadRequest, "Bad isu_uuid")
 	}
 	if !isPrivateIP(host) {
 		ctx.Logger().Errorf("bad ip: %v", host)
-		return echo.NewHTTPError(http.StatusForbidden)
+		return ctx.String(http.StatusBadRequest, "Bad IP")
 	}
 
 	err = c.isuConditionPosterManager.StartPosting(req.TargetBaseURL, req.IsuUUID)
 	if err != nil {
 		ctx.Logger().Errorf("failed to startPosting: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return ctx.NoContent(http.StatusInternalServerError)
 	}
 
 	return ctx.JSON(http.StatusAccepted, isuState)

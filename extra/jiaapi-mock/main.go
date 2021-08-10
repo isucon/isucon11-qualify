@@ -47,10 +47,10 @@ func main() {
 		err := ctx.Bind(input)
 		if err != nil {
 			ctx.Logger().Errorf("failed to bind: %v", err)
-			return echo.NewHTTPError(http.StatusBadRequest)
+			return ctx.String(http.StatusBadRequest, "Bad Request")
 		}
 		if input.Password != "U,YaCLe9tAnW8EdYphW)Wc/dN)5pPQ/3ue_af4rz" {
-			return echo.NewHTTPError(http.StatusNotFound, "Not Found")
+			return ctx.String(http.StatusNotFound, "Not Found")
 		}
 		os.Exit(0)
 		return nil
