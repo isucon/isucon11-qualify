@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"runtime/pprof"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -19,6 +20,7 @@ import (
 	"github.com/isucon/isucandar"
 	"github.com/isucon/isucandar/agent"
 	"github.com/isucon/isucandar/failure"
+	"github.com/isucon/isucandar/score"
 
 	// TODO: isucon11-portal に差し替え
 	"github.com/isucon/isucon10-portal/bench-tool.go/benchrun"
@@ -32,19 +34,19 @@ const (
 	// FAIL になるエラー回数
 	FAIL_ERROR_COUNT int64 = 100 //TODO:ちゃんと決める
 	//load context
-	LOAD_TIMEOUT time.Duration = 70 * time.Second
+	LOAD_TIMEOUT time.Duration = 60 * time.Second
 )
 
 var (
-	COMMIT             string
-	targetAddress      string
-	profileFile        string
-	jiaServiceURL      *url.URL
-	useTLS             bool
-	exitStatusOnFail   bool
-	noLoad             bool
-	promOut            string
-	showVersion        bool
+	COMMIT           string
+	targetAddress    string
+	profileFile      string
+	jiaServiceURL    *url.URL
+	useTLS           bool
+	exitStatusOnFail bool
+	noLoad           bool
+	promOut          string
+	showVersion      bool
 
 	initializeTimeout time.Duration
 	// TODO: isucon11-portal に差し替え
@@ -84,7 +86,7 @@ func init() {
 
 	var jiaServiceURLStr, timeoutDuration, initializeTimeoutDuration string
 	flag.StringVar(&jiaServiceURLStr, "jia-service-url", getEnv("JIA_SERVICE_URL", "http://apitest:5000"), "jia service url")
-	flag.StringVar(&timeoutDuration, "timeout", "1s", "request timeout duration")
+	flag.StringVar(&timeoutDuration, "timeout", "5s", "request timeout duration")
 	flag.StringVar(&initializeTimeoutDuration, "initialize-timeout", "20s", "request timeout duration of POST /initialize")
 
 	flag.Parse()
@@ -117,6 +119,12 @@ func checkError(err error) (critical bool, timeout bool, deduction bool) {
 }
 
 func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish bool) bool {
+	defer func() {
+		if finish {
+			logger.AdminLogger.Println("<=== sendResult finish")
+		}
+	}()
+
 	passed := true
 	reason := "pass"
 	errors := result.Errors.All()
@@ -125,11 +133,22 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 	deduction := int64(0)
 	timeoutCount := int64(0)
 
+	type TagCountPair struct {
+		Tag   score.ScoreTag
+		Count int64
+	}
+	tagCountPair := make([]TagCountPair, 0)
 	for tag, count := range result.Score.Breakdown() {
+		tagCountPair = append(tagCountPair, TagCountPair{Tag: tag, Count: count})
+	}
+	sort.Slice(tagCountPair, func(i, j int) bool {
+		return tagCountPair[i].Tag < tagCountPair[j].Tag
+	})
+	for _, p := range tagCountPair {
 		if finish {
-			logger.ContestantLogger.Printf("SCORE: %s: %d", tag, count)
+			logger.ContestantLogger.Printf("SCORE: %s: %d", p.Tag, p.Count)
 		} else {
-			logger.AdminLogger.Printf("SCORE: %s: %d", tag, count)
+			logger.AdminLogger.Printf("SCORE: %s: %d", p.Tag, p.Count)
 		}
 	}
 

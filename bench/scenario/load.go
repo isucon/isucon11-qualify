@@ -102,6 +102,17 @@ func (s *Scenario) userAdder(ctx context.Context, step *isucandar.BenchmarkStep)
 			return
 		}
 
+		errCount := step.Result().Errors.Count()
+		timeoutCount, ok := errCount["timeout"]
+		if !ok {
+			timeoutCount = 0
+		}
+
+		if int32(timeoutCount) > TimeoutLimitPerUser*atomic.LoadInt32(&userLoopCount) {
+			logger.ContestantLogger.Println("タイムアウト数が上限に達したため、以降負荷レベルは上昇しません")
+			break
+		}
+
 		addStep := AddUserStep * atomic.LoadInt32(&userLoopCount)
 		addCount := atomic.LoadInt32(&viewUpdatedTrendCounter) / addStep
 		if addCount > 0 {
@@ -117,12 +128,8 @@ func (s *Scenario) userAdder(ctx context.Context, step *isucandar.BenchmarkStep)
 func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.BenchmarkStep, isIsuconUser bool) {
 	atomic.AddInt32(&userLoopCount, 1)
 
-	userTimer, userTimerCancel := context.WithDeadline(ctx, s.realTimeLoadFinishedAt.Add(-agent.DefaultRequestTimeout))
-	defer userTimerCancel()
 	select {
 	case <-ctx.Done():
-		return
-	case <-userTimer.Done():
 		return
 	default:
 	}
@@ -148,17 +155,10 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 	nextTargetIsuIndex := 0
 	nextScenarioIndex := 0
 	scenarioLoopStopper := time.After(1 * time.Millisecond) //ループ頻度調整
+	loopCount := 0
 	for {
 		<-scenarioLoopStopper
 		scenarioLoopStopper = time.After(50 * time.Millisecond) //TODO: 頻度調整
-		select {
-		case <-ctx.Done():
-			return
-		case <-userTimer.Done(): //TODO: GETリクエスト系も早めに終わるかは要検討
-			return
-		default:
-		}
-
 		select {
 		case <-ctx.Done():
 			return
@@ -173,14 +173,22 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 			nextTargetIsuIndex %= len(user.IsuListOrderByCreatedAt)
 			nextScenarioIndex = 0
 
-			// 1 set のシナリオが終わったらViewerを増やす
-			s.AddViewer(ctx, step, 1)
+			loopCount++
+
+			if loopCount%ViewerAddLoopStep == 0 {
+				s.viewerMtx.Lock()
+				// 「1 set のシナリオが ViewerAddLoopStep 回終わった」＆「 viewer が ユーザー数×ViewerLimitPerUser 以下」なら Viewer を増やす
+				if len(s.viewers) < int(atomic.LoadInt32(&userLoopCount))*ViewerLimitPerUser {
+					s.AddViewer(ctx, step, 1)
+				}
+				s.viewerMtx.Unlock()
+			}
 		}
 		targetIsu := user.IsuListOrderByCreatedAt[nextTargetIsuIndex]
 
 		//GET /
 		var newConditionUUIDs []string
-		_, errs := browserGetHomeAction(ctx, user.Agent, true,
+		_, errs := browserGetHomeAction(ctx, user.Agent,
 			func(res *http.Response, isuList []*service.Isu) []error {
 				expected := user.IsuListOrderByCreatedAt
 
@@ -211,7 +219,7 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 		}
 
 		//GET /isu/{jia_isu_uuid}
-		_, errs = browserGetIsuDetailAction(ctx, user.Agent, targetIsu.JIAIsuUUID, true)
+		_, errs = browserGetIsuDetailAction(ctx, user.Agent, targetIsu.JIAIsuUUID)
 		for _, err := range errs {
 			addErrorWithContext(ctx, step, err)
 		}
@@ -239,13 +247,9 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 
 func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep) {
 
-	viewerTimer, viewerTimerCancel := context.WithDeadline(ctx, s.realTimeLoadFinishedAt.Add(-agent.DefaultRequestTimeout))
-	defer viewerTimerCancel()
 	select {
 	case <-ctx.Done():
-		return
-	case <-viewerTimer.Done():
-		return
+
 	default:
 	}
 
@@ -253,18 +257,16 @@ func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep
 	scenarioLoopStopper := time.After(1 * time.Millisecond) //ループ頻度調整
 	for {
 		<-scenarioLoopStopper
-		scenarioLoopStopper = time.After(5 * time.Second) //TODO: 頻度調整(絶対変える今は5秒)
+		scenarioLoopStopper = time.After(10 * time.Millisecond)
 
 		select {
 		case <-ctx.Done():
 			return
-		case <-viewerTimer.Done(): //TODO: GETリクエスト系も早めに終わるかは要検討
-			return
 		default:
 		}
 
-		// viewer が ViewerDropCount より多くエラーに遭遇していたらループから脱落
-		if viewer.ErrorCount > ViewerDropCount {
+		// viewer が ViewerDropCount 以上エラーに遭遇していたらループから脱落
+		if viewer.ErrorCount >= ViewerDropCount {
 			return
 		}
 
@@ -304,7 +306,7 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 	}()
 
 	// s.NewUser() 内で POST /api/auth をしているためトップページに飛ぶ
-	_, errs := browserGetHomeAction(ctx, user.Agent, true,
+	_, errs := browserGetHomeAction(ctx, user.Agent,
 		func(res *http.Response, isuList []*service.Isu) []error {
 			expected := user.IsuListOrderByCreatedAt
 
@@ -320,9 +322,8 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 
 	//椅子作成
 	// TODO: 実際に解いてみてこの isu 数の上限がいい感じに働いているか検証する
-	const isuCountMax = 15
 	isuCountRandEngineMutex.Lock()
-	isuCount := isuCountRandEngine.Intn(isuCountMax) + 1
+	isuCount := isuCountRandEngine.Intn(IsuCountMax) + 1
 	isuCountRandEngineMutex.Unlock()
 
 	for i := 0; i < isuCount; i++ {
@@ -601,6 +602,10 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 	for behindDay, gr := range graphResponses {
 		minTimestampCount := int(^uint(0) >> 1)
 		for _, g := range *gr {
+			// 「今日のグラフ」＆「リクエストした時間より先」ならもう minTimestampCount についてカウントしない
+			if behindDay == 0 && nowVirtualTime.Unix() < g.EndAt {
+				break
+			}
 			if len(g.ConditionTimestamps) < minTimestampCount {
 				minTimestampCount = len(g.ConditionTimestamps)
 			}
@@ -788,6 +793,17 @@ func signoutScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *m
 		// MEMO: ここで実は signout に成功していました、みたいな状況だと以降のこのユーザーループが死ぬがそれはユーザー責任とする
 		return
 	}
+
+	// signout したらトップページに飛ぶ(MEMO: 初期状態だと trend おもすぎて backend をころしてしまうかも)
+	go func() {
+		// 登録済みユーザーは trend に興味はないので verify はせず投げっぱなし
+		_, err = getTrendIgnoreAction(ctx, user.Agent)
+		if err != nil {
+			addErrorWithContext(ctx, step, err)
+			// return するとこのあとのログイン必須なシナリオが回らないから return はしない
+		}
+	}()
+
 	authInfinityRetry(ctx, user.Agent, user.UserID, step)
 }
 
