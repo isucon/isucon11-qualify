@@ -273,14 +273,11 @@ func (s *Scenario) keepPostingError(ctx context.Context) {
 	nowTimeStamp := s.ToVirtualTime(time.Now()).Unix()
 	state := posterState{
 		// lastConditionTimestamp: 0,
-		lastConditionTimestamp:        nowTimeStamp,
-		lastCleanTimestamp:            0,
-		lastDetectOverweightTimestamp: 0,
-		lastRepairTimestamp:           0,
-		lastConditionIsSitting:        false,
-		lastConditionIsDirty:          false,
-		lastConditionIsBroken:         false,
-		lastConditionIsOverweight:     false,
+		lastConditionTimestamp: nowTimeStamp,
+		dirty:                  badCondition{0, false},
+		overWeight:             badCondition{0, false},
+		broken:                 badCondition{0, false},
+		isSitting:              false,
 	}
 	randEngine := rand.New(rand.NewSource(rand.Int63()))
 	httpClient := http.Client{}
