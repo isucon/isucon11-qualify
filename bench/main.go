@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -114,11 +113,6 @@ func init() {
 	targetableAddresses = strings.Split(targetableAddressesStr, " ")
 	if !(1 <= len(targetableAddresses) && len(targetableAddresses) <= 3) || targetableAddresses[0] == "" {
 		panic("invalid targetableAddresses: length must be 1~3")
-	}
-	for _, addr := range targetableAddresses {
-		if net.ParseIP(addr) == nil {
-			panic("invalid targetableAddresses: invalid address format")
-		}
 	}
 	// validate jia-service-url
 	jiaServiceURL, err = url.Parse(jiaServiceURLStr)
@@ -298,7 +292,8 @@ func main() {
 		s.BaseURL = fmt.Sprintf("https://%s/", targetAddress)
 		// isucandar から送信する HTTPS リクエストの Hosts に isucondition-[1-3].t.isucon.dev を設定する
 		var ok bool
-		agent.DefaultTLSConfig.ServerName, ok = s.GetFqdnFromIPAddr(targetAddress)
+		targetAddressWithoutPort := strings.Split(targetAddress, ":")[0]
+		agent.DefaultTLSConfig.ServerName, ok = s.GetFqdnFromIPAddr(targetAddressWithoutPort)
 		if !ok {
 			panic("targetAddress が targetableAddresses に含まれていません")
 		}
