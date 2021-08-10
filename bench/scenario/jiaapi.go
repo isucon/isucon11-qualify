@@ -46,6 +46,7 @@ func (s *Scenario) JiaAPIService(ctx context.Context) {
 	// Echo instance
 	e := echo.New()
 	e.HideBanner = true
+	e.HidePort = true
 	//e.Debug = true
 	//e.Logger.SetLevel(log.DEBUG)
 
