@@ -76,6 +76,13 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 		s.userAdder(ctx, step)
 	}()
 
+	//不正なcondition
+	s.loadWaitGroup.Add(1)
+	go func() {
+		defer s.loadWaitGroup.Done()
+		s.keepPostingError(ctx)
+	}()
+
 	<-ctx.Done()
 	s.JiaCancel()
 	logger.AdminLogger.Println("LOAD WAIT")

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"sync"
 	"time"
 
 	"github.com/isucon/isucon11-qualify/bench/model"
@@ -15,9 +16,15 @@ import (
 
 const (
 	// MEMO: 最大でも60秒に一件しか送れないので点数上限になるが、解決できるとは思えないので良い
-	PostIntervalSecond     = 60 //Virtual Timeでのpost間隔
-	PostIntervalBlurSecond = 5  //Virtual Timeでのpost間隔のブレ幅(+-PostIntervalBlurSecond)
-	PostContentNum         = 10 //一回のpostで何要素postするか virtualTimeMulti * timerDuration(20ms) / PostIntervalSecond
+	PostIntervalSecond     = 60                     //Virtual Timeでのpost間隔
+	PostIntervalBlurSecond = 5                      //Virtual Timeでのpost間隔のブレ幅(+-PostIntervalBlurSecond)
+	PostContentNum         = 10                     //一回のpostで何要素postするか virtualTimeMulti * timerDuration(20ms) / PostIntervalSecond
+	postConditionTimeout   = 100 * time.Millisecond //MEMO: timeout は気にせずにズバズバ投げる
+)
+
+var (
+	targetBaseURLMapMutex sync.Mutex
+	targetBaseURLMap      = map[string]struct{}{}
 )
 
 func init() {
@@ -39,7 +46,10 @@ type posterState struct {
 
 //POST /api/condition/{jia_isu_id}をたたく Goroutine
 func (s *Scenario) keepPosting(ctx context.Context, targetBaseURL *url.URL, isu *model.Isu, scenarioChan *model.StreamsForPoster) {
-	postConditionTimeout := 100 * time.Millisecond //MEMO: timeout は気にせずにズバズバ投げる
+
+	targetBaseURLMapMutex.Lock()
+	targetBaseURLMap[targetBaseURL.Path] = struct{}{}
+	targetBaseURLMapMutex.Unlock()
 
 	targetBaseURL.Path = path.Join(targetBaseURL.Path, "/api/condition/", isu.JIAIsuUUID)
 	nowTimeStamp := s.ToVirtualTime(time.Now()).Unix()
@@ -252,5 +262,127 @@ func calcConditionLevel(condition model.IsuCondition) model.ConditionLevel {
 		return model.ConditionLevelWarning
 	} else {
 		return model.ConditionLevelCritical
+	}
+}
+
+//invalid
+
+//ランダムなISUにconditionを投げる
+func (s *Scenario) keepPostingError(ctx context.Context) {
+	postConditionTimeout := 100 * time.Millisecond //MEMO: timeout は気にせずにズバズバ投げる
+
+	nowTimeStamp := s.ToVirtualTime(time.Now()).Unix()
+	state := posterState{
+		// lastConditionTimestamp: 0,
+		lastConditionTimestamp:        nowTimeStamp,
+		lastCleanTimestamp:            0,
+		lastDetectOverweightTimestamp: 0,
+		lastRepairTimestamp:           0,
+		lastConditionIsSitting:        false,
+		lastConditionIsDirty:          false,
+		lastConditionIsBroken:         false,
+		lastConditionIsOverweight:     false,
+	}
+	randEngine := rand.New(rand.NewSource(rand.Int63()))
+	httpClient := http.Client{}
+	httpClient.Timeout = postConditionTimeout
+
+	timer := time.NewTicker(1000 * time.Millisecond)
+	defer timer.Stop()
+	count := 0
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+		}
+		count++
+
+		nowTimeStamp = s.ToVirtualTime(time.Now()).Unix()
+
+		//ISUを選ぶ
+		var isu *model.Isu
+		s.isuFromIDMutex.RLock()
+		target := randEngine.Intn(len(s.isuFromID))
+		for i, isuP := range s.isuFromID {
+			if i == target {
+				isu = isuP
+				break
+			}
+		}
+		s.isuFromIDMutex.RUnlock()
+
+		//状態変化
+		stateChange := model.IsuStateChangeNone
+		if count%5 == 0 {
+			stateChange = model.IsuStateChangeClear | model.IsuStateChangeDetectOverweight | model.IsuStateChangeRepair
+		}
+
+		// 今の時間から最後のconditionの時間を引く
+		diffTimestamp := nowTimeStamp - state.lastConditionTimestamp
+		// その間に何個のconditionがあったか
+		diffConditionCount := int((diffTimestamp + PostIntervalSecond - 1) / PostIntervalSecond)
+
+		var reqLength int
+		if diffConditionCount > PostContentNum {
+			reqLength = PostContentNum
+		} else {
+			reqLength = diffConditionCount
+		}
+		conditionsReq := make([]service.PostIsuConditionRequest, 0, reqLength)
+
+		for i := 0; i < diffConditionCount; i++ {
+			// 次のstateを生成
+			state.UpdateToNextState(randEngine, stateChange)
+
+			if i+PostContentNum-diffConditionCount < 0 {
+				continue
+			}
+
+			// 作った新しいstateに基づいてconditionを生成
+			condition := state.GetNewestCondition(randEngine, stateChange, isu)
+			stateChange = model.IsuStateChangeNone //TODO: stateの適用タイミングをちゃんと考える
+
+			data := service.PostIsuConditionRequest{
+				IsSitting: condition.IsSitting,
+				Condition: condition.ConditionString(),
+				Message:   condition.Message,
+				Timestamp: condition.TimestampUnix,
+			}
+
+			//Conditionのフォーマットを崩す
+			index := randEngine.Intn(len(data.Condition) - 1)
+			data.Condition = data.Condition[:index] +
+				string((data.Condition[index]-'a'+byte(randEngine.Intn(26)))%26+'a') +
+				data.Condition[index+1:]
+
+			//リクエスト
+			conditionsReq = append(conditionsReq, data)
+		}
+
+		if len(conditionsReq) == 0 {
+			continue
+		}
+
+		//必ず一つは間違っているようにする
+		conditionsReq[len(conditionsReq)/2].Condition = "is_dirty=true,is_overweight=true,is_brokan=false"
+
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		// targetを取得
+		var targetPath string
+		targetBaseURLMapMutex.Lock()
+		for pathTmp := range targetBaseURLMap {
+			targetPath = pathTmp
+			break
+		}
+		targetBaseURLMapMutex.Unlock()
+		targetPath = path.Join(targetPath, "/api/condition/", isu.JIAIsuUUID)
+		// timeout も無視するので全てのエラーを見ない
+		postIsuConditionAction(ctx, httpClient, targetPath, &conditionsReq)
 	}
 }
