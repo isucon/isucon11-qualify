@@ -59,7 +59,7 @@ ISUCONDITIONは、ISUから送信されるコンディション (`POST /api/cond
 ユーザは、一定の頻度でログイン後のトップページ (`/`) に表示される、自身が登録したISUの一覧を確認しています。ユーザはISUの一覧を受け取ったとき、各ISUの詳細 (`/isu/:jia_isu_uuid`) を確認します。
 他のユーザのISUについて見ることできません。
 
-### 4. コンディションの確認
+### 4. ISUのコンディション確認
 
 ユーザは、ISUの詳細を確認後に「グラフの確認」、「コンディションの確認」、「コンディションレベルが悪いISUの改善」を行います。
 これらの3つ処理が正しく1回行われると、閲覧者が1人増えます。（MEMO: 現在の仕様であり変更が入るかも）
@@ -90,14 +90,63 @@ ISUCONDITIONは、ISUから送信されるコンディション (`POST /api/cond
 
 トレンドはISUCONDITIONのサービスを知ってもらうために、ユーザ以外にも公開されているためログインは不要です。
 
-## Japan ISU Association (JIA) の　API 
+## Japan ISU Association (JIA) の API 
 
 現在JIAが公開しているAPIは以下の２つです
 
-- `POST /api/auth`
-  - JIAへログインするためのエンドポイント。
-  - ログインに成功をするとJWTを生成して返す。
+### /api/activate [POST]
 
-- `POST /api/activate`
-  - JIAが管理するISUに対して指定のURLに対し、センサーデータを送るように指示するためのエンドポイント。
-  - アクティベートに成功すると、ISUは指定のURLに対しセンサーデータの送信を継続する。
+JIAが管理するISUに対して指定のURLに対し、センサーデータを送るように指示するためのエンドポイント。
+アクティベートに成功すると、ISUは `target_base_url` で指定されたURLに対しセンサーデータの送信を継続する。
+レスポンスにはアクティベートされたISUの性格が含まれる。
+
++ Request (application/json)
+    + Attributes (object)
+        + target_base_url: `http://localhost:3000` (string, required) - ISUCONDITIONのサービスURL
+        + isu_uuid: `0694e4d7-dfce-4aec-b7ca-887ac42cfb8f` (string, required) - JIAが発行するISUのID
+
+    + Schema
+
+            {
+                "target_base_url": "string",
+                "isu_uuid": "string"
+            }
+
+
++ Response 202 (application/json)
+    + Attributes (object)
+        + character: `いじっぱり` (string) - アクティベートされたISUの性格
+
+    + Schema
+
+            {
+                "character": "string"
+            }
+- Response 400 (text/plain)
+- Response 403 (text/plain)
+- Response 500 (text/plain)
+
+### /api/auth [POST]
+
+JIAへログインするためのエンドポイント。
+ログインに成功をするとJWTを生成して返す。
+
++ Request (application/json)
+    + Attributes (object)
+        + user: `isucon` (string, required) - ログインをするユーザ名
+        + password: `isucon` (string, required) - ログインパスワード
+
+    + Schema
+
+            {
+                "user": "string",
+                "password": "string"
+            }
+
++ Response 200 (text/plain)
+    + Body
+
+            eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2Mjg1NjMxODksImlhdCI6MTYyODU2MTM4OSwiamlhX3VzZXJfaWQiOiJpc3Vjb24ifQ.MuIl1-kVe60DzwoGHj2yrck8QwYWDH_N20uCqNVR1IZiuo7ArYiBDbMdTbEzFbkN52x8SxGS3GvKoGuMmRfZXQ
+
++ Response 400 (text/plain)
++ Response 401 (text/plain)
