@@ -97,35 +97,18 @@ SSH ログインのユーザ名は `ubuntu` です。 (MEMO: 解く会では `is
 
 アプリケーションは Web ブラウザから利用することができます。
 
-ブラウザアクセスには、 [SSH におけるローカルポートフォワーディング](https://help.ubuntu.com/community/SSH/OpenSSH/PortForwarding#Local_Port_Forwarding) などを用いて表示することができます。
-これ以外の方法で動作確認してもかまいません。
-
-以下にローカルポートフォワーディングを実行するコマンドを例示します。
-これは「リモートホスト `isucon-server1` に SSH 接続をした上で」「ローカルの `localhost:8080` への TCP 接続を」「リモートホストを通して `10.160.1.101:80` へ転送する」というコマンドです。
-
-```shell
-$ ssh -L localhost:8080:10.160.1.101:80 isucon-server1
-```
-
-以上を踏まえると、上記のコマンド例を実行している場合、 http://localhost:8080 でアプリケーションへアクセスすることができます。
-
 #### アプリケーションへのログイン方法
 
 ログインにはJapan ISU Association（以下JIA）のアカウントが必要です。
-上記のアプリケーション同様にJIAへローカルポートフォワーディングをするためには下記のようにします。
 
-```shell
-$ ssh -L localhost:8080:10.160.1.101:80 -L localhost:5000:10.160.1.101:5000 isucon-server1
-```
-
-以下は http://localhost:8080 でアプリケーションへ、http://localhost:5000 でJIAへアクセスできるように設定した場合の例です。
+以下は http://isucon-server1 でアプリケーションへ、http://isucon-server1:5000 でJIAへアクセスできるように設定した場合の例です。
 
 - ISUCONDITION Topページ
-  - http://localhost:8080/
+  - http://isucon-server1/
 
 
 - JIA のログインページ
-  - http://localhost:5000/
+  - http://isucon-server1:5000/
 
 MEMO: 本番ではHTTPSで接続できるようにするので `/etc/hosts` 周りの話と、上記からポート 80 番の話を削る（5000番はそのままに）
 
@@ -157,7 +140,7 @@ MEMO: 本番ではHTTPSで接続できるようにするので `/etc/hosts` 周�
 
 ISUの登録はログイン後に以下のURLで行うことができます。
 
-- http://localhost:3000/register
+- http://isucon-server1/register
 
 #### データベースの初期化方法
 
@@ -181,11 +164,18 @@ sudo systemctl restart jiaapi-mock.service
 
 #### ローカルでの開発方法
 
-ローカルでの動作検証には上記アプリケーションへのログイン方法を参考にサーバー上の JIA API Mock へのローカルポートフォワーディングが必要です。
+ローカルでの動作検証にはサーバー上の JIA API Mock への[SSH におけるローカルポートフォワーディング](https://help.ubuntu.com/community/SSH/OpenSSH/PortForwarding#Local_Port_Forwarding) が必要です。
+これ以外の方法で開発をしてもかまいません。
 
+以下にローカルポートフォワーディングを実行するコマンドを例示します。
+これは「リモートホスト `isucon-server1` に SSH 接続をした上で」「ローカルの `localhost:5000` への TCP 接続を」「リモートホストを通して `10.160.1.101:5000` へ転送する」というコマンドです。
+
+```shell
+$ ssh -L localhost:5000:10.160.1.101:5000 isucon-server1
 ```
-$ ssh -L localhost:5000:10.160.1.101:5000 isucon-server
-```
+
+以上を踏まえると、上記のコマンド例を実行している場合、 http://localhost:5000 で JIA API Mock へアクセスすることができます。
+
 
 アプリケーションの動作確認はWebブラウザから行うことができますが、下記のようにトークンの取得とcookieの設定を行うことでコンソールからもAPIへのアクセスが可能です。
 
@@ -195,10 +185,8 @@ curl -c cookie.txt -vf -XPOST -H "authorization: Bearer ${TOKEN}" http://localho
 curl -b cookie.txt http://localhost:3000/api/isu
 ```
 
-`POST /api/condition/:jia_isu_uuid` の検証
-
-"ISUの登録に使えるJIA ISU IDについて" に記載されている JIA ISU ID を用いてアクティベートを行ったISUから
-送信されるコンディションは下記の様にデータを送信することが可能です。
+`POST /api/condition/:jia_isu_uuid` の検証を行うには、"ISUの登録に使えるJIA ISU IDについて" に記載されている JIA ISU ID を用います。
+アクティベートを行ったISUから送信されるコンディションは下記の様にデータを送信することが可能です。
 
 ```
 export JIA_ISU_UUID=0694e4d7-dfce-4aec-b7ca-887ac42cfb8f
