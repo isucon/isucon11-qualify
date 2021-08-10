@@ -811,6 +811,7 @@ func signoutScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *m
 		// MEMO: ここで実は signout に成功していました、みたいな状況だと以降のこのユーザーループが死ぬがそれはユーザー責任とする
 		return
 	}
+	user.Agent.CacheStore.Clear()
 	authInfinityRetry(ctx, user.Agent, user.UserID, step)
 }
 
