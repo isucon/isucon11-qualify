@@ -3,8 +3,7 @@ import logo_orange from '/@/assets/logo_orange.svg'
 
 const Auth = () => {
   const click = async () => {
-    // TODO: 本番どうするか考える
-    location.href = `http://localhost:5000`
+    location.href = `${location.protocol}//${document.domain}:5000?callback=${location.href}`
   }
 
   return (

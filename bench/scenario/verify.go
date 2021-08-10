@@ -395,7 +395,6 @@ func joinURL(base *url.URL, target string) string {
 }
 
 // TODO: vendor.****.jsで取得処理が記述されているlogo_white, logo_orangeも取得できてない
-// TODO: trendページの追加もまだ
 func verifyResources(page PageType, res *http.Response, resources agent.Resources, body io.Reader) []error {
 	base := res.Request.URL.String()
 
@@ -417,7 +416,7 @@ func verifyResources(page PageType, res *http.Response, resources agent.Resource
 			//errorChecksum(base, resources[joinURL(res.Request.URL, logoWhite)], logoWhite),
 			errorChecksum(base, resources[joinURL(res.Request.URL, vendorJs)], vendorJs),
 		}
-	case AuthPage:
+	case TrendPage:
 		checks = []error{
 			errorHtmlChecksum(res, body, "/index.html"),
 			errorChecksum(base, resources[joinURL(res.Request.URL, faviconSvg)], faviconSvg),

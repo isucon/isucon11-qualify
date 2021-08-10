@@ -32,10 +32,10 @@
         alert('ユーザー名かパスワードが間違っています')
         throw ''
       }
-      console.log(v)
       v.text().then(jwt => {
-        console.log(jwt)
-        location.href = `${document.referrer}?jwt=${jwt}`
+        const url = new URL(location.href)
+        const callback = url.searchParams.get('callback')
+        location.href = `${callback}?jwt=${jwt}`
       })
     })
   })

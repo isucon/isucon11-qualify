@@ -26,7 +26,6 @@ type Scenario struct {
 	BaseURL                  string        // ベンチ対象 Web アプリの URL
 	NoLoad                   bool          // Load(ベンチ負荷)を強要しない
 	LoadTimeout              time.Duration //Loadのcontextの時間
-	realTimeLoadFinishedAt   time.Time     //Loadのcontext終了時間
 	realTimePrepareStartedAt time.Time     //Prepareの開始時間
 	virtualTimeStart         time.Time
 	virtualTimeMulti         time.Duration //時間が何倍速になっているか
