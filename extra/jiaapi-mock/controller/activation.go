@@ -1,8 +1,6 @@
 package controller
 
 import (
-	"fmt"
-	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -14,9 +12,8 @@ import (
 
 /// Const Values ///
 var (
-	validIsu        map[string]ActivateResponse
-	characterList   []string
-	privateIPBlocks []*net.IPNet
+	validIsu      map[string]ActivateResponse
+	characterList []string
 )
 
 func init() {
@@ -43,24 +40,6 @@ func init() {
 		"cb68f47f-25ef-46ec-965b-d72d9328160f": {Character: characterList[7]},
 		"57d600ef-15b4-43bc-ab79-6399fab5c497": {Character: characterList[8]},
 		"aa0844e6-812d-41d2-908a-eeb82a50b627": {Character: characterList[9]},
-	}
-
-	//privateIPBlocks
-	for _, cidr := range []string{
-		"127.0.0.0/8",    // IPv4 loopback
-		"10.0.0.0/8",     // RFC1918
-		"172.16.0.0/12",  // RFC1918
-		"192.168.0.0/16", // RFC1918
-		"169.254.0.0/16", // RFC3927 link-local
-		"::1/128",        // IPv6 loopback
-		"fe80::/10",      // IPv6 link-local
-		"fc00::/7",       // IPv6 unique local addr
-	} {
-		_, block, err := net.ParseCIDR(cidr)
-		if err != nil {
-			panic(fmt.Errorf("parse error on %q: %v", cidr, err))
-		}
-		privateIPBlocks = append(privateIPBlocks, block)
 	}
 
 	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = 32
