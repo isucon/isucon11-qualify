@@ -122,21 +122,6 @@ func checkError(err error) (critical bool, timeout bool, deduction bool) {
 	return scenario.CheckError(err)
 }
 
-type TagCountPair struct {
-	Tag   score.ScoreTag
-	Count int64
-}
-type TagCountPairArray []TagCountPair
-
-func (s TagCountPairArray) Len() int {
-	return len(s)
-}
-func (s TagCountPairArray) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
-}
-func (s TagCountPairArray) Less(i, j int) bool {
-	return s[i].Tag < s[j].Tag
-}
 func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish bool) bool {
 	passed := true
 	reason := "pass"
@@ -146,11 +131,17 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 	deduction := int64(0)
 	timeoutCount := int64(0)
 
-	tagCountPair := make(TagCountPairArray, 0)
+	type TagCountPair struct {
+		Tag   score.ScoreTag
+		Count int64
+	}
+	tagCountPair := make([]TagCountPair, 0)
 	for tag, count := range result.Score.Breakdown() {
 		tagCountPair = append(tagCountPair, TagCountPair{Tag: tag, Count: count})
 	}
-	sort.Sort(tagCountPair)
+	sort.Slice(tagCountPair, func(i, j int) bool {
+		return tagCountPair[i].Tag < tagCountPair[j].Tag
+	})
 	for _, p := range tagCountPair {
 		if finish {
 			logger.ContestantLogger.Printf("SCORE: %s: %d", p.Tag, p.Count)
