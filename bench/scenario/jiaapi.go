@@ -88,35 +88,36 @@ func (s *Scenario) postActivate(c echo.Context) error {
 	state := &service.JIAServiceRequest{}
 	err := c.Bind(state)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest)
+		return c.String(http.StatusBadRequest, "Bad Request")
 	}
 	targetBaseURL, err := url.Parse(state.TargetBaseURL)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest)
+		return c.String(http.StatusBadRequest, "Bad URL")
 	}
+	//TODO: URLの検証
 
 	//poster Goroutineの起動
 	var isu *model.Isu
 	var scenarioChan *model.StreamsForPoster
 	posterContext := jiaAPIContext
-	err = func() error {
+	errCode, errMsg := func() (int, string) {
 		var ok bool
 		streamsForPosterMutex.Lock()
 		defer streamsForPosterMutex.Unlock()
 		// scenario goroutine とやり取りするためのチャネルを受け取る
 		scenarioChan, ok = streamsForPoster[state.IsuUUID]
 		if !ok {
-			return echo.NewHTTPError(http.StatusNotFound)
+			return http.StatusNotFound, "isu not found"
 		}
 		isu, ok = isuFromUUID[state.IsuUUID]
 		if !ok {
 			//scenarioChanでチェックしているのでここには来ないはず
-			return echo.NewHTTPError(http.StatusNotFound)
+			return http.StatusNotFound, "isu not found"
 		}
 		_, ok = isuIsActivated[state.IsuUUID]
 		if ok {
 			//activate済み
-			return nil
+			return 0, ""
 		}
 
 		// activate 済みフラグを立てる
@@ -128,10 +129,10 @@ func (s *Scenario) postActivate(c echo.Context) error {
 			defer s.loadWaitGroup.Done()
 			s.keepPosting(posterContext, targetBaseURL, isu, scenarioChan)
 		}()
-		return nil
+		return 0, ""
 	}()
-	if err != nil {
-		return err
+	if errCode != 0 {
+		return c.String(errCode, errMsg)
 	}
 
 	time.Sleep(50 * time.Millisecond)
