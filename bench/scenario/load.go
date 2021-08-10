@@ -805,7 +805,17 @@ func signoutScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *m
 		}
 	}()
 
-	_ = authInfinityRetry(ctx, user.Agent, user.UserID, step)
+	isSuccess := authInfinityRetry(ctx, user.Agent, user.UserID, step)
+	if isSuccess {
+		me, hres, err := getMeAction(ctx, user.Agent)
+		if err != nil {
+			addErrorWithContext(ctx, step, err)
+			return
+		}
+		if err := verifyMe(user.UserID, hres, me); err != nil {
+			addErrorWithContext(ctx, step, err)
+		}
+	}
 }
 
 // signoutScenario 以外からは呼ばない(シナリオループの最後である必要がある)
