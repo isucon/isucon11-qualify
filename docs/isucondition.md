@@ -45,8 +45,20 @@ ISUCONDITIONは送られてきたJWTが正しいかを検証し、正しいと�
 
 ユーザは、自分の大事なパートナーであるISUを、JIAが発行するISU固有のID(以下、ISU UUID)を使い、ISUCONDITIONに登録 (`/register`) します。ユーザは、登録を行ったISUの詳細 (`/isu/:jia_isu_uuid`) や、ISUのコンディション (`/isu/:jia_isu_uuid/condition`) 、グラフとスコア (`/isu/:jia_isu_uuid/graph`) を見ることができます。
 
-JIAは、ISUCONDITIONからISUCONDITIONのURL(`POST_CONDITION_TARGET_BASE_URL`)と ISU UUIDを受け取ることで、当該のISU UUIDを持つISUに対してISUCONDITIONへコンディション送信 (`POST /api/condition/:jia_isu_uuid`) を開始する指示をします。`POST_CONDITION_TARGET_BASE_URL` を変更することで、ISUがコンディションを送る先を変更することが可能ですが、既に登録済みのISUには反映されません。
-`POST_CONDITION_TARGET_BASE_URL` にはISUのコンディションの送信対象となるISUCONDITIONのURL（プロトコルとホスト名、ポート番号）を指定してください。（例: `http://isucon-server2:3000`）
+JIA は ISUCONDITION から ISU のアクティベートリクエストを受け取ることで、 対象のISU が特定の URL へのコンディション送信 (`POST /api/condition/:jia_isu_uuid`) を開始するよう指示します。
+コンディション送信先 URL はアクティベート時に ISUCONDITION が JSON で送信する `target_base_url` と `isu_uuid` により以下のように決定されます。
+
+```
+$target_base_url/api/condition/$isu_uuid
+```
+
+注意点として、以下の3点があります。
+
+- `target_base_url` を変更することで ISU がコンディションを送る先を変更することが可能ですが、既に登録済みの ISU には反映されません。
+- `target_base_url` に含まれる FQDN に `isucondition-[1-3].t.isucon.dev` 以外を指定した場合 ISU のアクティベートに失敗します。
+- `target_base_url` にはポート番号が必要です `isucondition-1.t.isucon.dev:3000`。ポート番号を指定しない場合 ISU のアクティベートに失敗します。
+
+なお上記の `target_base_url` は環境変数 `POST_CONDITION_TARGET_BASE_URL` で指定されています。
 
 ISUは、JIAから送信開始の指示を受け取った時点から、自身のコンディションをISUCONDITIONに対して送信 (`POST /api/condition/:jia_isu_uuid`) を続けます。ISUのコンディションは悪くなる事があり、ユーザが改善を行わない限りコンディションが良くなる事はありません。
 
@@ -103,7 +115,7 @@ JIAが管理するISUに対して指定のURLに対し、センサーデータ�
 
 + Request (application/json)
     + Attributes (object)
-        + target_base_url: `http://localhost:3000` (string, required) - ISUCONDITIONのサービスURL
+        + target_base_url: `https://isucondition-1.t.isucon.dev:3000` (string, required) - ISUCONDITIONのサービスURL
         + isu_uuid: `0694e4d7-dfce-4aec-b7ca-887ac42cfb8f` (string, required) - JIAが発行するISUのID
 
     + Schema
