@@ -7,29 +7,29 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"net/url"
+	"path"
 	"time"
 
 	"github.com/labstack/gommon/log"
 )
 
 type IsuConditionPoster struct {
-	TargetURL string
+	TargetURL url.URL
 	IsuUUID   string
 
 	ctx        context.Context
 	cancelFunc context.CancelFunc
 }
 
-func NewIsuConditionPoster(targetURL string, isuUUID string) IsuConditionPoster {
+func NewIsuConditionPoster(targetURL *url.URL, isuUUID string) IsuConditionPoster {
 	ctx, cancel := context.WithCancel(context.Background())
-	return IsuConditionPoster{targetURL, isuUUID, ctx, cancel}
+	return IsuConditionPoster{*targetURL, isuUUID, ctx, cancel}
 }
 
 func (m *IsuConditionPoster) KeepPosting() {
-	targetURL := fmt.Sprintf(
-		"%s/api/condition/%s",
-		m.TargetURL, m.IsuUUID,
-	)
+	targetURL := m.TargetURL
+	targetURL.Path = path.Join(targetURL.Path, "/api/condition/", m.IsuUUID)
 	randEngine := rand.New(rand.NewSource(0))
 
 	timer := time.NewTicker(2 * time.Second)
@@ -62,7 +62,7 @@ func (m *IsuConditionPoster) KeepPosting() {
 
 		func() {
 			resp, err := http.Post(
-				targetURL, "application/json",
+				targetURL.String(), "application/json",
 				bytes.NewBuffer(notification),
 			)
 			if err != nil {
