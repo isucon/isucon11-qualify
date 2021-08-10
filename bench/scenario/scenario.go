@@ -149,6 +149,19 @@ func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a
 	}
 	user.Agent = a
 
+	// POST /api/auth をしたため GET /api/user/me を叩く
+	me, hres, err := getMeAction(ctx, user.Agent)
+	if err != nil {
+		addErrorWithContext(ctx, step, err)
+		// 致命的なエラーではないため return しない
+	} else {
+		err = verifyMe(user.UserID, hres, me)
+		if err != nil {
+			addErrorWithContext(ctx, step, err)
+			// 致命的なエラーではないため return しない
+		}
+	}
+
 	return user
 }
 
