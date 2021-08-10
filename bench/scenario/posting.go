@@ -48,7 +48,7 @@ type posterState struct {
 func (s *Scenario) keepPosting(ctx context.Context, targetBaseURL *url.URL, isu *model.Isu, scenarioChan *model.StreamsForPoster) {
 
 	targetBaseURLMapMutex.Lock()
-	targetBaseURLMap[targetBaseURL.Path] = struct{}{}
+	targetBaseURLMap[targetBaseURL.String()] = struct{}{}
 	targetBaseURLMapMutex.Unlock()
 
 	targetBaseURL.Path = path.Join(targetBaseURL.Path, "/api/condition/", isu.JIAIsuUUID)
@@ -303,14 +303,18 @@ func (s *Scenario) keepPostingError(ctx context.Context) {
 		//ISUを選ぶ
 		var isu *model.Isu
 		s.isuFromIDMutex.RLock()
-		target := randEngine.Intn(len(s.isuFromID))
-		for i, isuP := range s.isuFromID {
-			if i == target {
+		targetCount := randEngine.Intn(len(s.isuFromID))
+		for _, isuP := range s.isuFromID {
+			if targetCount == 0 {
 				isu = isuP
 				break
 			}
+			targetCount--
 		}
 		s.isuFromIDMutex.RUnlock()
+		if isu == nil {
+			continue
+		}
 
 		//状態変化
 		stateChange := model.IsuStateChangeNone
@@ -381,7 +385,7 @@ func (s *Scenario) keepPostingError(ctx context.Context) {
 			break
 		}
 		targetBaseURLMapMutex.Unlock()
-		targetPath = path.Join(targetPath, "/api/condition/", isu.JIAIsuUUID)
+		targetPath = targetPath + "/api/condition/" + isu.JIAIsuUUID
 		// timeout も無視するので全てのエラーを見ない
 		postIsuConditionAction(ctx, httpClient, targetPath, &conditionsReq)
 	}
