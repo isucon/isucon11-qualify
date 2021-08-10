@@ -566,7 +566,10 @@ func getTrendAction(ctx context.Context, a *agent.Agent) (service.GetTrendRespon
 }
 
 func browserGetLandingPageAction(ctx context.Context, a *agent.Agent) (service.GetTrendResponse, *http.Response, error) {
-	// TODO: 静的ファイルのGET
+	// 静的ファイルのGET
+	if err := BrowserAccess(ctx, a, "/", TrendPage); err != nil {
+		return nil, nil, err
+	}
 
 	trend, res, err := getTrendAction(ctx, a)
 	if err != nil {

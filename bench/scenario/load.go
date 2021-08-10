@@ -271,7 +271,7 @@ func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep
 		}
 
 		requestTime := time.Now()
-		trend, res, err := getTrendAction(ctx, viewer.Agent)
+		trend, res, err := browserGetLandingPageAction(ctx, viewer.Agent)
 		if err != nil {
 			viewer.ErrorCount += 1
 			addErrorWithContext(ctx, step, err)
