@@ -121,7 +121,7 @@ func (c *ActivationController) PostActivate(ctx echo.Context) error {
 	isuState, ok := validIsu[req.IsuUUID]
 	if !ok {
 		ctx.Logger().Errorf("bad isu_uuid: %v", req.IsuUUID)
-		return ctx.String(http.StatusBadRequest, "Bad isu_uuid")
+		return ctx.String(http.StatusNotFound, "Bad isu_uuid")
 	}
 	if !isPrivateIP(host) {
 		ctx.Logger().Errorf("bad ip: %v", host)
