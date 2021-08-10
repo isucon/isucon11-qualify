@@ -13,23 +13,22 @@ import (
 )
 
 type IsuConditionPoster struct {
-	TargetIP   string
-	TargetPort int
-	IsuUUID    string
+	TargetURL string
+	IsuUUID   string
 
 	ctx        context.Context
 	cancelFunc context.CancelFunc
 }
 
-func NewIsuConditionPoster(targetIP string, targetPort int, isuUUID string) IsuConditionPoster {
+func NewIsuConditionPoster(targetURL string, isuUUID string) IsuConditionPoster {
 	ctx, cancel := context.WithCancel(context.Background())
-	return IsuConditionPoster{targetIP, targetPort, isuUUID, ctx, cancel}
+	return IsuConditionPoster{targetURL, isuUUID, ctx, cancel}
 }
 
 func (m *IsuConditionPoster) KeepPosting() {
 	targetURL := fmt.Sprintf(
-		"http://%s:%d/api/condition/%s",
-		m.TargetIP, m.TargetPort, m.IsuUUID,
+		"%s/api/condition/%s",
+		m.TargetURL, m.IsuUUID,
 	)
 	randEngine := rand.New(rand.NewSource(0))
 

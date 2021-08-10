@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
@@ -31,7 +30,7 @@ const (
 	sessionName                 = "isucondition"
 	conditionLimit              = 20
 	frontendContentsPath        = "../public"
-	jwtVerificationKeyPath      = "../ec256-public.pem"
+	jiaJWTSigningKeyPath        = "../ec256-public.pem"
 	defaultIconFilePath         = "../NoImage.jpg"
 	defaultJIAServiceURL        = "http://localhost:5000"
 	mysqlErrNumDuplicateEntry   = 1062
@@ -44,15 +43,13 @@ const (
 )
 
 var (
-	templates           *template.Template
 	db                  *sqlx.DB
 	sessionStore        sessions.Store
 	mySQLConnectionData *MySQLConnectionEnv
 
-	jwtVerificationKey *ecdsa.PublicKey
+	jiaJWTSigningKey *ecdsa.PublicKey
 
-	isuConditionPublicAddress string
-	isuConditionPublicPort    int
+	postIsuConditionTargetBaseURL string // JIAへのactivate時に登録する，ISUがconditionを送る先のURL
 )
 
 type Config struct {
@@ -150,14 +147,15 @@ type GetIsuConditionResponse struct {
 }
 
 type TrendResponse struct {
-	Character  string            `json:"character"`
-	Conditions []*TrendCondition `json:"conditions"`
+	Character string            `json:"character"`
+	Info      []*TrendCondition `json:"info"`
+	Warning   []*TrendCondition `json:"warning"`
+	Critical  []*TrendCondition `json:"critical"`
 }
 
 type TrendCondition struct {
-	ID             int    `json:"isu_id"`
-	Timestamp      int64  `json:"timestamp"`
-	ConditionLevel string `json:"condition_level"`
+	ID        int   `json:"isu_id"`
+	Timestamp int64 `json:"timestamp"`
 }
 
 type PostIsuConditionRequest struct {
@@ -168,9 +166,8 @@ type PostIsuConditionRequest struct {
 }
 
 type JIAServiceRequest struct {
-	TargetIP   string `json:"target_ip"`
-	TargetPort int    `json:"target_port"`
-	IsuUUID    string `json:"isu_uuid"`
+	TargetBaseURL string `json:"target_base_url"`
+	IsuUUID       string `json:"isu_uuid"`
 }
 
 func getEnv(key string, defaultValue string) string {
@@ -199,15 +196,11 @@ func (mc *MySQLConnectionEnv) ConnectDB() (*sqlx.DB, error) {
 func init() {
 	sessionStore = sessions.NewCookieStore([]byte(getEnv("SESSION_KEY", "isucondition")))
 
-	templates = template.Must(template.ParseFiles(
-		frontendContentsPath + "/index.html",
-	))
-
-	key, err := ioutil.ReadFile(jwtVerificationKeyPath)
+	key, err := ioutil.ReadFile(jiaJWTSigningKeyPath)
 	if err != nil {
 		log.Fatalf("failed to read file: %v", err)
 	}
-	jwtVerificationKey, err = jwt.ParseECPublicKeyFromPEM(key)
+	jiaJWTSigningKey, err = jwt.ParseECPublicKeyFromPEM(key)
 	if err != nil {
 		log.Fatalf("failed to parse ECDSA public key: %v", err)
 	}
@@ -254,14 +247,9 @@ func main() {
 	db.SetMaxOpenConns(10)
 	defer db.Close()
 
-	isuConditionPublicAddress = os.Getenv("SERVER_PUBLIC_ADDRESS")
-	if isuConditionPublicAddress == "" {
-		e.Logger.Fatalf("missing: SERVER_PUBLIC_ADDRESS")
-		return
-	}
-	isuConditionPublicPort, err = strconv.Atoi(getEnv("SERVER_PUBLIC_PORT", "80"))
-	if err != nil {
-		e.Logger.Fatalf("bad format: SERVER_PUBLIC_PORT: %v", err)
+	postIsuConditionTargetBaseURL = os.Getenv("POST_ISUCONDITION_TARGET_BASE_URL")
+	if postIsuConditionTargetBaseURL == "" {
+		e.Logger.Fatalf("missing: POST_ISUCONDITION_TARGET_BASE_URL")
 		return
 	}
 
@@ -357,7 +345,7 @@ func postAuthentication(c echo.Context) error {
 		if _, ok := token.Method.(*jwt.SigningMethodECDSA); !ok {
 			return nil, jwt.NewValidationError(fmt.Sprintf("unexpected signing method: %v", token.Header["alg"]), jwt.ValidationErrorSignatureInvalid)
 		}
-		return jwtVerificationKey, nil
+		return jiaJWTSigningKey, nil
 	})
 	if err != nil {
 		switch err.(type) {
@@ -602,7 +590,7 @@ func postIsu(c echo.Context) error {
 	}
 
 	targetURL := getJIAServiceURL(tx) + "/api/activate"
-	body := JIAServiceRequest{isuConditionPublicAddress, isuConditionPublicPort, jiaIsuUUID}
+	body := JIAServiceRequest{postIsuConditionTargetBaseURL, jiaIsuUUID}
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
 		c.Logger().Error(err)
@@ -623,15 +611,15 @@ func postIsu(c echo.Context) error {
 	}
 	defer res.Body.Close()
 
-	if res.StatusCode != http.StatusAccepted {
-		c.Logger().Errorf("JIAService returned error: status code %v", res.StatusCode)
-		return c.String(res.StatusCode, "JIAService returned error")
-	}
-
 	resBody, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	if res.StatusCode != http.StatusAccepted {
+		c.Logger().Errorf("JIAService returned error: status code %v, message: %v", res.StatusCode, string(resBody))
+		return c.String(res.StatusCode, "JIAService returned error")
 	}
 
 	var isuFromJIA IsuFromJIA
@@ -666,7 +654,7 @@ func postIsu(c echo.Context) error {
 	return c.JSON(http.StatusCreated, isu)
 }
 
-// GET /api/isu/{jia_isu_uuid}
+// GET /api/isu/:jia_isu_uuid
 // ISUの情報を取得
 func getIsuID(c echo.Context) error {
 	jiaUserID, errStatusCode, err := getUserIDFromSession(c)
@@ -696,7 +684,7 @@ func getIsuID(c echo.Context) error {
 	return c.JSON(http.StatusOK, res)
 }
 
-// GET /api/isu/{jia_isu_uuid}/icon
+// GET /api/isu/:jia_isu_uuid/icon
 // ISUのアイコンを取得
 func getIsuIcon(c echo.Context) error {
 	jiaUserID, errStatusCode, err := getUserIDFromSession(c)
@@ -726,7 +714,7 @@ func getIsuIcon(c echo.Context) error {
 	return c.Blob(http.StatusOK, "", image)
 }
 
-// GET /api/isu/{jia_isu_uuid}/graph
+// GET /api/isu/:jia_isu_uuid/graph
 // ISUのコンディショングラフ描画のための情報を取得
 func getIsuGraph(c echo.Context) error {
 	jiaUserID, errStatusCode, err := getUserIDFromSession(c)
@@ -935,7 +923,7 @@ func calculateGraphDataPoint(isuConditions []IsuCondition) GraphDataPoint {
 	return dataPoint
 }
 
-// GET /api/condition/{jia_isu_uuid}
+// GET /api/condition/:jia_isu_uuid
 // ISUのコンディションを取得
 func getIsuConditions(c echo.Context) error {
 	jiaUserID, errStatusCode, err := getUserIDFromSession(c)
@@ -976,14 +964,6 @@ func getIsuConditions(c echo.Context) error {
 		}
 		startTime = time.Unix(startTimeInt64, 0)
 	}
-	limitStr := c.QueryParam("limit")
-	limit := conditionLimit
-	if limitStr != "" {
-		limit, err = strconv.Atoi(limitStr)
-		if err != nil || limit <= 0 {
-			return c.String(http.StatusBadRequest, "bad format: limit")
-		}
-	}
 
 	var isuName string
 	err = db.Get(&isuName,
@@ -999,7 +979,7 @@ func getIsuConditions(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	conditionsResponse, err := getIsuConditionsFromDB(db, jiaIsuUUID, endTime, conditionLevel, startTime, limit, isuName)
+	conditionsResponse, err := getIsuConditionsFromDB(db, jiaIsuUUID, endTime, conditionLevel, startTime, conditionLimit, isuName)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -1062,7 +1042,7 @@ func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, endTime time.Time, c
 	return conditionsResponse, nil
 }
 
-// conditionからコンディションレベルを計算
+// ISUのコンディションの文字列からコンディションレベルを計算
 func calculateConditionLevel(condition string) (string, error) {
 	var conditionLevel string
 
@@ -1104,7 +1084,9 @@ func getTrend(c echo.Context) error {
 			return c.NoContent(http.StatusInternalServerError)
 		}
 
-		characterIsuConditions := []*TrendCondition{}
+		characterInfoIsuConditions := []*TrendCondition{}
+		characterWarningIsuConditions := []*TrendCondition{}
+		characterCriticalIsuConditions := []*TrendCondition{}
 		for _, isu := range isuList {
 			conditions := []IsuCondition{}
 			err = db.Select(&conditions,
@@ -1124,30 +1106,47 @@ func getTrend(c echo.Context) error {
 					return c.NoContent(http.StatusInternalServerError)
 				}
 				trendCondition := TrendCondition{
-					ID:             isu.ID,
-					Timestamp:      isuLastCondition.Timestamp.Unix(),
-					ConditionLevel: conditionLevel,
+					ID:        isu.ID,
+					Timestamp: isuLastCondition.Timestamp.Unix(),
 				}
-				characterIsuConditions = append(characterIsuConditions, &trendCondition)
+				switch conditionLevel {
+				case "info":
+					characterInfoIsuConditions = append(characterInfoIsuConditions, &trendCondition)
+				case "warning":
+					characterWarningIsuConditions = append(characterWarningIsuConditions, &trendCondition)
+				case "critical":
+					characterCriticalIsuConditions = append(characterCriticalIsuConditions, &trendCondition)
+				}
 			}
 
 		}
 
-		sort.Slice(characterIsuConditions, func(i, j int) bool {
-			return characterIsuConditions[i].Timestamp > characterIsuConditions[j].Timestamp
+		sort.Slice(characterInfoIsuConditions, func(i, j int) bool {
+			return characterInfoIsuConditions[i].Timestamp > characterInfoIsuConditions[j].Timestamp
+		})
+		sort.Slice(characterWarningIsuConditions, func(i, j int) bool {
+			return characterWarningIsuConditions[i].Timestamp > characterWarningIsuConditions[j].Timestamp
+		})
+		sort.Slice(characterCriticalIsuConditions, func(i, j int) bool {
+			return characterCriticalIsuConditions[i].Timestamp > characterCriticalIsuConditions[j].Timestamp
 		})
 		res = append(res,
-			TrendResponse{Character: character.Character, Conditions: characterIsuConditions})
+			TrendResponse{
+				Character: character.Character,
+				Info:      characterInfoIsuConditions,
+				Warning:   characterWarningIsuConditions,
+				Critical:  characterCriticalIsuConditions,
+			})
 	}
 
 	return c.JSON(http.StatusOK, res)
 }
 
-// POST /api/condition/{jia_isu_uuid}
+// POST /api/condition/:jia_isu_uuid
 // ISUからのコンディションを受け取る
 func postIsuCondition(c echo.Context) error {
 	// TODO: 一定割合リクエストを落としてしのぐようにしたが、本来は全量さばけるようにすべき
-	dropProbability := 0.1
+	dropProbability := 0.9
 	if rand.Float64() <= dropProbability {
 		c.Logger().Warnf("drop post isu condition request")
 		return c.NoContent(http.StatusServiceUnavailable)
@@ -1246,10 +1245,5 @@ func isValidConditionFormat(conditionStr string) bool {
 }
 
 func getIndex(c echo.Context) error {
-	err := templates.ExecuteTemplate(c.Response().Writer, "index.html", struct{}{})
-	if err != nil {
-		c.Logger().Error(err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	return nil
+	return c.File(frontendContentsPath + "/index.html")
 }

@@ -1,13 +1,3 @@
-FROM node:15.12 as frontend
-WORKDIR /app
-
-COPY webapp/frontend/package*.json ./
-RUN npm ci
-
-COPY webapp/frontend .
-RUN npm run build
-
-
 FROM golang:1.16.5-buster
 
 WORKDIR /development
@@ -32,4 +22,4 @@ COPY webapp/go/go.sum .
 
 RUN go mod download
 
-COPY --from=frontend /public /webapp/public
+COPY webapp/public /webapp/public

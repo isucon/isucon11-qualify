@@ -16,6 +16,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
@@ -426,12 +427,9 @@ func getIsuIdErrorAction(ctx context.Context, a *agent.Agent, id string) (string
 	return text, res, nil
 }
 
-func getIsuIconAction(ctx context.Context, a *agent.Agent, id string, allowNotModified bool) ([]byte, *http.Response, error) {
+func getIsuIconAction(ctx context.Context, a *agent.Agent, id string) ([]byte, *http.Response, error) {
 	reqUrl := fmt.Sprintf("/api/isu/%s/icon", id)
 	allowedStatusCodes := []int{http.StatusOK}
-	if allowNotModified {
-		allowedStatusCodes = append(allowedStatusCodes, http.StatusNotModified)
-	}
 	res, image, err := reqNoContentResPng(ctx, a, http.MethodGet, reqUrl, allowedStatusCodes)
 	if err != nil {
 		return nil, nil, err
@@ -465,10 +463,6 @@ func postIsuConditionAction(ctx context.Context, httpClient http.Client, targetU
 		return nil, err
 	}
 	defer res.Body.Close()
-
-	if err := verifyStatusCodes(res, []int{http.StatusCreated, http.StatusServiceUnavailable}); err != nil {
-		return nil, err
-	}
 	return res, nil
 }
 
@@ -529,9 +523,6 @@ func getIsuConditionRequestParams(base string, req service.GetIsuConditionReques
 	}
 	q.Set("end_time", fmt.Sprint(req.EndTime))
 	q.Set("condition_level", req.ConditionLevel)
-	if req.Limit != nil {
-		q.Set("limit", fmt.Sprint(*req.Limit))
-	}
 	targetURL.RawQuery = q.Encode()
 	return targetURL.String()
 }
@@ -566,7 +557,7 @@ func getIsuGraphErrorAction(ctx context.Context, a *agent.Agent, id string, quer
 func getTrendAction(ctx context.Context, a *agent.Agent) (service.GetTrendResponse, *http.Response, error) {
 	trend := service.GetTrendResponse{}
 	reqUrl := "/api/trend"
-	res, err := reqJSONResJSON(ctx, a, http.MethodGet, reqUrl, nil, &trend, []int{http.StatusOK})
+	res, err := reqJSONResGojayArray(ctx, a, http.MethodGet, reqUrl, nil, &trend, []int{http.StatusOK})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -580,8 +571,17 @@ func getTrendAction(ctx context.Context, a *agent.Agent) (service.GetTrendRespon
 	return trend, res, nil
 }
 
+func getTrendIgnoreAction(ctx context.Context, a *agent.Agent) (*http.Response, error) {
+	reqUrl := "/api/trend"
+	res, err := reqJSONResNoContent(ctx, a, http.MethodGet, reqUrl, nil, []int{http.StatusOK})
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
 func browserGetHomeAction(ctx context.Context, a *agent.Agent,
-	allowNotModified bool,
 	validateIsu func(*http.Response, []*service.Isu) []error,
 ) ([]*service.Isu, []error) {
 	// TODO: 静的ファイルのGET
@@ -598,7 +598,7 @@ func browserGetHomeAction(ctx context.Context, a *agent.Agent,
 		for _, isu := range isuList {
 			go func(isu *service.Isu) {
 				defer wg.Done()
-				icon, _, err := getIsuIconAction(ctx, a, isu.JIAIsuUUID, allowNotModified)
+				icon, _, err := getIsuIconAction(ctx, a, isu.JIAIsuUUID)
 				if err != nil {
 					isu.Icon = nil
 					errMutex.Lock()
@@ -630,9 +630,7 @@ func browserGetAuthAction(ctx context.Context, a *agent.Agent) []error {
 	return errors
 }
 
-func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string,
-	allowNotModified bool,
-) (*service.Isu, []error) {
+func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string) (*service.Isu, []error) {
 	// TODO: 静的ファイルのGET
 
 	errors := []error{}
@@ -642,7 +640,7 @@ func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string,
 		errors = append(errors, err)
 	}
 	if isu != nil {
-		icon, _, err := getIsuIconAction(ctx, a, id, allowNotModified)
+		icon, _, err := getIsuIconAction(ctx, a, id)
 		if err != nil {
 			isu.Icon = nil
 			errors = append(errors, err)
@@ -706,18 +704,22 @@ func BrowserAccess(ctx context.Context, a *agent.Agent, rpath string, page PageT
 	if err != nil {
 		return failure.NewError(ErrHTTP, err)
 	}
-	if err := verifyStatusCode(res, http.StatusOK); err != nil {
-		if err := verifyStatusCode(res, http.StatusNotModified); err != nil {
-			return failure.NewError(ErrInvalidStatusCode, err)
-		}
+	defer res.Body.Close()
+
+	if err := verifyStatusCodes(res, []int{http.StatusOK, http.StatusNotModified}); err != nil {
+		return err
 	}
 
-	resources, err := a.ProcessHTML(ctx, res, res.Body)
+	// res.Bodyの内容をhtmlの検証にも使いたいのでコピー
+	buf := new(bytes.Buffer)
+	teeReader := io.TeeReader(res.Body, buf)
+
+	resources, err := a.ProcessHTML(ctx, res, ioutil.NopCloser(teeReader))
 	if err != nil {
 		return failure.NewError(ErrCritical, err)
 	}
 	// resourceの検証
-	errs := verifyResources(page, res, resources)
+	errs := verifyResources(page, res, resources, buf)
 	for _, err := range errs {
 		if err != nil {
 			return err

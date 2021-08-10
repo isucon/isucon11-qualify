@@ -3,19 +3,21 @@ package scenario
 
 var (
 	resourcesHash = map[string]string{ 
-		"/favicon.d0f5f504.svg": "3697a1b6c6d164ec4a5e4db6f7789f05",
-		"/index.b3dc90be.css": "a26ec9a568ce7a082df3daaa968ffe95",
-		"/index.d76d47e8.js": "f2b2f8eb59d45a9d723de457b49b9afd",
-		"/logo_orange.974bf3e6.svg": "10e2dfa0ff27ec4325b781973c646737",
-		"/logo_white.98008342.svg": "f81e35a6821af44ea5b3a77346bcf6ad",
-		"/vendor.5aef5fb1.js": "0a7dd47be4d51d1792ced5138baa5229",
+		"/assets/favicon.d0f5f504.svg": "3697a1b6c6d164ec4a5e4db6f7789f05",
+		"/assets/index.b3dc4659.js": "611eff34f7d60985a9bb99d8f9ae5675",
+		"/assets/index.b3dc90be.css": "a26ec9a568ce7a082df3daaa968ffe95",
+		"/assets/logo_orange.974bf3e6.svg": "10e2dfa0ff27ec4325b781973c646737",
+		"/assets/logo_white.98008342.svg": "f81e35a6821af44ea5b3a77346bcf6ad",
+		"/assets/vendor.3e159a3f.js": "d92028fbb63b94465e290b43e81f742f",
+		"/index.html": "649802aa90784b2653bcecd2bdb0c5dc",
 	}
 	resourcesMap = map[string]string{ 
-		"/favicon.svg": "/favicon.d0f5f504.svg",
-		"/index.css": "/index.b3dc90be.css",
-		"/index.js": "/index.d76d47e8.js",
-		"/logo_orange.svg": "/logo_orange.974bf3e6.svg",
-		"/logo_white.svg": "/logo_white.98008342.svg",
-		"/vendor.js": "/vendor.5aef5fb1.js",
+		"/assets/favicon.svg": "/assets/favicon.d0f5f504.svg",
+		"/assets/index.css": "/assets/index.b3dc90be.css",
+		"/assets/index.js": "/assets/index.b3dc4659.js",
+		"/assets/logo_orange.svg": "/assets/logo_orange.974bf3e6.svg",
+		"/assets/logo_white.svg": "/assets/logo_white.98008342.svg",
+		"/assets/vendor.js": "/assets/vendor.3e159a3f.js",
+		"/index.html": "/index.html",
 	}
 )

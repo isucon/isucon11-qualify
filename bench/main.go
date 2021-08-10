@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"runtime/pprof"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -19,6 +20,7 @@ import (
 	"github.com/isucon/isucandar"
 	"github.com/isucon/isucandar/agent"
 	"github.com/isucon/isucandar/failure"
+	"github.com/isucon/isucandar/score"
 
 	// TODO: isucon11-portal に差し替え
 	"github.com/isucon/isucon10-portal/bench-tool.go/benchrun"
@@ -32,21 +34,19 @@ const (
 	// FAIL になるエラー回数
 	FAIL_ERROR_COUNT int64 = 100 //TODO:ちゃんと決める
 	//load context
-	LOAD_TIMEOUT time.Duration = 70 * time.Second
+	LOAD_TIMEOUT time.Duration = 60 * time.Second
 )
 
 var (
-	COMMIT             string
-	targetAddress      string
-	profileFile        string
-	jiaServiceURL      *url.URL
-	tlsCertificatePath string
-	tlsKeyPath         string
-	useTLS             bool
-	exitStatusOnFail   bool
-	noLoad             bool
-	promOut            string
-	showVersion        bool
+	COMMIT           string
+	targetAddress    string
+	profileFile      string
+	jiaServiceURL    *url.URL
+	useTLS           bool
+	exitStatusOnFail bool
+	noLoad           bool
+	promOut          string
+	showVersion      bool
 
 	initializeTimeout time.Duration
 	// TODO: isucon11-portal に差し替え
@@ -79,8 +79,6 @@ func init() {
 	flag.StringVar(&targetAddress, "target", benchrun.GetTargetAddress(), "ex: localhost:9292")
 	flag.StringVar(&profileFile, "profile", "", "ex: cpu.out")
 	flag.BoolVar(&exitStatusOnFail, "exit-status", false, "set exit status non-zero when a benchmark result is failing")
-	flag.StringVar(&tlsCertificatePath, "tls-cert", "", "path to TLS certificate for JIA API service")
-	flag.StringVar(&tlsKeyPath, "tls-key", "", "path to private key of TLS certificate JIA API service")
 	flag.BoolVar(&useTLS, "tls", false, "true if target server is a tls")
 	flag.BoolVar(&noLoad, "no-load", false, "exit on finished prepare")
 	flag.StringVar(&promOut, "prom-out", "", "Prometheus textfile output path")
@@ -121,6 +119,12 @@ func checkError(err error) (critical bool, timeout bool, deduction bool) {
 }
 
 func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish bool) bool {
+	defer func() {
+		if finish {
+			logger.AdminLogger.Println("<=== sendResult finish")
+		}
+	}()
+
 	passed := true
 	reason := "pass"
 	errors := result.Errors.All()
@@ -129,11 +133,22 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 	deduction := int64(0)
 	timeoutCount := int64(0)
 
+	type TagCountPair struct {
+		Tag   score.ScoreTag
+		Count int64
+	}
+	tagCountPair := make([]TagCountPair, 0)
 	for tag, count := range result.Score.Breakdown() {
+		tagCountPair = append(tagCountPair, TagCountPair{Tag: tag, Count: count})
+	}
+	sort.Slice(tagCountPair, func(i, j int) bool {
+		return tagCountPair[i].Tag < tagCountPair[j].Tag
+	})
+	for _, p := range tagCountPair {
 		if finish {
-			logger.ContestantLogger.Printf("SCORE: %s: %d", tag, count)
+			logger.ContestantLogger.Printf("SCORE: %s: %d", p.Tag, p.Count)
 		} else {
-			logger.AdminLogger.Printf("SCORE: %s: %d", tag, count)
+			logger.AdminLogger.Printf("SCORE: %s: %d", p.Tag, p.Count)
 		}
 	}
 
@@ -249,7 +264,7 @@ func main() {
 	s.NoLoad = noLoad
 
 	// JIA API
-	go s.JiaAPIService(ctx, tlsCertificatePath, tlsKeyPath)
+	go s.JiaAPIService(ctx)
 
 	// Benchmarker
 	b, err := isucandar.NewBenchmark(isucandar.WithoutPanicRecover())

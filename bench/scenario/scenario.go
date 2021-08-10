@@ -26,7 +26,6 @@ type Scenario struct {
 	BaseURL                  string        // ベンチ対象 Web アプリの URL
 	NoLoad                   bool          // Load(ベンチ負荷)を強要しない
 	LoadTimeout              time.Duration //Loadのcontextの時間
-	realTimeLoadFinishedAt   time.Time     //Loadのcontext終了時間
 	realTimePrepareStartedAt time.Time     //Prepareの開始時間
 	virtualTimeStart         time.Time
 	virtualTimeMulti         time.Duration //時間が何倍速になっているか
@@ -97,9 +96,18 @@ func (s *Scenario) AddNormalUser(ctx context.Context, step *isucandar.BenchmarkS
 	for i := 0; i < count; i++ {
 		go func(ctx context.Context, step *isucandar.BenchmarkStep) {
 			defer s.loadWaitGroup.Done()
-			s.loadNormalUser(ctx, step)
+			s.loadNormalUser(ctx, step, false)
 		}(ctx, step)
 	}
+}
+
+// load 中に name が isucon なユーザーを特別に走らせるようにする
+func (s *Scenario) AddIsuconUser(ctx context.Context, step *isucandar.BenchmarkStep) {
+	s.loadWaitGroup.Add(1)
+	go func(ctx context.Context, step *isucandar.BenchmarkStep) {
+		defer s.loadWaitGroup.Done()
+		s.loadNormalUser(ctx, step, true)
+	}(ctx, step)
 }
 
 //load用
@@ -119,8 +127,8 @@ func (s *Scenario) AddViewer(ctx context.Context, step *isucandar.BenchmarkStep,
 
 //新しい登録済みUserの生成
 //失敗したらnilを返す
-func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a *agent.Agent, userType model.UserType) *model.User {
-	user, err := model.NewRandomUserRaw(userType)
+func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a *agent.Agent, userType model.UserType, isIsuconUser bool) *model.User {
+	user, err := model.NewRandomUserRaw(userType, isIsuconUser)
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 		return nil
