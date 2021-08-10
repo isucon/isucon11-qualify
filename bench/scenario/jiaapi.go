@@ -23,7 +23,7 @@ var (
 	//isuDetailInfomation   = map[string]*IsuDetailInfomation{}
 	isuFromUUID = map[string]*model.Isu{}
 
-	jiaAPIContext context.Context
+	posterRootContext context.Context
 )
 
 type IsuDetailInfomation struct {
@@ -41,7 +41,7 @@ func RegisterToJiaAPI(isu *model.Isu, streams *model.StreamsForPoster) {
 func (s *Scenario) JiaAPIService(ctx context.Context) {
 	defer logger.AdminLogger.Println("--- JiaAPIService END")
 
-	jiaAPIContext = ctx
+	posterRootContext, s.JiaPosterCancel = context.WithCancel(ctx)
 
 	// Echo instance
 	e := echo.New()
@@ -64,7 +64,6 @@ func (s *Scenario) JiaAPIService(ctx context.Context) {
 	} else {
 		bindPort = "0.0.0.0:80"
 	}
-	s.loadWaitGroup.Add(1)
 	go func() {
 		defer logger.AdminLogger.Println("--- ISU協会サービス END")
 		defer s.loadWaitGroup.Done()
@@ -99,7 +98,7 @@ func (s *Scenario) postActivate(c echo.Context) error {
 	//poster Goroutineの起動
 	var isu *model.Isu
 	var scenarioChan *model.StreamsForPoster
-	posterContext := jiaAPIContext
+	posterContext := posterRootContext
 	err = func() error {
 		var ok bool
 		streamsForPosterMutex.Lock()

@@ -264,10 +264,7 @@ func main() {
 	s.NoLoad = noLoad
 
 	// JIA API
-	go func() {
-		s.JiaCancel = cancel
-		s.JiaAPIService(ctx)
-	}()
+	go s.JiaAPIService(ctx)
 
 	// Benchmarker
 	b, err := isucandar.NewBenchmark(isucandar.WithoutPanicRecover())

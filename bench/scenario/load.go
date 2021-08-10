@@ -77,7 +77,7 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	}()
 
 	<-ctx.Done()
-	s.JiaCancel()
+	s.JiaPosterCancel()
 	logger.AdminLogger.Println("LOAD WAIT")
 	s.loadWaitGroup.Wait()
 
