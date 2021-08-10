@@ -128,12 +128,8 @@ func (s *Scenario) userAdder(ctx context.Context, step *isucandar.BenchmarkStep)
 func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.BenchmarkStep, isIsuconUser bool) {
 	atomic.AddInt32(&userLoopCount, 1)
 
-	userTimer, userTimerCancel := context.WithDeadline(ctx, s.realTimeLoadFinishedAt.Add(-agent.DefaultRequestTimeout))
-	defer userTimerCancel()
 	select {
 	case <-ctx.Done():
-		return
-	case <-userTimer.Done():
 		return
 	default:
 	}
@@ -163,14 +159,6 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 	for {
 		<-scenarioLoopStopper
 		scenarioLoopStopper = time.After(50 * time.Millisecond) //TODO: 頻度調整
-		select {
-		case <-ctx.Done():
-			return
-		case <-userTimer.Done(): //TODO: GETリクエスト系も早めに終わるかは要検討
-			return
-		default:
-		}
-
 		select {
 		case <-ctx.Done():
 			return
@@ -259,13 +247,9 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 
 func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep) {
 
-	viewerTimer, viewerTimerCancel := context.WithDeadline(ctx, s.realTimeLoadFinishedAt.Add(-agent.DefaultRequestTimeout))
-	defer viewerTimerCancel()
 	select {
 	case <-ctx.Done():
-		return
-	case <-viewerTimer.Done():
-		return
+
 	default:
 	}
 
@@ -277,8 +261,6 @@ func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep
 
 		select {
 		case <-ctx.Done():
-			return
-		case <-viewerTimer.Done(): //TODO: GETリクエスト系も早めに終わるかは要検討
 			return
 		default:
 		}
