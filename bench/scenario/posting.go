@@ -57,13 +57,11 @@ func (s *Scenario) keepPosting(ctx context.Context, targetBaseURL *url.URL, fqdn
 	randEngine := rand.New(rand.NewSource(rand.Int63()))
 	httpClient := http.Client{}
 	httpClient.Timeout = postConditionTimeout
-	if s.UseTLS {
-		httpClient.Transport = &http.Transport{
-			TLSClientConfig: &tls.Config{
-				ServerName: fqdn,
-			},
-			ForceAttemptHTTP2: true,
-		}
+	httpClient.Transport = &http.Transport{
+		TLSClientConfig: &tls.Config{
+			ServerName: fqdn,
+		},
+		ForceAttemptHTTP2: true,
 	}
 
 	timer := time.NewTicker(40 * time.Millisecond)
