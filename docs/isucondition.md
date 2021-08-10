@@ -45,7 +45,8 @@ ISUCONDITIONは送られてきたJWTが正しいかを検証し、正しいと�
 
 ユーザは、自分の大事なパートナーであるISUを、JIAが発行するISU固有のID(以下、ISU UUID)を使い、ISUCONDITIONに登録 (`/register`) します。ユーザは、登録を行ったISUの詳細 (`/isu/:jia_isu_uuid`) や、ISUのコンディション (`/isu/:jia_isu_uuid/condition`) 、グラフとスコア (`/isu/:jia_isu_uuid/graph`) を見ることができます。
 
-JIAは、ISUCONDITIONからISU UUIDを受け取ることで、当該のISU UUIDを持つISUに対してISUCONDITIONへコンディション送信 (`POST /api/condition/:jia_isu_uuid`) を開始する指示をします。
+JIAは、ISUCONDITIONからISUCONDITIONのURL(`POST_CONDITION_TARGET_BASE_URL`)と ISU UUIDを受け取ることで、当該のISU UUIDを持つISUに対してISUCONDITIONへコンディション送信 (`POST /api/condition/:jia_isu_uuid`) を開始する指示をします。`POST_CONDITION_TARGET_BASE_URL` を変更することで、ISUがコンディションを送る先を変更することが可能ですが、既に登録済みのISUには反映されません。
+`POST_CONDITION_TARGET_BASE_URL` にはISUのコンディションの送信対象となるISUCONDITIONのURL（プロトコルとホスト名、ポート番号）を指定してください。（例: `http://isucon-server2:3000`）
 
 ISUは、JIAから送信開始の指示を受け取った時点から、自身のコンディションをISUCONDITIONに対して送信 (`POST /api/condition/:jia_isu_uuid`) を続けます。ISUのコンディションは悪くなる事があり、ユーザが改善を行わない限りコンディションが良くなる事はありません。
 
