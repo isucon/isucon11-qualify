@@ -860,3 +860,10 @@ func verifyPrepareIsuList(res *http.Response, expectedReverse []*model.Isu, isuL
 	}
 	return errs
 }
+
+func verifyMe(userID string, hres *http.Response, me *service.GetMeResponse) error {
+	if me.JIAUserID != userID {
+		return errorInvalid(hres, "ログインユーザと一致しません。")
+	}
+	return nil
+}
