@@ -53,7 +53,7 @@ func (c *AuthController) PostAuth(ctx echo.Context) error {
 
 	pass, ok := passwordMap[input.User]
 	if !ok || pass != input.Password {
-		return ctx.String(http.StatusNotFound, "Not Found")
+		return ctx.String(http.StatusUnauthorized, "Unauthorized")
 	}
 
 	// 認証に利用する JWT トークンを生成して返す。
