@@ -568,14 +568,23 @@ func getTrendAction(ctx context.Context, a *agent.Agent) (service.GetTrendRespon
 func browserGetLandingPageAction(ctx context.Context, a *agent.Agent) (service.GetTrendResponse, *http.Response, error) {
 	// TODO: 静的ファイルのGET
 
-	trend := service.GetTrendResponse{}
-	reqUrl := "/api/trend"
-	res, err := reqJSONResGojayArray(ctx, a, http.MethodGet, reqUrl, nil, &trend, []int{http.StatusOK})
+	trend, res, err := getTrendAction(ctx, a)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	return trend, res, nil
+}
+
+func browserGetLandingPageIgnoreAction(ctx context.Context, a *agent.Agent) (*http.Response, error) {
+	// TODO: 静的ファイルのGET
+
+	res, err := getTrendIgnoreAction(ctx, a)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }
 
 func getTrendIgnoreAction(ctx context.Context, a *agent.Agent) (*http.Response, error) {
