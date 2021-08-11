@@ -110,7 +110,7 @@ func (s *Scenario) postActivate(c echo.Context) error {
 		if !ok {
 			return echo.NewHTTPError(http.StatusNotFound)
 		}
-		// リクエストされた JIA_ISU_UUID が事前に scenario.NewIsu にて作成された isu と紐付かない場合 403 を返す
+		// リクエストされた JIA_ISU_UUID が事前に scenario.NewIsu にて作成された isu と紐付かない場合 404 を返す
 		isu, ok = isuFromUUID[state.IsuUUID]
 		if !ok {
 			//scenarioChanでチェックしているのでここには来ないはず
