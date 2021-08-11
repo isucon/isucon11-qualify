@@ -2,10 +2,10 @@ package scenario
 
 import (
 	"context"
-	"math/rand"
 	"net/http"
 	"net/url"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/isucon/isucandar"
@@ -153,11 +153,14 @@ func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a
 	return user
 }
 
+var newIsuCountForImageMissing int32 = -1 //画像をnilにするかどうかの判定用変数(他用途で使用しないこと)
+
 //新しい登録済みISUの生成
 //失敗したらnilを返す
 func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, owner *model.User, addToUser bool, retry bool) *model.Isu {
 	var image []byte = nil
-	if rand.Int31n(100) != 0 {
+	//20回に1回はnilでPOST
+	if atomic.AddInt32(&newIsuCountForImageMissing, 1)%20 != 0 {
 		//画像付きでPOST
 		var err error
 		image, err = random.Image()
