@@ -345,7 +345,7 @@ function calculateConditionLevel(condition: string): [string, Error?] {
     let count = 0;
     let pos = 0;
     while (pos !== -1) {
-      pos = condition.indexOf("=true");
+      pos = condition.indexOf("=true", pos);
       if (pos >= 0) {
         count += 1;
         pos += 5;
@@ -370,4 +370,4 @@ function calculateConditionLevel(condition: string): [string, Error?] {
   return [conditionLevel, undefined];
 }
 
-app.listen(Number.parseInt(process.env["PORT"] ?? "3000"), () => {});
+app.listen(Number.parseInt(process.env["SERVER_APP_PORT"] ?? "3000"), () => {});
