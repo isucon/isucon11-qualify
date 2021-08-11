@@ -110,6 +110,18 @@ func (s *Scenario) postActivate(c echo.Context) error {
 		if !ok {
 			return echo.NewHTTPError(http.StatusNotFound)
 		}
+		// リクエストされた JIA_ISU_UUID が事前に scenario.NewIsu にて作成された isu と紐付かない場合 403 を返す
+		isu, ok = isuFromUUID[state.IsuUUID]
+		if !ok {
+			//scenarioChanでチェックしているのでここには来ないはず
+			return echo.NewHTTPError(http.StatusNotFound)
+		}
+		_, ok = isuIsActivated[state.IsuUUID]
+		if ok {
+			//activate済み
+			return nil
+		}
+
 		// useTLS が有効 && POST isucondition する URL に https 以外が指定されていたら 400 を返す
 		if s.UseTLS && targetBaseURL.Scheme != "https" {
 			return echo.NewHTTPError(http.StatusBadRequest)
@@ -127,21 +139,9 @@ func (s *Scenario) postActivate(c echo.Context) error {
 		} else {
 			targetBaseURL.Host = ipAddr
 		}
-		// リクエストされた JIA_ISU_UUID が事前に scenario.NewIsu にて作成された isu と紐付かない場合 403 を返す
-		isu, ok = isuFromUUID[state.IsuUUID]
-		if !ok {
-			//scenarioChanでチェックしているのでここには来ないはず
-			return echo.NewHTTPError(http.StatusNotFound)
-		}
-		_, ok = isuIsActivated[state.IsuUUID]
-		if ok {
-			//activate済み
-			return nil
-		}
 
 		// activate 済みフラグを立てる
 		isuIsActivated[state.IsuUUID] = struct{}{}
-
 		//activate
 		s.loadWaitGroup.Add(1)
 		go func() {
