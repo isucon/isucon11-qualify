@@ -107,12 +107,12 @@ func (s *Scenario) postActivate(c echo.Context) error {
 		// scenario goroutine とやり取りするためのチャネルを受け取る
 		scenarioChan, ok = streamsForPoster[state.IsuUUID]
 		if !ok {
-			return http.StatusNotFound, "isu not found"
+			return http.StatusNotFound, "Bad isu_uuid"
 		}
 		isu, ok = isuFromUUID[state.IsuUUID]
 		if !ok {
 			//scenarioChanでチェックしているのでここには来ないはず
-			return http.StatusNotFound, "isu not found"
+			return http.StatusNotFound, "Bad isu_uuid"
 		}
 		_, ok = isuIsActivated[state.IsuUUID]
 		if ok {
