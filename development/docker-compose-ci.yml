@@ -42,8 +42,8 @@ services:
       context: ..
       dockerfile: development/apitest/ci.dockerfile
     environment:
-      ISUXBENCH_TARGET: isucondition-1.t.isucon.dev:3000
-      ISUXBENCH_TARGETABLE_ADDRESSES: isucondition-1.t.isucon.dev
+      ISUXBENCH_TARGET: backend:3000
+      ISUXBENCH_TARGETABLE_ADDRESSES: backend
     entrypoint: dockerize -wait http://backend:3000 -timeout 60s
     command: ["/bench", "--no-load", "--exit-status"]
     volumes:
@@ -53,5 +53,3 @@ services:
     depends_on:
       - mysql-backend
       - backend
-    links:
-      - backend:isucondition-1.t.isucon.dev
