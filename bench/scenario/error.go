@@ -55,7 +55,7 @@ var (
 	ErrInvalidContentType failure.StringCode = "content type"
 	ErrInvalidJSON        failure.StringCode = "json"
 	ErrInvalidAsset       failure.StringCode = "asset"
-	ErrMissmatch          failure.StringCode = "missmatch"    //データはあるが、間違っている（名前が違う等）
+	ErrMismatch           failure.StringCode = "mismatch"     //データはあるが、間違っている（名前が違う等）
 	ErrInvalid            failure.StringCode = "invalid"      //ロジック的に誤り（存在しないはずのものが有る等）
 	ErrBadResponse        failure.StringCode = "bad-response" //不正な書式のレスポンス
 	ErrHTTP               failure.StringCode = "http"         //http通信回りのエラー（timeout含む）
@@ -66,7 +66,7 @@ func isDeduction(err error) bool {
 		failure.IsCode(err, ErrInvalidContentType) ||
 		failure.IsCode(err, ErrInvalidJSON) ||
 		failure.IsCode(err, ErrInvalidAsset) ||
-		failure.IsCode(err, ErrMissmatch) ||
+		failure.IsCode(err, ErrMismatch) ||
 		failure.IsCode(err, ErrInvalid) ||
 		failure.IsCode(err, ErrBadResponse) ||
 		(!isTimeout(err) && failure.IsCode(err, ErrHTTP))
@@ -115,9 +115,9 @@ func errorInvalidJSON(res *http.Response) error {
 	return failure.NewError(ErrInvalidJSON, fmt.Errorf("不正なJSONが返却されました: %d (%s: %s)", res.StatusCode, res.Request.Method, res.Request.URL.Path))
 }
 
-func errorMissmatch(res *http.Response, message string, args ...interface{}) error {
+func errorMismatch(res *http.Response, message string, args ...interface{}) error {
 	args = append(args, res.StatusCode, res.Request.Method, res.Request.URL.Path)
-	return failure.NewError(ErrMissmatch, fmt.Errorf(message+": %d (%s: %s)", args...))
+	return failure.NewError(ErrMismatch, fmt.Errorf(message+": %d (%s: %s)", args...))
 }
 
 func errorInvalid(res *http.Response, message string, args ...interface{}) error {

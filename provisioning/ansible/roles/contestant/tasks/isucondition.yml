@@ -8,8 +8,17 @@
     owner: isucon
     group: isucon
 
-- name: "roles/contestant/tasks/isucondition: Include generate_env.yml"
-  include: generate_env.yml
+- name: "roles/contestant/tasks/isucondition: Deploy configs"
+  become_user: isucon
+  copy:
+    src: "{{ item }}"
+    dest: "/{{ item }}"
+    owner: isucon
+    group: isucon
+  with_items:
+    - home/isucon/env.sh
+    - etc/hosts
+
 
 - name: "roles/contestant/tasks/isucondition: Include isucondition-frontend.yml"
   include: isucondition-frontend.yml

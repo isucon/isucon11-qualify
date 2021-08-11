@@ -7,9 +7,11 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 	"os"
 	"runtime/pprof"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -18,6 +20,7 @@ import (
 	"github.com/isucon/isucandar"
 	"github.com/isucon/isucandar/agent"
 	"github.com/isucon/isucandar/failure"
+	"github.com/isucon/isucandar/score"
 
 	// TODO: isucon11-portal に差し替え
 	"github.com/isucon/isucon10-portal/bench-tool.go/benchrun"
@@ -31,22 +34,28 @@ const (
 	// FAIL になるエラー回数
 	FAIL_ERROR_COUNT int64 = 100 //TODO:ちゃんと決める
 	//load context
-	LOAD_TIMEOUT time.Duration = 70 * time.Second
+	LOAD_TIMEOUT time.Duration = 60 * time.Second
 )
 
 var (
-	COMMIT             string
-	targetAddress      string
-	profileFile        string
-	hostAdvertise      string
-	jiaServiceURL      *url.URL
-	tlsCertificatePath string
-	tlsKeyPath         string
-	useTLS             bool
-	exitStatusOnFail   bool
-	noLoad             bool
-	promOut            string
-	showVersion        bool
+	allowedTargetFQDN = []string{
+		"isucondition-1.t.isucon.dev",
+		"isucondition-2.t.isucon.dev",
+		"isucondition-3.t.isucon.dev",
+	}
+)
+
+var (
+	COMMIT              string
+	targetAddress       string
+	targetableAddresses []string
+	profileFile         string
+	jiaServiceURL       *url.URL
+	useTLS              bool
+	exitStatusOnFail    bool
+	noLoad              bool
+	promOut             string
+	showVersion         bool
 
 	initializeTimeout time.Duration
 	// TODO: isucon11-portal に差し替え
@@ -67,25 +76,44 @@ func init() {
 		panic(err)
 	}
 
+	// https://github.com/golang/go/issues/16012#issuecomment-224948823
+	// "connect: cannot assign requested address" 対策
+	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = 100
+
 	agent.DefaultTLSConfig.ClientCAs = certs
 	agent.DefaultTLSConfig.ClientAuth = tls.RequireAndVerifyClientCert
 	agent.DefaultTLSConfig.MinVersion = tls.VersionTLS12
 	agent.DefaultTLSConfig.InsecureSkipVerify = false
 
+	var targetableAddressesStr string
+
 	flag.StringVar(&targetAddress, "target", benchrun.GetTargetAddress(), "ex: localhost:9292")
+	// TODO: 環境変数名を portal チームから共有されたものに差し替える
+	flag.StringVar(&targetableAddressesStr, "targetable-addresses", getEnv("ISUXBENCH_TARGETABLE_ADDRESSES", ""), `ex: "192.168.0.1 192.168.0.2 192.168.0.3" (space separated, limit 3)`)
 	flag.StringVar(&profileFile, "profile", "", "ex: cpu.out")
 	flag.BoolVar(&exitStatusOnFail, "exit-status", false, "set exit status non-zero when a benchmark result is failing")
+	flag.BoolVar(&useTLS, "tls", false, "true if target server is a tls")
 	flag.BoolVar(&noLoad, "no-load", false, "exit on finished prepare")
 	flag.StringVar(&promOut, "prom-out", "", "Prometheus textfile output path")
 	flag.BoolVar(&showVersion, "version", false, "show version and exit 1")
 
 	var jiaServiceURLStr, timeoutDuration, initializeTimeoutDuration string
 	flag.StringVar(&jiaServiceURLStr, "jia-service-url", getEnv("JIA_SERVICE_URL", "http://apitest:5000"), "jia service url")
-	flag.StringVar(&timeoutDuration, "timeout", "10s", "request timeout duration")
+	flag.StringVar(&timeoutDuration, "timeout", "5s", "request timeout duration")
 	flag.StringVar(&initializeTimeoutDuration, "initialize-timeout", "20s", "request timeout duration of POST /initialize")
 
 	flag.Parse()
 
+	// validate target
+	if targetAddress == "" {
+		targetAddress = "localhost:9292"
+	}
+	// validate targetable-addresses
+	// useTLS な場合のみ IPアドレスと FQDN のペアが必要になる
+	targetableAddresses = strings.Split(targetableAddressesStr, " ")
+	if !(1 <= len(targetableAddresses) && len(targetableAddresses) <= 3) || targetableAddresses[0] == "" {
+		panic("invalid targetableAddresses: length must be 1~3")
+	}
 	// validate jia-service-url
 	jiaServiceURL, err = url.Parse(jiaServiceURLStr)
 	if err != nil {
@@ -97,7 +125,6 @@ func init() {
 		panic(err)
 	}
 	agent.DefaultRequestTimeout = timeout
-
 	// validate initialize-timeout
 	initializeTimeout, err = time.ParseDuration(initializeTimeoutDuration)
 	if err != nil {
@@ -110,6 +137,12 @@ func checkError(err error) (critical bool, timeout bool, deduction bool) {
 }
 
 func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish bool) bool {
+	defer func() {
+		if finish {
+			logger.AdminLogger.Println("<=== sendResult finish")
+		}
+	}()
+
 	passed := true
 	reason := "pass"
 	errors := result.Errors.All()
@@ -118,8 +151,23 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 	deduction := int64(0)
 	timeoutCount := int64(0)
 
+	type TagCountPair struct {
+		Tag   score.ScoreTag
+		Count int64
+	}
+	tagCountPair := make([]TagCountPair, 0)
 	for tag, count := range result.Score.Breakdown() {
-		logger.AdminLogger.Printf("SCORE: %s: %d", tag, count)
+		tagCountPair = append(tagCountPair, TagCountPair{Tag: tag, Count: count})
+	}
+	sort.Slice(tagCountPair, func(i, j int) bool {
+		return tagCountPair[i].Tag < tagCountPair[j].Tag
+	})
+	for _, p := range tagCountPair {
+		if finish {
+			logger.ContestantLogger.Printf("SCORE: %s: %d", p.Tag, p.Count)
+		} else {
+			logger.AdminLogger.Printf("SCORE: %s: %d", p.Tag, p.Count)
+		}
 	}
 
 	for _, err := range errors {
@@ -151,6 +199,10 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 	if passed && !s.NoLoad && score <= 0 {
 		passed = false
 		reason = "Score"
+	}
+
+	if !passed {
+		score = 0
 	}
 
 	logger.ContestantLogger.Printf("score: %d(%d - %d) : %s", score, scoreRaw, deductionTotal, reason)
@@ -212,25 +264,47 @@ func main() {
 		pprof.StartCPUProfile(fs)
 		defer pprof.StopCPUProfile()
 	}
-	if targetAddress == "" {
-		targetAddress = "localhost:9292"
-	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	// for Scenario
 	s, err := scenario.NewScenario(jiaServiceURL, LOAD_TIMEOUT)
 	if err != nil {
 		panic(err)
 	}
 	s = s.WithInitializeTimeout(initializeTimeout)
-	scheme := "http"
-	if useTLS {
-		scheme = "https"
-	}
-	s.BaseURL = fmt.Sprintf("%s://%s/", scheme, targetAddress)
-	s.NoLoad = noLoad
 
+	// IPAddr と FQDN の相互参照可能なmapをシナリオに登録
+	var addrAndFqdn []string
+	for idx, addr := range targetableAddresses {
+		// len(targetableAddresses) は 3 以下なので out-of-range はしない
+		addrAndFqdn = append(addrAndFqdn, addr, allowedTargetFQDN[idx])
+	}
+	if err := s.SetIPAddrAndFqdn(addrAndFqdn...); err != nil {
+		panic(err)
+	}
+
+	s.NoLoad = noLoad
+	s.UseTLS = useTLS
+
+	if useTLS {
+		s.BaseURL = fmt.Sprintf("https://%s/", targetAddress)
+		// isucandar から送信する HTTPS リクエストの Hosts に isucondition-[1-3].t.isucon.dev を設定する
+		var ok bool
+		targetAddressWithoutPort := strings.Split(targetAddress, ":")[0]
+		agent.DefaultTLSConfig.ServerName, ok = s.GetFqdnFromIPAddr(targetAddressWithoutPort)
+		if !ok {
+			panic("targetAddress が targetableAddresses に含まれていません")
+		}
+	} else {
+		s.BaseURL = fmt.Sprintf("http://%s/", targetAddress)
+	}
+
+	// JIA API
+	go s.JiaAPIService(ctx)
+
+	// Benchmarker
 	b, err := isucandar.NewBenchmark(isucandar.WithoutPanicRecover())
 	if err != nil {
 		panic(err)
@@ -286,6 +360,9 @@ func main() {
 			return nil
 		default:
 		}
+
+		// 初期実装だと fail してしまうため下駄をはかせる
+		step.AddScore(scenario.ScoreStartBenchmark)
 
 		for {
 			// 途中経過を3秒毎に送信

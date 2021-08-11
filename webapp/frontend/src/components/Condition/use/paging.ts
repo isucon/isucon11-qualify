@@ -14,9 +14,8 @@ const usePaging = (
     const fetchCondtions = async () => {
       setConditions(
         await getConditions({
-          cursor_end_time: getNowDate(),
+          end_time: getNowDate(),
           // 初回fetch時は'z'をセットすることで全件表示させてる
-          cursor_jia_isu_uuid: 'z',
           condition_level: 'critical,warning,info'
         })
       )
@@ -33,9 +32,7 @@ const usePaging = (
       cache[page] = conditions
       setCache(cache)
     }
-    const params = getNextRequestParams(
-      conditions[DEFAULT_CONDITION_LIMIT - 1].jia_isu_uuid
-    )
+    const params = getNextRequestParams()
     if (!params) {
       return
     }
@@ -66,17 +63,17 @@ const usePaging = (
       start_time = new Date(0)
     }
 
-    let cursor_end_time: Date
+    let end_time: Date
     if (payload.times[1]) {
       const date = validateTime(payload.times[1] + 'Z')
       if (date) {
-        cursor_end_time = date
+        end_time = date
       } else {
         alert('時間指定の上限が不正です')
         return
       }
     } else {
-      cursor_end_time = getNowDate()
+      end_time = getNowDate()
     }
 
     setQuery(payload.query)
@@ -84,26 +81,23 @@ const usePaging = (
 
     const params = {
       start_time: start_time,
-      cursor_end_time: cursor_end_time,
-      condition_level: payload.query,
-      cursor_jia_isu_uuid: 'z'
+      end_time: end_time,
+      condition_level: payload.query
     }
     setConditions(await getConditions(params))
     setPage(1)
     setCache([[]])
   }
 
-  // 初回fetch時はcursor_jia_isu_uuidに'z'をセットすることで全件表示させてる
-  const getNextRequestParams = (cursor_jia_isu_uuid = 'z') => {
+  const getNextRequestParams = () => {
     const start_time = times[0] ? new Date(times[0] + 'Z') : new Date(0)
-    const cursor_end_time = times[1]
+    const end_time = times[1]
       ? new Date(times[1] + 'Z')
       : conditions[DEFAULT_CONDITION_LIMIT - 1].date
 
     return {
-      cursor_end_time: cursor_end_time,
+      end_time: end_time,
       start_time: start_time,
-      cursor_jia_isu_uuid,
       condition_level: query
     }
   }

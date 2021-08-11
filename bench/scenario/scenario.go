@@ -2,7 +2,8 @@ package scenario
 
 import (
 	"context"
-	"math"
+	"fmt"
+	"net/http"
 	"net/url"
 	"sync"
 	"time"
@@ -24,10 +25,9 @@ type Scenario struct {
 	// TODO: シナリオ実行に必要なフィールドを書く
 
 	BaseURL                  string        // ベンチ対象 Web アプリの URL
-	UseTLS                   bool          // https で接続するかどうか
+	UseTLS                   bool          // ベンチ対象 Web アプリが HTTPS で動いているかどうか (本番時ture/CI時false)
 	NoLoad                   bool          // Load(ベンチ負荷)を強要しない
 	LoadTimeout              time.Duration //Loadのcontextの時間
-	realTimeLoadFinishedAt   time.Time     //Loadのcontext終了時間
 	realTimePrepareStartedAt time.Time     //Prepareの開始時間
 	virtualTimeStart         time.Time
 	virtualTimeMulti         time.Duration //時間が何倍速になっているか
@@ -35,21 +35,33 @@ type Scenario struct {
 
 	// POST /initialize の猶予時間
 	initializeTimeout time.Duration
+	prepareTimeout    time.Duration // prepareのTimeoutデフォルト設定
 
 	// 競技者の実装言語
 	Language string
 
-	loadWaitGroup sync.WaitGroup
-	jiaCancel     context.CancelFunc
+	loadWaitGroup   sync.WaitGroup
+	JiaPosterCancel context.CancelFunc
+
+	// IPアドレスと FQDN の対応付け
+	mapIPAddrToFqdn map[string]string
+	mapFqdnToIPAddr map[string]string
 
 	//内部状態
-	normalUsersMtx  sync.Mutex
-	normalUsers     []*model.User
+	normalUsersMtx sync.Mutex
+	normalUsers    []*model.User
 
-	// TODO: ユーザーを増やすロジックを書いたときに必要性を再度考える
 	viewerMtx sync.Mutex
 	viewers   []*model.Viewer
+
+	// GET /api/trend にて isuID から isu を取得するのに利用
+	isuFromID      map[int]*model.Isu
+	isuFromIDMutex sync.RWMutex
 }
+
+var (
+// MEMO: IsuFromID は NewIsu() 内でのみ書き込まれる append only な map
+)
 
 func NewScenario(jiaServiceURL *url.URL, loadTimeout time.Duration) (*Scenario, error) {
 	return &Scenario{
@@ -60,7 +72,11 @@ func NewScenario(jiaServiceURL *url.URL, loadTimeout time.Duration) (*Scenario, 
 		virtualTimeMulti:  30000,           //5分=300秒に一回 => 1秒に100回
 		jiaServiceURL:     jiaServiceURL,
 		initializeTimeout: 20 * time.Second,
+		prepareTimeout:    3 * time.Second,
+		mapIPAddrToFqdn:   make(map[string]string, 3),
+		mapFqdnToIPAddr:   make(map[string]string, 3),
 		normalUsers:       []*model.User{},
+		isuFromID:         make(map[int]*model.Isu, 8192),
 	}, nil
 }
 
@@ -88,13 +104,22 @@ func (s *Scenario) AddNormalUser(ctx context.Context, step *isucandar.BenchmarkS
 	for i := 0; i < count; i++ {
 		go func(ctx context.Context, step *isucandar.BenchmarkStep) {
 			defer s.loadWaitGroup.Done()
-			s.loadNormalUser(ctx, step)
+			s.loadNormalUser(ctx, step, false)
 		}(ctx, step)
 	}
 }
 
+// load 中に name が isucon なユーザーを特別に走らせるようにする
+func (s *Scenario) AddIsuconUser(ctx context.Context, step *isucandar.BenchmarkStep) {
+	s.loadWaitGroup.Add(1)
+	go func(ctx context.Context, step *isucandar.BenchmarkStep) {
+		defer s.loadWaitGroup.Done()
+		s.loadNormalUser(ctx, step, true)
+	}(ctx, step)
+}
+
 //load用
-//マニアユーザーのシナリオ Goroutineを追加する
+//非ログインユーザーのシナリオ Goroutineを追加する
 func (s *Scenario) AddViewer(ctx context.Context, step *isucandar.BenchmarkStep, count int) {
 	if count <= 0 {
 		return
@@ -110,14 +135,18 @@ func (s *Scenario) AddViewer(ctx context.Context, step *isucandar.BenchmarkStep,
 
 //新しい登録済みUserの生成
 //失敗したらnilを返す
-func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a *agent.Agent, userType model.UserType) *model.User {
-	user, err := model.NewRandomUserRaw(userType)
+func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a *agent.Agent, userType model.UserType, isIsuconUser bool) *model.User {
+	user, err := model.NewRandomUserRaw(userType, isIsuconUser)
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 		return nil
 	}
 
 	//backendにpostする
+	go func() {
+		// 登録済みユーザーは trend に興味がないからリクエストを待たない
+		browserGetLandingPageIgnoreAction(ctx, a)
+	}()
 	//TODO: 確率で失敗してリトライする
 	_, errs := authAction(ctx, a, user.UserID)
 	for _, err := range errs {
@@ -133,7 +162,7 @@ func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a
 
 //新しい登録済みISUの生成
 //失敗したらnilを返す
-func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, owner *model.User, addToUser bool, img *service.IsuImg) *model.Isu {
+func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, owner *model.User, addToUser bool, img []byte, retry bool) *model.Isu {
 	isu, streamsForPoster, err := model.NewRandomIsuRaw(owner)
 	if err != nil {
 		logger.AdminLogger.Panic(err)
@@ -150,24 +179,51 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 		IsuName:    isu.Name,
 	}
 	if img != nil {
-		req.Img = img.Img
+		req.Img = img
 		isu.SetImage(req.Img)
 	}
-	isuResponse, res, err := postIsuAction(ctx, owner.Agent, req) //TODO:画像
-	// TODO: err のとき retry
-	if err != nil {
-		step.AddError(err)
-		return nil
+
+	if retry {
+		res := postIsuInfinityRetry(ctx, owner.Agent, req, step)
+		// res == nil => ctx.Done
+		if res == nil {
+			return nil
+		}
+	} else {
+		_, _, err := postIsuAction(ctx, owner.Agent, req)
+		if err != nil {
+			addErrorWithContext(ctx, step, err)
+			return nil
+		}
+	}
+
+	var res *http.Response
+	var isuResponse *service.Isu
+	if retry {
+		isuResponse, res = getIsuInfinityRetry(ctx, owner.Agent, req.JIAIsuUUID, step)
+		// isuResponse == nil => ctx.Done
+		if isuResponse == nil {
+			return nil
+		}
+	} else {
+		isuResponse, res, err = getIsuIdAction(ctx, owner.Agent, req.JIAIsuUUID)
+		if err != nil {
+			addErrorWithContext(ctx, step, err)
+			return nil
+		}
 	}
 	// TODO: これは validate でやるべきなきがする
 	if isuResponse.JIAIsuUUID != isu.JIAIsuUUID ||
 		isuResponse.Name != isu.Name ||
 		isuResponse.Character != isu.Character {
-		step.AddError(errorMissmatch(res, "レスポンスBodyが正しくありません"))
+		step.AddError(errorMismatch(res, "レスポンスBodyが正しくありません"))
 	}
 
 	// POST isu のレスポンスより ID を取得して isu モデルに代入する
 	isu.ID = isuResponse.ID
+
+	// isu.ID から model.TrendCondition を取得できるようにする (GET /trend 用)
+	s.UpdateIsuFromID(isu)
 
 	// poster に isu model の初期化終了を伝える
 	isu.StreamsForScenario.StateChan <- model.IsuStateChangeNone
@@ -184,28 +240,6 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 	return isu
 }
 
-// あるユーザーに対して、所有しているISUの
-// 送信が完了したconditionをlevelごとに分け、それぞれの最後に成功したもののうち一番(仮想時間的に)最初のもののうち、
-// 最初のものを返す
-// TODO: これ一つのISUだけ全然conditionを返さなかったらベンチマークハックできない？ -> 直す
-// MEMO: ここで「絶対にそこまではあるtimestamp」を保証する必要がなくなるので使わなくなるはず
-func GetConditionDataExistTimestamp(s *Scenario, user *model.User) int64 {
-	if len(user.IsuListOrderByCreatedAt) == 0 {
-		return s.virtualTimeStart.Unix()
-	}
-	var timestamp int64 = math.MaxInt64
-	for _, isu := range user.IsuListOrderByCreatedAt {
-		cond := isu.Conditions.Back()
-		if cond == nil {
-			return s.virtualTimeStart.Unix()
-		}
-		if cond.TimestampUnix < timestamp {
-			timestamp = cond.TimestampUnix
-		}
-	}
-	return timestamp
-}
-
 func addErrorWithContext(ctx context.Context, step *isucandar.BenchmarkStep, err error) {
 	select {
 	case <-ctx.Done():
@@ -215,4 +249,41 @@ func addErrorWithContext(ctx context.Context, step *isucandar.BenchmarkStep, err
 	default:
 		step.AddError(err)
 	}
+}
+
+// map に対する Setter は main でしか呼ばれないため lock は取らない
+func (s *Scenario) SetIPAddrAndFqdn(str ...string) error {
+	if len(str)%2 != 0 {
+		return fmt.Errorf("invalid arguments")
+	}
+	for i := 0; i < len(str); i += 2 {
+		ipaddr := str[i]
+		fqdn := str[i+1]
+		s.mapFqdnToIPAddr[fqdn] = ipaddr
+		s.mapIPAddrToFqdn[ipaddr] = fqdn
+	}
+	return nil
+}
+
+func (s *Scenario) GetIPAddrFromFqdn(fqdn string) (string, bool) {
+	result, ok := s.mapFqdnToIPAddr[fqdn]
+	return result, ok
+}
+
+func (s *Scenario) GetFqdnFromIPAddr(ipaddr string) (string, bool) {
+	result, ok := s.mapIPAddrToFqdn[ipaddr]
+	return result, ok
+}
+
+func (s *Scenario) UpdateIsuFromID(isu *model.Isu) {
+	s.isuFromIDMutex.Lock()
+	defer s.isuFromIDMutex.Unlock()
+	s.isuFromID[isu.ID] = isu
+}
+
+func (s *Scenario) GetIsuFromID(id int) (*model.Isu, bool) {
+	s.isuFromIDMutex.RLock()
+	defer s.isuFromIDMutex.RUnlock()
+	isu, ok := s.isuFromID[id]
+	return isu, ok
 }

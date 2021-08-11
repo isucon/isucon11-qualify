@@ -16,6 +16,7 @@ module.exports = {
       ...theme('colors'),
       primary: '#241E12',
       secondary: '#6B6965',
+      teritary: '#CCCCCC',
       error: '#CF1717',
       'white-primary': '#FFFFFF',
       'white-secondary': '#FFFFFF',
@@ -34,7 +35,7 @@ module.exports = {
     extend: {
       gridTemplateColumns: {
         isus: 'repeat(auto-fill,minmax(10rem,1fr))',
-        search: '9rem 1fr'
+        trend: '10rem 1fr'
       }
     }
   }

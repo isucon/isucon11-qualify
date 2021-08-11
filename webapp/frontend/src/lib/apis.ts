@@ -23,11 +23,23 @@ class Apis {
   }
 
   async getIsus(options?: { limit: number }, axiosConfig?: AxiosRequestConfig) {
-    const { data } = await axios.get<Isu[]>(`/api/isu`, {
+    const { data } = await axios.get<ApiGetIsuListResponse[]>(`/api/isu`, {
       params: options,
       ...axiosConfig
     })
-    return data
+    const res: GetIsuListResponse[] = []
+    for (const v of data) {
+      res.push({
+        ...v,
+        latest_isu_condition: v.latest_isu_condition
+          ? {
+              ...v.latest_isu_condition,
+              date: timestampToDate(v.latest_isu_condition.timestamp)
+            }
+          : null
+      })
+    }
+    return res
   }
 
   async postIsu(req: PostIsuRequest, axiosConfig?: AxiosRequestConfig) {
@@ -41,17 +53,6 @@ class Apis {
       headers: { 'content-type': 'multipart/form-data' },
       ...axiosConfig
     })
-  }
-
-  async getIsuSearch(
-    option?: IsuSearchRequest,
-    axiosConfig?: AxiosRequestConfig
-  ) {
-    const { data } = await axios.get<Isu[]>(`/api/isu/search`, {
-      params: option,
-      ...axiosConfig
-    })
-    return data
   }
 
   async getIsu(jiaIsuUuid: string, axiosConfig?: AxiosRequestConfig) {
@@ -69,7 +70,7 @@ class Apis {
     axiosConfig?: AxiosRequestConfig
   ) {
     const params: ApiGraphRequest = {
-      date: dateToTimestamp(req.date)
+      datetime: dateToTimestamp(req.date)
     }
     const { data } = await axios.get<ApiGraph[]>(
       `/api/isu/${jiaIsuUuid}/graph`,
@@ -90,28 +91,6 @@ class Apis {
     return graphs
   }
 
-  async getConditions(req: ConditionRequest, axiosConfig?: AxiosRequestConfig) {
-    const params: ApiConditionRequest = {
-      ...req,
-      start_time: req.start_time ? dateToTimestamp(req.start_time) : undefined,
-      cursor_end_time: dateToTimestamp(req.cursor_end_time)
-    }
-    const { data } = await axios.get<ApiCondition[]>(`/api/condition`, {
-      params,
-      ...axiosConfig
-    })
-
-    const conditions: Condition[] = []
-    data.forEach(apiCondition => {
-      conditions.push({
-        ...apiCondition,
-        date: timestampToDate(apiCondition.timestamp)
-      })
-    })
-
-    return conditions
-  }
-
   async getIsuConditions(
     jiaIsuUuid: string,
     req: ConditionRequest,
@@ -120,7 +99,7 @@ class Apis {
     const params: ApiConditionRequest = {
       ...req,
       start_time: req.start_time ? dateToTimestamp(req.start_time) : undefined,
-      cursor_end_time: dateToTimestamp(req.cursor_end_time)
+      end_time: dateToTimestamp(req.end_time)
     }
     const { data } = await axios.get<ApiCondition[]>(
       `/api/condition/${jiaIsuUuid}`,
@@ -137,6 +116,46 @@ class Apis {
 
     return conditions
   }
+
+  async getTrend(axiosConfig?: AxiosRequestConfig) {
+    const { data } = await axios.get<ApiTrendResponse>(`/api/trend`, {
+      ...axiosConfig
+    })
+
+    const trends: TrendResponse = []
+    data.forEach(trend => {
+      const info: TrendCondition[] = []
+      const warning: TrendCondition[] = []
+      const critical: TrendCondition[] = []
+      trend.info.forEach(v => {
+        info.push({
+          ...v,
+          date: timestampToDate(v.timestamp)
+        })
+      })
+      trend.warning.forEach(v => {
+        warning.push({
+          ...v,
+          date: timestampToDate(v.timestamp)
+        })
+      })
+      trend.critical.forEach(v => {
+        critical.push({
+          ...v,
+          date: timestampToDate(v.timestamp)
+        })
+      })
+
+      trends.push({
+        ...trend,
+        info: info,
+        warning: warning,
+        critical: critical
+      })
+    })
+
+    return trends
+  }
 }
 
 const apis = new Apis()
@@ -152,19 +171,24 @@ export interface Isu {
   character: string
 }
 
-export interface IsuLog {
-  jia_isu_uuid: string
-  timestamp: number
-  is_sitting: boolean
-  condition: string
-  message: string
-  created_at: string
+interface ApiGetIsuListResponse extends Isu {
+  latest_isu_condition: ApiCondition | null
+}
+
+export interface GetIsuListResponse extends Isu {
+  latest_isu_condition: Condition | null
 }
 
 export interface GraphData {
   score: number
+  percentage: ConditionPercentage
+}
+
+export interface ConditionPercentage {
   sitting: number
-  detail: { [key: string]: number }
+  is_broken: number
+  is_dirty: number
+  is_overweight: number
 }
 
 interface ApiGraph {
@@ -172,6 +196,7 @@ interface ApiGraph {
   start_at: number
   end_at: number
   data: GraphData | null
+  condition_timestamps: number[]
 }
 
 export interface Graph {
@@ -179,16 +204,7 @@ export interface Graph {
   start_at: Date
   end_at: Date
   data: GraphData | null
-}
-
-export interface IsuSearchRequest {
-  name?: string
-  charactor?: string
-  catalog_name?: string
-  min_limit_weight?: number
-  max_limit_weight?: number
-  catalog_tags?: string
-  page?: string
+  condition_timestamps: number[]
 }
 
 export const DEFAULT_SEARCH_LIMIT = 20
@@ -223,22 +239,20 @@ type ConditionLevel = 'info' | 'warning' | 'critical'
 
 interface ApiConditionRequest {
   start_time?: number
-  cursor_end_time: number
-  cursor_jia_isu_uuid: string
+  end_time: number
   // critical,warning,info をカンマ区切りで取り扱う
   condition_level: string
 }
 
 export interface ConditionRequest {
   start_time?: Date
-  cursor_end_time: Date
-  cursor_jia_isu_uuid: string
+  end_time: Date
   // critical,warning,info をカンマ区切りで取り扱う
   condition_level: string
 }
 
 interface ApiGraphRequest {
-  date: number
+  datetime: number
 }
 
 export interface GraphRequest {
@@ -246,3 +260,31 @@ export interface GraphRequest {
 }
 
 export const DEFAULT_CONDITION_LIMIT = 20
+
+interface ApiTrendResponseElement {
+  character: string
+  info: ApiTrendCondition[]
+  warning: ApiTrendCondition[]
+  critical: ApiTrendCondition[]
+}
+
+interface ApiTrendCondition {
+  isu_id: number
+  timestamp: number
+}
+
+type ApiTrendResponse = ApiTrendResponseElement[]
+
+export interface Trend {
+  character: string
+  info: TrendCondition[]
+  warning: TrendCondition[]
+  critical: TrendCondition[]
+}
+
+export interface TrendCondition {
+  isu_id: number
+  date: Date
+}
+
+export type TrendResponse = Trend[]

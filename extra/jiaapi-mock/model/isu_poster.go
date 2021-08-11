@@ -7,30 +7,29 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"net/url"
+	"path"
 	"time"
 
 	"github.com/labstack/gommon/log"
 )
 
 type IsuConditionPoster struct {
-	TargetIP   string
-	TargetPort int
-	IsuUUID    string
+	TargetURL url.URL
+	IsuUUID   string
 
 	ctx        context.Context
 	cancelFunc context.CancelFunc
 }
 
-func NewIsuConditionPoster(targetIP string, targetPort int, isuUUID string) IsuConditionPoster {
+func NewIsuConditionPoster(targetURL *url.URL, isuUUID string) IsuConditionPoster {
 	ctx, cancel := context.WithCancel(context.Background())
-	return IsuConditionPoster{targetIP, targetPort, isuUUID, ctx, cancel}
+	return IsuConditionPoster{*targetURL, isuUUID, ctx, cancel}
 }
 
 func (m *IsuConditionPoster) KeepPosting() {
-	targetURL := fmt.Sprintf(
-		"http://%s:%d/api/condition/%s",
-		m.TargetIP, m.TargetPort, m.IsuUUID,
-	)
+	targetURL := m.TargetURL
+	targetURL.Path = path.Join(targetURL.Path, "/api/condition/", m.IsuUUID)
 	randEngine := rand.New(rand.NewSource(0))
 
 	timer := time.NewTicker(2 * time.Second)
@@ -53,7 +52,7 @@ func (m *IsuConditionPoster) KeepPosting() {
 				(randEngine.Intn(2) == 0),
 				(randEngine.Intn(2) == 0),
 			),
-			Message:   "今日もいい天気",
+			Message:   "テストメッセージです",
 			Timestamp: nowTime.Unix(),
 		}})
 		if err != nil {
@@ -63,7 +62,7 @@ func (m *IsuConditionPoster) KeepPosting() {
 
 		func() {
 			resp, err := http.Post(
-				targetURL, "application/json",
+				targetURL.String(), "application/json",
 				bytes.NewBuffer(notification),
 			)
 			if err != nil {

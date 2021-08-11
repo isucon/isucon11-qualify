@@ -74,7 +74,7 @@ data "template_cloudinit_config" "config" {
   base64_encode = true
   part {
     content_type = "text/x-shellscript"
-    content      = data.template_file.isuxportal_supervisor_env[each.value].rendered
+    content      = data.template_file.isuxportal_supervisor_env[each.key].rendered
   }
 }
 
@@ -82,7 +82,7 @@ data "template_cloudinit_config" "config" {
 
 resource "aws_subnet" "isucon11q-zone-a" {
   vpc_id                  = data.aws_vpc.isucon11q.id
-  cidr_block              = "192.168.0.0/20"
+  cidr_block              = "192.168.1.0/24"
   availability_zone       = "ap-northeast-1a"
   map_public_ip_on_launch = true
   tags = {
@@ -107,14 +107,14 @@ resource "aws_instance" "bench" {
   instance_type          = "c5.large"
   key_name               = aws_key_pair.keypair.id
   subnet_id              = aws_subnet.isucon11q-zone-a.id
-  private_ip             = "192.168.1.${index(local.team_ids, each.value) + 1}"
+  private_ip             = "192.168.1.${index(local.team_ids, each.key) + 2}"
   vpc_security_group_ids = [data.aws_security_group.isucon11q-bench.id]
   root_block_device {
     volume_size = 20
     volume_type = "gp3"
     throughput  = 125
   }
-  user_data = data.template_cloudinit_config.config[each.value].rendered
+  user_data = data.template_cloudinit_config.config[each.key].rendered
   tags = {
     Name = format("bench-%s", each.value)
   }

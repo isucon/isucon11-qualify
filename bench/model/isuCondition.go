@@ -1,10 +1,5 @@
 package model
 
-import (
-	"github.com/emirpasic/gods/trees/redblacktree"
-	"github.com/isucon/isucon11-qualify/bench/model/eiya_redblacktree"
-)
-
 //enum
 type ConditionLevel int
 
@@ -14,6 +9,15 @@ const (
 	ConditionLevelWarning  ConditionLevel = 2
 	ConditionLevelCritical ConditionLevel = 4
 )
+
+func (cl ConditionLevel) Equal(conditionLevel string) bool {
+	if (cl == ConditionLevelInfo && conditionLevel == "info") ||
+		(cl == ConditionLevelWarning && conditionLevel == "warning") ||
+		(cl == ConditionLevelCritical && conditionLevel == "critical") {
+		return true
+	}
+	return false
+}
 
 //TODO: メモリ節約の必要があるなら考える
 type IsuCondition struct {
@@ -26,37 +30,30 @@ type IsuCondition struct {
 	IsBroken       bool           `json:"is_broken"`
 	ConditionLevel ConditionLevel `json:"condition_level"`
 	Message        string         `json:"message"`
-	OwnerIsuUUID   string         `json:"owner_isu_uuid"`
-	OwnerIsuID     int            `json:"owner_isu_id"`
 }
 
 //left < right
 func (left *IsuCondition) Less(right *IsuCondition) bool {
-	return left.TimestampUnix < right.TimestampUnix ||
-		(left.TimestampUnix == right.TimestampUnix && left.OwnerIsuUUID < right.OwnerIsuUUID)
+	return left.TimestampUnix < right.TimestampUnix
 }
 
 type IsuConditionCursor struct {
 	TimestampUnix int64
-	OwnerIsuUUID  string
 }
 
 //left < right
 func (left *IsuConditionCursor) Less(right *IsuConditionCursor) bool {
-	return left.TimestampUnix < right.TimestampUnix ||
-		(left.TimestampUnix == right.TimestampUnix && left.OwnerIsuUUID < right.OwnerIsuUUID)
+	return left.TimestampUnix < right.TimestampUnix
 }
 
 //left < right
 func (left *IsuCondition) Less2(right *IsuConditionCursor) bool {
-	return left.TimestampUnix < right.TimestampUnix ||
-		(left.TimestampUnix == right.TimestampUnix && left.OwnerIsuUUID < right.OwnerIsuUUID)
+	return left.TimestampUnix < right.TimestampUnix
 }
 
 //left < right
 func (left *IsuConditionCursor) Less2(right *IsuCondition) bool {
-	return left.TimestampUnix < right.TimestampUnix ||
-		(left.TimestampUnix == right.TimestampUnix && left.OwnerIsuUUID < right.OwnerIsuUUID)
+	return left.TimestampUnix < right.TimestampUnix
 }
 
 //conditionをcreated atの大きい順で見る
@@ -116,6 +113,8 @@ func (ia *IsuConditionArray) Back() *IsuCondition {
 	return iter.Prev()
 }
 
+// IsuConditionArrayは、後ろの方が新しい
+// UpperBound は IsuConditionArray から特定の時間「より新しい」最も古い(手前の)コンディションを指すイテレータを返す
 func (ia *IsuConditionArray) UpperBound(filter ConditionLevel, targetTimestamp int64, targetOwnerIsuUUID string) IsuConditionArrayIterator {
 	iter := ia.End(filter)
 	if (iter.filter & ConditionLevelInfo) != 0 {
@@ -130,6 +129,8 @@ func (ia *IsuConditionArray) UpperBound(filter ConditionLevel, targetTimestamp i
 	return iter
 }
 
+// IsuConditionArrayは、後ろの方が新しい
+// LowerBound は IsuConditionArray から特定の時間「以上の」最も古い(手前の)コンディションを指すイテレータを返す
 func (ia *IsuConditionArray) LowerBound(filter ConditionLevel, targetTimestamp int64, targetOwnerIsuUUID string) IsuConditionArrayIterator {
 	iter := ia.End(filter)
 	if (iter.filter & ConditionLevelInfo) != 0 {
@@ -179,10 +180,11 @@ func (iter *IsuConditionArrayIterator) Prev() *IsuCondition {
 }
 
 //baseはlessの昇順
+//「より大きい」を返す（C++と同じ）
 func upperBoundIsuConditionIndex(base []IsuCondition, end int, targetTimestamp int64, targetOwnerIsuUUID string) int {
 	//末尾の方にあることが分かっているので、末尾を固定要素ずつ線形探索 + 二分探索
 	//assert end <= len(base)
-	target := IsuConditionCursor{TimestampUnix: targetTimestamp, OwnerIsuUUID: targetOwnerIsuUUID}
+	target := IsuConditionCursor{TimestampUnix: targetTimestamp}
 	if end <= 0 {
 		return end //要素が見つからない
 	}
@@ -192,13 +194,19 @@ func upperBoundIsuConditionIndex(base []IsuCondition, end int, targetTimestamp i
 	}
 
 	//線形探索 ngがbase[ng] <= targetになるまで探索
-	const defaultRange = 64
+	searchRange := 64
 	ok := end
-	ng := end - defaultRange
-	ng = (ng / defaultRange) * defaultRange //0未満になるのが嫌なので、defaultRangeの倍数にする
-	for target.Less2(&base[ng]) {           //Timestampはunique仮定なので、<で良い（等価が見つかればそれで良し）
+	ng := end - searchRange
+	if ng < 0 {
+		ng = 0
+	}
+	for target.Less2(&base[ng]) { //Timestampはunique仮定なので、<で良い（等価が見つかればそれで良し）
 		ok = ng
-		ng -= defaultRange
+		ng -= searchRange
+		searchRange *= 2
+		if ng < 0 {
+			ng = 0
+		}
 	}
 
 	//答えは(ng, ok]内にあるはずなので、二分探索
@@ -215,10 +223,11 @@ func upperBoundIsuConditionIndex(base []IsuCondition, end int, targetTimestamp i
 }
 
 //baseはlessの昇順
+//「以上」を返す（C++と同じ）
 func lowerBoundIsuConditionIndex(base []IsuCondition, end int, targetTimestamp int64, targetOwnerIsuUUID string) int {
 	//末尾の方にあることが分かっているので、末尾を固定要素ずつ線形探索 + 二分探索
 	//assert end <= len(base)
-	target := IsuConditionCursor{TimestampUnix: targetTimestamp, OwnerIsuUUID: targetOwnerIsuUUID}
+	target := IsuConditionCursor{TimestampUnix: targetTimestamp}
 	if end <= 0 {
 		return end //要素が見つからない
 	}
@@ -228,13 +237,19 @@ func lowerBoundIsuConditionIndex(base []IsuCondition, end int, targetTimestamp i
 	}
 
 	//線形探索 ngがbase[ng] <= targetになるまで探索
-	const defaultRange = 64
+	searchRange := 64
 	ok := end
-	ng := end - defaultRange
-	ng = (ng / defaultRange) * defaultRange //0未満になるのが嫌なので、defaultRangeの倍数にする
-	for !base[ng].Less2(&target) {          //Timestampはunique仮定なので、<で良い（等価が見つかればそれで良し）
+	ng := end - searchRange
+	if ng < 0 {
+		ng = 0
+	}
+	for !base[ng].Less2(&target) { //Timestampはunique仮定なので、<で良い（等価が見つかればそれで良し）
 		ok = ng
-		ng -= defaultRange
+		ng -= searchRange
+		searchRange *= 2
+		if ng < 0 {
+			ng = 0
+		}
 	}
 
 	//答えは(ng, ok]内にあるはずなので、二分探索
@@ -250,140 +265,34 @@ func lowerBoundIsuConditionIndex(base []IsuCondition, end int, targetTimestamp i
 	return ok
 }
 
-//TreeSet実装
-
-//conditionをcreated atの大きい順で見る
-type IsuConditionTreeSet struct {
-	Info     *redblacktree.Tree
-	Warning  *redblacktree.Tree
-	Critical *redblacktree.Tree
-}
-
-//conditionをcreated atの大きい順で見る
-type IsuConditionTreeSetIterator struct {
-	filter   ConditionLevel
-	info     eiya_redblacktree.Iterator
-	warning  eiya_redblacktree.Iterator
-	critical eiya_redblacktree.Iterator
-	parent   *IsuConditionTreeSet
-}
-
-func NewIsuConditionTreeSet() IsuConditionTreeSet {
-	comp := func(a, b interface{}) int {
-		aAsserted := a.(*IsuCondition)
-		bAsserted := b.(*IsuCondition)
-		switch {
-		case bAsserted.Less(aAsserted): //a > b
-			return 1
-		case aAsserted.Less(bAsserted):
-			return -1
-		default:
-			return 0
-		}
-	}
-	return IsuConditionTreeSet{
-		Info:     redblacktree.NewWith(comp),
-		Warning:  redblacktree.NewWith(comp),
-		Critical: redblacktree.NewWith(comp),
-	}
-}
-
-func (is *IsuConditionTreeSet) Add(cond *IsuCondition) {
-	switch cond.ConditionLevel {
-	case ConditionLevelInfo:
-		is.Info.Put(cond, struct{}{})
-	case ConditionLevelWarning:
-		is.Warning.Put(cond, struct{}{})
-	case ConditionLevelCritical:
-		is.Critical.Put(cond, struct{}{})
-	}
-}
-
-func (ia *IsuConditionTreeSet) End(filter ConditionLevel) IsuConditionTreeSetIterator {
-	iter := IsuConditionTreeSetIterator{
-		filter:   filter,
-		info:     eiya_redblacktree.NewIterator(ia.Info),
-		warning:  eiya_redblacktree.NewIterator(ia.Warning),
-		critical: eiya_redblacktree.NewIterator(ia.Critical),
-		parent:   ia,
-	}
-	iter.info.End()
-	iter.warning.End()
-	iter.critical.End()
-	return iter
-}
-
-func (ia *IsuConditionTreeSet) Back() *IsuCondition {
-	iter := ia.End(ConditionLevelInfo | ConditionLevelWarning | ConditionLevelCritical)
-	return iter.Prev()
-}
-
-func (ia *IsuConditionTreeSet) LowerBound(filter ConditionLevel, targetTimestamp int64, targetOwnerIsuUUID string) IsuConditionTreeSetIterator {
-	iter := ia.End(filter)
-	cursor := &IsuCondition{TimestampUnix: targetTimestamp, OwnerIsuUUID: targetOwnerIsuUUID}
-	if (filter & ConditionLevelInfo) != 0 {
-		node, found := ia.Info.Ceiling(cursor)
-		if found {
-			iter.info = eiya_redblacktree.NewIteratorWithNode(ia.Info, node)
+func (cond *IsuCondition) ConditionString() string {
+	if cond.IsDirty {
+		if cond.IsOverweight {
+			if cond.IsBroken {
+				return "is_dirty=true,is_overweight=true,is_broken=true"
+			} else {
+				return "is_dirty=true,is_overweight=true,is_broken=false"
+			}
 		} else {
-			iter.info.End()
+			if cond.IsBroken {
+				return "is_dirty=true,is_overweight=false,is_broken=true"
+			} else {
+				return "is_dirty=true,is_overweight=false,is_broken=false"
+			}
 		}
-	}
-	if (filter & ConditionLevelWarning) != 0 {
-		node, found := ia.Warning.Ceiling(cursor)
-		if found {
-			iter.warning = eiya_redblacktree.NewIteratorWithNode(ia.Warning, node)
+	} else {
+		if cond.IsOverweight {
+			if cond.IsBroken {
+				return "is_dirty=false,is_overweight=true,is_broken=true"
+			} else {
+				return "is_dirty=false,is_overweight=true,is_broken=false"
+			}
 		} else {
-			iter.warning.End()
+			if cond.IsBroken {
+				return "is_dirty=false,is_overweight=false,is_broken=true"
+			} else {
+				return "is_dirty=false,is_overweight=false,is_broken=false"
+			}
 		}
 	}
-	if (filter & ConditionLevelCritical) != 0 {
-		node, found := ia.Critical.Ceiling(cursor)
-		if found {
-			iter.critical = eiya_redblacktree.NewIteratorWithNode(ia.Critical, node)
-		} else {
-			iter.critical.End()
-		}
-	}
-	return iter
-}
-
-//return: nil:もう要素がない
-func (iter *IsuConditionTreeSetIterator) Prev() *IsuCondition {
-	maxType := ConditionLevelNone
-	var max *IsuCondition
-	if (iter.filter & ConditionLevelInfo) != 0 {
-		prevOK := iter.info.Prev()
-		if prevOK && (max == nil || max.Less(iter.info.Key().(*IsuCondition))) {
-			maxType = ConditionLevelInfo
-			max = iter.info.Key().(*IsuCondition)
-		}
-		iter.info.Next()
-	}
-	if (iter.filter & ConditionLevelWarning) != 0 {
-		prevOK := iter.warning.Prev()
-		if prevOK && (max == nil || max.Less(iter.warning.Key().(*IsuCondition))) {
-			maxType = ConditionLevelWarning
-			max = iter.warning.Key().(*IsuCondition)
-		}
-		iter.warning.Next()
-	}
-	if (iter.filter & ConditionLevelCritical) != 0 {
-		prevOK := iter.critical.Prev()
-		if prevOK && (max == nil || max.Less(iter.critical.Key().(*IsuCondition))) {
-			maxType = ConditionLevelCritical
-			max = iter.critical.Key().(*IsuCondition)
-		}
-		iter.critical.Next()
-	}
-
-	switch maxType {
-	case ConditionLevelInfo:
-		iter.info.Prev()
-	case ConditionLevelWarning:
-		iter.warning.Prev()
-	case ConditionLevelCritical:
-		iter.critical.Prev()
-	}
-	return max
 }

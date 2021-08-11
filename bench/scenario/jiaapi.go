@@ -5,42 +5,30 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 	"sync"
 	"time"
 
-	"github.com/isucon/isucandar"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
+	"github.com/isucon/isucon11-qualify/bench/service"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
 
 var (
 	streamsForPosterMutex sync.Mutex
-	isuIsActivated        = map[string]JiaAPI2PosterData{}
+	isuIsActivated        = map[string]struct{}{}
 	streamsForPoster      = map[string]*model.StreamsForPoster{}
 	//isuDetailInfomation   = map[string]*IsuDetailInfomation{}
-	isuFromUUID      = map[string]*model.Isu{}
-	isuTargetBaseUrl = map[string]string{} // 本当はISUに紐付けたい
+	isuFromUUID = map[string]*model.Isu{}
 
-	jiaAPIContext context.Context
-	jiaAPIStep    *isucandar.BenchmarkStep
+	posterRootContext context.Context
 )
 
 type IsuDetailInfomation struct {
 	Character string `json:"character"`
-}
-
-type IsuConditionPosterRequest struct {
-	TargetIP   string `json:"target_ip"`
-	TargetPort int    `json:"target_port"`
-	IsuUUID    string `json:"isu_uuid"`
-}
-
-//ISU協会 Goroutineとposterの通信
-type JiaAPI2PosterData struct {
-	activated  bool
-	cancelFunc context.CancelFunc
 }
 
 //シナリオ Goroutineからの呼び出し
@@ -51,14 +39,15 @@ func RegisterToJiaAPI(isu *model.Isu, streams *model.StreamsForPoster) {
 	streamsForPoster[isu.JIAIsuUUID] = streams
 }
 
-func (s *Scenario) JiaAPIService(ctx context.Context, step *isucandar.BenchmarkStep) {
+func (s *Scenario) JiaAPIService(ctx context.Context) {
 	defer logger.AdminLogger.Println("--- JiaAPIService END")
 
-	jiaAPIContext = ctx
-	jiaAPIStep = step
+	posterRootContext, s.JiaPosterCancel = context.WithCancel(ctx)
 
 	// Echo instance
 	e := echo.New()
+	e.HideBanner = true
+	e.HidePort = true
 	//e.Debug = true
 	//e.Logger.SetLevel(log.DEBUG)
 
@@ -76,7 +65,6 @@ func (s *Scenario) JiaAPIService(ctx context.Context, step *isucandar.BenchmarkS
 	} else {
 		bindPort = "0.0.0.0:80"
 	}
-	s.loadWaitGroup.Add(1)
 	go func() {
 		defer logger.AdminLogger.Println("--- ISU協会サービス END")
 		defer s.loadWaitGroup.Done()
@@ -98,24 +86,21 @@ func (s *Scenario) JiaAPIService(ctx context.Context, step *isucandar.BenchmarkS
 }
 
 func (s *Scenario) postActivate(c echo.Context) error {
-	state := &IsuConditionPosterRequest{}
+	state := &service.JIAServiceRequest{}
 	err := c.Bind(state)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest)
 	}
-	if !(0 <= state.TargetPort && state.TargetPort < 0x1000) {
+	targetBaseURL, err := url.Parse(state.TargetBaseURL)
+	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest)
 	}
-
-	targetBaseURL := fmt.Sprintf(
-		"http://%s:%d",
-		state.TargetIP, state.TargetPort,
-	)
 
 	//poster Goroutineの起動
 	var isu *model.Isu
 	var scenarioChan *model.StreamsForPoster
-	posterContext, cancelFunc := context.WithCancel(jiaAPIContext)
+	var fqdn string
+	posterContext := posterRootContext
 	err = func() error {
 		var ok bool
 		streamsForPosterMutex.Lock()
@@ -125,33 +110,49 @@ func (s *Scenario) postActivate(c echo.Context) error {
 		if !ok {
 			return echo.NewHTTPError(http.StatusNotFound)
 		}
-		// activate 済みであれば 403 を返す
-		v, ok := isuIsActivated[state.IsuUUID]
-		if ok && v.activated {
-			return echo.NewHTTPError(http.StatusForbidden)
-		}
-		// activate 済みフラグを立てる
-		isuIsActivated[state.IsuUUID] = JiaAPI2PosterData{
-			activated:  true,
-			cancelFunc: cancelFunc,
-		}
-		isuTargetBaseUrl[state.IsuUUID] = targetBaseURL
-		// リクエストされた JIA_ISU_UUID が事前に scenario.NewIsu にて作成された isu と紐付かない場合 403 を返す
+		// リクエストされた JIA_ISU_UUID が事前に scenario.NewIsu にて作成された isu と紐付かない場合 404 を返す
 		isu, ok = isuFromUUID[state.IsuUUID]
 		if !ok {
-			return echo.NewHTTPError(http.StatusForbidden)
+			//scenarioChanでチェックしているのでここには来ないはず
+			return echo.NewHTTPError(http.StatusNotFound)
+		}
+		_, ok = isuIsActivated[state.IsuUUID]
+		if ok {
+			//activate済み
+			return nil
 		}
 
+		// useTLS が有効 && POST isucondition する URL に https 以外が指定されていたら 400 を返す
+		if s.UseTLS && targetBaseURL.Scheme != "https" {
+			return echo.NewHTTPError(http.StatusBadRequest)
+		}
+		// FQDN が競技者 VM のものでない場合 400 を返す
+		fqdn = targetBaseURL.Hostname()
+		port := targetBaseURL.Port()
+		ipAddr, ok := s.GetIPAddrFromFqdn(fqdn)
+		if !ok {
+			return echo.NewHTTPError(http.StatusBadRequest)
+		}
+		// URL の文字列を IP アドレスに変換
+		if port != "" {
+			targetBaseURL.Host = strings.Join([]string{ipAddr, port}, ":")
+		} else {
+			targetBaseURL.Host = ipAddr
+		}
+
+		// activate 済みフラグを立てる
+		isuIsActivated[state.IsuUUID] = struct{}{}
+		//activate
+		s.loadWaitGroup.Add(1)
+		go func() {
+			defer s.loadWaitGroup.Done()
+			s.keepPosting(posterContext, targetBaseURL, fqdn, isu, scenarioChan)
+		}()
 		return nil
 	}()
 	if err != nil {
 		return err
 	}
-	s.loadWaitGroup.Add(1)
-	go func() {
-		defer s.loadWaitGroup.Done()
-		s.keepPosting(posterContext, jiaAPIStep, targetBaseURL, isu, scenarioChan)
-	}()
 
 	time.Sleep(50 * time.Millisecond)
 	return c.JSON(http.StatusAccepted, IsuDetailInfomation{isu.Character})

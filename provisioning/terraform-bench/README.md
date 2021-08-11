@@ -33,3 +33,7 @@ export ISUXPORTAL_SUPERVISOR_ENDPOINT_URL=<portal の gRPC エンドポイント
 export ISUXPORTAL_SUPERVISOR_TOKEN=<portal の supervisor 接続用トークン>
 make all
 ```
+
+### 備考
+
+* 現状の terraform ファイルだと各リージョン 254 台までしか立てられない

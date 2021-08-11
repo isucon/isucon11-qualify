@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/francoispqt/gojay"
 	"github.com/isucon/isucandar/agent"
 	"github.com/isucon/isucandar/failure"
 	"github.com/isucon/isucon11-qualify/bench/logger"
@@ -102,6 +103,33 @@ func reqJSONResJSON(ctx context.Context, agent *agent.Agent, method string, rpat
 	return httpres, nil
 }
 
+func reqJSONResGojayArray(ctx context.Context, agent *agent.Agent, method string, rpath string, body io.Reader, res gojay.UnmarshalerJSONArray, allowedStatusCodes []int) (*http.Response, error) {
+	httpreq, err := agent.NewRequest(method, rpath, body)
+	if err != nil {
+		logger.AdminLogger.Panic(err)
+	}
+	httpreq.Header.Set("Content-Type", "application/json")
+
+	httpres, err := doRequest(ctx, agent, httpreq, allowedStatusCodes)
+	if err != nil {
+		return nil, err
+	}
+	defer httpres.Body.Close()
+
+	if !strings.HasPrefix(httpres.Header.Get("Content-Type"), "application/json") {
+		return nil, errorInvalidContentType(httpres, "application/json")
+	}
+
+	dec := gojay.NewDecoder(httpres.Body)
+	defer dec.Release()
+	err = dec.DecodeArray(res)
+	if err != nil {
+		return nil, err
+	}
+
+	return httpres, nil
+}
+
 func reqJSONResNoContent(ctx context.Context, agent *agent.Agent, method string, rpath string, body io.Reader, allowedStatusCodes []int) (*http.Response, error) {
 	httpreq, err := agent.NewRequest(method, rpath, body)
 	if err != nil {
@@ -147,7 +175,7 @@ func reqMultipartResJSON(ctx context.Context, agent *agent.Agent, method string,
 
 	httpres, err := doRequest(ctx, agent, httpreq, allowedStatusCodes)
 	if err != nil {
-		return nil, err
+		return httpres, err
 	}
 	defer httpres.Body.Close()
 
@@ -190,13 +218,16 @@ func doRequest(ctx context.Context, agent *agent.Agent, httpreq *http.Request, a
 	}
 
 	invalidStatusCode := true
+	if httpreq.Method == http.MethodGet {
+		allowedStatusCodes = append(allowedStatusCodes, http.StatusNotModified)
+	}
 	for _, c := range allowedStatusCodes {
 		if httpres.StatusCode == c {
 			invalidStatusCode = false
 		}
 	}
 	if invalidStatusCode {
-		return nil, errorInvalidStatusCodes(httpres, allowedStatusCodes)
+		return httpres, errorInvalidStatusCodes(httpres, allowedStatusCodes)
 	}
 
 	return httpres, nil
