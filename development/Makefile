@@ -2,16 +2,12 @@
 up-go:
 	docker-compose -f docker-compose-dev.yml up --build -- backend-go mysql-backend jiaapi-mock
 
-.PHONY: down-dev
-down-dev:
-	docker-compose -f docker-compose-dev.yml down
-
 .PHONY: up-php
 up-php:
 	docker-compose -f docker-compose-dev.yml up -d --build -- backend-php mysql-backend jiaapi-mock
 
-.PHONY: down-php
-down-php:
+.PHONY: down-dev
+down-dev:
 	docker-compose -f docker-compose-dev.yml down
 
 .PHONY: test-go
