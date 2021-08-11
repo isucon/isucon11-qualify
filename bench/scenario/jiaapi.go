@@ -110,6 +110,10 @@ func (s *Scenario) postActivate(c echo.Context) error {
 		if !ok {
 			return echo.NewHTTPError(http.StatusNotFound)
 		}
+		// useTLS が有効 && POST isucondition する URL に https 以外が指定されていたら 400 を返す
+		if s.UseTLS && targetBaseURL.Scheme != "https" {
+			return echo.NewHTTPError(http.StatusBadRequest)
+		}
 		// FQDN が競技者 VM のものでない場合 400 を返す
 		fqdn = targetBaseURL.Hostname()
 		port := targetBaseURL.Port()
