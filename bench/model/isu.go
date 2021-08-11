@@ -56,8 +56,8 @@ type Isu struct {
 	CondMutex                      sync.RWMutex
 	LastCompletedGraphTime         int64                         //シナリオ Goroutineからのみ参照
 	PostTime                       time.Time                     //POST /isu/:id を叩いた仮想時間
-	LastReadConditionTimestamps    [service.ConditionLimit]int64 //シナリオ Goroutineからのみ参照(循環参照許して)
-	LastReadBadConditionTimestamps [service.ConditionLimit]int64 //シナリオ Goroutineからのみ参照(循環参照許して)
+	LastReadConditionTimestamps    [service.ConditionLimit]int64 //シナリオ Goroutineからのみ参照
+	LastReadBadConditionTimestamps [service.ConditionLimit]int64 //シナリオ Goroutineからのみ参照
 	CreatedAt                      time.Time                     `json:"created_at"`
 }
 
