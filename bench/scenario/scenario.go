@@ -2,6 +2,7 @@ package scenario
 
 import (
 	"context"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"sync"
@@ -154,7 +155,22 @@ func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a
 
 //新しい登録済みISUの生成
 //失敗したらnilを返す
-func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, owner *model.User, addToUser bool, img []byte, retry bool) *model.Isu {
+func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, owner *model.User, addToUser bool, retry bool) *model.Isu {
+	var image []byte = nil
+	if rand.Int31n(100) != 0 {
+		//画像付きでPOST
+		var err error
+		image, err = random.Image()
+		if err != nil {
+			logger.AdminLogger.Panic(err)
+		}
+	}
+	return s.NewIsuWithCustomImg(ctx, step, owner, addToUser, image, retry)
+}
+
+//新しい登録済みISUの生成
+//失敗したらnilを返す
+func (s *Scenario) NewIsuWithCustomImg(ctx context.Context, step *isucandar.BenchmarkStep, owner *model.User, addToUser bool, img []byte, retry bool) *model.Isu {
 	isu, streamsForPoster, err := model.NewRandomIsuRaw(owner)
 	if err != nil {
 		logger.AdminLogger.Panic(err)
