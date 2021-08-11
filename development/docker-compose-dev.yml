@@ -37,9 +37,9 @@ services:
     environment:
       MYSQL_HOST: mysql-backend
       MYSQL_PORT: 3306
-      MYSQL_DATABASE: isucondition
+      MYSQL_DBNAME: isucondition
       MYSQL_USER: isucon
-      MYSQL_PASSWORD: isucon
+      MYSQL_PASS: isucon
       SERVER_PUBLIC_ADDRESS: backend-php
       SERVER_PUBLIC_PORT: 3000
     entrypoint: dockerize -wait tcp://mysql-backend:3306 -timeout 60s
