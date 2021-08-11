@@ -125,11 +125,6 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 		}
 	}()
 
-	if finish {
-		result.Errors.Wait()
-		result.Score.Wait()
-	}
-
 	passed := true
 	reason := "pass"
 	errors := result.Errors.All()
