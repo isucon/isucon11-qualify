@@ -64,6 +64,7 @@ def get_user_id_from_session():
 
 @app.route("/initialize", methods=["POST"])
 def post_initialize():
+    """サービスを初期化"""
     if "jia_service_url" not in request.json:
         raise BadRequest("bad request body")
 
@@ -83,6 +84,7 @@ def post_initialize():
 
 @app.route("/api/auth", methods=["POST"])
 def post_auth():
+    """サインアップ・サインイン"""
     req_jwt = request.headers["Authorization"][len("Bearer ") :]
     req_jwt_header = jwt.get_unverified_header(req_jwt)
     req_jwt_payload = jwt.decode(req_jwt, jwt_public_key, algorithms=[req_jwt_header["alg"]])
@@ -104,6 +106,7 @@ def post_auth():
 
 @app.route("/api/signout", methods=["POST"])
 def post_signout():
+    """サインアウト"""
     get_user_id_from_session()
     session.clear()
     return ""
@@ -111,12 +114,14 @@ def post_signout():
 
 @app.route("/api/user/me", methods=["GET"])
 def get_me():
+    """サインインしている自分自身の情報を取得"""
     jia_user_id = get_user_id_from_session()
     return {"jia_user_id": jia_user_id}
 
 
 @app.route("/api/isu", methods=["GET"])
 def get_isu_list():
+    """ISUの一覧を取得"""
     jia_user_id = get_user_id_from_session()
 
     query = "SELECT * FROM `isu` WHERE `jia_user_id` = %s ORDER BY `id` DESC"
@@ -156,36 +161,43 @@ def get_isu_list():
 
 @app.route("/api/isu", methods=["POST"])
 def post_isu():
+    """ISUを登録"""
     raise NotImplementedError
 
 
-@app.route("/api/isu/:jia_isu_uuid", methods=["GET"])
-def get_isu_id():
+@app.route("/api/isu/<jia_isu_uuid>", methods=["GET"])
+def get_isu_id(jia_isu_uuid):
+    """ISUの情報を取得"""
     raise NotImplementedError
 
 
-@app.route("/api/isu/:jia_isu_uuid/icon", methods=["GET"])
-def get_isu_icon():
+@app.route("/api/isu/<jia_isu_uuid>/icon", methods=["GET"])
+def get_isu_icon(jia_isu_uuid):
+    """ISUのアイコンを取得"""
     raise NotImplementedError
 
 
-@app.route("/api/isu/:jia_isu_uuid/graph", methods=["GET"])
-def get_isu_graph():
+@app.route("/api/isu/<jia_isu_uuid>/graph", methods=["GET"])
+def get_isu_graph(jia_isu_uuid):
+    """ISUのコンディショングラフ描画のための情報を取得"""
     raise NotImplementedError
 
 
-@app.route("/api/condition/:jia_isu_uuid", methods=["GET"])
-def get_isu_confitions():
+@app.route("/api/condition/<jia_isu_uuid>", methods=["GET"])
+def get_isu_confitions(jia_isu_uuid):
+    """ISUのコンディションを取得"""
     raise NotImplementedError
 
 
 @app.route("/api/trend", methods=["GET"])
 def get_trend():
+    """ISUの性格毎の最新のコンディション情報"""
     raise NotImplementedError
 
 
-@app.route("/api/condition/:jia_isu_uuid", methods=["POST"])
-def post_isu_condition():
+@app.route("/api/condition/<jia_isu_uuid>", methods=["POST"])
+def post_isu_condition(jia_isu_uuid):
+    """ISUからのコンディションを受け取る"""
     raise NotImplementedError
 
 
@@ -199,8 +211,8 @@ def get_condition():
     return send_file("../public/index.html")
 
 
-@app.route("/isu/:jia_isu_uuid", methods=["GET"])
-def get_isu():
+@app.route("/isu/<jia_isu_uuid>", methods=["GET"])
+def get_isu(jia_isu_uuid):
     return send_file("../public/index.html")
 
 
