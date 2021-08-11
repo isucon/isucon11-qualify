@@ -1,10 +1,18 @@
 from os import getenv
 from subprocess import call
-from flask import Flask, request, session, send_file
+from enum import Enum
+from flask import Flask, request, session, send_file, jsonify
 from werkzeug.exceptions import BadRequest, Unauthorized
 import mysql.connector
 from sqlalchemy.pool import QueuePool
 import jwt
+
+
+class CONDITION_LEVEL(str, Enum):
+    INFO = "info"
+    WARNING = "warning"
+    CRITICAL = "critical"
+
 
 app = Flask(__name__, static_folder="../public/assets", static_url_path="/assets")
 app.secret_key = getenv("SESSION_KEY", "isucondition")
@@ -109,7 +117,41 @@ def get_me():
 
 @app.route("/api/isu", methods=["GET"])
 def get_isu_list():
-    raise NotImplementedError
+    jia_user_id = get_user_id_from_session()
+
+    query = "SELECT * FROM `isu` WHERE `jia_user_id` = %s ORDER BY `id` DESC"
+    isu_list = select_all(query, (jia_user_id,))
+
+    response_list = []
+    for isu in isu_list:
+        found_last_condition = True
+        query = "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = %s ORDER BY `timestamp` DESC LIMIT 1"
+        last_condition = select_row(query, (isu["jia_isu_uuid"],))
+        if last_condition is None:
+            found_last_condition = False
+
+        formatted_condition = None
+        if found_last_condition:
+            condition_level = calculate_condition_level(last_condition["condition"])
+            formatted_condition = {
+                "jia_isu_uuid": last_condition["jia_isu_uuid"],
+                "isu_name": isu["name"],
+                "timestamp": last_condition["timestamp"].timestamp(),
+                "condition": last_condition["condition"],
+                "condition_level": condition_level,
+                "message": last_condition["message"],
+            }
+
+        res = {
+            "id": isu["id"],
+            "jia_isu_uuid": isu["jia_isu_uuid"],
+            "name": isu["name"],
+            "character": isu["character"],
+            "latest_isu_condition": formatted_condition,
+        }
+        response_list.append(res)
+
+    return jsonify(response_list)
 
 
 @app.route("/api/isu", methods=["POST"])
@@ -170,6 +212,22 @@ def get_register():
 @app.route("/login", methods=["GET"])
 def get_login():
     return send_file("../public/index.html")
+
+
+def calculate_condition_level(condition: str) -> CONDITION_LEVEL:
+    """ISUのコンディションの文字列からコンディションレベルを計算"""
+    warn_count = condition.count("=true")
+
+    if warn_count == 0:
+        condition_level = CONDITION_LEVEL.INFO
+    elif warn_count in (1, 2):
+        condition_level = CONDITION_LEVEL.WARNING
+    elif warn_count == 3:
+        condition_level = CONDITION_LEVEL.CRITICAL
+    else:
+        raise Exception("unexpected warn count")
+
+    return condition_level
 
 
 if __name__ == "__main__":
