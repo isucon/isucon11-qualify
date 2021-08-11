@@ -1,9 +1,13 @@
 import { useEffect } from 'react'
 import { useState } from 'react'
-import apis, { TrendResponse } from '../../lib/apis'
+import apis, { TrendResponse, Trend } from '../../lib/apis'
 import NowLoading from '../UI/NowLoading'
 import TrendElement from './Trend'
 import TrendHeadeer from './TrendHeader'
+
+const calcAllConditionLength = (trend: Trend) => {
+  return trend.info.length + trend.warning.length + trend.critical.length
+}
 
 const TrendList = () => {
   const [trends, setTrends] = useState<TrendResponse>([])
@@ -11,13 +15,16 @@ const TrendList = () => {
   useEffect(() => {
     const update = async () => {
       const newTrends = await apis.getTrend()
-      newTrends.sort((a, b) => b.conditions.length - a.conditions.length)
+      newTrends.sort(
+        (a, b) => calcAllConditionLength(b) - calcAllConditionLength(a)
+      )
       setTrends(newTrends)
 
       let max = 0
       newTrends.forEach(v => {
-        if (v.conditions.length > max) {
-          max = v.conditions.length
+        const tmpLen = calcAllConditionLength(v)
+        if (tmpLen > max) {
+          max = tmpLen
         }
       })
       setMaxConditionCount(max)

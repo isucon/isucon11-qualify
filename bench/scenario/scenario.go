@@ -26,7 +26,6 @@ type Scenario struct {
 	BaseURL                  string        // ベンチ対象 Web アプリの URL
 	NoLoad                   bool          // Load(ベンチ負荷)を強要しない
 	LoadTimeout              time.Duration //Loadのcontextの時間
-	realTimeLoadFinishedAt   time.Time     //Loadのcontext終了時間
 	realTimePrepareStartedAt time.Time     //Prepareの開始時間
 	virtualTimeStart         time.Time
 	virtualTimeMulti         time.Duration //時間が何倍速になっているか
@@ -39,8 +38,8 @@ type Scenario struct {
 	// 競技者の実装言語
 	Language string
 
-	loadWaitGroup sync.WaitGroup
-	JiaCancel     context.CancelFunc
+	loadWaitGroup   sync.WaitGroup
+	JiaPosterCancel context.CancelFunc
 
 	//内部状態
 	normalUsersMtx sync.Mutex
@@ -136,6 +135,10 @@ func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a
 	}
 
 	//backendにpostする
+	go func() {
+		// 登録済みユーザーは trend に興味がないからリクエストを待たない
+		browserGetLandingPageIgnoreAction(ctx, a)
+	}()
 	//TODO: 確率で失敗してリトライする
 	_, errs := authAction(ctx, a, user.UserID)
 	for _, err := range errs {

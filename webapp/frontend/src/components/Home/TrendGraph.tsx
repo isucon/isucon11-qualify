@@ -1,7 +1,7 @@
-import { TrendCondition } from '../../lib/apis'
+import { Trend } from '../../lib/apis'
 
 interface Props {
-  conditions: TrendCondition[]
+  trend: Trend
   maxConditionCount: number
 }
 
@@ -12,33 +12,25 @@ const calcWidthPercentage = (
   return `${Math.round((conditionLength / maxConditionCount) * 100)}%`
 }
 
-const divideConditions = (conditions: TrendCondition[]) => {
-  const info = conditions.filter(v => v.condition_level === 'info')
-  const warning = conditions.filter(v => v.condition_level === 'warning')
-  const critical = conditions.filter(v => v.condition_level === 'critical')
-  return { info, warning, critical }
-}
-
-const TrendGraph = ({ conditions, maxConditionCount }: Props) => {
-  const divided = divideConditions(conditions)
+const TrendGraph = ({ trend, maxConditionCount }: Props) => {
   return (
     <div className="flex items-center w-full h-4">
       <div
         className="h-full bg-status-info"
         style={{
-          width: calcWidthPercentage(divided.info.length, maxConditionCount)
+          width: calcWidthPercentage(trend.info.length, maxConditionCount)
         }}
       />
       <div
         className="h-full bg-status-warning"
         style={{
-          width: calcWidthPercentage(divided.warning.length, maxConditionCount)
+          width: calcWidthPercentage(trend.warning.length, maxConditionCount)
         }}
       />
       <div
         className="h-full bg-status-critical"
         style={{
-          width: calcWidthPercentage(divided.critical.length, maxConditionCount)
+          width: calcWidthPercentage(trend.critical.length, maxConditionCount)
         }}
       />
     </div>

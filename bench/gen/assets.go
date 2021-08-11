@@ -54,14 +54,19 @@ func glob(v *Variable, prefix string) {
 
 		filename := strings.TrimPrefix(match, rootPrefix+"/")
 		v.Hash["/"+filename] = hash(match)
-		basename := strings.Split(filename, ".")[0]
-		ext := strings.Split(filename, ".")[2]
-		v.Map["/"+basename+"."+ext] = "/" + filename
+		splitted := strings.Split(filename, ".")
+		if len(splitted) > 2 {
+			basename := splitted[0]
+			ext := splitted[2]
+			v.Map["/"+basename+"."+ext] = "/" + filename
+		} else {
+			v.Map["/"+filename] = "/" + filename
+		}
 	}
 }
 
 func main() {
-	prefix := filepath.Join("..", "..", "webapp", "public", "assets")
+	prefix := filepath.Join("..", "..", "webapp", "public")
 	rootPrefix = prefix
 
 	v := &Variable{

@@ -52,7 +52,7 @@ func (m *IsuConditionPoster) KeepPosting() {
 				(randEngine.Intn(2) == 0),
 				(randEngine.Intn(2) == 0),
 			),
-			Message:   "今日もいい天気",
+			Message:   "テストメッセージです",
 			Timestamp: nowTime.Unix(),
 		}})
 		if err != nil {
