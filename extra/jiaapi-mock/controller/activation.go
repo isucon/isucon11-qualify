@@ -3,8 +3,6 @@ package controller
 import (
 	"net/http"
 	"net/url"
-	"strconv"
-	"strings"
 
 	"github.com/isucon/isucon11-qualify/jiaapi-mock/model"
 	"github.com/labstack/echo/v4"
@@ -80,29 +78,13 @@ func (c *ActivationController) PostActivate(ctx echo.Context) error {
 		return ctx.String(http.StatusBadRequest, "Bad URL")
 	}
 
-	split := strings.Split(parsedURL.Host, ":")
-	if len(split) != 2 {
-		ctx.Logger().Errorf("bad url")
-		return ctx.String(http.StatusBadRequest, "Bad URL")
-	}
-	port, err := strconv.Atoi(split[1])
-	if err != nil {
-		ctx.Logger().Errorf("bad port: %v", err)
-		return ctx.String(http.StatusBadRequest, "Bad port")
-	}
-
-	if !(0 <= port && port < 0x1000) {
-		ctx.Logger().Errorf("bad port: %v", port)
-		return ctx.String(http.StatusBadRequest, "Bad port")
-	}
-
 	isuState, ok := validIsu[req.IsuUUID]
 	if !ok {
 		ctx.Logger().Errorf("bad isu_uuid: %v", req.IsuUUID)
 		return ctx.String(http.StatusNotFound, "Bad isu_uuid")
 	}
 
-	err = c.isuConditionPosterManager.StartPosting(req.TargetBaseURL, req.IsuUUID)
+	err = c.isuConditionPosterManager.StartPosting(parsedURL, req.IsuUUID)
 	if err != nil {
 		ctx.Logger().Errorf("failed to startPosting: %v", err)
 		return ctx.NoContent(http.StatusInternalServerError)
