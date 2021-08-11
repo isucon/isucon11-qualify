@@ -177,7 +177,8 @@ func verifyIsuList(res *http.Response, expectedReverse []*model.Isu, isuList []*
 //mustExistUntil: この値以下のtimestampを持つものは全て反映されているべき
 func verifyIsuConditions(res *http.Response,
 	targetUser *model.User, targetIsuUUID string, request *service.GetIsuConditionRequest,
-	backendData []*service.GetIsuConditionResponse) error {
+	backendData []*service.GetIsuConditionResponse,
+	mustExistTimestamps [service.ConditionLimit]int64) error {
 
 	//limitを超えているかチェック
 	if service.ConditionLimit < len(backendData) {
@@ -278,6 +279,36 @@ func verifyIsuConditions(res *http.Response,
 	}(); err != nil {
 		return err
 	}
+
+	//mustExistTimestamps
+	mustExistIndex := 0
+	for request.EndTime <= mustExistTimestamps[mustExistIndex] {
+		mustExistIndex++
+		if service.ConditionLimit <= mustExistIndex {
+			break
+		}
+	}
+	for _, c := range backendData {
+		if service.ConditionLimit <= mustExistIndex {
+			break
+		}
+
+		if mustExistTimestamps[mustExistIndex] < c.Timestamp {
+			continue
+		}
+		if mustExistTimestamps[mustExistIndex] == c.Timestamp {
+			mustExistIndex++
+			continue
+		}
+		return errorInvalid(res, "以前に存在を確認したデータが欠落しています")
+	}
+	if len(backendData) < service.ConditionLimit && mustExistIndex < service.ConditionLimit && mustExistTimestamps[mustExistIndex] != 0 {
+		if request.StartTime == nil || *request.StartTime <= mustExistTimestamps[mustExistIndex] {
+			//まだ表示されるべきデータが残っている
+			return errorInvalid(res, "limitに満たない件数のデータが返されました: 以前に存在を確認したデータが欠落しています")
+		}
+	}
+
 	return nil
 }
 

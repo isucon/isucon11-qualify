@@ -413,7 +413,7 @@ func (s *Scenario) requestLastBadConditionScenario(ctx context.Context, step *is
 	_, conditions, errs := browserGetIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
 		request,
 		func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
-			err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request, conditions)
+			err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request, conditions, targetIsu.LastReadBadConditionTimestamps)
 			if err != nil {
 				return []error{err}
 			}
@@ -489,7 +489,7 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 	_, firstPageConditions, errs := browserGetIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
 		request,
 		func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
-			err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request, conditions)
+			err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request, conditions, targetIsu.LastReadConditionTimestamps)
 			if err != nil {
 				return []error{err}
 			}
@@ -536,7 +536,7 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 		if err != nil {
 			return nil, newLastReadConditionTimestamps, []error{err}
 		}
-		err = verifyIsuConditions(hres, user, targetIsu.JIAIsuUUID, &request, tmpConditions)
+		err = verifyIsuConditions(hres, user, targetIsu.JIAIsuUUID, &request, tmpConditions, targetIsu.LastReadConditionTimestamps)
 		if err != nil {
 			return nil, newLastReadConditionTimestamps, []error{err}
 		}
@@ -668,7 +668,7 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 			addErrorWithContext(ctx, step, err)
 			return
 		}
-		err = verifyIsuConditions(hres, user, targetIsu.JIAIsuUUID, &request, conditions)
+		err = verifyIsuConditions(hres, user, targetIsu.JIAIsuUUID, &request, conditions, targetIsu.LastReadConditionTimestamps)
 		if err != nil {
 			addErrorWithContext(ctx, step, err)
 			return
