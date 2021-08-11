@@ -125,6 +125,11 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 		}
 	}()
 
+	if finish {
+		result.Errors.Wait()
+		result.Score.Wait()
+	}
+
 	passed := true
 	reason := "pass"
 	errors := result.Errors.All()
@@ -322,9 +327,6 @@ func main() {
 			return nil
 		default:
 		}
-
-		// 初期実装だと fail してしまうため下駄をはかせる
-		step.AddScore(scenario.ScoreStartBenchmark)
 
 		for {
 			// 途中経過を3秒毎に送信
