@@ -55,7 +55,7 @@ $target_base_url/api/condition/$isu_uuid
 注意点として、以下の2点があります。
 
 - `target_base_url` を変更することで ISU がコンディションを送る先を変更することが可能ですが、既に登録済みの ISU には反映されません。
-- `target_base_url` に含まれる FQDN に `isucondition-[1-3].t.isucon.dev` 以外を指定した場合 ISU のアクティベートに失敗します。
+- `target_base_url` に含まれる FQDN に `isucondition-[1-3].t.isucon.dev` 以外を指定した場合 JIA から `400 Bad Request` が返され ISU のアクティベートに失敗します。
 
 なお上記の `target_base_url` は環境変数 `POST_CONDITION_TARGET_BASE_URL` で指定されています。
 
