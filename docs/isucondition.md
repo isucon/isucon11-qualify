@@ -28,7 +28,7 @@
 - **グラフ**: 1日の中でスコアが遷移した記録
 - **トレンド**: ISUCONDITIONに登録されているISUたちの、性格ごとの最新の状態を表示したもの。
 
-## ISUCONDITONの機能とユーザ、ISU、閲覧者について
+## ISUCONDITIONの機能とユーザ、ISU、閲覧者について
 
 ### 1. ユーザ登録/ログイン
 
@@ -52,11 +52,10 @@ JIA は ISUCONDITION から ISU のアクティベートリクエストを受け
 $target_base_url/api/condition/$isu_uuid
 ```
 
-注意点として、以下の3点があります。
+注意点として、以下の2点があります。
 
 - `target_base_url` を変更することで ISU がコンディションを送る先を変更することが可能ですが、既に登録済みの ISU には反映されません。
 - `target_base_url` に含まれる FQDN に `isucondition-[1-3].t.isucon.dev` 以外を指定した場合 ISU のアクティベートに失敗します。
-- `target_base_url` にはポート番号が必要です `isucondition-1.t.isucon.dev:3000`。ポート番号を指定しない場合 ISU のアクティベートに失敗します。
 
 なお上記の `target_base_url` は環境変数 `POST_CONDITION_TARGET_BASE_URL` で指定されています。
 
@@ -94,7 +93,7 @@ ISUCONDITIONは、ISUから送信されるコンディション (`POST /api/cond
 
 ### 5. トレンド
 
-閲覧者は、**"未ログイン状態"** でISUCONDITIONのトップページ　(`/`) に表示されるトレンドを確認しています。
+閲覧者は、**"未ログイン状態"** でISUCONDITIONのトップページ (`/`) に表示されるトレンドを確認しています。
 トレンドではISUCONDITIONに登録されているすべてのISUたちの最新のコンディションが取得できます。
 トレンドで取得されるコンディションはISUが持つ性格ごとにまとまった形となっています。
 
