@@ -1,0 +1,27 @@
+---
+
+- hosts: all
+  tasks:
+  - name: "Deploy bench binary"
+    become_user: root
+    copy:
+      src: bench
+      dest: /tmp/bench
+      owner: isucon
+      group: isucon
+      mode: 0755
+    ignore_errors: yes
+  - name: "Deploy supervisor binary"
+    become_user: root
+    copy:
+      src: isuxportal-supervisor
+      dest: /tmp/isuxportal-supervisor
+      owner: isucon
+      group: isucon
+      mode: 0755
+    ignore_errors: yes
+  - name: "Restart isuxportal-supervisor.service"
+    become_user: root
+    systemd:
+      name: "isuxportal-supervisor.service"
+      state: restarted

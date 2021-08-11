@@ -1,20 +1,21 @@
 package main
 
 import (
-	"github.com/google/uuid"
 	"log"
 	"math/rand"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/isucon/isucon11-qualify/bench/random"
 	"github.com/isucon/isucon11-qualify/extra/initial-data/models"
 )
 
 const (
-	userNum           = 120
-	userGeneralWeight = 3
-	userManiaWeight   = 1
-	userCompanyWeight = 2
+	userNum            = 320
+	userPattern1Weight = 3
+	userPattern2Weight = 1
+	userPattern3Weight = 2
 )
 
 func init() {
@@ -35,25 +36,22 @@ func main() {
 			conditionDurationMinutes int
 			conditionNum             int
 		}{
-			// isucon ユーザは個人ユーザ相当（prepare checkに利用）
+			// isucon ユーザは load 中に動かすため ISU は持たない
+			// {
+			// 	models.User{JIAUserID: "isucon", CreatedAt: random.Time().Add(-3 * 24 * time.Hour)},
+			// },
+			// isucon1 ユーザは個人ユーザ相当（prepare checkに利用）
 			{
-				// isuconユーザは3日分のconditionを持つので、作成日は3日分マイナスしておく
-				models.User{JIAUserID: "isucon", CreatedAt: random.Time().Add(-3 * 24 * time.Hour)},
+				// isucon1ユーザは3日分のconditionを持つので、作成日は3日分マイナスしておく
+				models.User{JIAUserID: "isucon1", CreatedAt: random.Time().Add(-3 * 24 * time.Hour)},
 				2,   // ISU の個数は 2
 				10,  // condition を 10 分おきに送信
 				432, // condition の総数は 72 時間分
 			},
-			// isucon1 ユーザは個人ユーザ相当
-			{
-				models.User{JIAUserID: "isucon1", CreatedAt: random.Time()},
-				2,   // ISU の個数は 2
-				3,   // condition を 3 分おきに送信
-				480, // condition の総数は 24 時間分
-			},
 			// isucon2 ユーザは企業ユーザ相当
 			{
 				models.User{JIAUserID: "isucon2", CreatedAt: random.Time()},
-				50,  // ISU の個数は 50
+				15,  // ISU の個数は 15
 				5,   // condition を 5 分おきに送信
 				288, // condition の総数は 24 時間分
 			},
@@ -71,8 +69,12 @@ func main() {
 				isuCounter += 1
 				isu := models.NewIsu(d.user)
 				isu.CreatedAt = d.user.CreatedAt.Add(time.Minute) // ISU は User 作成の1分後に作成される
-				isu = isu.WithUpdateName()
-				isu = isu.WithUpdateImage()
+				if err := isu.WithUpdateName(); err != nil {
+					log.Fatalf("%+v", err)
+				}
+				if err := isu.WithUpdateImage(); err != nil {
+					log.Fatalf("%+v", err)
+				}
 				// INSERT isu
 				if err := isu.Create(); err != nil {
 					log.Fatal(err)
@@ -116,20 +118,20 @@ func main() {
 
 			// user の特性を乱数で決定
 			var isuNum, conditionDurationMinutes, conditionNum int
-			n := rand.Intn(userGeneralWeight + userManiaWeight + userCompanyWeight)
+			n := rand.Intn(userPattern1Weight + userPattern2Weight + userPattern3Weight)
 			switch true {
-			case n < userGeneralWeight: // 一般人
-				isuNum = 1 + rand.Intn(4)         // ISU の個数は 1 ~ 4
+			case n < userPattern1Weight: // 一般人
+				isuNum = 1 + rand.Intn(15)        // isuは1-15で所有
 				conditionDurationMinutes = 3      // condition を 3 分おきに送信
-				conditionNum = 60 + rand.Intn(20) // condition 総数は 3 ~ 4 時間分
-			case n < userGeneralWeight+userManiaWeight: // 一般人 (マニア)
-				isuNum = 15 + rand.Intn(10)        // ISU の個数は 15 ~ 24
-				conditionDurationMinutes = 1       // condition を 1 分おきに送信
-				conditionNum = 180 + rand.Intn(60) // condition 総数は 3 ~ 4 時間分
-			case n < userGeneralWeight+userManiaWeight+userCompanyWeight: // 企業
-				isuNum = 40 + rand.Intn(20)       // ISU の個数は 40 ~ 59
-				conditionDurationMinutes = 5      // condition を 5 分おきに送信
-				conditionNum = 36 + rand.Intn(12) // condition 総数は 3 ~ 4 時間分
+				conditionNum = 60 + rand.Intn(15) // condition 総数は 3 ~ 4 時間分
+			case n < userPattern1Weight+userPattern2Weight: // 一般人 (コンディション多め)
+				isuNum = 1 + rand.Intn(15)         // isuは1-15で所有
+				conditionDurationMinutes = 5       // condition を 5 分おきに送信
+				conditionNum = 100 + rand.Intn(25) // condition 総数は 8 ~ 10 時間分
+			case n < userPattern1Weight+userPattern2Weight+userPattern3Weight: // 一般人（コンディションちょっと少なめ）
+				isuNum = 1 + rand.Intn(15)        // isuは1-15で所有
+				conditionDurationMinutes = 24     // condition を 24 分おきに送信
+				conditionNum = 30 + rand.Intn(31) // condition 総数は 12 ~ 24 時間分
 			}
 
 			// User の所持する ISU 分だけ loop
@@ -138,10 +140,14 @@ func main() {
 				isu := models.NewIsu(user)
 				// 確率で ISU を更新
 				if rand.Intn(4) < 1 { // 1/4
-					isu = isu.WithUpdateName()
+					if err := isu.WithUpdateName(); err != nil {
+						log.Fatalf("%+v", err)
+					}
 				}
 				if rand.Intn(10) < 9 { // 9/10
-					isu = isu.WithUpdateImage()
+					if err := isu.WithUpdateImage(); err != nil {
+						log.Fatalf("%+v", err)
+					}
 				}
 				// INSERT isu
 				if err := isu.Create(); err != nil {

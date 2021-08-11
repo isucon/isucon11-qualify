@@ -2,56 +2,69 @@ package scenario
 
 import (
 	"context"
-	"fmt"
+	"crypto/tls"
 	"math/rand"
 	"net/http"
+	"net/url"
+	"path"
 	"time"
 
-	"github.com/isucon/isucandar"
 	"github.com/isucon/isucon11-qualify/bench/model"
+	"github.com/isucon/isucon11-qualify/bench/random"
 	"github.com/isucon/isucon11-qualify/bench/service"
 )
 
 const (
-	// MEMO: 最大でも一秒に一件しか送れないので点数上限になるが、解決できるとは思えないので良い
-	PostIntervalSecond = 60 //Virtual Timeでのpost間隔
-	PostContentNum     = 20 //一回のpostで何要素postするか
+	// MEMO: 最大でも60秒に一件しか送れないので点数上限になるが、解決できるとは思えないので良い
+	PostIntervalSecond     = 60 //Virtual Timeでのpost間隔
+	PostIntervalBlurSecond = 5  //Virtual Timeでのpost間隔のブレ幅(+-PostIntervalBlurSecond)
+	PostContentNum         = 10 //一回のpostで何要素postするか virtualTimeMulti * timerDuration(20ms) / PostIntervalSecond
 )
 
+func init() {
+	if !(2*PostIntervalBlurSecond < PostIntervalSecond) {
+		panic("assert: 2*PostIntervalBlurSecond < PostIntervalSecond")
+	}
+}
+
 type posterState struct {
-	lastConditionTimestamp        int64
-	lastCleanTimestamp            int64
-	lastDetectOverweightTimestamp int64
-	lastRepairTimestamp           int64
-	lastConditionIsSitting        bool
-	lastConditionIsDirty          bool
-	lastConditionIsBroken         bool
-	lastConditionIsOverweight     bool
+	lastConditionTimestamp int64
+	isSitting              bool
+	dirty                  badCondition
+	overWeight             badCondition
+	broken                 badCondition
+}
+
+type badCondition struct {
+	fixedTime int64
+	isNow     bool
 }
 
 //POST /api/condition/{jia_isu_id}をたたく Goroutine
-func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkStep, targetBaseURL string, isu *model.Isu, scenarioChan *model.StreamsForPoster) {
-	defer close(scenarioChan.ConditionChan)
-	postConditionTimeout := 50 * time.Millisecond //MEMO: timeout は気にせずにズバズバ投げる
+func (s *Scenario) keepPosting(ctx context.Context, targetBaseURL *url.URL, fqdn string, isu *model.Isu, scenarioChan *model.StreamsForPoster) {
+	postConditionTimeout := 100 * time.Millisecond //MEMO: timeout は気にせずにズバズバ投げる
 
-	nowTime := s.ToVirtualTime(time.Now())
+	targetBaseURL.Path = path.Join(targetBaseURL.Path, "/api/condition/", isu.JIAIsuUUID)
+	nowTimeStamp := s.ToVirtualTime(time.Now()).Unix()
 	state := posterState{
 		// lastConditionTimestamp: 0,
-		lastConditionTimestamp:        nowTime.Unix(),
-		lastCleanTimestamp:            0,
-		lastDetectOverweightTimestamp: 0,
-		lastRepairTimestamp:           0,
-		lastConditionIsSitting:        false,
-		lastConditionIsDirty:          false,
-		lastConditionIsBroken:         false,
-		lastConditionIsOverweight:     false,
+		lastConditionTimestamp: nowTimeStamp,
+		dirty:                  badCondition{0, false},
+		overWeight:             badCondition{0, false},
+		broken:                 badCondition{0, false},
+		isSitting:              false,
 	}
 	randEngine := rand.New(rand.NewSource(rand.Int63()))
-	targetURL := fmt.Sprintf("%s/api/condition/%s", targetBaseURL, isu.JIAIsuUUID)
 	httpClient := http.Client{}
 	httpClient.Timeout = postConditionTimeout
+	httpClient.Transport = &http.Transport{
+		TLSClientConfig: &tls.Config{
+			ServerName: fqdn,
+		},
+		ForceAttemptHTTP2: true,
+	}
 
-	timer := time.NewTicker(20 * time.Millisecond)
+	timer := time.NewTicker(40 * time.Millisecond)
 	defer timer.Stop()
 	for {
 		select {
@@ -60,7 +73,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 		case <-timer.C:
 		}
 
-		nowTimeStamp := s.ToVirtualTime(time.Now()).Unix()
+		nowTimeStamp = s.ToVirtualTime(time.Now()).Unix()
 
 		//状態変化
 		stateChange := model.IsuStateChangeNone
@@ -89,6 +102,7 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 
 		//TODO: 検証可能な生成方法にする
 		//TODO: stateの適用タイミングをちゃんと考える
+
 		conditions := make([]model.IsuCondition, 0, reqLength)
 		conditionsReq := make([]service.PostIsuConditionRequest, 0, reqLength)
 
@@ -101,36 +115,33 @@ func (s *Scenario) keepPosting(ctx context.Context, step *isucandar.BenchmarkSte
 			}
 
 			// 作った新しいstateに基づいてconditionを生成
-			condition := state.GetNewestCondition(stateChange, isu)
+			condition := state.GetNewestCondition(randEngine, stateChange, isu)
 			stateChange = model.IsuStateChangeNone //TODO: stateの適用タイミングをちゃんと考える
 
 			//リクエスト
 			conditions = append(conditions, condition)
 			conditionsReq = append(conditionsReq, service.PostIsuConditionRequest{
 				IsSitting: condition.IsSitting,
-				Condition: fmt.Sprintf("is_dirty=%v,is_overweight=%v,is_broken=%v",
-					condition.IsDirty,
-					condition.IsOverweight,
-					condition.IsBroken,
-				),
+				Condition: condition.ConditionString(),
 				Message:   condition.Message,
 				Timestamp: condition.TimestampUnix,
 			})
+
 		}
 
 		if len(conditions) == 0 {
 			continue
 		}
 
-		//TODO: ユーザー Goroutineが詰まると詰まるのでいや
 		select {
 		case <-ctx.Done():
 			return
-		case scenarioChan.ConditionChan <- conditions:
+		default:
 		}
+		isu.AddIsuConditions(conditions)
 
 		// timeout も無視するので全てのエラーを見ない
-		postIsuConditionAction(httpClient, targetURL, &conditionsReq)
+		postIsuConditionAction(ctx, httpClient, targetBaseURL.String(), &conditionsReq)
 	}
 }
 
@@ -138,24 +149,24 @@ func (state *posterState) NextConditionTimeStamp() int64 {
 	return state.lastConditionTimestamp + PostIntervalSecond
 }
 
-func (state *posterState) GetNewestCondition(stateChange model.IsuStateChange, isu *model.Isu) model.IsuCondition {
+func (state *posterState) GetNewestCondition(randEngine *rand.Rand, stateChange model.IsuStateChange, isu *model.Isu) model.IsuCondition {
 
+	// ハック対策に PostIntervalSecond にずれを出してる
+	blur := randEngine.Int63n(2*PostIntervalBlurSecond+1) - PostIntervalBlurSecond
 	//新しいConditionを生成
 	condition := model.IsuCondition{
 		StateChange:  stateChange,
-		IsSitting:    state.lastConditionIsSitting,
-		IsDirty:      state.lastConditionIsDirty,
-		IsOverweight: state.lastConditionIsOverweight,
-		IsBroken:     state.lastConditionIsBroken,
+		IsSitting:    state.isSitting,
+		IsDirty:      state.dirty.isNow,
+		IsOverweight: state.overWeight.isNow,
+		IsBroken:     state.broken.isNow,
 		//ConditionLevel: model.ConditionLevelCritical,
 		Message:       "",
-		TimestampUnix: state.lastConditionTimestamp,
-		OwnerIsuUUID:  isu.JIAIsuUUID,
-		OwnerIsuID:    isu.ID,
+		TimestampUnix: state.lastConditionTimestamp + blur,
 	}
 
 	//message
-	condition.Message = "今日もいい天気" //TODO: メッセージをちゃんと生成
+	condition.Message = random.MessageWithCondition(state.dirty.isNow, state.overWeight.isNow, state.broken.isNow, isu.CharacterID)
 
 	//conditionLevel
 	condition.ConditionLevel = calcConditionLevel(condition)
@@ -173,58 +184,60 @@ func (state *posterState) UpdateToNextState(randEngine *rand.Rand, stateChange m
 		randV := randEngine.Intn(100)
 		// TODO: 70% なら 69 じゃない, 対して影響はない
 		if randV <= 70 {
-			state.lastConditionIsDirty = true
+			state.dirty.isNow = true
 		} else if randV <= 90 {
-			state.lastConditionIsBroken = true
+			state.broken.isNow = true
 		} else {
-			state.lastConditionIsDirty = true
-			state.lastConditionIsBroken = true
+			state.dirty.isNow = true
+			state.broken.isNow = true
 		}
 	} else {
 		//各種状態改善クエリ
 		if stateChange&model.IsuStateChangeClear != 0 {
-			state.lastConditionIsDirty = false
-			state.lastCleanTimestamp = timeStamp
+			state.dirty.isNow = false
+			state.dirty.fixedTime = timeStamp
 		}
 		if stateChange&model.IsuStateChangeDetectOverweight != 0 {
-			state.lastConditionIsDirty = false
-			state.lastCleanTimestamp = timeStamp
+			state.overWeight.isNow = false
+			state.overWeight.fixedTime = timeStamp
 		}
 		if stateChange&model.IsuStateChangeRepair != 0 {
-			state.lastConditionIsBroken = false
-			state.lastRepairTimestamp = timeStamp
+			state.broken.isNow = false
+			state.broken.fixedTime = timeStamp
 		}
 	}
 
 	// TODO: over_weight が true のときは sitting を false にしないように
 	//sitting
-	if state.lastConditionIsSitting {
+	if state.isSitting {
 		// sitting が false になるのは over_weight が true じゃないとき
-		if !state.lastConditionIsOverweight {
+		if !state.overWeight.isNow {
 			if randEngine.Intn(100) <= 10 {
-				state.lastConditionIsSitting = false
+				state.isSitting = false
 			}
 		}
 	} else {
 		if randEngine.Intn(100) <= 10 {
-			state.lastConditionIsSitting = true
+			state.isSitting = true
 		}
 	}
 	//overweight
-	if state.lastConditionIsSitting && timeStamp-state.lastDetectOverweightTimestamp > 60*60 {
-		if randEngine.Intn(100) <= 5 {
-			state.lastConditionIsOverweight = true
+	if state.isSitting && timeStamp-state.overWeight.fixedTime > 12*60*60 {
+		if randEngine.Intn(5000) <= 1 {
+			state.overWeight.isNow = true
 		}
 	}
 	//dirty
-	if timeStamp-state.lastCleanTimestamp > 75*60 {
-		if randEngine.Intn(100) <= 5 {
-			state.lastConditionIsDirty = true
+	if timeStamp-state.dirty.fixedTime > 18*60*60 {
+		if randEngine.Intn(5000) <= 1 {
+			state.dirty.isNow = true
 		}
 	}
 	//broken
-	if timeStamp-state.lastRepairTimestamp > 120*60 {
-		state.lastConditionIsBroken = true
+	if timeStamp-state.broken.fixedTime > 24*60*60 {
+		if randEngine.Intn(10000) <= 1 {
+			state.broken.isNow = true
+		}
 	}
 }
 

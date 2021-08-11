@@ -12,9 +12,8 @@ type PostIsuConditionRequest struct {
 }
 
 type JIAServiceRequest struct {
-	TargetIP   string `json:"target_ip"`
-	TargetPort int    `json:"target_port"`
-	IsuUUID    string `json:"isu_uuid"`
+	TargetBaseURL string `json:"target_base_url"`
+	IsuUUID       string `json:"isu_uuid"`
 }
 
 type PostIsuRequest struct {
@@ -23,29 +22,10 @@ type PostIsuRequest struct {
 	Img        []byte
 }
 
-type IsuImg struct {
-	ImgName string
-	Img     []byte
-}
-
-type PutIsuRequest struct {
-	Name string `json:"name"`
-}
-
-// TODO: これは消して GetIndividualIsuConditionRequest をこの名前にする
 type GetIsuConditionRequest struct {
-	StartTime        *int64
-	CursorEndTime    int64
-	CursorJIAIsuUUID string
-	ConditionLevel   string
-	Limit            *int
-}
-
-type GetIndividualIsuConditionRequest struct {
 	StartTime      *int64
-	CursorEndTime  int64
+	EndTime        int64
 	ConditionLevel string
-	Limit          *int
 }
 
 type GetGraphRequest struct {

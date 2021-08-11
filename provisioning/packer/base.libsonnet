@@ -7,18 +7,12 @@
   variables: {
     revision: 'unknown',
     name: 'isucon11q-' + $.arg_arch + '-' + $.arg_variant + '-{{isotime "20060102-1504"}}-{{user "revision"}}',
-    aws_access_key: "{{env `AWS_ACCESS_KEY_ID`}}",
-    aws_secret_key: "{{env `AWS_SECRET_ACCESS_KEY`}}",
-    aws_session_token: "{{env `AWS_SESSION_TOKEN`}}",
     git_tag: "{{env `GIT_TAG`}}",
   },
 
   builder_ec2:: {
     type: 'amazon-ebs',
 
-    access_key: "{{user `aws_access_key`}}",
-    secret_key: "{{user `aws_secret_key`}}",
-    token: "{{user `aws_session_token`}}",
     region: 'ap-northeast-1',
 
     source_ami_filter: {
@@ -140,6 +134,8 @@
         'sudo mv /dev/shm/files-generated/isucon11-qualify.tar /dev/shm/ansible/roles/common/files/',
         'sudo mv /dev/shm/files-generated/initial-data.sql /dev/shm/ansible/roles/contestant/files/',
         'sudo mv /dev/shm/files-generated/initialize.json /dev/shm/ansible/roles/bench/files/',
+        'sudo cp /dev/shm/files/tls-cert.pem /dev/shm/ansible/roles/contestant/files/etc/nginx/certificates',
+        'sudo cp /dev/shm/files/tls-key.pem /dev/shm/ansible/roles/contestant/files/etc/nginx/certificates',
         'sudo echo "[target]\n127.0.0.1" >> /dev/shm/ansible/hosts',
         'sudo ssh-keygen -f /root/.ssh/id_rsa -t rsa -N ""',
         'sudo su -c "cat /root/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys"',
@@ -193,6 +189,8 @@
         'sudo rm -f /var/lib/systemd/timesync/clock || :',
         'sudo rm -rf /var/lib/dbus/machine-id',
         'sudo rm -rf /root/go',
+        'sudo rm -rf /root/.ansible',
+        'sudo rm -rf /home/isucon/.ansible',
         'sudo rm -rf /dev/shm/files',
         'sudo rm -rf /dev/shm/files-generated',
         'sudo rm -rf /dev/shm/ansible',

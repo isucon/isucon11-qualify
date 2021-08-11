@@ -12,13 +12,14 @@ import (
 )
 
 type Isu struct {
-	User       User
-	JIAIsuUUID string
-	Name       string
-	Image      []byte
-	Character  string
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	User        User
+	JIAIsuUUID  string
+	Name        string
+	Image       []byte
+	Character   string
+	CharacterId int
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 func NewIsu(user User) Isu {
@@ -26,13 +27,15 @@ func NewIsu(user User) Isu {
 	createdAt := random.TimeAfterArg(user.CreatedAt)
 
 	image := defaultImage()
+	character, characterID := random.CharacterWithID()
 
 	return Isu{
 		user,
 		u.String(),
 		random.IsuName(),
 		image,
-		random.Character(),
+		character,
+		characterID,
 		createdAt,
 		createdAt,
 	}
@@ -41,13 +44,15 @@ func NewIsu(user User) Isu {
 func NewIsuWithCreatedAt(user User, createdAt time.Time) Isu {
 	u, _ := uuid.NewRandom()
 	image := defaultImage()
+	character, characterID := random.CharacterWithID()
 
 	return Isu{
 		user,
 		u.String(),
 		random.IsuName(),
 		image,
-		random.Character(),
+		character,
+		characterID,
 		createdAt,
 		createdAt,
 	}
@@ -61,15 +66,16 @@ func defaultImage() []byte {
 	return bytes
 }
 
-func (i Isu) WithUpdateName() Isu {
+func (i *Isu) WithUpdateName() error {
 	i.Name = random.IsuName()
 	i.UpdatedAt = random.TimeAfterArg(i.UpdatedAt)
-	return i
+	return nil
 }
-func (i Isu) WithUpdateImage() Isu {
-	i.Image = random.Image()
+func (i *Isu) WithUpdateImage() error {
+	var err error
+	i.Image, err = random.Image()
 	i.UpdatedAt = random.TimeAfterArg(i.UpdatedAt)
-	return i
+	return err
 }
 
 func (i Isu) Create() error {

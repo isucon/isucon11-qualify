@@ -1,6 +1,10 @@
 ---
 - name: "roles/common/tasks/main: include user.yml"
   include: user.yml
+- name: "roles/common/tasks/main: include timezone.yml"
+  include: timezone.yml
+- name: "roles/common/tasks/main: include sysctl.yml"
+  include: sysctl.yml
 - name: "roles/common/tasks/main: include package.yml"
   include: package.yml
 - name: "roles/common/tasks/main: include isucon11-qualify.yml"
