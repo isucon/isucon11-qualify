@@ -5,7 +5,9 @@ import session from "cookie-session";
 import express from "express";
 import jwt from "jsonwebtoken";
 import morgan from "morgan";
-import mysql, { FieldPacket, RowDataPacket, Connection } from "mysql2/promise";
+import multer, { MulterError } from "multer";
+import mysql, { FieldPacket, RowDataPacket } from "mysql2/promise";
+import axios from "axios";
 
 declare global {
   namespace CookieSessionInterfaces {
@@ -15,12 +17,20 @@ declare global {
   }
 }
 
-interface IsuRow extends RowDataPacket {
+interface Config extends RowDataPacket {
+  name: string;
+  url: string;
+}
+
+interface IsuResponse {
   id: number;
   jia_isu_uuid: string;
   name: string;
-  image: Buffer;
   character: string;
+}
+
+interface Isu extends IsuResponse, RowDataPacket {
+  image: Buffer;
   jia_user_id: string;
   created_at: Date;
   updated_at: Date;
@@ -48,7 +58,7 @@ interface IsuConditionRow extends RowDataPacket {
   id: number;
   jia_isu_uuid: string;
   timestamp: Date;
-  is_sitting: boolean;
+  is_sitting: number;
   condition: string;
   message: string;
   created_at: Date;
@@ -58,8 +68,8 @@ const sessionName = "isucondition";
 // const conditionLimit = 20;
 const frontendContentsPath = "../public";
 const jwtVerificationKeyPath = "../ec256-public.pem";
-// defaultIconFilePath       = "../NoImage.png"
-// defaultJIAServiceURL      = "http://localhost:5000"
+const defaultIconFilePath = "../NoImage.jpg";
+const defaultJIAServiceUrl = "http://localhost:5000";
 // mysqlErrNumDuplicateEntry = 1062
 const conditionLevelInfo = "info";
 const conditionLevelWarning = "warning";
@@ -68,17 +78,23 @@ const conditionLevelCritical = "critical";
 // const scoreConditionLevelWarning  = 2
 // const scoreConditionLevelCritical = 1
 
+if (!("POST_ISUCONDITION_TARGET_BASE_URL" in process.env)) {
+  console.error("missing: POST_ISUCONDITION_TARGET_BASE_URL");
+  process.exit(1);
+}
+const postIsuConditionTargetBaseURL =
+  process.env["POST_ISUCONDITION_TARGET_BASE_URL"];
 const dbinfo: mysql.PoolOptions = {
-  host: process.env["MYSQL_HOSTNAME"] ?? "127.0.0.1",
+  host: process.env["MYSQL_HOST"] ?? "127.0.0.1",
   port: Number.parseInt(process.env["MYSQL_PORT"] ?? "3306"),
   user: process.env["MYSQL_USER"] ?? "isucon",
-  database: process.env["MYSQL_DATABASE"] ?? "isucondition",
+  database: process.env["MYSQL_DBNAME"] ?? "isucondition",
   password: process.env["MYSQL_PASS"] || "isucon",
   connectionLimit: 10,
-  timezone: "local",
+  timezone: "+09:00",
 };
-
 const pool = mysql.createPool(dbinfo);
+const upload = multer();
 
 const app = express();
 
@@ -100,6 +116,17 @@ app.set("cert", fs.readFileSync(jwtVerificationKeyPath));
     });
   }
 );
+
+async function getJIAServiceUrl(db: mysql.Connection): Promise<string> {
+  const [[config, ..._]]: [Config[], FieldPacket[]] = await db.query(
+    "SELECT * FROM `isu_association_config` WHERE `name` = ?",
+    ["jia_service_url"]
+  );
+  if (!config) {
+    return defaultJIAServiceUrl;
+  }
+  return config.url;
+}
 
 // POST /initialize
 app.post("/initialize", async (_req, res) => {
@@ -164,13 +191,13 @@ app.get("/api/isu", async (req, res) => {
   const jiaUserId = req.session?.jia_user_id;
   if (!jiaUserId) {
     console.error("you are not signed in");
-    return res.status(401).send("you are not signed in");
+    return res.status(401).type("text").send("you are not signed in");
   }
 
   const db = await pool.getConnection();
   try {
     await db.beginTransaction();
-    const [isuList]: [IsuRow[], FieldPacket[]] = await db.query(
+    const [isuList]: [Isu[], FieldPacket[]] = await db.query(
       "SELECT * FROM `isu` WHERE `jia_user_id` = ? ORDER BY `id` DESC",
       [jiaUserId]
     );
@@ -182,9 +209,10 @@ app.get("/api/isu", async (req, res) => {
           "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` DESC LIMIT 1",
           [isu.jia_isu_uuid]
         );
-      if (lastCondition.length) {
+      if (!lastCondition) {
         foundLastCondition = false;
       }
+
       let formattedCondition = undefined;
       if (foundLastCondition) {
         const [conditionLevel, err] = calculateConditionLevel(
@@ -198,7 +226,7 @@ app.get("/api/isu", async (req, res) => {
           jia_isu_uuid: lastCondition.jia_isu_uuid,
           isu_name: isu.name,
           timestamp: lastCondition.timestamp.getTime() / 1000,
-          is_sitting: lastCondition.is_sitting,
+          is_sitting: !!lastCondition.is_sitting,
           condition: lastCondition.condition,
           condition_level: conditionLevel,
           message: lastCondition.message,
@@ -216,118 +244,115 @@ app.get("/api/isu", async (req, res) => {
     res.status(200).json(responseList);
   } catch (err) {
     console.error(`db error: ${err}`);
+    await db.rollback();
     return res.status(500).send();
   } finally {
     db.release();
   }
 });
 
-/*
-interface GetAllIsuConditionsQuery {
-  cursor_end_time: string;
-  cursor_jia_isu_uuid: string;
-  condition_level: string;
-  start_time?: string;
-  limit?: string;
+interface PostIsuBody {
+  jia_isu_uuid: string;
+  isu_name: string;
 }
 
-// GET /api/condition
-app.get(
-  "/api/condition",
-  async (req: express.Request<{}, any, any, GetAllIsuConditionsQuery>, res) => {
-    const jia_user_id = req.session?.jia_user_id;
-    if (!jia_user_id) {
+// POST /api/isu
+app.post("/api/isu", (req: express.Request<{}, any, PostIsuBody>, res) => {
+  upload.single("image")(req, res, async (err) => {
+    const jiaUserId = req.session?.jia_user_id;
+    if (!jiaUserId) {
       console.error("you are not signed in");
-      return res.status(401).send("you are not signed in");
+      return res.status(401).type("text").send("you are not signed in");
     }
 
-    // required query params
-    const cursorEndTime = parseInt(req.query.cursor_end_time, 10);
-    if (Number.isNaN(cursorEndTime)) {
-      console.error("bad format: cursor_end_time");
-      return res.status(400).send("bad format: cursor_end_time");
+    const jiaIsuUUID = req.body.jia_isu_uuid;
+    const isuName = req.body.isu_name;
+    if (err instanceof MulterError) {
+      // TODO
     }
-    const cursorJIAIsuUUID = req.query.cursor_jia_isu_uuid;
-    if (!cursorJIAIsuUUID) {
-      console.error("cursor_jia_isu_uuid is missing");
-      return res.status(400).send("cursor_jia_isu_uuid is missing");
-    }
-    const conditionLevelCSV = req.query.condition_level;
-    if (!conditionLevelCSV) {
-      console.error("condition_level is missing");
-      return res.status(400).send("condition_level is missing");
-    }
-    const conditionLevel = new Set(conditionLevelCSV.split(","));
 
-    // optional query param
-    let startTime = new Date().getTime() / 1000;
-    if (req.query.start_time) {
-      startTime = parseInt(req.query.start_time, 10);
-      if (Number.isNaN(startTime)) {
-        console.error("bad format: start_time");
-        return res.status(400).send("bad format: start_time");
-      }
-    }
-    const limit = req.query.limit
-      ? parseInt(req.query.limit, 10)
-      : conditionLimit;
-    if (Number.isNaN(limit)) {
-      console.error("bad format: limit");
-      return res.status(400).send("bad format: limit");
+    let image: Buffer;
+    if (!req.file) {
+      image = fs.readFileSync(defaultIconFilePath);
+    } else {
+      image = req.file.buffer;
     }
 
     const db = await pool.getConnection();
     try {
-      const [isuList]: [IsuRow[], FieldPacket[]] = await db.query(
-        "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `is_deleted` = false",
-        [jia_user_id]
+      await db.beginTransaction();
+      await db.query(
+        "INSERT INTO `isu` (`jia_isu_uuid`, `name`, `image`, `jia_user_id`) VALUES (?, ?, ?, ?)",
+        [jiaIsuUUID, isuName, image, jiaUserId]
       );
-      if (isuList.length === 0) {
-        return res.status(200).json(isuList);
+
+      // TODO: check duplicate
+
+      const targetUrl = (await getJIAServiceUrl(db)) + "/api/activate";
+
+      let isuFromJIA: { character: string };
+      try {
+        const response = await axios.post(targetUrl, {
+          target_base_url: postIsuConditionTargetBaseURL,
+          isu_uuid: jiaIsuUUID,
+        });
+        if (response.status !== 202) {
+          console.error(
+            `JIAService returned error: status code ${response.status}, message: ${response.data}`
+          );
+          return res.status(response.status).send("JIAService returned error");
+        }
+        isuFromJIA = response.data;
+      } catch (err) {
+        console.error(`failed to request to JIAService: ${err}`);
+        return res.status(500).send();
       }
 
-      // TODO:
-      const conditionsResponse = await Promise.all(
-        isuList.map(async (isu) => {
-          const condition = await getIsuConditionsFromDB(
-            isu.jia_isu_uuid,
-            cursorEndTime + 1,
-            conditionLevel,
-            startTime,
-            limit + 1,
-            isu.name
-          );
-          return condition;
-        })
+      await db.query(
+        "UPDATE `isu` SET `character` = ? WHERE  `jia_isu_uuid` = ?",
+        [isuFromJIA.character, jiaIsuUUID]
       );
+      const [[isu, ..._]]: [Isu[], FieldPacket[]] = await db.query(
+        "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
+        [jiaUserId, jiaIsuUUID]
+      );
+      if (!isu) {
+        throw new Error();
+      }
+      await db.commit();
 
-      res.status(200).json(isuList);
+      const isuResponse: IsuResponse = {
+        id: isu.id,
+        jia_isu_uuid: isu.jia_isu_uuid,
+        name: isu.name,
+        character: isu.character,
+      };
+      res.status(201).send(isuResponse);
     } catch (err) {
       console.error(`db error: ${err}`);
+      await db.rollback();
       return res.status(500).send();
     } finally {
       db.release();
     }
-  }
-);
-
-const getIsuConditionsFromDB = async (
-  jiaIsuUUID: string,
-  cursorEndTime: number,
-  conditionLevel: Set<string>,
-  startTime: number,
-  limit: number,
-  isuName: string
-) => {
-  // TODO:
-};
-*/
+  });
+});
 
 // conditionのcsvからcondition levelを計算
 function calculateConditionLevel(condition: string): [string, Error?] {
   var conditionLevel: string;
-
-  const warnCount = Array.from(condition.matchAll(/=true/g)).length;
+  const warnCount = (() => {
+    let count = 0;
+    let pos = 0;
+    while (pos !== -1) {
+      pos = condition.indexOf("=true");
+      if (pos >= 0) {
+        count += 1;
+        pos += 5;
+      }
+    }
+    return count;
+  })();
   switch (warnCount) {
     case 0:
       conditionLevel = conditionLevelInfo;
@@ -345,4 +370,4 @@ function calculateConditionLevel(condition: string): [string, Error?] {
   return [conditionLevel, undefined];
 }
 
-app.listen(process.env.PORT ?? 3000, () => {});
+app.listen(Number.parseInt(process.env["PORT"] ?? "3000"), () => {});
