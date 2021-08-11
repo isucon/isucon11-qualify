@@ -13,6 +13,7 @@ require (
 	github.com/isucon/isucon10-portal v0.0.0-20201008112716-8c0b637e1bd8
 	github.com/labstack/echo/v4 v4.5.0
 	github.com/mattn/go-isatty v0.0.13 // indirect
+	github.com/pkg/profile v1.6.0
 	github.com/pquerna/cachecontrol v0.1.0 // indirect
 	golang.org/x/crypto v0.0.0-20210711020723-a769d52b0f97 // indirect
 	golang.org/x/net v0.0.0-20210726213435-c6fcb2dbf985 // indirect
