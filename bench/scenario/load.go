@@ -345,6 +345,7 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 			user.CloseAllIsuStateChan()
 			return nil
 		}
+		step.AddScore(ScoreIsuInitialize)
 	}
 
 	return user
