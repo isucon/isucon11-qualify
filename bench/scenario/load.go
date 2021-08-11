@@ -254,6 +254,7 @@ func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep
 	}
 
 	viewer := s.initViewer(ctx)
+	step.AddScore(ScoreViewerInitialize)
 	scenarioLoopStopper := time.After(1 * time.Millisecond) //ループ頻度調整
 	for {
 		<-scenarioLoopStopper
@@ -267,6 +268,7 @@ func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep
 
 		// viewer が ViewerDropCount 以上エラーに遭遇していたらループから脱落
 		if viewer.ErrorCount >= ViewerDropCount {
+			step.AddScore(ScoreViewerDropout)
 			return
 		}
 
