@@ -49,3 +49,9 @@ func (v *Viewer) ConditionIsUpdated(id int, timestamp int64) bool {
 	t := v.verifiedConditionsInTrend[id]
 	return t < timestamp
 }
+
+func (v *Viewer) NumOfIsu() int {
+	v.verifiedConditionsInTrendMutex.RLock()
+	defer v.verifiedConditionsInTrendMutex.RUnlock()
+	return len(v.verifiedConditionsInTrend)
+}
