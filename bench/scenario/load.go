@@ -435,6 +435,7 @@ func (s *Scenario) requestLastBadConditionScenario(ctx context.Context, step *is
 			return
 		case targetIsu.StreamsForScenario.StateChan <- solveCondition:
 		}
+		step.AddScore(ScoreRepairIsu)
 	}
 
 	// LastReadBadConditionTimestamp を更新

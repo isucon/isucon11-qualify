@@ -14,7 +14,8 @@ const (
 	ScoreReadInfoCondition     score.ScoreTag = "6.ReadInfoCondition    "
 	ScoreReadWarningCondition  score.ScoreTag = "7.ReadWarningCondition "
 	ScoreReadCriticalCondition score.ScoreTag = "8.ReadCriticalCondition"
-	ScoreNormalUserInitialize  score.ScoreTag = "_.NormalUserInitialize " //scoreが0のもの
-	ScoreViewerInitialize      score.ScoreTag = "_.ViewerInitialize     "
-	ScoreViewerDropout         score.ScoreTag = "_.ViewerDropout        "
+	ScoreNormalUserInitialize  score.ScoreTag = "_1.NormalUserInitialize" //scoreが0のもの
+	ScoreViewerInitialize      score.ScoreTag = "_2.ViewerInitialize    "
+	ScoreViewerDropout         score.ScoreTag = "_3.ViewerDropout       "
+	ScoreRepairIsu             score.ScoreTag = "_4.RepairIsu           "
 )
