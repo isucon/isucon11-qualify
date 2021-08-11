@@ -482,7 +482,7 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 		}
 	}
 	// 最初のページが最後のページならやめる
-	if len(firstPageConditions) < conditionLimit {
+	if len(firstPageConditions) < service.ConditionLimit {
 		return conditions, newLastReadConditionTimestamp, nil
 	}
 
@@ -522,7 +522,7 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 		}
 
 		// 最後のページまで見ちゃってるならやめる
-		if len(tmpConditions) != conditionLimit {
+		if len(tmpConditions) != service.ConditionLimit {
 			return conditions, newLastReadConditionTimestamp, nil
 		}
 	}
