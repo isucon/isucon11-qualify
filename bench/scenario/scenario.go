@@ -2,6 +2,7 @@ package scenario
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 	"sync"
@@ -24,6 +25,7 @@ type Scenario struct {
 	// TODO: シナリオ実行に必要なフィールドを書く
 
 	BaseURL                  string        // ベンチ対象 Web アプリの URL
+	UseTLS                   bool          // ベンチ対象 Web アプリが HTTPS で動いているかどうか (本番時ture/CI時false)
 	NoLoad                   bool          // Load(ベンチ負荷)を強要しない
 	LoadTimeout              time.Duration //Loadのcontextの時間
 	realTimePrepareStartedAt time.Time     //Prepareの開始時間
@@ -40,6 +42,10 @@ type Scenario struct {
 
 	loadWaitGroup   sync.WaitGroup
 	JiaPosterCancel context.CancelFunc
+
+	// IPアドレスと FQDN の対応付け
+	mapIPAddrToFqdn map[string]string
+	mapFqdnToIPAddr map[string]string
 
 	//内部状態
 	normalUsersMtx sync.Mutex
@@ -67,6 +73,8 @@ func NewScenario(jiaServiceURL *url.URL, loadTimeout time.Duration) (*Scenario, 
 		jiaServiceURL:     jiaServiceURL,
 		initializeTimeout: 20 * time.Second,
 		prepareTimeout:    3 * time.Second,
+		mapIPAddrToFqdn:   make(map[string]string, 3),
+		mapFqdnToIPAddr:   make(map[string]string, 3),
 		normalUsers:       []*model.User{},
 		isuFromID:         make(map[int]*model.Isu, 8192),
 	}, nil
@@ -241,6 +249,30 @@ func addErrorWithContext(ctx context.Context, step *isucandar.BenchmarkStep, err
 	default:
 		step.AddError(err)
 	}
+}
+
+// map に対する Setter は main でしか呼ばれないため lock は取らない
+func (s *Scenario) SetIPAddrAndFqdn(str ...string) error {
+	if len(str)%2 != 0 {
+		return fmt.Errorf("invalid arguments")
+	}
+	for i := 0; i < len(str); i += 2 {
+		ipaddr := str[i]
+		fqdn := str[i+1]
+		s.mapFqdnToIPAddr[fqdn] = ipaddr
+		s.mapIPAddrToFqdn[ipaddr] = fqdn
+	}
+	return nil
+}
+
+func (s *Scenario) GetIPAddrFromFqdn(fqdn string) (string, bool) {
+	result, ok := s.mapFqdnToIPAddr[fqdn]
+	return result, ok
+}
+
+func (s *Scenario) GetFqdnFromIPAddr(ipaddr string) (string, bool) {
+	result, ok := s.mapIPAddrToFqdn[ipaddr]
+	return result, ok
 }
 
 func (s *Scenario) UpdateIsuFromID(isu *model.Isu) {

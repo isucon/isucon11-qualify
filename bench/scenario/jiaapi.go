@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -98,6 +99,7 @@ func (s *Scenario) postActivate(c echo.Context) error {
 	//poster Goroutineの起動
 	var isu *model.Isu
 	var scenarioChan *model.StreamsForPoster
+	var fqdn string
 	posterContext := posterRootContext
 	err = func() error {
 		var ok bool
@@ -108,6 +110,7 @@ func (s *Scenario) postActivate(c echo.Context) error {
 		if !ok {
 			return echo.NewHTTPError(http.StatusNotFound)
 		}
+		// リクエストされた JIA_ISU_UUID が事前に scenario.NewIsu にて作成された isu と紐付かない場合 404 を返す
 		isu, ok = isuFromUUID[state.IsuUUID]
 		if !ok {
 			//scenarioChanでチェックしているのでここには来ないはず
@@ -119,14 +122,31 @@ func (s *Scenario) postActivate(c echo.Context) error {
 			return nil
 		}
 
+		// useTLS が有効 && POST isucondition する URL に https 以外が指定されていたら 400 を返す
+		if s.UseTLS && targetBaseURL.Scheme != "https" {
+			return echo.NewHTTPError(http.StatusBadRequest)
+		}
+		// FQDN が競技者 VM のものでない場合 400 を返す
+		fqdn = targetBaseURL.Hostname()
+		port := targetBaseURL.Port()
+		ipAddr, ok := s.GetIPAddrFromFqdn(fqdn)
+		if !ok {
+			return echo.NewHTTPError(http.StatusBadRequest)
+		}
+		// URL の文字列を IP アドレスに変換
+		if port != "" {
+			targetBaseURL.Host = strings.Join([]string{ipAddr, port}, ":")
+		} else {
+			targetBaseURL.Host = ipAddr
+		}
+
 		// activate 済みフラグを立てる
 		isuIsActivated[state.IsuUUID] = struct{}{}
-
 		//activate
 		s.loadWaitGroup.Add(1)
 		go func() {
 			defer s.loadWaitGroup.Done()
-			s.keepPosting(posterContext, targetBaseURL, isu, scenarioChan)
+			s.keepPosting(posterContext, targetBaseURL, fqdn, isu, scenarioChan)
 		}()
 		return nil
 	}()
