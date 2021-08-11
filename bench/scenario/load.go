@@ -76,6 +76,13 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 		s.userAdder(ctx, step)
 	}()
 
+	//postした件数を記録
+	s.loadWaitGroup.Add(1)
+	go func() {
+		defer s.loadWaitGroup.Done()
+		s.postConditionNumReporter(ctx, step)
+	}()
+
 	<-ctx.Done()
 	s.JiaPosterCancel()
 	logger.AdminLogger.Println("LOAD WAIT")

@@ -6,8 +6,11 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"sync"
+	"sync/atomic"
 	"time"
 
+	"github.com/isucon/isucandar"
 	"github.com/isucon/isucon11-qualify/bench/model"
 	"github.com/isucon/isucon11-qualify/bench/random"
 	"github.com/isucon/isucon11-qualify/bench/service"
@@ -18,6 +21,14 @@ const (
 	PostIntervalSecond     = 60 //Virtual Timeでのpost間隔
 	PostIntervalBlurSecond = 5  //Virtual Timeでのpost間隔のブレ幅(+-PostIntervalBlurSecond)
 	PostContentNum         = 10 //一回のpostで何要素postするか virtualTimeMulti * timerDuration(20ms) / PostIntervalSecond
+)
+
+var (
+	posterWaitGroup sync.WaitGroup
+	// 全ユーザーがpostしたconditionの端数の合計。Goroutine終了時に加算する
+	postInfoConditionFraction     int32 = 0
+	postWarnConditionFraction     int32 = 0
+	postCriticalConditionFraction int32 = 0
 )
 
 func init() {
@@ -39,9 +50,56 @@ type badCondition struct {
 	isNow     bool
 }
 
+func (s *Scenario) postConditionNumReporter(ctx context.Context, step *isucandar.BenchmarkStep) {
+	var postInfoConditionNum int32 = 0
+	var postWarnConditionNum int32 = 0
+	var postCriticalConditionNum int32 = 0
+	addScore := func() {
+		postInfoConditionNum += atomic.SwapInt32(&postInfoConditionFraction, 0)
+		postWarnConditionNum += atomic.SwapInt32(&postWarnConditionFraction, 0)
+		postCriticalConditionNum += atomic.SwapInt32(&postCriticalConditionFraction, 0)
+
+		for postInfoConditionNum > ReadConditionTagStep {
+			postInfoConditionNum -= ReadConditionTagStep
+			step.AddScore(ScorePostInfoCondition)
+		}
+		for postWarnConditionNum > ReadConditionTagStep {
+			postWarnConditionNum -= ReadConditionTagStep
+			step.AddScore(ScorePostWarningCondition)
+		}
+		for postCriticalConditionNum > ReadConditionTagStep {
+			postCriticalConditionNum -= ReadConditionTagStep
+			step.AddScore(ScorePostCriticalCondition)
+		}
+	}
+	for {
+		time.Sleep(1500 * time.Millisecond)
+
+		addScore()
+		select {
+		case <-ctx.Done():
+			posterWaitGroup.Wait()
+			addScore()
+			return
+		default:
+		}
+	}
+}
+
 //POST /api/condition/{jia_isu_id}をたたく Goroutine
 func (s *Scenario) keepPosting(ctx context.Context, targetBaseURL *url.URL, isu *model.Isu, scenarioChan *model.StreamsForPoster) {
 	postConditionTimeout := 100 * time.Millisecond //MEMO: timeout は気にせずにズバズバ投げる
+
+	posterWaitGroup.Add(1)
+	var postInfoConditionNum int32 = 0
+	var postWarnConditionNum int32 = 0
+	var postCriticalConditionNum int32 = 0
+	defer func() {
+		atomic.AddInt32(&postInfoConditionFraction, postInfoConditionNum)
+		atomic.AddInt32(&postWarnConditionFraction, postWarnConditionNum)
+		atomic.AddInt32(&postCriticalConditionFraction, postCriticalConditionNum)
+		posterWaitGroup.Done()
+	}()
 
 	targetBaseURL.Path = path.Join(targetBaseURL.Path, "/api/condition/", isu.JIAIsuUUID)
 	nowTimeStamp := s.ToVirtualTime(time.Now()).Unix()
@@ -120,10 +178,31 @@ func (s *Scenario) keepPosting(ctx context.Context, targetBaseURL *url.URL, isu 
 				Timestamp: condition.TimestampUnix,
 			})
 
+			switch condition.ConditionLevel {
+			case model.ConditionLevelInfo:
+				postInfoConditionNum++
+			case model.ConditionLevelWarning:
+				postWarnConditionNum++
+			case model.ConditionLevelCritical:
+				postCriticalConditionNum++
+			}
 		}
 
 		if len(conditions) == 0 {
 			continue
+		}
+
+		if postInfoConditionNum > ReadConditionTagStep {
+			atomic.AddInt32(&postInfoConditionFraction, postInfoConditionNum)
+			postInfoConditionNum = 0
+		}
+		if postWarnConditionNum > ReadConditionTagStep {
+			atomic.AddInt32(&postWarnConditionFraction, postWarnConditionNum)
+			postWarnConditionNum = 0
+		}
+		if postCriticalConditionNum > ReadConditionTagStep {
+			atomic.AddInt32(&postCriticalConditionFraction, postCriticalConditionNum)
+			postCriticalConditionNum = 0
 		}
 
 		select {
