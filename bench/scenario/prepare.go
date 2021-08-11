@@ -33,7 +33,6 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 	//TODO: 他の得点源
 	//TODO: 得点調整
 	step.Result().Score.Set(ScoreStartBenchmark, 1000)
-	step.Result().Score.Set(ScoreNormalUserInitialize, 0)
 	step.Result().Score.Set(ScoreGraphExcellent, 200)
 	step.Result().Score.Set(ScoreGraphGood, 150)
 	step.Result().Score.Set(ScoreGraphNormal, 100)
