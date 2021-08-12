@@ -157,6 +157,7 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 
 	// ユーザのISUが増えるので他の検証終わった後に実行
 	s.prepareCheckPostIsu(ctx, isuconUser, noIsuUser, guestAgent, step)
+	s.prepareCheckPostIsuWithPrevCondition(ctx, noIsuUser, step, unregisteredIsu)
 	if hasErrors() {
 		return failure.NewError(ErrCritical, fmt.Errorf("アプリケーション互換性チェックに失敗しました"))
 	}
@@ -1093,4 +1094,78 @@ func (s *Scenario) prepareStartInvalidIsuPost(ctx context.Context) (*model.Isu, 
 	}()
 
 	return isu, cancel, posterStop
+}
+
+func (s *Scenario) prepareCheckPostIsuWithPrevCondition(ctx context.Context, loginUser *model.User, step *isucandar.BenchmarkStep, baseIsu *model.Isu) {
+	//Isuの登録 e.POST("/api/isu", postIsu)
+	// check: 事前にconditionがPOSTされた椅子の登録（正常に弾かれているかをチェックしたい）
+	if err := BrowserAccess(ctx, loginUser.Agent, "/register", RegisterPage); err != nil {
+		step.AddError(err)
+		return
+	}
+
+	postTime := s.ToVirtualTime(time.Now())
+
+	//POST
+	baseIsu.Owner = loginUser
+	image, err := random.Image()
+	if err != nil {
+		logger.AdminLogger.Panic(err)
+	}
+	baseIsu.SetImage(image)
+	postResp, res, err := postIsuAction(ctx, loginUser.Agent, service.PostIsuRequest{
+		JIAIsuUUID: baseIsu.JIAIsuUUID,
+		IsuName:    baseIsu.Name,
+		Img:        image,
+	})
+	if err != nil {
+		addErrorWithContext(ctx, step, err)
+		return
+	}
+	baseIsu.ID = postResp.ID
+	err = verifyIsu(res, baseIsu, postResp)
+	if err != nil {
+		addErrorWithContext(ctx, step, err)
+		return
+	}
+
+	//ISU詳細にリダイレクトされる
+	isuResponse, res, err := getIsuIdAction(ctx, loginUser.Agent, baseIsu.JIAIsuUUID)
+	if err != nil {
+		addErrorWithContext(ctx, step, err)
+		return
+	}
+	err = verifyIsu(res, baseIsu, isuResponse)
+	if err != nil {
+		addErrorWithContext(ctx, step, err)
+		return
+	}
+	imageRes, res, err := getIsuIconAction(ctx, loginUser.Agent, baseIsu.JIAIsuUUID)
+	if err != nil {
+		addErrorWithContext(ctx, step, err)
+		return
+	}
+	if baseIsu.ImageHash != md5.Sum(imageRes) {
+		step.AddError(errorInvalid(res, "期待するISUアイコンと一致しません"))
+		return
+	}
+	loginUser.AddIsu(baseIsu)
+
+	//GET condition
+	req := service.GetIsuConditionRequest{
+		StartTime:      nil,
+		EndTime:        postTime.Unix(),
+		ConditionLevel: "info,warning,critical",
+	}
+	conditionsTmp, res, err := getIsuConditionAction(ctx, loginUser.Agent, baseIsu.JIAIsuUUID, req)
+	if err != nil {
+		step.AddError(err)
+		return
+	}
+	//検証
+	err = verifyPrepareIsuConditions(res, loginUser, baseIsu.JIAIsuUUID, &req, conditionsTmp)
+	if err != nil {
+		step.AddError(err)
+		return
+	}
 }
