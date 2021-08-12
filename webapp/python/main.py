@@ -7,7 +7,7 @@ import urllib.request
 from enum import Enum
 from flask import Flask, request, session, send_file, jsonify, abort
 from flask.json import JSONEncoder
-from werkzeug.exceptions import BadRequest, Unauthorized, InternalServerError
+from werkzeug.exceptions import BadRequest, Unauthorized, NotFound, InternalServerError
 import mysql.connector
 from sqlalchemy.pool import QueuePool
 import jwt
@@ -278,7 +278,14 @@ def post_isu():
 @app.route("/api/isu/<jia_isu_uuid>", methods=["GET"])
 def get_isu_id(jia_isu_uuid):
     """ISUの情報を取得"""
-    raise NotImplementedError
+    jia_user_id = get_user_id_from_session()
+
+    query = "SELECT * FROM `isu` WHERE `jia_user_id` = %s AND `jia_isu_uuid` = %s"
+    res = select_row(query, (jia_user_id, jia_isu_uuid))
+    if res is None:
+        raise NotFound("not found: isu")
+
+    return jsonify(Isu(**res))
 
 
 @app.route("/api/isu/<jia_isu_uuid>/icon", methods=["GET"])
