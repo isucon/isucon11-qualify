@@ -717,7 +717,7 @@ func (s *Scenario) verifyTrend(
 	}
 	// trend のレスポンスに入っている ISU の数が expected な数以上あることの検証
 	if !(len(isuIDSet) >= previousConditionNum) {
-		return 0, errorInvalid(res, "コンディションを返す ISU の個数が不足しています")
+		return 0, errorInvalid(res, "ISU の個数が不足しています")
 	}
 	return newConditionNum, nil
 }
