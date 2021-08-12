@@ -216,14 +216,19 @@ sudo systemctl restart jiaapi-mock.service
 ローカルでの動作検証にはサーバー上の JIA API Mock への [SSH におけるローカルポートフォワーディング](https://help.ubuntu.com/community/SSH/OpenSSH/PortForwarding#Local_Port_Forwarding) が必要ですが、これ以外の方法で開発をしてもかまいません。
 
 以下にローカルポートフォワーディングを実行するコマンドを例示します。
-これは「リモートホスト `isucon-server1` に SSH 接続をした上で」「ローカルの `localhost:5000` への TCP 接続を」「リモートホストを通して `10.160.1.101:5000` へ転送する」というコマンドです。
+これは「リモートホスト `isucon-server1` に SSH 接続をした上で」「ローカルの `localhost:5000` への TCP 接続を」「リモートホストを通して `isucondition-1.t.isucon.dev` へ転送する」というコマンドです。
 
 ```shell
-$ ssh -L localhost:5000:10.160.1.101:5000 isucon-server1
+$ ssh -L localhost:5000:isucondition-1.t.isucon.dev:5000 isucon-server1
 ```
 
 以上を踏まえると、上記のコマンド例を実行している場合、 `http://localhost:5000` で JIA API Mock へアクセスすることができます。
 
+アプリケーションに JIA の URL を指定する場合は `POST /initialize` の際に以下のように指定をします。
+
+```
+curl -sf -H 'content-type: application/json' http://localhost:3000/initialize -d '{"jia_service_url": "http://localhost:5000"}'
+```
 
 アプリケーションの動作確認はWebブラウザから行うことができますが、下記のようにトークンの取得と cookie の設定を行うことでコンソールからも API へのアクセスが可能です。
 
@@ -242,7 +247,7 @@ curl -XPOST -H 'content-type: application/json' http://localhost:3000/api/condit
 -d '[{"is_sitting": true, "condition": "is_dirty=true,is_overweight=true,is_broken=true","message":"test","timestamp": 1628492991}]'
 ```
 
-この他にも [SSH Remote Port Forwarding](https://help.ubuntu.com/community/SSH/OpenSSH/PortForwarding#Remote_Port_Forwarding) を利用する方法がありますが、詳細は省略します。
+この他にも [SSH Remote Port Forwarding](https://help.ubuntu.com/community/SSH/OpenSSH/PortForwarding#Remote_Port_Forwarding) を利用してサーバ上からローカルに ISU から送信されるコンディションを送る方法がありますが、詳細は省略します。
 
 ### 3. 負荷走行 (ベンチマーク)
 
