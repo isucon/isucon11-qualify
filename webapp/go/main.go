@@ -232,6 +232,8 @@ func main() {
 	e.GET("/", getIndex)
 	e.GET("/condition", getIndex)
 	e.GET("/isu/:jia_isu_uuid", getIndex)
+	e.GET("/isu/:jia_isu_uuid/condition", getIndex)
+	e.GET("/isu/:jia_isu_uuid/graph", getIndex)
 	e.GET("/register", getIndex)
 	e.GET("/login", getIndex)
 	e.Static("/assets", frontendContentsPath+"/assets")
