@@ -67,7 +67,6 @@ func (s *Scenario) JiaAPIService(ctx context.Context) {
 	}
 	go func() {
 		defer logger.AdminLogger.Println("--- ISU協会サービス END")
-		defer s.loadWaitGroup.Done()
 		err := e.Start(bindPort)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			panic(fmt.Errorf("ISU協会サービスが異常終了しました: %v", err))
