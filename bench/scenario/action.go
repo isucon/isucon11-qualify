@@ -76,6 +76,12 @@ func authAction(ctx context.Context, a *agent.Agent, userID string) (*service.Au
 		logger.AdminLogger.Panic(err)
 	}
 
+	// リダイレクト時のフロントアクセス
+	if err := BrowserAccessIndexHtml(ctx, a, "/"); err != nil {
+		errors = append(errors, err)
+		return nil, errors
+	}
+
 	//リクエスト
 	req, err := a.POST("/api/auth", nil)
 	if err != nil {
@@ -566,7 +572,10 @@ func getTrendAction(ctx context.Context, a *agent.Agent) (service.GetTrendRespon
 }
 
 func browserGetLandingPageAction(ctx context.Context, a *agent.Agent) (service.GetTrendResponse, *http.Response, error) {
-	// TODO: 静的ファイルのGET
+	// 静的ファイルのGET
+	if err := BrowserAccess(ctx, a, "/", TrendPage); err != nil {
+		return nil, nil, err
+	}
 
 	trend, res, err := getTrendAction(ctx, a)
 	if err != nil {
@@ -577,7 +586,10 @@ func browserGetLandingPageAction(ctx context.Context, a *agent.Agent) (service.G
 }
 
 func browserGetLandingPageIgnoreAction(ctx context.Context, a *agent.Agent) (*http.Response, error) {
-	// TODO: 静的ファイルのGET
+	// 静的ファイルのGET
+	if err := BrowserAccess(ctx, a, "/", TrendPage); err != nil {
+		return nil, err
+	}
 
 	res, err := getTrendIgnoreAction(ctx, a)
 	if err != nil {
@@ -708,6 +720,29 @@ func browserGetIsuGraphAction(ctx context.Context, a *agent.Agent, id string, da
 		errors = append(errors, validateGraph(res, graph)...)
 	}
 	return isu, graph, errors
+}
+
+func BrowserAccessIndexHtml(ctx context.Context, a *agent.Agent, rpath string) error {
+	req, err := a.GET(rpath)
+	if err != nil {
+		logger.AdminLogger.Panic(err)
+	}
+
+	res, err := a.Do(ctx, req)
+	if err != nil {
+		return failure.NewError(ErrHTTP, err)
+	}
+	defer res.Body.Close()
+
+	if err := verifyStatusCodes(res, []int{http.StatusOK, http.StatusNotModified}); err != nil {
+		return err
+	}
+
+	// index.htmlの検証
+	if err := errorHtmlChecksum(res, res.Body, "/index.html"); err != nil {
+		return err
+	}
+	return nil
 }
 
 func BrowserAccess(ctx context.Context, a *agent.Agent, rpath string, page PageType) error {

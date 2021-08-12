@@ -271,7 +271,7 @@ func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep
 		}
 
 		requestTime := time.Now()
-		trend, res, err := getTrendAction(ctx, viewer.Agent)
+		trend, res, err := browserGetLandingPageAction(ctx, viewer.Agent)
 		if err != nil {
 			viewer.ErrorCount += 1
 			addErrorWithContext(ctx, step, err)
@@ -798,7 +798,7 @@ func signoutScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *m
 	// signout したらトップページに飛ぶ(MEMO: 初期状態だと trend おもすぎて backend をころしてしまうかも)
 	go func() {
 		// 登録済みユーザーは trend に興味はないので verify はせず投げっぱなし
-		_, err = getTrendIgnoreAction(ctx, user.Agent)
+		_, err = browserGetLandingPageIgnoreAction(ctx, user.Agent)
 		if err != nil {
 			addErrorWithContext(ctx, step, err)
 			// return するとこのあとのログイン必須なシナリオが回らないから return はしない
