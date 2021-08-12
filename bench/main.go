@@ -156,6 +156,8 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 		Count int64
 	}
 	tagCountPair := make([]TagCountPair, 0)
+	promTags := []string{}
+
 	for tag, count := range result.Score.Breakdown() {
 		tagCountPair = append(tagCountPair, TagCountPair{Tag: tag, Count: count})
 	}
@@ -168,6 +170,7 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 		} else {
 			logger.AdminLogger.Printf("SCORE: %s: %d", p.Tag, p.Count)
 		}
+		promTags = append(promTags, fmt.Sprintf("xsuconbench_score_breakdown{name=\"%s\"} %d\n", p.Tag, p.Count))
 	}
 
 	for _, err := range errors {
@@ -208,6 +211,14 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 	logger.ContestantLogger.Printf("score: %d(%d - %d) : %s", score, scoreRaw, deductionTotal, reason)
 	logger.ContestantLogger.Printf("deduction: %d / timeout: %d", deduction, timeoutCount)
 
+	promTags = append(promTags,
+		fmt.Sprintf("xsuconbench_score_total{} %d\n", score),
+		fmt.Sprintf("xsuconbench_score_raw{} %d\n", scoreRaw),
+		fmt.Sprintf("xsuconbench_score_deduction{} %d\n", deductionTotal),
+		fmt.Sprintf("xsuconbench_score_error_count{name=\"deduction\"} %d\n", deduction),
+		fmt.Sprintf("xsuconbench_score_error_count{name=\"timeout\"} %d\n", timeoutCount),
+	)
+
 	err := reporter.Report(&isuxportalResources.BenchmarkResult{
 		SurveyResponse: &isuxportalResources.SurveyResponse{
 			Language: s.Language,
@@ -226,6 +237,13 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 	if err != nil {
 		panic(err)
 	}
+
+	if passed {
+		promTags = append(promTags, "xsuconbench_passed{} 1\n")
+	} else {
+		promTags = append(promTags, "xsuconbench_passed{} 0\n")
+	}
+	writePromFile(promTags)
 
 	return passed
 }
