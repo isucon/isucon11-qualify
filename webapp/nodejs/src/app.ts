@@ -93,18 +93,8 @@ interface GetIsuConditionResponse {
   message: string;
 }
 
-interface IsuConditionRow extends RowDataPacket {
-  id: number;
-  jia_isu_uuid: string;
-  timestamp: Date;
-  is_sitting: number;
-  condition: string;
-  message: string;
-  created_at: Date;
-}
-
 const sessionName = "isucondition";
-// const conditionLimit = 20;
+const conditionLimit = 20;
 const frontendContentsPath = "../public";
 const jiaJWTSigningKeyPath = "../ec256-public.pem";
 const defaultIconFilePath = "../NoImage.jpg";
@@ -301,7 +291,7 @@ app.get("/api/isu", async (req, res) => {
     const responseList: Array<GetIsuListResponse> = [];
     for (const isu of isuList) {
       let foundLastCondition = true;
-      const [[lastCondition]] = await db.query<IsuConditionRow[]>(
+      const [[lastCondition]] = await db.query<IsuCondition[]>(
         "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` DESC LIMIT 1",
         [isu.jia_isu_uuid]
       );
@@ -314,7 +304,7 @@ app.get("/api/isu", async (req, res) => {
           lastCondition.condition
         );
         if (err) {
-          console.error(`failed to get condition level: ${err}`);
+          console.error(err);
           await db.rollback();
           return res.status(500).send();
         }
@@ -532,6 +522,9 @@ app.get(
         return res.status(404).type("text").send("not found: isu");
       }
       return res.status(200).send(row.image);
+    } catch (err) {
+      console.error(`db error: ${err}`);
+      return res.status(500).send();
     } finally {
       db.release();
     }
@@ -628,7 +621,7 @@ async function generateIsuGraphResponse(
     const truncatedConditionTime = new Date(
       condition.timestamp.setHours(0, 0, 0, 0)
     );
-    if (truncatedConditionTime != startTimeInThisHour) {
+    if (truncatedConditionTime !== startTimeInThisHour) {
       if (conditionsInThisHour.length > 0) {
         const [data, err] = calculateGraphDataPoint(conditionsInThisHour);
         if (err) {
@@ -670,7 +663,7 @@ async function generateIsuGraphResponse(
     if (startIndex === 0 && graph.startAt >= graphDate) {
       startIndex = i;
     }
-    if (endNextIndex == dataPoints.length && graph.startAt > endTime) {
+    if (endNextIndex === dataPoints.length && graph.startAt > endTime) {
       endNextIndex = i;
     }
   });
@@ -691,7 +684,7 @@ async function generateIsuGraphResponse(
     if (index < filteredDataPoints.length) {
       const dataWithInfo = filteredDataPoints[index];
 
-      if (dataWithInfo.startAt == thisTime) {
+      if (dataWithInfo.startAt === thisTime) {
         data = dataWithInfo.data;
         timestamps.push(...dataWithInfo.conditionTimeStamps);
         index++;
@@ -776,6 +769,141 @@ function calculateGraphDataPoint(
   return [dataPoint, undefined];
 }
 
+interface GetIsuConditionsQuery extends qs.ParsedQs {
+  start_time: string;
+  end_time: string;
+  condition_level: string;
+}
+
+// GET /api/condition/:jia_isu_uuid
+// ISUのコンディションを取得
+app.get(
+  "/api/condition/:jia_isu_uuid",
+  async (
+    req: express.Request<
+      { jia_isu_uuid: string },
+      any,
+      any,
+      GetIsuConditionsQuery
+    >,
+    res
+  ) => {
+    const db = await pool.getConnection();
+    try {
+      const [jiaUserId, errStatusCode, err] = await getUserIdFromSession(
+        req,
+        db
+      );
+      if (err) {
+        if (errStatusCode === 401) {
+          return res.status(401).type("text").send("you are not signed in");
+        }
+        console.error(err);
+        return res.status(500).send();
+      }
+
+      const jiaIsuUUID = req.params.jia_isu_uuid;
+
+      const endTimeInt = parseInt(req.query.end_time, 10);
+      if (isNaN(endTimeInt)) {
+        return res.status(400).type("text").send("bad format: end_time");
+      }
+      const endTime = new Date(endTimeInt * 1000);
+      if (!req.query.condition_level) {
+        return res.status(400).type("text").send("missing: condition_level");
+      }
+      const conditionLevel = new Set(req.query.condition_level.split(","));
+
+      const startTimeStr = req.query.start_time;
+      let startTime = new Date(0);
+      if (startTimeStr) {
+        const startTimeInt = parseInt(startTimeStr, 10);
+        if (isNaN(startTimeInt)) {
+          return res.status(400).type("text").send("bad format: start_time");
+        }
+        startTime = new Date(startTimeInt * 1000);
+      }
+
+      const [[row]] = await db.query<(RowDataPacket & { name: string })[]>(
+        "SELECT name FROM `isu` WHERE `jia_isu_uuid` = ? AND `jia_user_id` = ?",
+        [jiaIsuUUID, jiaUserId]
+      );
+      if (!row) {
+        return res.status(404).type("text").send("not found: isu");
+      }
+
+      const conditionResponse: GetIsuConditionResponse[] =
+        await getIsuConditions(
+          db,
+          jiaIsuUUID,
+          endTime,
+          conditionLevel,
+          startTime,
+          conditionLimit,
+          row.name
+        );
+      res.send(200).json(conditionResponse);
+    } catch (err) {
+      console.error(`db error: ${err}`);
+      return res.status(500).send();
+    } finally {
+      db.release();
+    }
+  }
+);
+
+// ISUのコンディションをDBから取得
+async function getIsuConditions(
+  db: mysql.Connection,
+  jiaIsuUUID: string,
+  endTime: Date,
+  conditionLevel: Set<string>,
+  startTime: Date,
+  limit: number,
+  isuName: string
+): Promise<GetIsuConditionResponse[]> {
+  const [conditions] =
+    startTime.getTime() === 0
+      ? await db.query<IsuCondition[]>(
+          "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ?" +
+            "	AND `timestamp` < ?" +
+            "	ORDER BY `timestamp` DESC",
+          [jiaIsuUUID, endTime.getTime() / 1000]
+        )
+      : await db.query<IsuCondition[]>(
+          "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ?" +
+            "	AND `timestamp` < ?" +
+            "	AND ? <= `timestamp`" +
+            "	ORDER BY `timestamp` DESC",
+          [jiaIsuUUID, endTime.getTime() / 1000, startTime.getTime() / 1000]
+        );
+
+  const conditionsResponse: GetIsuConditionResponse[] = [];
+  conditions.forEach((condition) => {
+    const [cLevel, err] = calculateConditionLevel(condition.condition);
+    if (err) {
+      return;
+    }
+    if (conditionLevel.has(cLevel)) {
+      conditionsResponse.push({
+        jia_isu_uuid: condition.jia_isu_uuid,
+        isu_name: isuName,
+        timestamp: condition.timestamp.getTime() / 1000,
+        is_sitting: !!condition.is_sitting,
+        condition: condition.condition,
+        condition_level: cLevel,
+        message: condition.message,
+      });
+    }
+  });
+
+  if (conditionsResponse.length > limit) {
+    conditionsResponse.splice(limit);
+  }
+
+  return conditionsResponse;
+}
+
 // ISUのコンディションの文字列からコンディションレベルを計算
 function calculateConditionLevel(condition: string): [string, Error?] {
   var conditionLevel: string;
@@ -837,7 +965,7 @@ function isValidConditionFormat(condition: string): boolean {
       idxCondStr++;
     }
   });
-  return idxCondStr == condition.length;
+  return idxCondStr === condition.length;
 }
 
 [
