@@ -304,19 +304,7 @@ func (s *Scenario) keepPostingError(ctx context.Context) {
 		nowTimeStamp = s.ToVirtualTime(time.Now()).Unix()
 
 		//ISUを選ぶ
-		var isu *model.Isu
-		s.isuFromIDMutex.RLock()
-		targetCount := randEngine.Intn(len(s.isuFromID))
-		for _, isuP := range s.isuFromID {
-			if !isuP.IsNoPoster() {
-				isu = isuP
-			}
-			if targetCount <= 0 && isu != nil {
-				break
-			}
-			targetCount--
-		}
-		s.isuFromIDMutex.RUnlock()
+		isu := s.GetRandomActivatedIsu(randEngine)
 		if isu == nil {
 			continue
 		}
