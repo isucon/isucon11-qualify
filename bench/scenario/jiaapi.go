@@ -125,14 +125,14 @@ func (s *Scenario) postActivate(c echo.Context) error {
 
 		// useTLS が有効 && POST isucondition する URL に https 以外が指定されていたら 400 を返す
 		if s.UseTLS && targetBaseURL.Scheme != "https" {
-			return echo.NewHTTPError(http.StatusBadRequest)
+			return http.StatusBadRequest, "Bad URL Scheme"
 		}
 		// FQDN が競技者 VM のものでない場合 400 を返す
 		fqdn = targetBaseURL.Hostname()
 		port := targetBaseURL.Port()
 		ipAddr, ok := s.GetIPAddrFromFqdn(fqdn)
 		if !ok {
-			return echo.NewHTTPError(http.StatusBadRequest)
+			return http.StatusBadRequest, "Bad URL: hostname must be isucondition[1-3].t.isucon.dev"
 		}
 		// URL の文字列を IP アドレスに変換
 		if port != "" {
