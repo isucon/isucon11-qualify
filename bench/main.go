@@ -148,6 +148,10 @@ func (p PromTags) writePromFile() {
 }
 
 func (p PromTags) commit() {
+	if len(promOut) == 0 {
+		return
+	}
+
 	promOutNew := fmt.Sprintf("%s.new", promOut)
 	err := os.Rename(promOutNew, promOut)
 	if err != nil {
