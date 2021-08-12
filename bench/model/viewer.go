@@ -1,8 +1,6 @@
 package model
 
 import (
-	"sync"
-
 	"github.com/isucon/isucandar/agent"
 )
 
@@ -14,8 +12,7 @@ type Viewer struct {
 
 	// GET trend にて既に確認したconditionを格納するのに利用
 	// key: isuID, value: timestamp
-	verifiedConditionsInTrend      map[int]int64
-	verifiedConditionsInTrendMutex sync.RWMutex
+	verifiedConditionsInTrend map[int]int64
 }
 
 func NewViewer(agent *agent.Agent) Viewer {
@@ -28,14 +25,10 @@ func NewViewer(agent *agent.Agent) Viewer {
 }
 
 func (v *Viewer) SetVerifiedCondition(id int, timestamp int64) {
-	v.verifiedConditionsInTrendMutex.Lock()
-	defer v.verifiedConditionsInTrendMutex.Unlock()
 	v.verifiedConditionsInTrend[id] = timestamp
 }
 
 func (v *Viewer) ConditionAlreadyVerified(id int, timestamp int64) bool {
-	v.verifiedConditionsInTrendMutex.RLock()
-	defer v.verifiedConditionsInTrendMutex.RUnlock()
 	t, exist := v.verifiedConditionsInTrend[id]
 	if exist && t == timestamp {
 		return true
@@ -44,14 +37,10 @@ func (v *Viewer) ConditionAlreadyVerified(id int, timestamp int64) bool {
 }
 
 func (v *Viewer) ConditionIsUpdated(id int, timestamp int64) bool {
-	v.verifiedConditionsInTrendMutex.RLock()
-	defer v.verifiedConditionsInTrendMutex.RUnlock()
 	t := v.verifiedConditionsInTrend[id]
 	return t < timestamp
 }
 
 func (v *Viewer) NumOfIsu() int {
-	v.verifiedConditionsInTrendMutex.RLock()
-	defer v.verifiedConditionsInTrendMutex.RUnlock()
 	return len(v.verifiedConditionsInTrend)
 }
