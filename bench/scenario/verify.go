@@ -718,6 +718,10 @@ func (s *Scenario) verifyTrend(
 
 							// 該当 condition が新規のものである場合はキャッシュを更新
 							if !viewer.ConditionAlreadyVerified(condition.IsuID, condition.Timestamp) {
+								// 該当 condition が以前のものよりも昔の timestamp で無いことの検証
+								if !viewer.ConditionIsUpdated(condition.IsuID, condition.Timestamp) {
+									return errorMismatch(res, "以前の取得結果よりも古いタイムスタンプのコンディションが返されています")
+								}
 								viewer.SetVerifiedCondition(condition.IsuID, condition.Timestamp)
 								// 一秒前(仮想時間で16時間40分以上前)よりあとのものならカウンタをインクリメント
 								if condition.Timestamp > s.ToVirtualTime(requestTime.Add(-2*time.Second)).Unix() {

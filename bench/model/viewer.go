@@ -1,6 +1,8 @@
 package model
 
 import (
+	"sync"
+
 	"github.com/isucon/isucandar/agent"
 )
 
@@ -11,12 +13,9 @@ type Viewer struct {
 	Agent              *agent.Agent
 
 	// GET trend にて既に確認したconditionを格納するのに利用
-	verifiedConditionsInTrend map[isuIDAndConditionTimestamp]struct{}
-}
-
-type isuIDAndConditionTimestamp struct {
-	IsuID              int
-	ConditionTimestamp int64
+	// key: isuID, value: timestamp
+	verifiedConditionsInTrend      map[int]int64
+	verifiedConditionsInTrendMutex sync.RWMutex
 }
 
 func NewViewer(agent *agent.Agent) Viewer {
@@ -24,15 +23,29 @@ func NewViewer(agent *agent.Agent) Viewer {
 		ErrorCount:                0,
 		ViewedUpdatedCount:        0,
 		Agent:                     agent,
-		verifiedConditionsInTrend: make(map[isuIDAndConditionTimestamp]struct{}, 8192),
+		verifiedConditionsInTrend: make(map[int]int64, 8192),
 	}
 }
 
 func (v *Viewer) SetVerifiedCondition(id int, timestamp int64) {
-	v.verifiedConditionsInTrend[isuIDAndConditionTimestamp{id, timestamp}] = struct{}{}
+	v.verifiedConditionsInTrendMutex.Lock()
+	defer v.verifiedConditionsInTrendMutex.Unlock()
+	v.verifiedConditionsInTrend[id] = timestamp
 }
 
 func (v *Viewer) ConditionAlreadyVerified(id int, timestamp int64) bool {
-	_, exist := v.verifiedConditionsInTrend[isuIDAndConditionTimestamp{id, timestamp}]
-	return exist
+	v.verifiedConditionsInTrendMutex.RLock()
+	defer v.verifiedConditionsInTrendMutex.RUnlock()
+	t, exist := v.verifiedConditionsInTrend[id]
+	if exist && t == timestamp {
+		return true
+	}
+	return false
+}
+
+func (v *Viewer) ConditionIsUpdated(id int, timestamp int64) bool {
+	v.verifiedConditionsInTrendMutex.RLock()
+	defer v.verifiedConditionsInTrendMutex.RUnlock()
+	t := v.verifiedConditionsInTrend[id]
+	return t < timestamp
 }
