@@ -367,7 +367,7 @@ func (s *Scenario) requestNewConditionScenario(ctx context.Context, step *isucan
 		EndTime:        nowVirtualTime.Unix(),
 		ConditionLevel: "info,warning,critical",
 	}
-	conditions, newLastReadConditionTimestamp, errs := s.getIsuConditionUntilAlreadyRead(ctx, user, targetIsu, request, step, readConditionCount)
+	conditions, newLastReadConditionTimestamps, errs := s.getIsuConditionUntilAlreadyRead(ctx, user, targetIsu, request, step, readConditionCount)
 	if len(errs) != 0 {
 		for _, err := range errs {
 			addErrorWithContext(ctx, step, err)
@@ -379,9 +379,23 @@ func (s *Scenario) requestNewConditionScenario(ctx context.Context, step *isucan
 	readCondition(conditions, step, readConditionCount)
 
 	// LastReadConditionTimestamp を更新
-	if targetIsu.LastReadConditionTimestamp < newLastReadConditionTimestamp {
-		targetIsu.LastReadConditionTimestamp = newLastReadConditionTimestamp
+	var nextTimestamps [service.ConditionLimit]int64
+	indexIsu := 0
+	indexNew := 0
+	for i := 0; i < service.ConditionLimit; i++ {
+		if targetIsu.LastReadConditionTimestamps[indexIsu] == newLastReadConditionTimestamps[indexNew] {
+			nextTimestamps[i] = targetIsu.LastReadConditionTimestamps[indexIsu]
+			indexIsu++
+			indexNew++
+		} else if targetIsu.LastReadConditionTimestamps[indexIsu] < newLastReadConditionTimestamps[indexNew] {
+			nextTimestamps[i] = newLastReadConditionTimestamps[indexNew]
+			indexNew++
+		} else {
+			nextTimestamps[i] = targetIsu.LastReadConditionTimestamps[indexIsu]
+			indexIsu++
+		}
 	}
+	targetIsu.LastReadConditionTimestamps = nextTimestamps
 
 	// このシナリオでは修理しない
 }
@@ -399,7 +413,7 @@ func (s *Scenario) requestLastBadConditionScenario(ctx context.Context, step *is
 	_, conditions, errs := browserGetIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
 		request,
 		func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
-			err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request, conditions)
+			err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request, conditions, targetIsu.LastReadBadConditionTimestamps)
 			if err != nil {
 				return []error{err}
 			}
@@ -422,7 +436,7 @@ func (s *Scenario) requestLastBadConditionScenario(ctx context.Context, step *is
 	solveCondition, targetTimestamp := findBadIsuState(conditions)
 
 	// すでに改善してるなら修理とかはしない
-	if targetTimestamp <= targetIsu.LastReadBadConditionTimestamp {
+	if targetTimestamp <= targetIsu.LastReadBadConditionTimestamps[0] {
 		return
 	}
 	if solveCondition != model.IsuStateChangeNone {
@@ -437,7 +451,23 @@ func (s *Scenario) requestLastBadConditionScenario(ctx context.Context, step *is
 
 	// LastReadBadConditionTimestamp を更新
 	// condition の順番保障はされてる
-	targetIsu.LastReadBadConditionTimestamp = conditions[0].Timestamp
+	var nextTimestamps [service.ConditionLimit]int64
+	indexIsu := 0
+	indexNew := 0
+	for i := 0; i < service.ConditionLimit; i++ {
+		if indexNew < len(conditions) && targetIsu.LastReadBadConditionTimestamps[indexIsu] == conditions[indexNew].Timestamp {
+			nextTimestamps[i] = targetIsu.LastReadBadConditionTimestamps[indexIsu]
+			indexIsu++
+			indexNew++
+		} else if indexNew < len(conditions) && targetIsu.LastReadBadConditionTimestamps[indexIsu] < conditions[indexNew].Timestamp {
+			nextTimestamps[i] = conditions[indexNew].Timestamp
+			indexNew++
+		} else {
+			nextTimestamps[i] = targetIsu.LastReadBadConditionTimestamps[indexIsu]
+			indexIsu++
+		}
+	}
+	targetIsu.LastReadBadConditionTimestamps = nextTimestamps
 }
 
 //GET /isu/condition/{jia_isu_uuid} を一度見たconditionが出るまでページングする === 全てが新しいなら次のページに行く。補足: LastReadTimestamp は外で更新
@@ -448,9 +478,9 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 	request service.GetIsuConditionRequest,
 	step *isucandar.BenchmarkStep,
 	readConditionCount *ReadConditionCount,
-) ([]*service.GetIsuConditionResponse, int64, []error) {
+) ([]*service.GetIsuConditionResponse, [service.ConditionLimit]int64, []error) {
 	// 更新用のLastReadConditionTimestamp
-	var newLastReadConditionTimestamp int64 = 0
+	var newLastReadConditionTimestamps [service.ConditionLimit]int64
 
 	// 今回のこの関数で取得した condition の配列
 	conditions := []*service.GetIsuConditionResponse{}
@@ -459,7 +489,7 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 	_, firstPageConditions, errs := browserGetIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
 		request,
 		func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
-			err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request, conditions)
+			err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request, conditions, targetIsu.LastReadConditionTimestamps)
 			if err != nil {
 				return []error{err}
 			}
@@ -467,10 +497,10 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 		},
 	)
 	if len(errs) > 0 {
-		return nil, newLastReadConditionTimestamp, errs
+		return nil, newLastReadConditionTimestamps, errs
 	}
-	if len(firstPageConditions) > 0 {
-		newLastReadConditionTimestamp = firstPageConditions[0].Timestamp
+	for i, c := range firstPageConditions {
+		newLastReadConditionTimestamps[i] = c.Timestamp
 	}
 	for _, cond := range firstPageConditions {
 		// 新しいやつだけなら append
@@ -478,12 +508,12 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 			conditions = append(conditions, cond)
 		} else {
 			// timestamp順なのは validation で保証しているので読んだやつが出てきたタイミングで return
-			return conditions, newLastReadConditionTimestamp, nil
+			return conditions, newLastReadConditionTimestamps, nil
 		}
 	}
 	// 最初のページが最後のページならやめる
 	if len(firstPageConditions) < service.ConditionLimit {
-		return conditions, newLastReadConditionTimestamp, nil
+		return conditions, newLastReadConditionTimestamps, nil
 	}
 
 	pagingCount := 1
@@ -504,11 +534,11 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 
 		tmpConditions, hres, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
 		if err != nil {
-			return nil, newLastReadConditionTimestamp, []error{err}
+			return nil, newLastReadConditionTimestamps, []error{err}
 		}
-		err = verifyIsuConditions(hres, user, targetIsu.JIAIsuUUID, &request, tmpConditions)
+		err = verifyIsuConditions(hres, user, targetIsu.JIAIsuUUID, &request, tmpConditions, targetIsu.LastReadConditionTimestamps)
 		if err != nil {
-			return nil, newLastReadConditionTimestamp, []error{err}
+			return nil, newLastReadConditionTimestamps, []error{err}
 		}
 
 		for _, cond := range tmpConditions {
@@ -517,13 +547,13 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 				conditions = append(conditions, cond)
 			} else {
 				// timestamp順なのは validation で保証しているので読んだやつが出てきたタイミングで return
-				return conditions, newLastReadConditionTimestamp, nil
+				return conditions, newLastReadConditionTimestamps, nil
 			}
 		}
 
 		// 最後のページまで見ちゃってるならやめる
 		if len(tmpConditions) != service.ConditionLimit {
-			return conditions, newLastReadConditionTimestamp, nil
+			return conditions, newLastReadConditionTimestamps, nil
 		}
 	}
 }
@@ -570,7 +600,7 @@ func addConditionScoreTag(step *isucandar.BenchmarkStep, readConditionCount *Rea
 }
 
 func isNewData(isu *model.Isu, condition *service.GetIsuConditionResponse) bool {
-	return condition.Timestamp > isu.LastReadConditionTimestamp
+	return condition.Timestamp > isu.LastReadConditionTimestamps[0]
 }
 
 // あるISUのグラフを見に行くシナリオ
@@ -638,7 +668,7 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 			addErrorWithContext(ctx, step, err)
 			return
 		}
-		err = verifyIsuConditions(hres, user, targetIsu.JIAIsuUUID, &request, conditions)
+		err = verifyIsuConditions(hres, user, targetIsu.JIAIsuUUID, &request, conditions, targetIsu.LastReadConditionTimestamps)
 		if err != nil {
 			addErrorWithContext(ctx, step, err)
 			return

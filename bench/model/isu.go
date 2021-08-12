@@ -44,21 +44,21 @@ type StreamsForScenario struct {
 //一つのIsuにつき、一つの送信用 Goroutineがある
 //IsuはISU協会 Goroutineからも読み込まれる
 type Isu struct {
-	Owner                         *User               `json:"-"`
-	ID                            int                 `json:"id"`
-	JIAIsuUUID                    string              `json:"jia_isu_uuid"`
-	Name                          string              `json:"name"`
-	ImageHash                     [md5.Size]byte      `json:"image_file_hash"` // 画像の検証用
-	Character                     string              `json:"character"`
-	CharacterID                   int                 `json:"-"`
-	StreamsForScenario            *StreamsForScenario `json:"-"`          //poster Goroutineとの通信
-	Conditions                    IsuConditionArray   `json:"conditions"` //シナリオ Goroutineからのみ参照
-	CondMutex                     sync.RWMutex
-	LastCompletedGraphTime        int64     //シナリオ Goroutineからのみ参照
-	PostTime                      time.Time //POST /isu/:id を叩いた仮想時間
-	LastReadConditionTimestamp    int64     //シナリオ Goroutineからのみ参照
-	LastReadBadConditionTimestamp int64     //シナリオ Goroutineからのみ参照
-	CreatedAt                     time.Time `json:"created_at"`
+	Owner                          *User               `json:"-"`
+	ID                             int                 `json:"id"`
+	JIAIsuUUID                     string              `json:"jia_isu_uuid"`
+	Name                           string              `json:"name"`
+	ImageHash                      [md5.Size]byte      `json:"image_file_hash"` // 画像の検証用
+	Character                      string              `json:"character"`
+	CharacterID                    int                 `json:"-"`
+	StreamsForScenario             *StreamsForScenario `json:"-"`          //poster Goroutineとの通信
+	Conditions                     IsuConditionArray   `json:"conditions"` //シナリオ Goroutineからのみ参照
+	CondMutex                      sync.RWMutex
+	LastCompletedGraphTime         int64                         //シナリオ Goroutineからのみ参照
+	PostTime                       time.Time                     //POST /isu/:id を叩いた仮想時間
+	LastReadConditionTimestamps    [service.ConditionLimit]int64 //シナリオ Goroutineからのみ参照
+	LastReadBadConditionTimestamps [service.ConditionLimit]int64 //シナリオ Goroutineからのみ参照
+	CreatedAt                      time.Time                     `json:"created_at"`
 }
 
 //新しいISUの生成
