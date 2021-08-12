@@ -3,13 +3,14 @@ import fs from "fs";
 import path from "path";
 import { promisify } from "util";
 
+import axios from "axios";
 import session from "cookie-session";
 import express from "express";
-import jwt from "jsonwebtoken";
+import jwt, { JsonWebTokenError } from "jsonwebtoken";
 import morgan from "morgan";
 import multer, { MulterError } from "multer";
 import mysql, { RowDataPacket } from "mysql2/promise";
-import axios from "axios";
+import qs from "qs";
 
 interface Config extends RowDataPacket {
   name: string;
@@ -38,12 +39,48 @@ interface GetIsuListResponse {
   latest_isu_condition?: GetIsuConditionResponse;
 }
 
+interface IsuCondition extends RowDataPacket {
+  id: number;
+  jia_isu_uuid: string;
+  timestamp: Date;
+  is_sitting: number;
+  condition: string;
+  message: string;
+  created_at: Date;
+}
+
 interface InitializeReponse {
   language: string;
 }
 
 interface GetMeResponse {
   jia_user_id: string;
+}
+
+interface GraphResponse {
+  start_at: number;
+  end_at: number;
+  data?: GraphDataPoint;
+  condition_timestamps: number[];
+}
+
+interface GraphDataPoint {
+  score: number;
+  percentage: ConditionsPercentage;
+}
+
+interface ConditionsPercentage {
+  sitting: number;
+  is_broken: number;
+  is_dirty: number;
+  is_overweight: number;
+}
+
+interface GraphDataPointWithInfo {
+  jiaIsuUUID: string;
+  startAt: Date;
+  data: GraphDataPoint;
+  conditionTimeStamps: number[];
 }
 
 interface GetIsuConditionResponse {
@@ -69,16 +106,16 @@ interface IsuConditionRow extends RowDataPacket {
 const sessionName = "isucondition";
 // const conditionLimit = 20;
 const frontendContentsPath = "../public";
-const jwtVerificationKeyPath = "../ec256-public.pem";
+const jiaJWTSigningKeyPath = "../ec256-public.pem";
 const defaultIconFilePath = "../NoImage.jpg";
 const defaultJIAServiceUrl = "http://localhost:5000";
-// mysqlErrNumDuplicateEntry = 1062
+const mysqlErrNumDuplicateEntry = 1062;
 const conditionLevelInfo = "info";
 const conditionLevelWarning = "warning";
 const conditionLevelCritical = "critical";
-// const scoreConditionLevelInfo     = 3
-// const scoreConditionLevelWarning  = 2
-// const scoreConditionLevelCritical = 1
+const scoreConditionLevelInfo = 3;
+const scoreConditionLevelWarning = 2;
+const scoreConditionLevelCritical = 1;
 
 if (!("POST_ISUCONDITION_TARGET_BASE_URL" in process.env)) {
   console.error("missing: POST_ISUCONDITION_TARGET_BASE_URL");
@@ -88,7 +125,7 @@ const postIsuConditionTargetBaseURL =
   process.env["POST_ISUCONDITION_TARGET_BASE_URL"];
 const dbinfo: mysql.PoolOptions = {
   host: process.env["MYSQL_HOST"] ?? "127.0.0.1",
-  port: Number.parseInt(process.env["MYSQL_PORT"] ?? "3306"),
+  port: parseInt(process.env["MYSQL_PORT"] ?? "3306", 10),
   user: process.env["MYSQL_USER"] ?? "isucon",
   database: process.env["MYSQL_DBNAME"] ?? "isucondition",
   password: process.env["MYSQL_PASS"] || "isucon",
@@ -109,15 +146,7 @@ app.use(
     maxAge: 60 * 60 * 24 * 1000 * 30,
   })
 );
-app.set("cert", fs.readFileSync(jwtVerificationKeyPath));
-
-["/", "/condition", "/isu/:jia_isu_uuid", "/register", "/login"].forEach(
-  (frontendPath) => {
-    app.get(frontendPath, (_req, res) => {
-      res.sendFile(path.resolve("../public", "index.html"));
-    });
-  }
-);
+app.set("cert", fs.readFileSync(jiaJWTSigningKeyPath));
 
 async function getUserIdFromSession(
   req: express.Request,
@@ -132,11 +161,11 @@ async function getUserIdFromSession(
   }
 
   try {
-    const [[count]] = await db.query<(RowDataPacket & { cnt: number })[]>(
+    const [[{ cnt }]] = await db.query<(RowDataPacket & { cnt: number })[]>(
       "SELECT COUNT(*) AS `cnt` FROM `user` WHERE `jia_user_id` = ?",
       [jiaUserId]
     );
-    if (count.cnt === 0) {
+    if (cnt === 0) {
       return ["", 401, new Error("not found: user")];
     }
   } catch (err) {
@@ -176,29 +205,32 @@ app.post("/initialize", async (_req, res) => {
 // サインアップ・サインイン
 app.post("/api/auth", async (req, res) => {
   const db = await pool.getConnection();
-  const authHeader = req.headers.authorization ?? "";
-  const token = authHeader.startsWith("Bearer ")
-    ? authHeader.slice(7)
-    : authHeader;
   try {
+    const authHeader = req.headers.authorization ?? "";
+    const token = authHeader.startsWith("Bearer ")
+      ? authHeader.slice(7)
+      : authHeader;
     const decoded = jwt.verify(token, req.app.get("cert")) as jwt.JwtPayload;
     if (!("jia_user_id" in decoded)) {
-      return res.status(400).send("invalid JWT payload");
+      return res.status(400).type("text").send("invalid JWT payload");
     }
     const jiaUserId = decoded["jia_user_id"];
     if (typeof jiaUserId !== "string") {
-      return res.status(400).send("invalid JWT payload");
+      return res.status(400).type("text").send("invalid JWT payload");
     }
     await db.query(
       "INSERT IGNORE INTO user (`jia_user_id`) VALUES (?)",
       jiaUserId
     );
-    await db.commit();
     req.session = { jia_user_id: jiaUserId };
     return res.status(200).send();
   } catch (err) {
-    console.error(`jwt validation error: ${err}`);
-    return res.status(403).send("forbidden");
+    if (err instanceof JsonWebTokenError || err instanceof SyntaxError) {
+      return res.status(403).type("text").send("forbidden");
+    } else {
+      console.error(`db error: ${err}`);
+      return res.status(500).send();
+    }
   } finally {
     db.release();
   }
@@ -261,6 +293,7 @@ app.get("/api/isu", async (req, res) => {
     }
 
     await db.beginTransaction();
+
     const [isuList] = await db.query<Isu[]>(
       "SELECT * FROM `isu` WHERE `jia_user_id` = ? ORDER BY `id` DESC",
       [jiaUserId]
@@ -282,6 +315,7 @@ app.get("/api/isu", async (req, res) => {
         );
         if (err) {
           console.error(`failed to get condition level: ${err}`);
+          await db.rollback();
           return res.status(500).send();
         }
         formattedCondition = {
@@ -302,7 +336,9 @@ app.get("/api/isu", async (req, res) => {
         latest_isu_condition: formattedCondition,
       });
     }
+
     await db.commit();
+
     return res.status(200).json(responseList);
   } catch (err) {
     console.error(`db error: ${err}`);
@@ -350,30 +386,50 @@ app.post("/api/isu", (req: express.Request<{}, any, PostIsuBody>, res) => {
       }
 
       await db.beginTransaction();
-      await db.query(
-        "INSERT INTO `isu` (`jia_isu_uuid`, `name`, `image`, `jia_user_id`) VALUES (?, ?, ?, ?)",
-        [jiaIsuUUID, isuName, image, jiaUserId]
-      );
 
-      // TODO: check duplicate
+      try {
+        await db.query(
+          "INSERT INTO `isu` (`jia_isu_uuid`, `name`, `image`, `jia_user_id`) VALUES (?, ?, ?, ?)",
+          [jiaIsuUUID, isuName, image, jiaUserId]
+        );
+      } catch (err) {
+        await db.rollback();
+        if (err.errno === mysqlErrNumDuplicateEntry) {
+          return res.status(409).type("text").send("duplicated: isu");
+        } else {
+          console.error(`db error: ${err}`);
+          return res.status(500).send();
+        }
+      }
 
       const targetUrl = (await getJIAServiceUrl(db)) + "/api/activate";
 
       let isuFromJIA: { character: string };
       try {
-        const response = await axios.post(targetUrl, {
-          target_base_url: postIsuConditionTargetBaseURL,
-          isu_uuid: jiaIsuUUID,
-        });
+        const response = await axios.post(
+          targetUrl,
+          {
+            target_base_url: postIsuConditionTargetBaseURL,
+            isu_uuid: jiaIsuUUID,
+          },
+          {
+            validateStatus: (status) => status < 500,
+          }
+        );
         if (response.status !== 202) {
           console.error(
             `JIAService returned error: status code ${response.status}, message: ${response.data}`
           );
-          return res.status(response.status).send("JIAService returned error");
+          await db.rollback();
+          return res
+            .status(response.status)
+            .type("text")
+            .send("JIAService returned error");
         }
         isuFromJIA = response.data;
       } catch (err) {
         console.error(`failed to request to JIAService: ${err}`);
+        await db.rollback();
         return res.status(500).send();
       }
 
@@ -385,9 +441,7 @@ app.post("/api/isu", (req: express.Request<{}, any, PostIsuBody>, res) => {
         "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
         [jiaUserId, jiaIsuUUID]
       );
-      if (!isu) {
-        throw new Error();
-      }
+
       await db.commit();
 
       const isuResponse: IsuResponse = {
@@ -450,6 +504,278 @@ app.get(
   }
 );
 
+// GET /api/isu/:jia_isu_uuid/icon
+// ISUのアイコンを取得
+app.get(
+  "/api/isu/:jia_isu_uuid/icon",
+  async (req: express.Request<{ jia_isu_uuid: string }>, res) => {
+    const db = await pool.getConnection();
+    try {
+      const [jiaUserId, errStatusCode, err] = await getUserIdFromSession(
+        req,
+        db
+      );
+      if (err) {
+        if (errStatusCode === 401) {
+          return res.status(401).type("text").send("you are not signed in");
+        }
+        console.error(err);
+        return res.status(500).send();
+      }
+
+      const jiaIsuUUID = req.params.jia_isu_uuid;
+      const [[row]] = await db.query<(RowDataPacket & { image: Buffer })[]>(
+        "SELECT `image` FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
+        [jiaUserId, jiaIsuUUID]
+      );
+      if (!row) {
+        return res.status(404).type("text").send("not found: isu");
+      }
+      return res.status(200).send(row.image);
+    } finally {
+      db.release();
+    }
+  }
+);
+
+interface GetIsuGraphQuery extends qs.ParsedQs {
+  datetime?: string;
+}
+
+// GET /api/isu/:jia_isu_uuid/graph
+// ISUのコンディショングラフ描画のための情報を取得
+app.get(
+  "/api/isu/:jia_isu_uuid/graph",
+  async (
+    req: express.Request<{ jia_isu_uuid: string }, any, any, GetIsuGraphQuery>,
+    res
+  ) => {
+    const db = await pool.getConnection();
+    try {
+      const [jiaUserId, errStatusCode, err] = await getUserIdFromSession(
+        req,
+        db
+      );
+      if (err) {
+        if (errStatusCode === 401) {
+          return res.status(401).type("text").send("you are not signed in");
+        }
+        console.error(err);
+        return res.status(500).send();
+      }
+
+      const jiaIsuUUID = req.params.jia_isu_uuid;
+      const datetimeStr = req.query.datetime;
+      if (!datetimeStr) {
+        return res.status(400).type("text").send("missing: datetime");
+      }
+      const datetime = parseInt(datetimeStr, 10);
+      if (isNaN(datetime)) {
+        return res.status(400).type("text").send("bad format: datetime");
+      }
+      const date = new Date(datetime * 1000);
+      date.setHours(0, 0, 0, 0);
+
+      await db.beginTransaction();
+
+      const [[{ cnt }]] = await db.query<(RowDataPacket & { cnt: number })[]>(
+        "SELECT COUNT(*) AS `cnt` FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
+        [jiaUserId, jiaIsuUUID]
+      );
+      if (cnt === 0) {
+        await db.rollback();
+        return res.status(404).type("text").send("not found: isu");
+      }
+      const [getIsuGraphresponse, e] = await generateIsuGraphResponse(
+        db,
+        jiaIsuUUID,
+        date
+      );
+      if (e) {
+        console.error(e);
+        await db.rollback();
+        return res.status(500).send();
+      }
+
+      await db.commit();
+
+      return res.status(200).json(getIsuGraphresponse);
+    } catch (err) {
+      console.error(`db error: ${err}`);
+      await db.rollback();
+      return res.status(500).send();
+    } finally {
+      db.release();
+    }
+  }
+);
+
+async function generateIsuGraphResponse(
+  db: mysql.Connection,
+  jiaIsuUUID: string,
+  graphDate: Date
+): Promise<[GraphResponse[], Error?]> {
+  const dataPoints: GraphDataPointWithInfo[] = [];
+  const conditionsInThisHour = [];
+  const timestampsInThisHour = [];
+  let startTimeInThisHour = new Date(0);
+
+  const [rows] = await db.query<IsuCondition[]>(
+    "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` ASC",
+    [jiaIsuUUID]
+  );
+  for (const condition of rows) {
+    const truncatedConditionTime = new Date(
+      condition.timestamp.setHours(0, 0, 0, 0)
+    );
+    if (truncatedConditionTime != startTimeInThisHour) {
+      if (conditionsInThisHour.length > 0) {
+        const [data, err] = calculateGraphDataPoint(conditionsInThisHour);
+        if (err) {
+          return [[], err];
+        }
+        dataPoints.push({
+          jiaIsuUUID,
+          startAt: startTimeInThisHour,
+          data,
+          conditionTimeStamps: timestampsInThisHour,
+        });
+        // TODO
+      }
+      startTimeInThisHour = truncatedConditionTime;
+      conditionsInThisHour.splice(0);
+      timestampsInThisHour.splice(0);
+    }
+    conditionsInThisHour.push(condition);
+    timestampsInThisHour.push(condition.timestamp.getTime() / 1000);
+  }
+
+  if (conditionsInThisHour.length > 0) {
+    const [data, err] = calculateGraphDataPoint(conditionsInThisHour);
+    if (err) {
+      return [[], err];
+    }
+    dataPoints.push({
+      jiaIsuUUID,
+      startAt: startTimeInThisHour,
+      data,
+      conditionTimeStamps: timestampsInThisHour,
+    });
+  }
+
+  const endTime = new Date(graphDate.getTime() + 24 * 60 * 60 * 1000);
+  let startIndex = 0;
+  let endNextIndex = dataPoints.length;
+  dataPoints.forEach((graph, i) => {
+    if (startIndex === 0 && graph.startAt >= graphDate) {
+      startIndex = i;
+    }
+    if (endNextIndex == dataPoints.length && graph.startAt > endTime) {
+      endNextIndex = i;
+    }
+  });
+
+  const filteredDataPoints: GraphDataPointWithInfo[] = [];
+  if (startIndex < endNextIndex) {
+    filteredDataPoints.push(...dataPoints.slice(startIndex, endNextIndex));
+  }
+
+  const responseList: GraphResponse[] = [];
+  let index = 0;
+  let thisTime = graphDate;
+
+  while (thisTime < endTime) {
+    let data = undefined;
+    const timestamps: number[] = [];
+
+    if (index < filteredDataPoints.length) {
+      const dataWithInfo = filteredDataPoints[index];
+
+      if (dataWithInfo.startAt == thisTime) {
+        data = dataWithInfo.data;
+        timestamps.push(...dataWithInfo.conditionTimeStamps);
+        index++;
+      }
+    }
+
+    responseList.push({
+      start_at: thisTime.getTime() / 1000,
+      end_at: thisTime.getTime() / 1000 + 60 * 60,
+      data,
+      condition_timestamps: timestamps,
+    });
+
+    thisTime = new Date(thisTime.getTime() + 60 * 60 * 1000);
+  }
+
+  return [responseList, undefined];
+}
+
+// 複数のISUのコンディションからグラフの一つのデータ点を計算
+function calculateGraphDataPoint(
+  isuConditions: IsuCondition[]
+): [GraphDataPoint, Error?] {
+  const conditionsCount: Record<string, number> = {
+    is_broken: 0,
+    is_dirty: 0,
+    is_overweight: 0,
+  };
+  let rawScore = 0;
+  isuConditions.forEach((condition) => {
+    let badConditionsCount = 0;
+
+    if (!isValidConditionFormat(condition.condition)) {
+      return [{}, new Error("invalid condition format")];
+    }
+
+    condition.condition.split(",").forEach((condStr) => {
+      const keyValue = condStr.split("=");
+
+      const conditionName = keyValue[0];
+      if ((keyValue[1] = "true")) {
+        conditionsCount[conditionName] += 1;
+        badConditionsCount++;
+      }
+    });
+
+    if (badConditionsCount >= 3) {
+      rawScore += scoreConditionLevelCritical;
+    } else if (badConditionsCount >= 1) {
+      rawScore += scoreConditionLevelWarning;
+    } else {
+      rawScore += scoreConditionLevelInfo;
+    }
+  });
+
+  let sittingCount = 0;
+  isuConditions.forEach((condition) => {
+    if (!!condition.is_sitting) {
+      sittingCount++;
+    }
+  });
+
+  const isuConditionLength = isuConditions.length;
+  const score = rawScore / isuConditionLength;
+  const sittingPercentage = (sittingCount * 100) / isuConditionLength;
+  const isBrokenPercentage =
+    (conditionsCount["is_broken"] * 100) / isuConditionLength;
+  const isOverweightPercentage =
+    (conditionsCount["is_overweight"] * 100) / isuConditionLength;
+  const isDirtyPercentage =
+    (conditionsCount["is_dirty"] * 100) / isuConditionLength;
+
+  const dataPoint: GraphDataPoint = {
+    score,
+    percentage: {
+      sitting: sittingPercentage,
+      is_broken: isBrokenPercentage,
+      is_overweight: isOverweightPercentage,
+      is_dirty: isDirtyPercentage,
+    },
+  };
+  return [dataPoint, undefined];
+}
+
 // ISUのコンディションの文字列からコンディションレベルを計算
 function calculateConditionLevel(condition: string): [string, Error?] {
   var conditionLevel: string;
@@ -482,4 +808,48 @@ function calculateConditionLevel(condition: string): [string, Error?] {
   return [conditionLevel, undefined];
 }
 
-app.listen(Number.parseInt(process.env["SERVER_APP_PORT"] ?? "3000"), () => {});
+// ISUのコンディションの文字列がcsv形式になっているか検証
+function isValidConditionFormat(condition: string): boolean {
+  const keys = ["is_dirty=", "is_overweight=", "is_broken="];
+  const valueTrue = "true";
+  const valueFalse = "false";
+
+  let idxCondStr = 0;
+
+  keys.forEach((key, idxKeys) => {
+    if (!condition.slice(idxCondStr).startsWith(key)) {
+      return false;
+    }
+    idxCondStr += key.length;
+
+    if (condition.slice(idxCondStr).startsWith(valueTrue)) {
+      idxCondStr += valueTrue.length;
+    } else if (condition.slice(idxCondStr).startsWith(valueFalse)) {
+      idxCondStr += valueFalse.length;
+    } else {
+      return false;
+    }
+
+    if (idxKeys < keys.length - 1) {
+      if (condition.slice(idxCondStr) !== ".") {
+        return false;
+      }
+      idxCondStr++;
+    }
+  });
+  return idxCondStr == condition.length;
+}
+
+[
+  "/",
+  "/isu/:jia_isu_uuid",
+  "/isu/:jia_isu_uuid/condition",
+  "/isu/:jia_isu_uuid/graph",
+  "/register",
+].forEach((frontendPath) => {
+  app.get(frontendPath, (_req, res) => {
+    res.sendFile(path.resolve("../public", "index.html"));
+  });
+});
+
+app.listen(parseInt(process.env["SERVER_APP_PORT"] ?? "3000", 10), () => {});
