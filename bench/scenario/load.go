@@ -49,6 +49,9 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	if s.NoLoad {
 		return nil
 	}
+	// 初期実装だと fail してしまうため下駄をはかせる
+	step.AddScore(ScoreStartBenchmark)
+
 	ctx, cancel := context.WithTimeout(parent, s.LoadTimeout)
 	defer cancel()
 

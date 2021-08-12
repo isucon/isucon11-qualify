@@ -392,9 +392,6 @@ func main() {
 		default:
 		}
 
-		// 初期実装だと fail してしまうため下駄をはかせる
-		step.AddScore(scenario.ScoreStartBenchmark)
-
 		for {
 			// 途中経過を3秒毎に送信
 			timer := time.After(3 * time.Second)
