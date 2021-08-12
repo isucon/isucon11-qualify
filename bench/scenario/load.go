@@ -824,6 +824,16 @@ func authInfinityRetry(ctx context.Context, a *agent.Agent, userID string, step 
 			}
 			continue
 		}
+		me, hres, err := getMeAction(ctx, a)
+		if err != nil {
+			addErrorWithContext(ctx, step, err)
+			continue
+		}
+		err = verifyMe(userID, hres, me)
+		if err != nil {
+			addErrorWithContext(ctx, step, err)
+			continue
+		}
 		return
 	}
 }
