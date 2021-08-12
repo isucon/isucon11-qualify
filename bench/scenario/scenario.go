@@ -2,9 +2,11 @@ package scenario
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/isucon/isucandar"
@@ -24,6 +26,7 @@ type Scenario struct {
 	// TODO: シナリオ実行に必要なフィールドを書く
 
 	BaseURL                  string        // ベンチ対象 Web アプリの URL
+	UseTLS                   bool          // ベンチ対象 Web アプリが HTTPS で動いているかどうか (本番時ture/CI時false)
 	NoLoad                   bool          // Load(ベンチ負荷)を強要しない
 	LoadTimeout              time.Duration //Loadのcontextの時間
 	realTimePrepareStartedAt time.Time     //Prepareの開始時間
@@ -38,8 +41,12 @@ type Scenario struct {
 	// 競技者の実装言語
 	Language string
 
-	loadWaitGroup sync.WaitGroup
-	JiaCancel     context.CancelFunc
+	loadWaitGroup   sync.WaitGroup
+	JiaPosterCancel context.CancelFunc
+
+	// IPアドレスと FQDN の対応付け
+	mapIPAddrToFqdn map[string]string
+	mapFqdnToIPAddr map[string]string
 
 	//内部状態
 	normalUsersMtx sync.Mutex
@@ -67,6 +74,8 @@ func NewScenario(jiaServiceURL *url.URL, loadTimeout time.Duration) (*Scenario, 
 		jiaServiceURL:     jiaServiceURL,
 		initializeTimeout: 20 * time.Second,
 		prepareTimeout:    3 * time.Second,
+		mapIPAddrToFqdn:   make(map[string]string, 3),
+		mapFqdnToIPAddr:   make(map[string]string, 3),
 		normalUsers:       []*model.User{},
 		isuFromID:         make(map[int]*model.Isu, 8192),
 	}, nil
@@ -135,6 +144,12 @@ func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a
 	}
 
 	//backendにpostする
+	go func() {
+		// 登録済みユーザーは trend に興味がないからリクエストを待たない
+		if _, err := browserGetLandingPageIgnoreAction(ctx, a); err != nil {
+			addErrorWithContext(ctx, step, err)
+		}
+	}()
 	//TODO: 確率で失敗してリトライする
 	_, errs := authAction(ctx, a, user.UserID)
 	for _, err := range errs {
@@ -145,12 +160,43 @@ func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a
 	}
 	user.Agent = a
 
+	// POST /api/auth をしたため GET /api/user/me を叩く
+	me, hres, err := getMeAction(ctx, user.Agent)
+	if err != nil {
+		addErrorWithContext(ctx, step, err)
+		// 致命的なエラーではないため return しない
+	} else {
+		err = verifyMe(user.UserID, hres, me)
+		if err != nil {
+			addErrorWithContext(ctx, step, err)
+			// 致命的なエラーではないため return しない
+		}
+	}
+
 	return user
+}
+
+var newIsuCountForImageMissing int32 = -1 //画像をnilにするかどうかの判定用変数(他用途で使用しないこと)
+
+//新しい登録済みISUの生成
+//失敗したらnilを返す
+func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, owner *model.User, addToUser bool, retry bool) *model.Isu {
+	var image []byte = nil
+	//20回に1回はnilでPOST
+	if atomic.AddInt32(&newIsuCountForImageMissing, 1)%20 != 0 {
+		//画像付きでPOST
+		var err error
+		image, err = random.Image()
+		if err != nil {
+			logger.AdminLogger.Panic(err)
+		}
+	}
+	return s.NewIsuWithCustomImg(ctx, step, owner, addToUser, image, retry)
 }
 
 //新しい登録済みISUの生成
 //失敗したらnilを返す
-func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, owner *model.User, addToUser bool, img []byte, retry bool) *model.Isu {
+func (s *Scenario) NewIsuWithCustomImg(ctx context.Context, step *isucandar.BenchmarkStep, owner *model.User, addToUser bool, img []byte, retry bool) *model.Isu {
 	isu, streamsForPoster, err := model.NewRandomIsuRaw(owner)
 	if err != nil {
 		logger.AdminLogger.Panic(err)
@@ -213,9 +259,6 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 	// isu.ID から model.TrendCondition を取得できるようにする (GET /trend 用)
 	s.UpdateIsuFromID(isu)
 
-	// poster に isu model の初期化終了を伝える
-	isu.StreamsForScenario.StateChan <- model.IsuStateChangeNone
-
 	//並列に生成する場合は後でgetにより正しい順番を得て、その順序でaddする。企業ユーザーは並列にaddしないと回らない
 	//その場合はaddToUser==falseになる
 	if addToUser {
@@ -237,6 +280,30 @@ func addErrorWithContext(ctx context.Context, step *isucandar.BenchmarkStep, err
 	default:
 		step.AddError(err)
 	}
+}
+
+// map に対する Setter は main でしか呼ばれないため lock は取らない
+func (s *Scenario) SetIPAddrAndFqdn(str ...string) error {
+	if len(str)%2 != 0 {
+		return fmt.Errorf("invalid arguments")
+	}
+	for i := 0; i < len(str); i += 2 {
+		ipaddr := str[i]
+		fqdn := str[i+1]
+		s.mapFqdnToIPAddr[fqdn] = ipaddr
+		s.mapIPAddrToFqdn[ipaddr] = fqdn
+	}
+	return nil
+}
+
+func (s *Scenario) GetIPAddrFromFqdn(fqdn string) (string, bool) {
+	result, ok := s.mapFqdnToIPAddr[fqdn]
+	return result, ok
+}
+
+func (s *Scenario) GetFqdnFromIPAddr(ipaddr string) (string, bool) {
+	result, ok := s.mapIPAddrToFqdn[ipaddr]
+	return result, ok
 }
 
 func (s *Scenario) UpdateIsuFromID(isu *model.Isu) {

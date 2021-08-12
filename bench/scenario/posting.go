@@ -2,6 +2,7 @@ package scenario
 
 import (
 	"context"
+	"crypto/tls"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -47,7 +48,7 @@ type badCondition struct {
 }
 
 //POST /api/condition/{jia_isu_id}をたたく Goroutine
-func (s *Scenario) keepPosting(ctx context.Context, targetBaseURL *url.URL, isu *model.Isu, scenarioChan *model.StreamsForPoster) {
+func (s *Scenario) keepPosting(ctx context.Context, targetBaseURL *url.URL, fqdn string, isu *model.Isu, scenarioChan *model.StreamsForPoster) {
 
 	targetBaseURLMapMutex.Lock()
 	targetBaseURLMap[targetBaseURL.String()] = struct{}{}
@@ -66,6 +67,12 @@ func (s *Scenario) keepPosting(ctx context.Context, targetBaseURL *url.URL, isu 
 	randEngine := rand.New(rand.NewSource(rand.Int63()))
 	httpClient := http.Client{}
 	httpClient.Timeout = postConditionTimeout
+	httpClient.Transport = &http.Transport{
+		TLSClientConfig: &tls.Config{
+			ServerName: fqdn,
+		},
+		ForceAttemptHTTP2: true,
+	}
 
 	timer := time.NewTicker(40 * time.Millisecond)
 	defer timer.Stop()
