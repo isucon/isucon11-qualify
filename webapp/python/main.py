@@ -1,8 +1,13 @@
 from os import getenv
 from subprocess import call
+from dataclasses import dataclass
+import json
+from datetime import datetime
+import urllib.request
 from enum import Enum
-from flask import Flask, request, session, send_file, jsonify
-from werkzeug.exceptions import BadRequest, Unauthorized
+from flask import Flask, request, session, send_file, jsonify, abort
+from flask.json import JSONEncoder
+from werkzeug.exceptions import BadRequest, Unauthorized, InternalServerError
 import mysql.connector
 from sqlalchemy.pool import QueuePool
 import jwt
@@ -14,8 +19,24 @@ class CONDITION_LEVEL(str, Enum):
     CRITICAL = "critical"
 
 
+JIA_JWT_SIGNING_KEY_PATH = "../ec256-public.pem"
+DEFAULT_ICON_FILE_PATH = "../NoImage.jpg"
+DEFAULT_JIA_SERVICE_URL = "http://localhost:5000"
+
+
+class CustomJSONEncoder(JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return obj.timestamp()
+        if isinstance(obj, Isu):
+            cols = ["id", "jia_isu_uuid", "name", "character"]
+            return {col: obj.__dict__[col] for col in cols}
+        return JSONEncoder.default(self, obj)
+
+
 app = Flask(__name__, static_folder="../public/assets", static_url_path="/assets")
 app.secret_key = getenv("SESSION_KEY", "isucondition")
+app.json_encoder = CustomJSONEncoder
 
 mysql_connection_env = {
     "host": getenv("MYSQL_HOST", "127.0.0.1"),
@@ -26,6 +47,18 @@ mysql_connection_env = {
 }
 
 cnxpool = QueuePool(lambda: mysql.connector.connect(**mysql_connection_env), pool_size=10)
+
+
+@dataclass
+class Isu:
+    id: int
+    jia_isu_uuid: int
+    name: str
+    image: bytes
+    character: str
+    jia_user_id: str
+    created_at: datetime
+    updated_at: datetime
 
 
 def select_all(query, *args, dictionary=True):
@@ -43,8 +76,12 @@ def select_row(*args, **kwargs):
     return rows[0] if len(rows) > 0 else None
 
 
-with open("../ec256-public.pem", "rb") as f:
+with open(JIA_JWT_SIGNING_KEY_PATH, "rb") as f:
     jwt_public_key = f.read()
+
+post_isu_condition_target_base_url = getenv("POST_ISUCONDITION_TARGET_BASE_URL")
+if post_isu_condition_target_base_url is None:
+    raise Exception("missing: POST_ISUCONDITION_TARGET_BASE_URL")
 
 
 def get_user_id_from_session():
@@ -60,6 +97,12 @@ def get_user_id_from_session():
         raise Unauthorized("not found: user")
 
     return jia_user_id
+
+
+def get_jia_service_url() -> str:
+    query = "SELECT * FROM `isu_association_config` WHERE `name` = %s"
+    config = select_row(query, ("jia_service_url",))
+    return config["url"] if config is not None else DEFAULT_JIA_SERVICE_URL
 
 
 @app.route("/initialize", methods=["POST"])
@@ -162,7 +205,74 @@ def get_isu_list():
 @app.route("/api/isu", methods=["POST"])
 def post_isu():
     """ISUを登録"""
-    raise NotImplementedError
+    jia_user_id = get_user_id_from_session()
+
+    use_default_image = False
+
+    jia_isu_uuid = request.form.get("jia_isu_uuid")
+    isu_name = request.form.get("isu_name")
+    image = request.files.get("image")
+
+    if image is None:
+        use_default_image = True
+
+    if use_default_image:
+        with open(DEFAULT_ICON_FILE_PATH, "rb") as f:
+            image = f.read()
+    else:
+        image = image.read()
+
+    cnx = cnxpool.connect()
+    try:
+        cnx.start_transaction()
+        cur = cnx.cursor(dictionary=True)
+
+        try:
+            query = """
+                INSERT
+                INTO `isu` (`jia_isu_uuid`, `name`, `image`, `jia_user_id`)
+                VALUES (%s, %s, %s, %s)
+                """
+            cur.execute(query, (jia_isu_uuid, isu_name, image, jia_user_id))
+        except mysql.connector.errors.IntegrityError as e:
+            if e.errno == 1062:
+                abort(409, "duplicated: isu")
+            raise
+
+        target_url = get_jia_service_url() + "/api/activate"
+        body = {
+            "target_base_url": post_isu_condition_target_base_url,
+            "isu_uuid": jia_isu_uuid,
+        }
+        headers = {
+            "Content-Type": "application/json",
+        }
+        req_jia = urllib.request.Request(target_url, json.dumps(body).encode(), headers)
+        try:
+            with urllib.request.urlopen(req_jia) as res:
+                isu_from_jia = json.load(res)
+        except urllib.error.HTTPError as e:
+            app.logger.error(f"JIAService returned error: status code {e.code}, message: {e.reason}")
+            abort(e.code, "JIAService returned error")
+        except urllib.error.URLError as e:
+            app.logger.error(f"failed to request to JIAService: {e.reason}")
+            raise InternalServerError
+
+        query = "UPDATE `isu` SET `character` = %s WHERE  `jia_isu_uuid` = %s"
+        cur.execute(query, (isu_from_jia["character"], jia_isu_uuid))
+
+        query = "SELECT * FROM `isu` WHERE `jia_user_id` = %s AND `jia_isu_uuid` = %s"
+        cur.execute(query, (jia_user_id, jia_isu_uuid))
+        isu = Isu(**cur.fetchone())
+
+        cnx.commit()
+    except:
+        cnx.rollback()
+        raise
+    finally:
+        cnx.close()
+
+    return jsonify(isu), 201
 
 
 @app.route("/api/isu/<jia_isu_uuid>", methods=["GET"])
