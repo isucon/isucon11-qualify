@@ -13,7 +13,7 @@
     content: |
       export PATH=/home/isucon/.cargo/bin:$PATH
 
-- name: "roles/langs.rust/tasks/main: Update to 1.53.0"
+- name: "roles/langs.rust/tasks/main: Update to 1.54.0"
   become: yes
   become_user: isucon
-  command: /home/isucon/.cargo/bin/rustup update 1.53.0
+  command: /home/isucon/.cargo/bin/rustup update 1.54.0
