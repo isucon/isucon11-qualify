@@ -88,22 +88,22 @@ TODO: テンプレートを使った AWS CloudFormation での作成手順を確
 ### 3. インスタンスへの SSH
 
 インスタンスの起動後、GitHub に登録している SSH 鍵によりインスタンスへ SSH ができるようになります。
-インスタンスにはユーザー名 `ubuntu` で SSH を行います。
+インスタンスにはユーザー名 `isucon` で SSH を行います。
 
 [ssh_config(5)](https://man.openbsd.org/ssh_config.5) の例を以下に示します。なお、あくまで例示であり必ず以下の設定を利用する必要はありません。
 
 ```
  Host isucon-server1
    HostName **<Elastic IPアドレス 1>**
-   User ubuntu
+   User isucon
 
 Host isucon-server2
    HostName **<Elastic IPアドレス 2>**
-   User ubuntu
+   User isucon
 
 Host isucon-server3
    HostName **<Elastic IPアドレス 3>**
-   User ubuntu
+   User isucon
 ```
 
 ### 重要事項
@@ -113,7 +113,7 @@ Host isucon-server3
   - 特例として外部のメトリクス計測サービスの使用のみ許可をしますが、スコアを向上させるいかなる効果も持つものであってはいけません。
 - **競技終了後は、ベンチマーク走行成績の追試を行いますので、Discord サーバー および http://isucon.net/ にて主催者からお知らせをするまで、サーバーの操作はしないでください。**
   - 競技終了後の作業は禁止行為にあたり失格となります。
-- **サーバー上の `ubuntu` ならびに `isucon` 以外のユーザに関して、ユーザ削除や既存の公開鍵の削除、その他 sshd の設定変更等を行ったことにより、主催者による追試をおこなうことができない場合は、失格とします。**
+- **サーバー上の `isucon` 以外のユーザに関して、ユーザ削除や既存の公開鍵の削除、その他 sshd の設定変更等を行ったことにより、主催者による追試をおこなうことができない場合は、失格とします。**
 
 
 ## 作業手順
@@ -125,7 +125,7 @@ Host isucon-server3
 上記に記載したサーバーに対して SSH 接続してください。
 ログインには参加登録に利用した ( = ポータルのログインに利用している) GitHub アカウントに登録されている SSH 鍵を利用します。
 
-SSH ログインのユーザ名は `ubuntu` です。
+SSH ログインのユーザ名は `isucon` です。
 
 ### 2. アプリケーションの動作確認
 
