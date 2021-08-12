@@ -423,8 +423,8 @@ func (s *Scenario) requestLastBadConditionScenario(ctx context.Context, step *is
 	if len(errs) > 0 {
 		for _, err := range errs {
 			addErrorWithContext(ctx, step, err)
-			return
 		}
+		return
 	}
 	if len(conditions) == 0 {
 		return
