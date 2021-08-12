@@ -1,0 +1,6 @@
+127.0.0.1 localhost
+
+# TODO: アドレスを更新する
+192.168.0.11 isucondition-1.t.isucon.dev
+192.168.0.12 isucondition-2.t.isucon.dev
+192.168.0.13 isucondition-3.t.isucon.dev

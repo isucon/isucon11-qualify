@@ -27,6 +27,7 @@
     - langs.go
     - langs.rust
     - bench
+    - bench.node_exporter
     - bench.supervisor
 
 - name: "bench (standalone) roles"

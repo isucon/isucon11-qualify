@@ -11,7 +11,7 @@ services:
       MYSQL_DBNAME: isucondition
       MYSQL_USER: isucon
       MYSQL_PASS: isucon
-      POST_ISUCONDITION_TARGET_BASE_URL: http://backend:3000
+      POST_ISUCONDITION_TARGET_BASE_URL: "http://isucondition-1.t.isucon.dev:3000"
     entrypoint: dockerize -wait tcp://mysql-backend:3306 -timeout 60s
     command: air -c /development/air.toml
     ports:
@@ -53,6 +53,7 @@ services:
       dockerfile: development/apitest/dev.dockerfile
     environment:
       ISUXBENCH_TARGET: backend:3000
+      ISUXBENCH_TARGETABLE_ADDRESSES: backend
     working_dir:  /bench_dir
     entrypoint: bash
     tty: true
