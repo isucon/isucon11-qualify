@@ -1,0 +1,33 @@
+---
+
+- name: "roles/bench.node_exporter/tasks/main: Install node_exporter"
+  become_user: root
+  apt:
+    name:
+    - prometheus-node-exporter
+    update_cache: yes
+
+- name: "roles/bench.supervisor/tasks/main: Mkdir for dropin of prometheus-node-exporter.service"
+  become_user: root
+  file:
+    state: directory
+    path: /etc/systemd/system/prometheus-node-exporter.service.d
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: "roles/bench.supervisor/tasks/main: Deploy dropin of prometheus-node-exporter.service"
+  become_user: root
+  copy:
+    src: etc/systemd/system/prometheus-node-exporter.service.d/dropin.conf
+    dest: /etc/systemd/system/prometheus-node-exporter.service.d/dropin.conf
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: "roles/bench.node_exporter/tasks/main: Enable prometheus-node-exporter.service"
+  become_user: root
+  systemd:
+    daemon_reload: "yes"
+    name: "prometheus-node-exporter.service"
+    enabled: "yes"

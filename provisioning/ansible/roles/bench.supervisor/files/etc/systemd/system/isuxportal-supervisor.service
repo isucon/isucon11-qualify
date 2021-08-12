@@ -5,7 +5,9 @@ After=network.target
 [Service]
 # 基本設定
 User=isucon
-ExecStart=/home/isucon/bin/isuxportal-supervisor /home/isucon/bench/bench -timeout=5s -tls
+ExecStart=/home/isucon/bin/isuxportal-supervisor /home/isucon/bench/bench \
+          -tls \
+          -prom-out /run/prometheus-node-exporter/textfile/xsuconbench.prom
 WorkingDirectory=/home/isucon/bench
 LogsDirectory=isuxportal-supervisor
 LimitNOFILE=2000000
