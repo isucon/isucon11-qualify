@@ -104,6 +104,19 @@ func verifyIsuNotFound(res *http.Response, text string) error {
 
 //データ整合性チェック
 
+//Icon,LatestIsuConditionを除いたISUの整合性チェック
+func verifyIsu(res *http.Response, expected *model.Isu, actual *service.Isu) error {
+	if actual.JIAIsuUUID != expected.JIAIsuUUID {
+		return errorMismatch(res, "椅子が異なります(expected %s, actual %s)", expected.JIAIsuUUID, actual.JIAIsuUUID)
+	}
+	if actual.ID != expected.ID ||
+		actual.Character != expected.Character ||
+		actual.Name != expected.Name {
+		return errorMismatch(res, "椅子(JIA_ISU_UUID=%s)の情報が異なります", expected.JIAIsuUUID)
+	}
+	return nil
+}
+
 func verifyIsuList(res *http.Response, expectedReverse []*model.Isu, isuList []*service.Isu) ([]string, []error) {
 	errs := []error{}
 	var newConditionUUIDs []string
