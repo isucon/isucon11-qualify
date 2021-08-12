@@ -655,8 +655,11 @@ func (s *Scenario) verifyTrend(
 	var characterSet model.IsuCharacterSet
 	// レスポンスの要素にある ISU の ID を格納するための set
 	isuIDSet := make(map[int]struct{}, 8192)
-	// 新規 conditions の数を取得
+	// 新規 conditions の数を格納するための変数
 	var newConditionNum int
+
+	// 前回 getTrend 実行時の ISU の数を取得
+	previousConditionNum := viewer.NumOfIsu()
 
 	for _, trendOne := range trendResp {
 
@@ -742,6 +745,10 @@ func (s *Scenario) verifyTrend(
 	// characterSet の検証
 	if !characterSet.IsFull() {
 		return 0, errorInvalid(res, "全ての性格のトレンドが取得できていません")
+	}
+	// trend のレスポンスに入っている ISU の数が expected な数以上あることの検証
+	if !(len(isuIDSet) >= previousConditionNum) {
+		return 0, errorInvalid(res, "ISU の個数が不足しています")
 	}
 	return newConditionNum, nil
 }
