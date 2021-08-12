@@ -21,7 +21,7 @@
   with_items:
   - etc/nginx/nginx.conf
   - etc/nginx/sites-available/isucondition.conf
-  - etc/nginx/sites-available/isucondition.php.conf
+  - etc/nginx/sites-available/isucondition-php.conf
   - etc/nginx/certificates/tls-cert.pem
   - etc/nginx/certificates/tls-key.pem
 
