@@ -1,21 +1,15 @@
+import { execFile } from "child_process";
 import fs from "fs";
 import path from "path";
+import { promisify } from "util";
 
 import session from "cookie-session";
 import express from "express";
 import jwt from "jsonwebtoken";
 import morgan from "morgan";
 import multer, { MulterError } from "multer";
-import mysql, { FieldPacket, RowDataPacket } from "mysql2/promise";
+import mysql, { RowDataPacket } from "mysql2/promise";
 import axios from "axios";
-
-declare global {
-  namespace CookieSessionInterfaces {
-    interface CookieSessionObject {
-      jia_user_id?: string;
-    }
-  }
-}
 
 interface Config extends RowDataPacket {
   name: string;
@@ -42,6 +36,14 @@ interface GetIsuListResponse {
   name: string;
   character: string;
   latest_isu_condition?: GetIsuConditionResponse;
+}
+
+interface InitializeReponse {
+  language: string;
+}
+
+interface GetMeResponse {
+  jia_user_id: string;
 }
 
 interface GetIsuConditionResponse {
@@ -117,8 +119,34 @@ app.set("cert", fs.readFileSync(jwtVerificationKeyPath));
   }
 );
 
+async function getUserIdFromSession(
+  req: express.Request,
+  db: mysql.Connection
+): Promise<[string, number, Error?]> {
+  if (!req.session) {
+    return ["", 500, new Error("failed to get session")];
+  }
+  const jiaUserId = req.session["jia_user_id"];
+  if (!jiaUserId) {
+    return ["", 401, new Error("no session")];
+  }
+
+  try {
+    const [[count]] = await db.query<(RowDataPacket & { cnt: number })[]>(
+      "SELECT COUNT(*) AS `cnt` FROM `user` WHERE `jia_user_id` = ?",
+      [jiaUserId]
+    );
+    if (count.cnt === 0) {
+      return ["", 401, new Error("not found: user")];
+    }
+  } catch (err) {
+    return ["", 500, new Error(`db error: ${err}`)];
+  }
+  return [jiaUserId, 0, undefined];
+}
+
 async function getJIAServiceUrl(db: mysql.Connection): Promise<string> {
-  const [[config, ..._]]: [Config[], FieldPacket[]] = await db.query(
+  const [[config]] = await db.query<Config[]>(
     "SELECT * FROM `isu_association_config` WHERE `name` = ?",
     ["jia_service_url"]
   );
@@ -129,12 +157,23 @@ async function getJIAServiceUrl(db: mysql.Connection): Promise<string> {
 }
 
 // POST /initialize
+// サービスを初期化
 app.post("/initialize", async (_req, res) => {
   // TODO
-  res.status(200).json({ language: "nodejs" });
+
+  try {
+    const { stderr } = await promisify(execFile)("../sql/init.sh");
+    console.log(stderr);
+  } catch (err) {
+    console.error(`exec init.sh error: ${err}`);
+    return res.status(500).send();
+  }
+  const initializeResponse: InitializeReponse = { language: "nodejs" };
+  return res.status(200).json(initializeResponse);
 });
 
 // POST /api/auth
+// サインアップ・サインイン
 app.post("/api/auth", async (req, res) => {
   const db = await pool.getConnection();
   const authHeader = req.headers.authorization ?? "";
@@ -156,63 +195,86 @@ app.post("/api/auth", async (req, res) => {
     );
     await db.commit();
     req.session = { jia_user_id: jiaUserId };
-    res.status(200).send();
+    return res.status(200).send();
   } catch (err) {
     console.error(`jwt validation error: ${err}`);
-    res.status(403).send("forbidden");
+    return res.status(403).send("forbidden");
   } finally {
     db.release();
   }
 });
 
 // POST /api/signout
+// サインアウト
 app.post("/api/signout", async (req, res) => {
-  const jia_user_id = req.session?.jia_user_id;
-  if (!jia_user_id) {
-    console.error("you are not signed in");
-    return res.status(401).type("text").send("you are not signed in");
+  const db = await pool.getConnection();
+  try {
+    const [_, errStatusCode, err] = await getUserIdFromSession(req, db);
+    if (err) {
+      if (errStatusCode === 401) {
+        return res.status(401).type("text").send("you are not signed in");
+      }
+      console.error(err);
+      return res.status(500).send();
+    }
+
+    req.session = null;
+    return res.status(200).send();
+  } finally {
+    db.release();
   }
-  req.session = null;
-  res.status(200).send();
 });
 
 // GET /api/user/me
+// サインインしている自分自身の情報を取得
 app.get("/api/user/me", async (req, res) => {
-  const jia_user_id = req.session?.jia_user_id;
-  if (!jia_user_id) {
-    console.error("you are not signed in");
-    return res.status(401).type("text").send("you are not signed in");
+  const db = await pool.getConnection();
+  try {
+    const [jiaUserId, errStatusCode, err] = await getUserIdFromSession(req, db);
+    if (err) {
+      if (errStatusCode === 401) {
+        return res.status(401).type("text").send("you are not signed in");
+      }
+      console.error(err);
+      return res.status(500).send();
+    }
+
+    const getMeResponse: GetMeResponse = { jia_user_id: jiaUserId };
+    return res.status(200).json(getMeResponse);
+  } finally {
+    db.release();
   }
-  res.status(200).json({ jia_user_id });
 });
 
 // GET /api/isu
+// ISUの一覧を取得
 app.get("/api/isu", async (req, res) => {
-  const jiaUserId = req.session?.jia_user_id;
-  if (!jiaUserId) {
-    console.error("you are not signed in");
-    return res.status(401).type("text").send("you are not signed in");
-  }
-
   const db = await pool.getConnection();
   try {
+    const [jiaUserId, errStatusCode, err] = await getUserIdFromSession(req, db);
+    if (err) {
+      if (errStatusCode === 401) {
+        return res.status(401).type("text").send("you are not signed in");
+      }
+      console.error(err);
+      return res.status(500).send();
+    }
+
     await db.beginTransaction();
-    const [isuList]: [Isu[], FieldPacket[]] = await db.query(
+    const [isuList] = await db.query<Isu[]>(
       "SELECT * FROM `isu` WHERE `jia_user_id` = ? ORDER BY `id` DESC",
       [jiaUserId]
     );
     const responseList: Array<GetIsuListResponse> = [];
     for (const isu of isuList) {
       let foundLastCondition = true;
-      const [[lastCondition, ..._]]: [IsuConditionRow[], FieldPacket[]] =
-        await db.query(
-          "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` DESC LIMIT 1",
-          [isu.jia_isu_uuid]
-        );
+      const [[lastCondition]] = await db.query<IsuConditionRow[]>(
+        "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` DESC LIMIT 1",
+        [isu.jia_isu_uuid]
+      );
       if (!lastCondition) {
         foundLastCondition = false;
       }
-
       let formattedCondition = undefined;
       if (foundLastCondition) {
         const [conditionLevel, err] = calculateConditionLevel(
@@ -241,7 +303,7 @@ app.get("/api/isu", async (req, res) => {
       });
     }
     await db.commit();
-    res.status(200).json(responseList);
+    return res.status(200).json(responseList);
   } catch (err) {
     console.error(`db error: ${err}`);
     await db.rollback();
@@ -257,29 +319,36 @@ interface PostIsuBody {
 }
 
 // POST /api/isu
+// ISUを登録
 app.post("/api/isu", (req: express.Request<{}, any, PostIsuBody>, res) => {
-  upload.single("image")(req, res, async (err) => {
-    const jiaUserId = req.session?.jia_user_id;
-    if (!jiaUserId) {
-      console.error("you are not signed in");
-      return res.status(401).type("text").send("you are not signed in");
-    }
-
-    const jiaIsuUUID = req.body.jia_isu_uuid;
-    const isuName = req.body.isu_name;
-    if (err instanceof MulterError) {
-      // TODO
-    }
-
-    let image: Buffer;
-    if (!req.file) {
-      image = fs.readFileSync(defaultIconFilePath);
-    } else {
-      image = req.file.buffer;
-    }
-
+  upload.single("image")(req, res, async (uploadErr) => {
     const db = await pool.getConnection();
     try {
+      const [jiaUserId, errStatusCode, err] = await getUserIdFromSession(
+        req,
+        db
+      );
+      if (err) {
+        if (errStatusCode === 401) {
+          return res.status(401).type("text").send("you are not signed in");
+        }
+        console.error(err);
+        return res.status(500).send();
+      }
+
+      const jiaIsuUUID = req.body.jia_isu_uuid;
+      const isuName = req.body.isu_name;
+      if (uploadErr instanceof MulterError) {
+        // TODO
+      }
+
+      let image: Buffer;
+      if (!req.file) {
+        image = fs.readFileSync(defaultIconFilePath);
+      } else {
+        image = req.file.buffer;
+      }
+
       await db.beginTransaction();
       await db.query(
         "INSERT INTO `isu` (`jia_isu_uuid`, `name`, `image`, `jia_user_id`) VALUES (?, ?, ?, ?)",
@@ -312,7 +381,7 @@ app.post("/api/isu", (req: express.Request<{}, any, PostIsuBody>, res) => {
         "UPDATE `isu` SET `character` = ? WHERE  `jia_isu_uuid` = ?",
         [isuFromJIA.character, jiaIsuUUID]
       );
-      const [[isu, ..._]]: [Isu[], FieldPacket[]] = await db.query(
+      const [[isu]] = await db.query<Isu[]>(
         "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
         [jiaUserId, jiaIsuUUID]
       );
@@ -327,7 +396,7 @@ app.post("/api/isu", (req: express.Request<{}, any, PostIsuBody>, res) => {
         name: isu.name,
         character: isu.character,
       };
-      res.status(201).send(isuResponse);
+      return res.status(201).send(isuResponse);
     } catch (err) {
       console.error(`db error: ${err}`);
       await db.rollback();
@@ -338,7 +407,50 @@ app.post("/api/isu", (req: express.Request<{}, any, PostIsuBody>, res) => {
   });
 });
 
-// conditionのcsvからcondition levelを計算
+// GET /api/isu/:jia_isu_uuid
+// ISUの情報を取得
+app.get(
+  "/api/isu/:jia_isu_uuid",
+  async (req: express.Request<{ jia_isu_uuid: string }>, res) => {
+    const db = await pool.getConnection();
+    try {
+      const [jiaUserId, errStatusCode, err] = await getUserIdFromSession(
+        req,
+        db
+      );
+      if (err) {
+        if (errStatusCode === 401) {
+          return res.status(401).type("text").send("you are not signed in");
+        }
+        console.error(err);
+        return res.status(500).send();
+      }
+
+      const jiaIsuUUID = req.params.jia_isu_uuid;
+      const [[isu]] = await db.query<Isu[]>(
+        "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
+        [jiaUserId, jiaIsuUUID]
+      );
+      if (!isu) {
+        return res.status(404).type("text").send("not found: isu");
+      }
+      const isuResponse: IsuResponse = {
+        id: isu.id,
+        jia_isu_uuid: isu.jia_isu_uuid,
+        name: isu.name,
+        character: isu.character,
+      };
+      return res.status(200).json(isuResponse);
+    } catch (err) {
+      console.error(`db error: ${err}`);
+      return res.status(500).send();
+    } finally {
+      db.release();
+    }
+  }
+);
+
+// ISUのコンディションの文字列からコンディションレベルを計算
 function calculateConditionLevel(condition: string): [string, Error?] {
   var conditionLevel: string;
   const warnCount = (() => {
