@@ -14,6 +14,5 @@
       export PATH=/home/isucon/.cargo/bin:$PATH
 
 - name: "roles/langs.rust/tasks/main: Update to 1.54.0"
-  become: yes
   become_user: isucon
   command: /home/isucon/.cargo/bin/rustup update 1.54.0

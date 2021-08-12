@@ -1,6 +1,5 @@
 ---
 - name: "roles/langs.php/tasks/main: Install PHP 8.0.9 from xbuild"
-  become: yes
   become_user: isucon
   args:
     chdir: /home/isucon
@@ -16,10 +15,19 @@
     PHP_BUILD_EXTRA_MAKE_ARGUMENTS: "-j {{ ansible_processor_vcpus }}"
 
 - name: "roles/langs.php/tasks/main: Add PATH for PHP"
-  become: yes
   become_user: isucon
   blockinfile:
     marker: "# {mark} ANSIBLE MANAGED BLOCK php"
     dest: /home/isucon/.bashrc
     content: |
       export PATH=/home/isucon/local/php/bin:$PATH
+
+# TODO: バージョン確認
+- name: "roles/langs.php/tasks/main: Download Composer"
+  become_user: isucon
+  get_url:
+    url: https://getcomposer.org/download/1.10.13/composer.phar
+    dest: /home/isucon/local/php/bin/composer
+    sha256sum: 5ca7445cfd48dd27c5a84aa005a47b4d9fd91132313830609875df3a6973708f
+    mode: 0755
+
