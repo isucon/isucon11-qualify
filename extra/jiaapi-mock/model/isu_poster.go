@@ -42,6 +42,7 @@ func (m *IsuConditionPoster) KeepPosting() {
 	randEngine := rand.New(rand.NewSource(0))
 
 	nowTime := time.Now()
+	randEngine.Seed(nowTime.UnixNano()/1000000000 + 961054102) // 乱数初期化（逆算できるように）
 
 	timer := time.NewTicker(postingIntervalSec * time.Second)
 	defer timer.Stop()
@@ -54,7 +55,6 @@ func (m *IsuConditionPoster) KeepPosting() {
 
 		conditions := []IsuConditionRequest{}
 		for i := 0; i < postingIntervalSec; i++ {
-			randEngine.Seed(nowTime.UnixNano()/1000000000 + 961054102) // 乱数初期化（逆算できるように）
 			cond := IsuConditionRequest{
 				IsSitting: (randEngine.Intn(100) <= 70),
 				Condition: fmt.Sprintf("is_dirty=%v,is_overweight=%v,is_broken=%v",
