@@ -32,7 +32,8 @@
   include: isucondition-go.yml
 - name: "roles/contestant/tasks/isucondition: Include isucondition-nodejs.yml"
   include: isucondition-nodejs.yml
-# TODO
+- name: "roles/contestant/tasks/isucondition: Include isucondition-perl.yml"
+  include: isucondition-perl.yml
 - name: "roles/contestant/tasks/isucondition: Include isucondition-php.yml"
   include: isucondition-php.yml
 - name: "roles/contestant/tasks/isucondition: Include isucondition-python.yml"
@@ -53,6 +54,7 @@
   with_items:
     - etc/systemd/system/isucondition.go.service
     - etc/systemd/system/isucondition.nodejs.service
+    - etc/systemd/system/isucondition.perl.service
     - etc/systemd/system/isucondition.php.service
     - etc/systemd/system/isucondition.python.service
     - etc/systemd/system/isucondition.ruby.service
