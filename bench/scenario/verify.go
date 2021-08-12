@@ -180,7 +180,7 @@ func verifyIsuConditions(res *http.Response,
 	backendData []*service.GetIsuConditionResponse) error {
 
 	//limitを超えているかチェック
-	if conditionLimit < len(backendData) {
+	if service.ConditionLimit < len(backendData) {
 		return errorInvalid(res, "要素数が正しくありません")
 	}
 	//レスポンス側のstartTimeのチェック
@@ -286,7 +286,7 @@ func verifyPrepareIsuConditions(res *http.Response,
 	backendData []*service.GetIsuConditionResponse) error {
 
 	//limitを超えているかチェック
-	if conditionLimit < len(backendData) {
+	if service.ConditionLimit < len(backendData) {
 		return errorInvalid(res, "要素数が正しくありません")
 	}
 	//レスポンス側のstartTimeのチェック
@@ -375,7 +375,7 @@ func verifyPrepareIsuConditions(res *http.Response,
 		// limitの検証
 		// response件数がlimitの数より少ないときは、bench側で条件に合うデータを更にもっていなければ正しい
 		prev := baseIter.Prev()
-		if len(backendData) < conditionLimit && prev != nil {
+		if len(backendData) < service.ConditionLimit && prev != nil {
 			if request.StartTime != nil && *request.StartTime <= prev.TimestampUnix {
 				return errorInvalid(res, "要素数が正しくありません")
 			}

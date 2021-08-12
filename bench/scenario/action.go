@@ -32,12 +32,6 @@ import (
 	"github.com/isucon/isucon11-qualify/bench/service"
 )
 
-const (
-	homeIsuLimit   = 4
-	conditionLimit = 20
-	isuListLimit   = 200 // TODO 修正が必要なら変更
-)
-
 //Action
 
 // ==============================initialize==============================
