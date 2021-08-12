@@ -805,26 +805,16 @@ func signoutScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *m
 		}
 	}()
 
-	isSuccess := authInfinityRetry(ctx, user.Agent, user.UserID, step)
-	if isSuccess {
-		me, hres, err := getMeAction(ctx, user.Agent)
-		if err != nil {
-			addErrorWithContext(ctx, step, err)
-			return
-		}
-		if err := verifyMe(user.UserID, hres, me); err != nil {
-			addErrorWithContext(ctx, step, err)
-		}
-	}
+	authInfinityRetry(ctx, user.Agent, user.UserID, step)
 }
 
 // signoutScenario 以外からは呼ばない(シナリオループの最後である必要がある)
-func authInfinityRetry(ctx context.Context, a *agent.Agent, userID string, step *isucandar.BenchmarkStep) bool {
+func authInfinityRetry(ctx context.Context, a *agent.Agent, userID string, step *isucandar.BenchmarkStep) {
 	for {
 		select {
 		case <-ctx.Done():
 			// 失敗したときも区別せずに return してよい(次シナリオループで終了するため)
-			return false
+			return
 		default:
 		}
 		_, errs := authAction(ctx, a, userID)
@@ -834,7 +824,17 @@ func authInfinityRetry(ctx context.Context, a *agent.Agent, userID string, step 
 			}
 			continue
 		}
-		return true
+		me, hres, err := getMeAction(ctx, a)
+		if err != nil {
+			addErrorWithContext(ctx, step, err)
+			continue
+		}
+		err = verifyMe(userID, hres, me)
+		if err != nil {
+			addErrorWithContext(ctx, step, err)
+			continue
+		}
+		return
 	}
 }
 
