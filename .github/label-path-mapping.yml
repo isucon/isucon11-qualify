@@ -7,7 +7,7 @@ benchmarker:
 infrastructure:
   - provisioning/**/*
 documentation:
-  - development/doc/**/*
+  - docs/**/*
 transplant:
   - webapp/nodejs/**/*
   - webapp/perl/**/*

@@ -562,13 +562,39 @@ func getTrendAction(ctx context.Context, a *agent.Agent) (service.GetTrendRespon
 		return nil, nil, err
 	}
 
-	//TODO: バリデーション
-	// res, text, err := reqJSONResError(ctx, a, http.MethodPost, reqUrl, bytes.NewReader(body), []int{http.StatusNotFound, http.StatusBadRequest})
-	// if err != nil {
-	// 	return "", nil, err
-	// }
+	return trend, res, nil
+}
+
+func browserGetLandingPageAction(ctx context.Context, a *agent.Agent) (service.GetTrendResponse, *http.Response, error) {
+	// TODO: 静的ファイルのGET
+
+	trend, res, err := getTrendAction(ctx, a)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	return trend, res, nil
+}
+
+func browserGetLandingPageIgnoreAction(ctx context.Context, a *agent.Agent) (*http.Response, error) {
+	// TODO: 静的ファイルのGET
+
+	res, err := getTrendIgnoreAction(ctx, a)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
+func getTrendIgnoreAction(ctx context.Context, a *agent.Agent) (*http.Response, error) {
+	reqUrl := "/api/trend"
+	res, err := reqJSONResNoContent(ctx, a, http.MethodGet, reqUrl, nil, []int{http.StatusOK})
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }
 
 func browserGetHomeAction(ctx context.Context, a *agent.Agent,

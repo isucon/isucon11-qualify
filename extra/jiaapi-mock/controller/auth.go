@@ -48,12 +48,13 @@ func (c *AuthController) PostAuth(ctx echo.Context) error {
 	err := ctx.Bind(input)
 	if err != nil {
 		ctx.Logger().Errorf("failed to bind: %v", err)
-		return echo.NewHTTPError(http.StatusBadRequest)
+		return ctx.String(http.StatusBadRequest, "bad request")
 	}
 
 	pass, ok := passwordMap[input.User]
 	if !ok || pass != input.Password {
-		return echo.NewHTTPError(http.StatusNotFound, "Not Found")
+		ctx.Logger().Errorf("invalid username or password")
+		return ctx.String(http.StatusUnauthorized, "Unauthorized")
 	}
 
 	// 認証に利用する JWT トークンを生成して返す。
@@ -65,7 +66,7 @@ func (c *AuthController) PostAuth(ctx echo.Context) error {
 	})
 	jwt, err := token.SignedString(c.jwtSecretKey)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err)
+		return ctx.NoContent(http.StatusInternalServerError)
 	}
 
 	return ctx.String(http.StatusOK, jwt)

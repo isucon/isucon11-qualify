@@ -489,6 +489,7 @@ func getIsuList(c echo.Context) error {
 			conditionLevel, err := calculateConditionLevel(lastCondition.Condition)
 			if err != nil {
 				c.Logger().Error(err)
+				return c.NoContent(http.StatusInternalServerError)
 			}
 
 			formattedCondition = &GetIsuConditionResponse{
@@ -793,7 +794,11 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 		truncatedConditionTime := condition.Timestamp.Truncate(time.Hour)
 		if truncatedConditionTime != startTimeInThisHour {
 			if len(conditionsInThisHour) > 0 {
-				data := calculateGraphDataPoint(conditionsInThisHour)
+				data, err := calculateGraphDataPoint(conditionsInThisHour)
+				if err != nil {
+					return nil, err
+				}
+
 				dataPoints = append(dataPoints,
 					GraphDataPointWithInfo{
 						JIAIsuUUID:          jiaIsuUUID,
@@ -811,7 +816,11 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 	}
 
 	if len(conditionsInThisHour) > 0 {
-		data := calculateGraphDataPoint(conditionsInThisHour)
+		data, err := calculateGraphDataPoint(conditionsInThisHour)
+		if err != nil {
+			return nil, err
+		}
+
 		dataPoints = append(dataPoints,
 			GraphDataPointWithInfo{
 				JIAIsuUUID:          jiaIsuUUID,
@@ -870,11 +879,15 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 }
 
 // 複数のISUのコンディションからグラフの一つのデータ点を計算
-func calculateGraphDataPoint(isuConditions []IsuCondition) GraphDataPoint {
+func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, error) {
 	conditionsCount := map[string]int{"is_broken": 0, "is_dirty": 0, "is_overweight": 0}
 	rawScore := 0
 	for _, condition := range isuConditions {
 		badConditionsCount := 0
+
+		if !isValidConditionFormat(condition.Condition) {
+			return GraphDataPoint{}, fmt.Errorf("invalid condition format")
+		}
 
 		for _, condStr := range strings.Split(condition.Condition, ",") {
 			keyValue := strings.Split(condStr, "=")
@@ -920,7 +933,7 @@ func calculateGraphDataPoint(isuConditions []IsuCondition) GraphDataPoint {
 			IsDirty:      isDirtyPercentage,
 		},
 	}
-	return dataPoint
+	return dataPoint, nil
 }
 
 // GET /api/condition/:jia_isu_uuid

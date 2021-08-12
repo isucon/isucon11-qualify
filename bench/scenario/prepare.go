@@ -76,41 +76,47 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 	//jia起動待ち TODO: これで本当に良いのか？
 	<-jiaWait
 
-	//各エンドポイントのチェック
-	err = s.prepareCheckAuth(ctx, step)
-	if err != nil {
+	// prepareチェックの実行
+	if err := s.prepareCheck(ctx, step); err != nil {
 		return err
 	}
 
-	if err := s.prepareCheck(ctx, step); err != nil {
-		return failure.NewError(ErrCritical, err)
-	}
 	errors := step.Result().Errors
 	hasErrors := func() bool {
 		errors.Wait()
 		return len(errors.All()) > 0
 	}
-	// Prepare step でのエラーはすべて Critical の扱い
+
 	if hasErrors() {
-		//return ErrScenarioCancel
 		step.AddError(failure.NewError(ErrCritical, fmt.Errorf("アプリケーション互換性チェックに失敗しました")))
 		return nil
 	}
 
-	s.realTimeLoadFinishedAt = time.Now().Add(s.LoadTimeout)
 	return nil
 }
 
 //エンドポイント毎の単体テスト
 func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.BenchmarkStep) error {
+	errors := step.Result().Errors
+	hasErrors := func() bool {
+		errors.Wait()
+		return len(errors.All()) > 0
+	}
+
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
+
 	//ユーザー作成
 	guestAgent, err := s.NewAgent(agent.WithTimeout(s.prepareTimeout))
 	if err != nil {
 		logger.AdminLogger.Panicln(err)
 	}
+
+	// 正常系Prepare Check
 	s.prepareNormal(ctx, step)
+	if hasErrors() {
+		return failure.NewError(ErrCritical, fmt.Errorf("アプリケーション互換性チェックに失敗しました"))
+	}
 
 	noIsuAgent, err := s.NewAgent(agent.WithTimeout(s.prepareTimeout))
 	if err != nil {
@@ -131,6 +137,8 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	}
 	isuconUser.Agent = agt
 
+	// 各エンドポイントのチェック
+	s.prepareCheckAuth(ctx, step)
 	s.prepareIrregularCheckPostSignout(ctx, step)
 	s.prepareIrregularCheckGetMe(ctx, guestAgent, step)
 	s.prepareIrregularCheckGetIsuList(ctx, noIsuUser, guestAgent, step)
@@ -143,6 +151,10 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 
 	// ユーザのISUが増えるので他の検証終わった後に実行
 	s.prepareCheckPostIsu(ctx, isuconUser, noIsuUser, guestAgent, step)
+	if hasErrors() {
+		return failure.NewError(ErrCritical, fmt.Errorf("アプリケーション互換性チェックに失敗しました"))
+	}
+
 	return nil
 }
 
@@ -171,20 +183,16 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 		if err != nil {
 			logger.AdminLogger.Panicln(err)
 		}
-		_, errs := authAction(ctx, agt, randomUser.UserID)
-		for _, err := range errs {
-			step.AddError(err)
-			return
-		}
 		randomUser.Agent = agt
 		// check: ログイン成功
-		if err := BrowserAccess(ctx, agt, "/login", AuthPage); err != nil {
+		if err := BrowserAccess(ctx, agt, "/", TrendPage); err != nil {
 			step.AddError(err)
 			return
 		}
-		_, errs = authAction(ctx, agt, randomUser.UserID)
-		for _, err := range errs {
-			step.AddError(err)
+		if _, errs := authAction(ctx, agt, randomUser.UserID); errs != nil {
+			for _, err := range errs {
+				step.AddError(err)
+			}
 			return
 		}
 
@@ -486,11 +494,10 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 
 }
 
-func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.BenchmarkStep) error {
+func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.BenchmarkStep) {
 
 	//TODO: ユーザープール
 	//とりあえずは使い捨てのユーザーを使う
-
 	w, err := worker.NewWorker(func(ctx context.Context, index int) {
 
 		agt, err := s.NewAgent(agent.WithTimeout(s.prepareTimeout))
@@ -499,25 +506,13 @@ func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.Benchma
 			return
 		}
 		userID := random.UserName()
-		if (index % 10) < authActionErrorNum {
-			//各種ログイン失敗ケース
-			errs := authActionError(ctx, agt, userID, index%10)
-			for _, err := range errs {
-				step.AddError(err)
-			}
-		} else {
-			//ログイン成功
-			if err := BrowserAccess(ctx, agt, "/login", AuthPage); err != nil {
-				step.AddError(err)
-				return
-			}
-
-			_, errs := authAction(ctx, agt, userID)
-			for _, err := range errs {
-				step.AddError(err)
-			}
+		//各種ログイン失敗ケース
+		errs := authActionError(ctx, agt, userID, index%authActionErrorNum)
+		for _, err := range errs {
+			step.AddError(err)
 		}
-	}, worker.WithLoopCount(20))
+
+	}, worker.WithLoopCount(authActionErrorNum))
 
 	if err != nil {
 		logger.AdminLogger.Panic(err)
@@ -531,7 +526,7 @@ func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.Benchma
 	agt, err := s.NewAgent(agent.WithTimeout(s.prepareTimeout))
 	if err != nil {
 		logger.AdminLogger.Panic(err)
-		return nil
+		return
 	}
 	userID := random.UserName()
 
@@ -546,7 +541,7 @@ func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.Benchma
 		step.AddError(err)
 	}
 
-	return nil
+	return
 }
 
 func (s *Scenario) prepareIrregularCheckPostSignout(ctx context.Context, step *isucandar.BenchmarkStep) {
