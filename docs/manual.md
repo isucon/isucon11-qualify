@@ -182,7 +182,7 @@ ISU の登録はログイン後に以下のURLで行うことができます。
 次のコマンドを実行してもデータベースを初期状態に戻すことができます。
 
 ```
-~isucon/isucondition/webapp/sql/initi.sh
+~isucon/webapp/sql/init.sh
 ```
 
 #### 競技環境の再構築方法
