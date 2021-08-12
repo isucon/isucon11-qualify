@@ -77,7 +77,7 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	}()
 
 	<-ctx.Done()
-	s.JiaCancel()
+	s.JiaPosterCancel()
 	logger.AdminLogger.Println("LOAD WAIT")
 	s.loadWaitGroup.Wait()
 
@@ -822,6 +822,16 @@ func authInfinityRetry(ctx context.Context, a *agent.Agent, userID string, step 
 			for _, err := range errs {
 				addErrorWithContext(ctx, step, err)
 			}
+			continue
+		}
+		me, hres, err := getMeAction(ctx, a)
+		if err != nil {
+			addErrorWithContext(ctx, step, err)
+			continue
+		}
+		err = verifyMe(userID, hres, me)
+		if err != nil {
+			addErrorWithContext(ctx, step, err)
 			continue
 		}
 		return
