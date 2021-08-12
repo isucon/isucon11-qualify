@@ -10,23 +10,6 @@ import (
 
 /// Const Values ///
 var (
-	validIsu      map[string]ActivateResponse
-	characterList []string
-)
-
-func init() {
-	characterList = []string{
-		"いじっぱり",
-		"うっかりや",
-		"おくびょう",
-		"おだやか",
-		"おっとり",
-		"おとなしい",
-		"がんばりや",
-		"きまぐれ",
-		"さみしがり",
-		"しんちょう",
-	}
 	validIsu = map[string]ActivateResponse{
 		"0694e4d7-dfce-4aec-b7ca-887ac42cfb8f": {Character: characterList[0]},
 		"3a8ae675-3702-45b5-b1eb-1e56e96738ea": {Character: characterList[1]},
@@ -39,7 +22,27 @@ func init() {
 		"57d600ef-15b4-43bc-ab79-6399fab5c497": {Character: characterList[8]},
 		"aa0844e6-812d-41d2-908a-eeb82a50b627": {Character: characterList[9]},
 	}
+	characterList = []string{
+		"いじっぱり",
+		"うっかりや",
+		"おくびょう",
+		"おだやか",
+		"おっとり",
+		"おとなしい",
+		"がんばりや",
+		"きまぐれ",
+		"さみしがり",
+		"しんちょう",
+	}
+	allowedTargetFQDN = []string{
+		"isucondition-1.t.isucon.dev",
+		"isucondition-2.t.isucon.dev",
+		"isucondition-3.t.isucon.dev",
+	}
+	forDev = false
+)
 
+func init() {
 	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = 32
 }
 
@@ -76,6 +79,25 @@ func (c *ActivationController) PostActivate(ctx echo.Context) error {
 	if err != nil {
 		ctx.Logger().Errorf("bad url: %v", err)
 		return ctx.String(http.StatusBadRequest, "Bad URL")
+	}
+
+	if !forDev {
+		// POST isucondition する URL に https 以外が指定されていたら 400 を返す
+		if parsedURL.Scheme != "https" {
+			return ctx.String(http.StatusBadRequest, "Bad URL Scheme")
+		}
+
+		// FQDN が競技者 VM のものでない場合 400 を返す
+		var ok bool
+		for _, fqdn := range allowedTargetFQDN {
+			if parsedURL.Hostname() == fqdn {
+				ok = true
+				break
+			}
+		}
+		if !ok {
+			return ctx.String(http.StatusBadRequest, "Bad URL: hostname must be isucondition[1-3].t.isucon.dev")
+		}
 	}
 
 	isuState, ok := validIsu[req.IsuUUID]
