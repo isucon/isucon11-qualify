@@ -17,7 +17,6 @@ import (
 	"github.com/isucon/isucandar/score"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
-	"github.com/isucon/isucon11-qualify/bench/random"
 	"github.com/isucon/isucon11-qualify/bench/service"
 )
 
@@ -330,11 +329,7 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 	isuCountRandEngineMutex.Unlock()
 
 	for i := 0; i < isuCount; i++ {
-		image, err := random.Image()
-		if err != nil {
-			logger.AdminLogger.Panic(err)
-		}
-		isu := s.NewIsu(ctx, step, user, true, image, true)
+		isu := s.NewIsu(ctx, step, user, true, true)
 		if isu == nil {
 			user.CloseAllIsuStateChan()
 			return nil
