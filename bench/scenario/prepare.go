@@ -106,11 +106,8 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 
-	//ユーザー作成
-	guestAgent, err := s.NewAgent(agent.WithTimeout(s.prepareTimeout))
-	if err != nil {
-		logger.AdminLogger.Panicln(err)
-	}
+	//存在しないISUのPOST
+	unregisteredIsu, postCancel, postWait := s.prepareStartInvalidIsuPost(ctx)
 
 	// 正常系Prepare Check
 	s.prepareNormal(ctx, step)
@@ -118,6 +115,11 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 		return failure.NewError(ErrCritical, fmt.Errorf("アプリケーション互換性チェックに失敗しました"))
 	}
 
+	//ユーザー作成
+	guestAgent, err := s.NewAgent(agent.WithTimeout(s.prepareTimeout))
+	if err != nil {
+		logger.AdminLogger.Panicln(err)
+	}
 	noIsuAgent, err := s.NewAgent(agent.WithTimeout(s.prepareTimeout))
 	if err != nil {
 		logger.AdminLogger.Panicln(err)
@@ -145,9 +147,13 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	s.prepareIrregularCheckGetIsu(ctx, isuconUser, noIsuUser, guestAgent, step)
 	s.prepareIrregularCheckGetIsuIcon(ctx, isuconUser, noIsuUser, guestAgent, step)
 	s.prepareIrregularCheckGetIsuGraph(ctx, isuconUser, noIsuUser, guestAgent, step)
-	s.prepareIrregularCheckGetIsuConditions(ctx, isuconUser, noIsuUser, guestAgent, step)
+	s.prepareIrregularCheckGetIsuConditions(ctx, isuconUser, noIsuUser, guestAgent, step, unregisteredIsu)
 
 	// MEMO: postIsuConditionのprepareチェックは確率で失敗して安定しないため、prepareステップでは行わない
+
+	//post終了
+	postCancel()
+	<-postWait
 
 	// ユーザのISUが増えるので他の検証終わった後に実行
 	s.prepareCheckPostIsu(ctx, isuconUser, noIsuUser, guestAgent, step)
@@ -931,7 +937,7 @@ func (s *Scenario) prepareIrregularCheckGetIsuGraph(ctx context.Context, loginUs
 	}
 }
 
-func (s *Scenario) prepareIrregularCheckGetIsuConditions(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
+func (s *Scenario) prepareIrregularCheckGetIsuConditions(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep, unregisteredIsu *model.Isu) {
 	isu := loginUser.IsuListOrderByCreatedAt[0]
 
 	// condition の read lock を取得
@@ -1050,7 +1056,7 @@ func (s *Scenario) prepareIrregularCheckGetIsuConditions(ctx context.Context, lo
 	query = url.Values{}
 	query.Set("end_time", strconv.FormatInt(lastTime, 10))
 	query.Set("condition_level", "info,warning,critical")
-	resBody, res, err = getIsuConditionErrorAction(ctx, loginUser.Agent, "jiaisuuuid", query)
+	resBody, res, err = getIsuConditionErrorAction(ctx, loginUser.Agent, unregisteredIsu.JIAIsuUUID, query)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -1063,4 +1069,28 @@ func (s *Scenario) prepareIrregularCheckGetIsuConditions(ctx context.Context, lo
 		step.AddError(err)
 		return
 	}
+}
+
+func (s *Scenario) prepareStartInvalidIsuPost(ctx context.Context) (*model.Isu, context.CancelFunc, <-chan struct{}) {
+	isu, streamsForPoster, err := model.NewRandomIsuRaw(nil)
+	if err != nil {
+		logger.AdminLogger.Panic(err)
+	}
+
+	//ISU協会にIsu*を登録する必要あり
+	RegisterToJiaAPI(isu, streamsForPoster)
+
+	targetBaseURL, err := url.Parse(s.BaseURL)
+	if err != nil {
+		logger.AdminLogger.Panic(err)
+	}
+
+	posterStop := make(chan struct{})
+	posterCtx, cancel := context.WithCancel(ctx)
+	go func() {
+		defer close(posterStop)
+		s.keepPosting(posterCtx, targetBaseURL, agent.DefaultTLSConfig.ServerName, isu, streamsForPoster)
+	}()
+
+	return isu, cancel, posterStop
 }
