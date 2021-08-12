@@ -154,6 +154,7 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	//post終了
 	postCancel()
 	<-postWait
+	unregisteredIsu.Conditions = model.NewIsuConditionArray()
 
 	// ユーザのISUが増えるので他の検証終わった後に実行
 	s.prepareCheckPostIsu(ctx, isuconUser, noIsuUser, guestAgent, step)
