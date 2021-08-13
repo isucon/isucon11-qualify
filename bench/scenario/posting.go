@@ -275,8 +275,6 @@ func calcConditionLevel(condition model.IsuCondition) model.ConditionLevel {
 
 //ランダムなISUにconditionを投げる
 func (s *Scenario) keepPostingError(ctx context.Context) {
-	postConditionTimeout := 100 * time.Millisecond //MEMO: timeout は気にせずにズバズバ投げる
-
 	nowTimeStamp := s.ToVirtualTime(time.Now()).Unix()
 	state := posterState{
 		// lastConditionTimestamp: 0,
