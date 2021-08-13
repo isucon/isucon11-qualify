@@ -91,7 +91,7 @@ func IsValidation(err error) bool {
 }
 
 func errorInvalidStatusCode(res *http.Response, expected int) error {
-	return failure.NewError(ErrInvalidStatusCode, fmt.Errorf("期待する HTTP ステータスコード以外が返却されました (expected: %d): %d (%s: %s)", expected, res.StatusCode, res.Request.Method, res.Request.URL.Path))
+	return failure.NewError(ErrInvalidStatusCode, errorFormatWithResponse(res, "期待する HTTP ステータスコード以外が返却されました (expected: %d)", expected))
 }
 
 func errorInvalidStatusCodes(res *http.Response, expected []int) error {
@@ -100,35 +100,41 @@ func errorInvalidStatusCodes(res *http.Response, expected []int) error {
 		expectedStr += strconv.Itoa(v) + ","
 	}
 	expectedStr = expectedStr[:len(expectedStr)-1]
-	return failure.NewError(ErrInvalidStatusCode, fmt.Errorf("期待する HTTP ステータスコード以外が返却されました (expected: %s): %d (%s: %s)", expectedStr, res.StatusCode, res.Request.Method, res.Request.URL.Path))
+	return failure.NewError(ErrInvalidStatusCode, errorFormatWithResponse(res, "期待する HTTP ステータスコード以外が返却されました (expected: %s)", expectedStr))
 }
 
 func errorInvalidContentType(res *http.Response, expected string) error {
 	actual := res.Header.Get("Content-Type")
 	return failure.NewError(ErrInvalidContentType,
-		fmt.Errorf("Content-Typeが正しくありません: %s (expected: %s): %d (%s: %s)",
-			actual, expected, res.StatusCode, res.Request.Method, res.Request.URL.Path,
+		errorFormatWithResponse(res, "Content-Typeが正しくありません: %s (expected: %s)",
+			actual, expected,
 		))
 }
 
 func errorInvalidJSON(res *http.Response) error {
-	return failure.NewError(ErrInvalidJSON, fmt.Errorf("不正なJSONが返却されました: %d (%s: %s)", res.StatusCode, res.Request.Method, res.Request.URL.Path))
+	return failure.NewError(ErrInvalidJSON, errorFormatWithResponse(res, "不正なJSONが返却されました"))
 }
 
 func errorMismatch(res *http.Response, message string, args ...interface{}) error {
-	args = append(args, res.StatusCode, res.Request.Method, res.Request.URL.Path)
-	return failure.NewError(ErrMismatch, fmt.Errorf(message+": %d (%s: %s)", args...))
+	return failure.NewError(ErrMismatch, errorFormatWithResponse(res, message, args...))
 }
 
 func errorInvalid(res *http.Response, message string, args ...interface{}) error {
 	args = append(args, res.StatusCode, res.Request.Method, res.Request.URL.Path)
-	return failure.NewError(ErrInvalid, fmt.Errorf(message+": %d (%s: %s)", args...))
+	return failure.NewError(ErrInvalid, errorFormatWithResponse(res, message, args...))
 }
 
 func errorCheckSum(message string, args ...interface{}) error {
 	return failure.NewError(ErrChecksum, fmt.Errorf(message, args...))
 }
 func errorBadResponse(res *http.Response, message string, args ...interface{}) error {
-	args = append(args, res.StatusCode, res.Request.Method, res.Request.URL.Path)
-	return failure.NewError(ErrBadResponse, fmt.Errorf(message+": %d (%s: %s)", args...))
+	return failure.NewError(ErrBadResponse, errorFormatWithResponse(res, message, args...))
+}
+
+func errorFormatWithResponse(res *http.Response, message string, args ...interface{}) error {
+	return errorFormatWithURI(res.StatusCode, res.Request.Method, res.Request.URL.Path, message, args...)
+}
+func errorFormatWithURI(statusCode int, method string, urlPath string, message string, args ...interface{}) error {
+	args = append(args, statusCode, method, urlPath)
+	return fmt.Errorf(message+": %d (%s: %s)", args...)
 }
