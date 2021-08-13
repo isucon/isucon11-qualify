@@ -28,7 +28,7 @@
     },
     "scripts": {
         "start": "php -S 0.0.0.0:3000 -t public public/index.php",
-        "style": "./vendor/bin/phpcs --standard=PSR1,PSR12 ./public",
-        "analyse": "./vendor/bin/phpstan analyse ./public"
+        "style": "./vendor/bin/phpcs --standard=PSR1,PSR12 ./app ./public ./src",
+        "analyse": "./vendor/bin/phpstan analyse ./app ./public ./src"
     }
 }
