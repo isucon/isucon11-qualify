@@ -13,16 +13,36 @@ from sqlalchemy.pool import QueuePool
 import jwt
 
 
+CONDITION_LIMIT = 20
+FRONTEND_CONTENTS_PATH = "../public"
+JIA_JWT_SIGNING_KEY_PATH = "../ec256-public.pem"
+DEFAULT_ICON_FILE_PATH = "../NoImage.jpg"
+DEFAULT_JIA_SERVICE_URL = "http://localhost:5000"
+MYSQL_ERR_NUM_DUPLICATE_ENTRY = 1062
+
+
 class CONDITION_LEVEL(str, Enum):
     INFO = "info"
     WARNING = "warning"
     CRITICAL = "critical"
 
 
-FRONTEND_CONTENTS_PATH = "../public"
-JIA_JWT_SIGNING_KEY_PATH = "../ec256-public.pem"
-DEFAULT_ICON_FILE_PATH = "../NoImage.jpg"
-DEFAULT_JIA_SERVICE_URL = "http://localhost:5000"
+class SCORE_CONDITION_LEVEL(int, Enum):
+    INFO = 3
+    WARNING = 2
+    CRITICAL = 1
+
+
+@dataclass
+class Isu:
+    id: int
+    jia_isu_uuid: int
+    name: str
+    image: bytes
+    character: str
+    jia_user_id: str
+    created_at: datetime
+    updated_at: datetime
 
 
 class CustomJSONEncoder(JSONEncoder):
@@ -36,6 +56,7 @@ class CustomJSONEncoder(JSONEncoder):
 
 
 app = Flask(__name__, static_folder=f"{FRONTEND_CONTENTS_PATH}/assets", static_url_path="/assets")
+app.session_cookie_name = "isucondition"
 app.secret_key = getenv("SESSION_KEY", "isucondition")
 app.json_encoder = CustomJSONEncoder
 
@@ -48,18 +69,6 @@ mysql_connection_env = {
 }
 
 cnxpool = QueuePool(lambda: mysql.connector.connect(**mysql_connection_env), pool_size=10)
-
-
-@dataclass
-class Isu:
-    id: int
-    jia_isu_uuid: int
-    name: str
-    image: bytes
-    character: str
-    jia_user_id: str
-    created_at: datetime
-    updated_at: datetime
 
 
 def select_all(query, *args, dictionary=True):
@@ -236,7 +245,7 @@ def post_isu():
                 """
             cur.execute(query, (jia_isu_uuid, isu_name, image, jia_user_id))
         except mysql.connector.errors.IntegrityError as e:
-            if e.errno == 1062:
+            if e.errno == MYSQL_ERR_NUM_DUPLICATE_ENTRY:
                 abort(409, "duplicated: isu")
             raise
 
