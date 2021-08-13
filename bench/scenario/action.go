@@ -16,7 +16,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
@@ -555,9 +554,8 @@ func getIsuGraphErrorAction(ctx context.Context, a *agent.Agent, id string, quer
 }
 
 func getTrendAction(ctx context.Context, a *agent.Agent) (service.GetTrendResponse, *http.Response, error) {
-	trend := service.GetTrendResponse{}
 	reqUrl := "/api/trend"
-	res, err := reqJSONResGojayArray(ctx, a, http.MethodGet, reqUrl, nil, &trend, []int{http.StatusOK})
+	trend, res, err := reqJSONResTrend(ctx, a, http.MethodGet, reqUrl, nil, []int{http.StatusOK})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -733,9 +731,9 @@ func BrowserAccessIndexHtml(ctx context.Context, a *agent.Agent, rpath string) e
 	}
 
 	// index.htmlの検証
-	if err := errorHtmlChecksum(res, res.Body, "/index.html"); err != nil {
-		return err
-	}
+	// if err := errorHtmlChecksum(res, res.Body, "/index.html"); err != nil {
+	// 	return err
+	// }
 	return nil
 }
 
@@ -756,20 +754,20 @@ func BrowserAccess(ctx context.Context, a *agent.Agent, rpath string, page PageT
 	}
 
 	// res.Bodyの内容をhtmlの検証にも使いたいのでコピー
-	buf := new(bytes.Buffer)
-	teeReader := io.TeeReader(res.Body, buf)
+	// buf := new(bytes.Buffer)
+	// teeReader := io.TeeReader(res.Body, buf)
 
-	resources, err := a.ProcessHTML(ctx, res, ioutil.NopCloser(teeReader))
-	if err != nil {
-		return failure.NewError(ErrCritical, err)
-	}
+	// resources, err := a.ProcessHTML(ctx, res, ioutil.NopCloser(teeReader))
+	// if err != nil {
+	// 	return failure.NewError(ErrCritical, err)
+	// }
 	// resourceの検証
-	errs := verifyResources(page, res, resources, buf)
-	for _, err := range errs {
-		if err != nil {
-			return err
-		}
-	}
+	// errs := verifyResources(page, res, resources, buf)
+	// for _, err := range errs {
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// }
 
 	return nil
 }
