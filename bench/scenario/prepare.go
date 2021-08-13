@@ -160,7 +160,7 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 
 	// ユーザのISUが増えるので他の検証終わった後に実行
 	s.prepareCheckPostIsu(ctx, isuconUser, noIsuUser, guestAgent, step)
-	s.prepareCheckPostIsuWithPrevCondition(ctx, noIsuUser, step, unregisteredIsu)
+	s.prepareCheckPostIsuWithPrevCondition(ctx, isuconUser, step, unregisteredIsu)
 	if hasErrors() {
 		return failure.NewError(ErrCritical, fmt.Errorf("アプリケーション互換性チェックに失敗しました"))
 	}
