@@ -201,6 +201,12 @@ func (s *Scenario) loadErrorCheck(ctx context.Context, step *isucandar.Benchmark
 		s.prepareIrregularCheckGetIsuIcon(ctx, loginUser, s.noIsuUser, guestAgent, step)
 		s.prepareIrregularCheckGetIsuGraph(ctx, loginUser, s.noIsuUser, guestAgent, step)
 		s.prepareIrregularCheckGetIsuConditions(ctx, loginUser, s.noIsuUser, guestAgent, step)
+
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
 	}
 }
 
@@ -541,6 +547,11 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 }
 
 func (s *Scenario) prepareCheckAuth(ctx context.Context, isuconUser *model.User, step *isucandar.BenchmarkStep) {
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
 
 	//TODO: ユーザープール
 	//とりあえずは使い捨てのユーザーを使う
@@ -591,6 +602,12 @@ func (s *Scenario) prepareCheckAuth(ctx context.Context, isuconUser *model.User,
 }
 
 func (s *Scenario) prepareIrregularCheckPostSignout(ctx context.Context, step *isucandar.BenchmarkStep) {
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
+
 	// サインインしてない状態でサインアウト実行
 	agt, err := s.NewAgent(agent.WithTimeout(s.prepareTimeout))
 	if err != nil {
@@ -609,6 +626,12 @@ func (s *Scenario) prepareIrregularCheckPostSignout(ctx context.Context, step *i
 }
 
 func (s *Scenario) prepareIrregularCheckGetMe(ctx context.Context, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
+
 	// サインインしてない状態で取得
 	resBody, res, err := getMeErrorAction(ctx, guestAgent)
 	if err != nil {
@@ -622,6 +645,12 @@ func (s *Scenario) prepareIrregularCheckGetMe(ctx context.Context, guestAgent *a
 }
 
 func (s *Scenario) prepareIrregularCheckGetIsuList(ctx context.Context, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
+
 	// check: 椅子未所持の場合は椅子が存在しない
 	if err := BrowserAccess(ctx, noIsuUser.Agent, "/", HomePage); err != nil {
 		step.AddError(err)
@@ -809,6 +838,12 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 }
 
 func (s *Scenario) prepareIrregularCheckGetIsu(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
+
 	isu := loginUser.IsuListOrderByCreatedAt[0]
 	// check: 未ログイン状態
 	resBody, res, err := getIsuIdErrorAction(ctx, guestAgent, isu.JIAIsuUUID)
@@ -853,6 +888,12 @@ func (s *Scenario) prepareIrregularCheckGetIsu(ctx context.Context, loginUser *m
 }
 
 func (s *Scenario) prepareIrregularCheckGetIsuIcon(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
+
 	isu := loginUser.IsuListOrderByCreatedAt[0]
 	// check: 未ログイン状態
 	resBody, res, err := getIsuIconErrorAction(ctx, guestAgent, isu.JIAIsuUUID)
@@ -899,6 +940,11 @@ func (s *Scenario) prepareIrregularCheckGetIsuIcon(ctx context.Context, loginUse
 }
 
 func (s *Scenario) prepareIrregularCheckGetIsuGraph(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
 	// check: 未ログイン状態
 	isu := loginUser.IsuListOrderByCreatedAt[0]
 	query := url.Values{}
@@ -982,6 +1028,11 @@ func (s *Scenario) prepareIrregularCheckGetIsuGraph(ctx context.Context, loginUs
 }
 
 func (s *Scenario) prepareIrregularCheckGetIsuConditions(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
 	isu := loginUser.IsuListOrderByCreatedAt[0]
 
 	// condition の read lock を取得
