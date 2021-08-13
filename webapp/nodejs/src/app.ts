@@ -141,6 +141,7 @@ const app = express();
 
 app.use("/assets", express.static(frontendContentsPath + "/assets"));
 app.use(morgan("combined"));
+app.use(express.json());
 app.use(
   session({
     secret: process.env["SESSION_KEY"] ?? "isucondition",
@@ -1021,6 +1022,76 @@ app.get("/api/trend", async (req, res) => {
   }
 });
 
+interface PostIsuConditionRequest {
+  is_sitting: boolean;
+  condition: string;
+  message: string;
+  timestamp: number;
+}
+
+// POST /api/condition/:jia_isu_uuid
+// ISUからのコンディションを受け取る
+app.post(
+  "/api/condition/:jia_isu_uuid",
+  async (
+    req: express.Request<
+      { jia_isu_uuid: string },
+      any,
+      PostIsuConditionRequest[]
+    >,
+    res
+  ) => {
+    // TODO: 一定割合リクエストを落としてしのぐようにしたが、本来は全量さばけるようにすべき
+    const dropProbability = 0.5;
+    if (Math.random() < dropProbability) {
+      console.warn("drop post isu condition request");
+      return res.status(503).send();
+    }
+
+    const db = await pool.getConnection();
+    try {
+      const jiaIsuUUID = req.params.jia_isu_uuid;
+
+      // TODO: validate request body
+
+      await db.beginTransaction();
+
+      const [[{ cnt }]] = await db.query<(RowDataPacket & { cnt: number })[]>(
+        "SELECT COUNT(*) AS `cnt` FROM `isu` WHERE `jia_isu_uuid` = ?",
+        [jiaIsuUUID]
+      );
+      if (cnt === 0) {
+        return res.status(404).type("text").send("not found: isu");
+      }
+
+      for (const cond of req.body) {
+        const timestamp = new Date(cond.timestamp * 1000);
+
+        if (!isValidConditionFormat(cond.condition)) {
+          return res.status(400).type("text").send("bad request body");
+        }
+
+        await db.query(
+          "INSERT INTO `isu_condition`" +
+            "	(`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`)" +
+            "	VALUES (?, ?, ?, ?, ?)",
+          [jiaIsuUUID, timestamp, cond.is_sitting, cond.condition, cond.message]
+        );
+      }
+
+      await db.commit();
+
+      return res.status(201).send();
+    } catch (err) {
+      console.error(`db error: ${err}`);
+      await db.rollback();
+      return res.status(500).send();
+    } finally {
+      db.release();
+    }
+  }
+);
+
 // ISUのコンディションの文字列がcsv形式になっているか検証
 function isValidConditionFormat(condition: string): boolean {
   const keys = ["is_dirty=", "is_overweight=", "is_broken="];
@@ -1029,7 +1100,7 @@ function isValidConditionFormat(condition: string): boolean {
 
   let idxCondStr = 0;
 
-  keys.forEach((key, idxKeys) => {
+  for (const [idxKeys, key] of keys.entries()) {
     if (!condition.slice(idxCondStr).startsWith(key)) {
       return false;
     }
@@ -1044,12 +1115,13 @@ function isValidConditionFormat(condition: string): boolean {
     }
 
     if (idxKeys < keys.length - 1) {
-      if (condition.slice(idxCondStr) !== ".") {
+      if (condition[idxCondStr] !== ",") {
         return false;
       }
       idxCondStr++;
     }
-  });
+  }
+
   return idxCondStr === condition.length;
 }
 
