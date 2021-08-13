@@ -1,4 +1,4 @@
-FROM php:8.0.8-buster
+FROM php:8.0.9-buster
 
 WORKDIR /webapp/php
 
