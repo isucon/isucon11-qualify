@@ -25,4 +25,4 @@
   args:
     chdir: /home/isucon/webapp/php
   shell: |
-    composer install
+    ./composer.phar install

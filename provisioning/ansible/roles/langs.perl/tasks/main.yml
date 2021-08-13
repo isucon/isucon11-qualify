@@ -1,8 +1,7 @@
 ---
-# TODO: バージョン確認
-- name: "roles/langs.perl/tasks/main: Install Perl 5.32.0 from xbuild"
+- name: "roles/langs.perl/tasks/main: Install Perl 5.34.0 from xbuild"
   become_user: isucon
-  command: /tmp/xbuild/perl-install 5.32.0 /home/isucon/local/perl -- -Duselongdouble -j {{ ansible_processor_vcpus }}
+  command: /tmp/xbuild/perl-install 5.34.0 /home/isucon/local/perl -- -Duselongdouble -j {{ ansible_processor_vcpus }}
 
 - name: "roles/langs.perl/tasks/main: Add PATH for perl"
   become_user: isucon
