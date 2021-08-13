@@ -145,7 +145,9 @@ func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a
 	//backendにpostする
 	go func() {
 		// 登録済みユーザーは trend に興味がないからリクエストを待たない
-		browserGetLandingPageIgnoreAction(ctx, a)
+		if _, err := browserGetLandingPageIgnoreAction(ctx, a); err != nil {
+			addErrorWithContext(ctx, step, err)
+		}
 	}()
 	//TODO: 確率で失敗してリトライする
 	_, errs := authAction(ctx, a, user.UserID)
@@ -156,6 +158,19 @@ func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a
 		return nil
 	}
 	user.Agent = a
+
+	// POST /api/auth をしたため GET /api/user/me を叩く
+	me, hres, err := getMeAction(ctx, user.Agent)
+	if err != nil {
+		addErrorWithContext(ctx, step, err)
+		// 致命的なエラーではないため return しない
+	} else {
+		err = verifyMe(user.UserID, hres, me)
+		if err != nil {
+			addErrorWithContext(ctx, step, err)
+			// 致命的なエラーではないため return しない
+		}
+	}
 
 	return user
 }
