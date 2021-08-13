@@ -23,7 +23,26 @@ on:
       - .github/workflows/php.yml
 
 jobs:
-  # lint は後で設定するかもしれない
+  lint:
+    name: Lint
+    runs-on: self-hosted
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: webapp/php
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.0"
+        run: ./composer.phar install
+
+      - name: Check coding style
+        run: ./composer.phar style
+
+      - name: Static Analysis
+        run: ./composer.phar analyse
   test:
     name: Integration Test
     runs-on: self-hosted

@@ -271,7 +271,7 @@ func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep
 		}
 
 		requestTime := time.Now()
-		trend, res, err := getTrendAction(ctx, viewer.Agent)
+		trend, res, err := browserGetLandingPageAction(ctx, viewer.Agent)
 		if err != nil {
 			viewer.ErrorCount += 1
 			addErrorWithContext(ctx, step, err)
@@ -482,7 +482,7 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 		}
 	}
 	// 最初のページが最後のページならやめる
-	if len(firstPageConditions) < conditionLimit {
+	if len(firstPageConditions) < service.ConditionLimit {
 		return conditions, newLastReadConditionTimestamp, nil
 	}
 
@@ -522,7 +522,7 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 		}
 
 		// 最後のページまで見ちゃってるならやめる
-		if len(tmpConditions) != conditionLimit {
+		if len(tmpConditions) != service.ConditionLimit {
 			return conditions, newLastReadConditionTimestamp, nil
 		}
 	}
@@ -798,7 +798,7 @@ func signoutScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *m
 	// signout したらトップページに飛ぶ(MEMO: 初期状態だと trend おもすぎて backend をころしてしまうかも)
 	go func() {
 		// 登録済みユーザーは trend に興味はないので verify はせず投げっぱなし
-		_, err = getTrendIgnoreAction(ctx, user.Agent)
+		_, err = browserGetLandingPageIgnoreAction(ctx, user.Agent)
 		if err != nil {
 			addErrorWithContext(ctx, step, err)
 			// return するとこのあとのログイン必須なシナリオが回らないから return はしない
@@ -822,6 +822,16 @@ func authInfinityRetry(ctx context.Context, a *agent.Agent, userID string, step 
 			for _, err := range errs {
 				addErrorWithContext(ctx, step, err)
 			}
+			continue
+		}
+		me, hres, err := getMeAction(ctx, a)
+		if err != nil {
+			addErrorWithContext(ctx, step, err)
+			continue
+		}
+		err = verifyMe(userID, hres, me)
+		if err != nil {
+			addErrorWithContext(ctx, step, err)
 			continue
 		}
 		return

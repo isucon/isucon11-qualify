@@ -1,14 +1,4 @@
-FROM node:15.12 as frontend
-WORKDIR /app
-
-COPY webapp/frontend/package*.json ./
-RUN npm ci
-
-COPY webapp/frontend .
-RUN npm run build
-
-
-FROM php:8.0.8-buster
+FROM php:8.0.9-buster
 
 WORKDIR /webapp/php
 
@@ -29,9 +19,9 @@ RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSI
 RUN ln -sf /usr/share/zoneinfo/Asia/Tokyo /etc/localtime
 
 COPY webapp/php/ .
-COPY --from=frontend /public /webapp/public
+COPY webapp/public /webapp/public
 
 RUN ./composer.phar install
 
 ENTRYPOINT ["dockerize", "-wait=tcp://mysql-backend:3306", "-timeout=60s"]
-CMD ["php", "-S", "0.0.0.0:3000", "-t", "public", "public/index.php"]
+CMD ["./composer.phar", "start"]

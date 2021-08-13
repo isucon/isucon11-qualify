@@ -14,7 +14,8 @@
     "require-dev": {
         "jangregor/phpstan-prophecy": "^0.8.1",
         "phpstan/extension-installer": "^1.1.0",
-        "phpstan/phpstan": "^0.12.90"
+        "phpstan/phpstan": "^0.12.90",
+        "squizlabs/php_codesniffer": "^3.6"
     },
     "config": {
         "process-timeout": 0,
@@ -26,6 +27,8 @@
         }
     },
     "scripts": {
-        "start": "php -S localhost:8080 -t public"
+        "start": "php -S 0.0.0.0:3000 -t public public/index.php",
+        "style": "./vendor/bin/phpcs --standard=PSR1,PSR12 ./public",
+        "analyse": "./vendor/bin/phpstan analyse ./public"
     }
 }
