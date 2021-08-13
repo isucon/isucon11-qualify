@@ -11,7 +11,6 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
-	"reflect"
 	"strconv"
 	"time"
 
@@ -625,14 +624,14 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 		return
 	}
 
-	expected := isu.ToService()
 	actual, res, err := getIsuIdAction(ctx, loginUser.Agent, isu.JIAIsuUUID)
 	if err != nil {
 		step.AddError(err)
 		return
 	}
-	if !reflect.DeepEqual(*actual, *expected) {
-		step.AddError(errorInvalid(res, "ユーザが所持している椅子が取得できません。"))
+	err = verifyIsu(res, isu, actual)
+	if err != nil {
+		step.AddError(err)
 		return
 	}
 
@@ -671,14 +670,14 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 		return
 	}
 
-	expected = isuWithImg.ToService()
 	actual, res, err = getIsuIdAction(ctx, loginUser.Agent, isuWithImg.JIAIsuUUID)
 	if err != nil {
 		step.AddError(err)
 		return
 	}
-	if !reflect.DeepEqual(*actual, *expected) {
-		step.AddError(errorInvalid(res, "ユーザが所持している椅子が取得できません。"))
+	err = verifyIsu(res, isuWithImg, actual)
+	if err != nil {
+		step.AddError(err)
 		return
 	}
 
