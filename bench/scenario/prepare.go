@@ -174,14 +174,17 @@ func (s *Scenario) loadErrorCheck(ctx context.Context, step *isucandar.Benchmark
 	if err != nil {
 		logger.AdminLogger.Panicln(err)
 	}
-	loginUser := s.normalUsers[rand.Intn(len(s.normalUsers))]
-	loginUser.Agent, err = s.NewAgent(agent.WithTimeout(s.prepareTimeout))
-	if err != nil {
-		logger.AdminLogger.Panicln(err)
-	}
-	authInfinityRetry(ctx, loginUser.Agent, loginUser.UserID, step)
 
 	for {
+		s.normalUsersMtx.Lock()
+		loginUser := s.normalUsers[rand.Intn(len(s.normalUsers))]
+		s.normalUsersMtx.Unlock()
+		loginUser.Agent, err = s.NewAgent()
+		if err != nil {
+			logger.AdminLogger.Panicln(err)
+		}
+		authInfinityRetry(ctx, loginUser.Agent, loginUser.UserID, step)
+
 		select {
 		case <-ctx.Done():
 			return
