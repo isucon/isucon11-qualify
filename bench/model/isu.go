@@ -126,15 +126,6 @@ func init() {
 	defaultIconHash = md5.Sum(image)
 }
 
-func (isu *Isu) ToService() *service.Isu {
-	return &service.Isu{
-		ID:         isu.ID,
-		JIAIsuUUID: isu.JIAIsuUUID,
-		Name:       isu.Name,
-		Character:  isu.Character,
-	}
-}
-
 func (isu *Isu) SetImage(image []byte) {
 	isu.ImageHash = md5.Sum(image)
 }
