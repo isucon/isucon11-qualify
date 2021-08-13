@@ -24,4 +24,4 @@ COPY webapp/public /webapp/public
 RUN ./composer.phar install
 
 ENTRYPOINT ["dockerize", "-wait=tcp://mysql-backend:3306", "-timeout=60s"]
-CMD ["php", "-S", "0.0.0.0:3000", "-t", "public", "public/index.php"]
+CMD ["./composer.phar", "start"]

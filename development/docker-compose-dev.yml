@@ -42,7 +42,7 @@ services:
       MYSQL_PASS: isucon
       POST_ISUCONDITION_TARGET_BASE_URL: http://backend-php:3000
     entrypoint: dockerize -wait tcp://mysql-backend:3306 -timeout 60s
-    command: php -S 0.0.0.0:3000 -t public public/index.php
+    command: ./composer.phar start
     ports:
       - "3000:3000"
     volumes:
