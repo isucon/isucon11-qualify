@@ -137,7 +137,7 @@ func verifyIsuList(res *http.Response, expectedReverse []*model.Isu, isuList []*
 			errs = append(errs, errorMismatch(res, "%d番目の椅子 (ID=%s) のiconが異なります", i+1, isu.JIAIsuUUID))
 		}
 
-		// isu の検証 (character, name)
+		// isu の検証
 		err := verifyIsu(res, expected, isu)
 		if err != nil {
 			errs = append(errs, err)
@@ -872,6 +872,15 @@ func verifyPrepareIsuList(res *http.Response, expectedReverse []*model.Isu, isuL
 	}
 	for i, isu := range isuList {
 		expected := expectedReverse[length-1-i]
+
+		// isu の検証 (jia_isu_uuid, id, character, name)
+		err := verifyIsu(res, expected, isu)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+
+		//LatestIsuCondition
 		func() {
 			expected.CondMutex.RLock()
 			defer expected.CondMutex.RUnlock()
@@ -894,20 +903,15 @@ func verifyPrepareIsuList(res *http.Response, expectedReverse []*model.Isu, isuL
 				return
 			}
 
-			// isu の検証 (jia_isu_uuid, id, character, name)
-			if expected.JIAIsuUUID == isu.JIAIsuUUID && expected.ID == isu.ID && expected.Character == isu.Character && expected.Name == isu.Name {
-				// conditionの検証
-				if !(expectedCondition.TimestampUnix == isu.LatestIsuCondition.Timestamp &&
-					expected.JIAIsuUUID == isu.LatestIsuCondition.JIAIsuUUID &&
-					expected.Name == isu.LatestIsuCondition.IsuName &&
-					expectedCondition.IsSitting == isu.LatestIsuCondition.IsSitting &&
-					expectedCondition.ConditionString() == isu.LatestIsuCondition.Condition &&
-					expectedCondition.ConditionLevel.Equal(isu.LatestIsuCondition.ConditionLevel) &&
-					expectedCondition.Message == isu.LatestIsuCondition.Message) {
-					errs = append(errs, errorMismatch(res, "%d番目の椅子 (ID=%s) の情報が異なります: latest_isu_conditionの内容が不正です", i+1, isu.JIAIsuUUID))
-				}
-			} else {
-				errs = append(errs, errorMismatch(res, "%d番目の椅子 (ID=%s) の情報が異なります", i+1, isu.JIAIsuUUID))
+			// conditionの検証
+			if !(expectedCondition.TimestampUnix == isu.LatestIsuCondition.Timestamp &&
+				expected.JIAIsuUUID == isu.LatestIsuCondition.JIAIsuUUID &&
+				expected.Name == isu.LatestIsuCondition.IsuName &&
+				expectedCondition.IsSitting == isu.LatestIsuCondition.IsSitting &&
+				expectedCondition.ConditionString() == isu.LatestIsuCondition.Condition &&
+				expectedCondition.ConditionLevel.Equal(isu.LatestIsuCondition.ConditionLevel) &&
+				expectedCondition.Message == isu.LatestIsuCondition.Message) {
+				errs = append(errs, errorMismatch(res, "%d番目の椅子 (ID=%s) の情報が異なります: latest_isu_conditionの内容が不正です", i+1, isu.JIAIsuUUID))
 			}
 		}()
 	}
