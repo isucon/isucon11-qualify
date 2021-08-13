@@ -377,20 +377,12 @@ def get_isu_graph(jia_isu_uuid):
         raise BadRequest("bad format: datetime")
     dt = truncate_datetime(dt)
 
-    cnx = cnxpool.connect()
-    try:
-        cur = cnx.cursor(dictionary=True)
+    query = "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = %s AND `jia_isu_uuid` = %s"
+    (count,) = select_row(query, (jia_user_id, jia_isu_uuid))
+    if count == 0:
+        raise NotFound("not found: isu")
 
-        query = "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = %s AND `jia_isu_uuid` = %s"
-        cur.execute(query, (jia_user_id, jia_isu_uuid))
-        (count,) = cur.fetchone()
-        if count == 0:
-            raise NotFound("not found: isu")
-
-        res = generate_isu_graph_response(cur, jia_isu_uuid, dt)
-    finally:
-        cnx.close()
-
+    res = generate_isu_graph_response(jia_isu_uuid, dt)
     return jsonify(res)
 
 
@@ -399,7 +391,7 @@ def truncate_datetime(dt: datetime) -> datetime:
     return datetime(dt.year, dt.month, dt.day)
 
 
-def generate_isu_graph_response(cur, jia_isu_uuid: str, graph_date: datetime) -> list[GraphResponse]:
+def generate_isu_graph_response(jia_isu_uuid: str, graph_date: datetime) -> list[GraphResponse]:
     """グラフのデータ点を一日分生成"""
     data_points = []
     conditions_in_this_hour = []
@@ -407,8 +399,7 @@ def generate_isu_graph_response(cur, jia_isu_uuid: str, graph_date: datetime) ->
     start_time_in_this_hour = None
 
     query = "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = %s ORDER BY `timestamp` ASC"
-    cur.execute(query, (jia_isu_uuid,))
-    rows = cur.fetchall()
+    rows = select_all(query, (jia_isu_uuid,))
     for row in rows:
         condition = IsuCondition(**row)
         truncated_condition_time = truncate_datetime(condition.timestamp)
