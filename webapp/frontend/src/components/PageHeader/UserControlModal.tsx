@@ -20,7 +20,7 @@ const UserControlModal = (props: Props) => {
     <Modal
       isOpen={props.isOpen}
       onRequestClose={props.toggle}
-      className="top-10 bg-gray-50 right-4 absolute flex justify-items-center px-6 py-3 border border-outline rounded"
+      className="top-18 bg-gray-50 absolute right-0 flex justify-items-center px-6 py-3 border border-outline rounded"
       overlayClassName="fixed inset-0"
       shouldCloseOnOverlayClick={true}
     >
