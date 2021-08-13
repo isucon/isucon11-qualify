@@ -8,25 +8,57 @@
     owner: isucon
     group: isucon
 
-- name: "roles/contestant/tasks/isucondition: Deploy configs"
+- name: "roles/contestant/tasks/isucondition: Deploy hosts"
+  become_user: root
+  copy:
+    src: "etc/hosts"
+    dest: "/etc/hosts"
+
+- name: "roles/contestant/tasks/isucondition: Deploy env file"
   become_user: isucon
   copy:
-    src: "{{ item }}"
-    dest: "/{{ item }}"
+    src: "home/isucon/env.sh"
+    dest: "/home/isucon/env.sh"
     owner: isucon
     group: isucon
-  with_items:
-    - home/isucon/env.sh
-    - etc/hosts
 
-
-- name: "roles/contestant/tasks/isucondition: Include isucondition-frontend.yml"
-  include: isucondition-frontend.yml
+- name: "roles/contestant/tasks/isucondition: Remove frontend source code"
+  become_user: root
+  file:
+    path: /home/isucon/webapp/frontend
+    state: absent
 
 - name: "roles/contestant/tasks/isucondition: Include isucondition-go.yml"
   include: isucondition-go.yml
+#- name: "roles/contestant/tasks/isucondition: Include isucondition-nodejs.yml"
+#  include: isucondition-nodejs.yml
+#- name: "roles/contestant/tasks/isucondition: Include isucondition-perl.yml"
+#  include: isucondition-perl.yml
+#- name: "roles/contestant/tasks/isucondition: Include isucondition-php.yml"
+#  include: isucondition-php.yml
+#- name: "roles/contestant/tasks/isucondition: Include isucondition-python.yml"
+#  include: isucondition-python.yml
+#- name: "roles/contestant/tasks/isucondition: Include isucondition-ruby.yml"
+#  include: isucondition-ruby.yml
+#- name: "roles/contestant/tasks/isucondition: Include isucondition-rust.yml"
+#  include: isucondition-rust.yml
 
-# TODO: 言語別の include
+- name: "roles/contestant/tasks/isucondition: Deploy Service files"
+  become_user: root
+  copy:
+    src: "{{ item }}"
+    dest: "/{{ item }}"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+  with_items:
+    - etc/systemd/system/isucondition.go.service
+    - etc/systemd/system/isucondition.nodejs.service
+    - etc/systemd/system/isucondition.perl.service
+    - etc/systemd/system/isucondition.php.service
+    - etc/systemd/system/isucondition.python.service
+    - etc/systemd/system/isucondition.ruby.service
+    - etc/systemd/system/isucondition.rust.service
 
 - name: "roles/contestant/tasks/isucondition: Enable isucondition.go.service"
   become_user: root

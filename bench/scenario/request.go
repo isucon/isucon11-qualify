@@ -8,12 +8,47 @@ import (
 	"mime/multipart"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/francoispqt/gojay"
 	"github.com/isucon/isucandar/agent"
 	"github.com/isucon/isucandar/failure"
 	"github.com/isucon/isucon11-qualify/bench/logger"
+	"github.com/isucon/isucon11-qualify/bench/service"
+	"github.com/pierrec/xxHash/xxHash64"
 )
+
+var (
+	trendHash = TrendHash{mx: sync.Mutex{}, hash: map[uint64]service.GetTrendResponse{}}
+	h64       = xxHash64.New(0)
+)
+
+type TrendHash struct {
+	mx   sync.Mutex
+	hash map[uint64]service.GetTrendResponse
+}
+
+func (t *TrendHash) getObj(res []byte) (service.GetTrendResponse, error) {
+	t.mx.Lock()
+	defer t.mx.Unlock()
+
+	h64.Write(res)
+	hash := h64.Sum64()
+	h64.Reset()
+	cache, exist := t.hash[hash]
+	if exist {
+		return cache, nil
+	}
+
+	obj := service.GetTrendResponse{}
+	err := gojay.UnmarshalJSONArray(res, &obj)
+	if err != nil {
+		return nil, err
+	}
+
+	t.hash[hash] = obj
+	return obj, nil
+}
 
 func reqNoContentResNoContent(ctx context.Context, agent *agent.Agent, method string, rpath string, allowedStatusCodes []int) (*http.Response, error) {
 	httpreq, err := agent.NewRequest(method, rpath, nil)
@@ -103,7 +138,7 @@ func reqJSONResJSON(ctx context.Context, agent *agent.Agent, method string, rpat
 	return httpres, nil
 }
 
-func reqJSONResGojayArray(ctx context.Context, agent *agent.Agent, method string, rpath string, body io.Reader, res gojay.UnmarshalerJSONArray, allowedStatusCodes []int) (*http.Response, error) {
+func reqJSONResTrend(ctx context.Context, agent *agent.Agent, method string, rpath string, body io.Reader, allowedStatusCodes []int) (service.GetTrendResponse, *http.Response, error) {
 	httpreq, err := agent.NewRequest(method, rpath, body)
 	if err != nil {
 		logger.AdminLogger.Panic(err)
@@ -112,22 +147,24 @@ func reqJSONResGojayArray(ctx context.Context, agent *agent.Agent, method string
 
 	httpres, err := doRequest(ctx, agent, httpreq, allowedStatusCodes)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer httpres.Body.Close()
 
 	if !strings.HasPrefix(httpres.Header.Get("Content-Type"), "application/json") {
-		return nil, errorInvalidContentType(httpres, "application/json")
+		return nil, nil, errorInvalidContentType(httpres, "application/json")
 	}
 
-	dec := gojay.NewDecoder(httpres.Body)
-	defer dec.Release()
-	err = dec.DecodeArray(res)
+	bytes, err := io.ReadAll(httpres.Body)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+	trend, err := trendHash.getObj(bytes)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	return httpres, nil
+	return trend, httpres, nil
 }
 
 func reqJSONResNoContent(ctx context.Context, agent *agent.Agent, method string, rpath string, body io.Reader, allowedStatusCodes []int) (*http.Response, error) {
