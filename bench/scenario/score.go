@@ -11,9 +11,14 @@ const (
 	ScoreGraphNormal           score.ScoreTag = "3.GraphNormal           "
 	ScoreGraphBad              score.ScoreTag = "4.GraphBad              "
 	ScoreGraphWorst            score.ScoreTag = "5.GraphWorst            "
-	ScoreReadInfoCondition     score.ScoreTag = "6.ReadInfoCondition     "
-	ScoreReadWarningCondition  score.ScoreTag = "7.ReadWarningCondition  "
-	ScoreReadCriticalCondition score.ScoreTag = "8.ReadCriticalCondition "
+	ScoreTodayGraphExcellent   score.ScoreTag = "6.TodayGraphExcellent   "
+	ScoreTodayGraphGood        score.ScoreTag = "7.TodayGraphGood        "
+	ScoreTodayGraphNormal      score.ScoreTag = "8.TodayGraphNormal      "
+	ScoreTodayGraphBad         score.ScoreTag = "9.TodayGraphBad         "
+	ScoreTodayGraphWorst       score.ScoreTag = "10.TodayGraphWorst      "
+	ScoreReadInfoCondition     score.ScoreTag = "11.ReadInfoCondition    "
+	ScoreReadWarningCondition  score.ScoreTag = "12.ReadWarningCondition "
+	ScoreReadCriticalCondition score.ScoreTag = "13.ReadCriticalCondition"
 	ScoreIsuInitialize         score.ScoreTag = "_1.IsuInitialize        " //scoreが0のもの
 	ScoreNormalUserInitialize  score.ScoreTag = "_2.NormalUserInitialize " //全てのIsuInitializeが終わってはじめて+1
 	ScoreViewerInitialize      score.ScoreTag = "_3.ViewerInitialize     "
