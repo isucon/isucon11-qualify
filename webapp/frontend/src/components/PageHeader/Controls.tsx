@@ -5,7 +5,7 @@ import { useState } from 'react'
 import ControlItem from './ControlItem'
 import UserControlModal from './UserControlModal'
 import ControlLinkItem from './ControlLinkItem'
-import { BiLogInCircle } from 'react-icons/bi'
+import { IoIosNotifications } from 'react-icons/io'
 import { TiPlus } from 'react-icons/ti'
 
 const Controls = () => {
@@ -15,15 +15,7 @@ const Controls = () => {
   }
   const me = useStateContext().me
   if (!me) {
-    return (
-      <div className="flex items-center justify-between ml-auto">
-        <ControlLinkItem
-          to="/login"
-          label="ログイン"
-          icon={<BiLogInCircle />}
-        />
-      </div>
-    )
+    return <></>
   }
 
   return (
