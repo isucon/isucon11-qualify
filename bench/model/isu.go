@@ -96,30 +96,22 @@ func NewRandomIsuRaw(owner *User) (*Isu, *StreamsForPoster, error) {
 	return isu, streamsForPoster, nil
 }
 
-func NewIsuRawForInitData(isu *Isu, owner *User, jiaIsuUUID string) (*Isu, *StreamsForPoster, error) {
-	stateChan := make(chan IsuStateChange, 1)
+func NewIsuRawForInitData(isu *Isu, owner *User, jiaIsuUUID string) (*Isu, error) {
+	//stateChan := make(chan IsuStateChange, 1)
 	//conditionChan := make(chan []IsuCondition, 10)
 
 	isu = &Isu{
-		ID:         isu.ID,
-		Owner:      owner,
-		JIAIsuUUID: jiaIsuUUID,
-		Name:       isu.Name,
-		ImageHash:  isu.ImageHash,
-		Character:  isu.Character,
-		Conditions: isu.Conditions,
-		StreamsForScenario: &StreamsForScenario{
-			StateChan: stateChan,
-			//ConditionChan: conditionChan,
-		},
+		ID:                 isu.ID,
+		Owner:              owner,
+		JIAIsuUUID:         jiaIsuUUID,
+		Name:               isu.Name,
+		ImageHash:          isu.ImageHash,
+		Character:          isu.Character,
+		Conditions:         isu.Conditions,
+		StreamsForScenario: nil,
 	}
 
-	streamsForPoster := &StreamsForPoster{
-		StateChan: stateChan,
-		//ConditionChan: conditionChan,
-	}
-
-	return isu, streamsForPoster, nil
+	return isu, nil
 }
 
 var defaultIconHash [md5.Size]byte
@@ -160,3 +152,7 @@ func (i *Isu) AddIsuConditions(conditions []IsuCondition) {
 // 	defer i.condMutex.RUnlock()
 // 	return i.conditions[:]
 // }
+
+func (isu *Isu) IsNoPoster() bool {
+	return isu.StreamsForScenario == nil
+}

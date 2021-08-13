@@ -3,6 +3,7 @@ package scenario
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"sync"
@@ -317,4 +318,22 @@ func (s *Scenario) GetIsuFromID(id int) (*model.Isu, bool) {
 	defer s.isuFromIDMutex.RUnlock()
 	isu, ok := s.isuFromID[id]
 	return isu, ok
+}
+
+func (s *Scenario) GetRandomActivatedIsu(randEngine *rand.Rand) *model.Isu {
+	targetCount := randEngine.Intn(len(s.isuFromID))
+	var isu *model.Isu
+
+	s.isuFromIDMutex.RLock()
+	defer s.isuFromIDMutex.RUnlock()
+	for _, isuP := range s.isuFromID {
+		if !isuP.IsNoPoster() {
+			isu = isuP
+		}
+		if targetCount <= 0 && isu != nil {
+			return isu
+		}
+		targetCount--
+	}
+	return isu
 }
