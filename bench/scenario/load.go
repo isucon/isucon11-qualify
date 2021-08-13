@@ -258,7 +258,7 @@ func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep
 
 	select {
 	case <-ctx.Done():
-
+		return
 	default:
 	}
 
