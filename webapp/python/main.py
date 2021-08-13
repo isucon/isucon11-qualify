@@ -86,6 +86,17 @@ class GraphResponse:
     condition_timestamps: list
 
 
+@dataclass
+class GetIsuConditionResponse:
+    jia_isu_uuid: str
+    isu_name: str
+    timestamp: int
+    is_sitting: bool
+    condition: str
+    condition_level: str
+    message: str
+
+
 class CustomJSONEncoder(JSONEncoder):
     def default(self, obj):
         if isinstance(obj, datetime):
@@ -524,7 +535,94 @@ def calculate_graph_data_point(isu_conditions: list[IsuCondition]) -> GraphDataP
 @app.route("/api/condition/<jia_isu_uuid>", methods=["GET"])
 def get_isu_confitions(jia_isu_uuid):
     """ISUのコンディションを取得"""
-    raise NotImplementedError
+    jia_user_id = get_user_id_from_session()
+
+    try:
+        end_time = datetime.fromtimestamp(int(request.args.get("end_time")))
+    except:
+        raise BadRequest("bad format: end_time")
+
+    condition_level_csv = request.args.get("condition_level")
+    if condition_level_csv is None:
+        raise BadRequest("missing: condition_level")
+    condition_level = {level: None for level in condition_level_csv.split(",")}
+
+    start_time_str = request.args.get("start_time")
+    start_time = None
+    if start_time_str is not None:
+        try:
+            start_time = datetime.fromtimestamp(int(start_time_str))
+        except:
+            raise BadRequest("bad format: start_time")
+
+    query = "SELECT name FROM `isu` WHERE `jia_isu_uuid` = %s AND `jia_user_id` = %s"
+    row = select_row(query, (jia_isu_uuid, jia_user_id))
+    if row is None:
+        raise NotFound("not found: isu")
+    isu_name = row["name"]
+
+    condition_response = get_isu_condition_from_db(
+        jia_isu_uuid,
+        end_time,
+        condition_level,
+        start_time,
+        CONDITION_LIMIT,
+        isu_name,
+    )
+
+    return jsonify(condition_response)
+
+
+def get_isu_condition_from_db(
+    jia_isu_uuid: str,
+    end_time: datetime,
+    condition_level: dict,
+    start_time: datetime,
+    limit: int,
+    isu_name: str,
+) -> list[GetIsuConditionResponse]:
+    """ISUのコンディションをDBから取得"""
+    if start_time is None:
+        query = """
+            SELECT *
+            FROM `isu_condition`
+            WHERE `jia_isu_uuid` = %s AND `timestamp` < %s
+            ORDER BY `timestamp` DESC
+            """
+        conditions = [IsuCondition(**row) for row in select_all(query, (jia_isu_uuid, end_time))]
+    else:
+        query = """
+            SELECT *
+            FROM `isu_condition`
+            WHERE `jia_isu_uuid` = %s AND `timestamp` < %s AND %s <= `timestamp`
+            ORDER BY `timestamp` DESC
+            """
+        conditions = [IsuCondition(**row) for row in select_all(query, (jia_isu_uuid, end_time, start_time))]
+
+    condition_response = []
+    for c in conditions:
+        try:
+            c_level = calculate_condition_level(c.condition)
+        except:
+            continue
+
+        if condition_level[c_level]:
+            condition_response.append(
+                GetIsuConditionResponse(
+                    jia_isu_uuid=jia_isu_uuid,
+                    isu_name=isu_name,
+                    timestamp=c.timestamp.timestamp(),
+                    is_sitting=c.is_sitting,
+                    condition=c.condition,
+                    condition_level=c_level,
+                    message=c.message,
+                )
+            )
+
+    if len(condition_response) > limit:
+        condition_response = condition_response[:limit]
+
+    return condition_response
 
 
 @app.route("/api/trend", methods=["GET"])
