@@ -132,6 +132,34 @@ func init() {
 	}
 }
 
+type PromTags []string
+
+func (p PromTags) writePromFile() {
+	if len(promOut) == 0 {
+		return
+	}
+
+	promOutNew := fmt.Sprintf("%s.new", promOut)
+	err := ioutil.WriteFile(promOutNew, []byte(strings.Join(p, "")), 0644)
+	if err != nil {
+		logger.AdminLogger.Printf("Failed to write prom file: %s", err)
+		return
+	}
+}
+
+func (p PromTags) commit() {
+	if len(promOut) == 0 {
+		return
+	}
+
+	promOutNew := fmt.Sprintf("%s.new", promOut)
+	err := os.Rename(promOutNew, promOut)
+	if err != nil {
+		logger.AdminLogger.Printf("Failed to write prom file: %s", err)
+		return
+	}
+}
+
 func checkError(err error) (critical bool, timeout bool, deduction bool) {
 	return scenario.CheckError(err)
 }
@@ -156,6 +184,8 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 		Count int64
 	}
 	tagCountPair := make([]TagCountPair, 0)
+	promTags := PromTags{}
+
 	for tag, count := range result.Score.Breakdown() {
 		tagCountPair = append(tagCountPair, TagCountPair{Tag: tag, Count: count})
 	}
@@ -168,6 +198,7 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 		} else {
 			logger.AdminLogger.Printf("SCORE: %s: %d", p.Tag, p.Count)
 		}
+		promTags = append(promTags, fmt.Sprintf("xsuconbench_score_breakdown{name=\"%s\"} %d\n", strings.TrimRight(string(p.Tag), " "), p.Count))
 	}
 
 	for _, err := range errors {
@@ -208,6 +239,14 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 	logger.ContestantLogger.Printf("score: %d(%d - %d) : %s", score, scoreRaw, deductionTotal, reason)
 	logger.ContestantLogger.Printf("deduction: %d / timeout: %d", deduction, timeoutCount)
 
+	promTags = append(promTags,
+		fmt.Sprintf("xsuconbench_score_total{} %d\n", score),
+		fmt.Sprintf("xsuconbench_score_raw{} %d\n", scoreRaw),
+		fmt.Sprintf("xsuconbench_score_deduction{} %d\n", deductionTotal),
+		fmt.Sprintf("xsuconbench_score_error_count{name=\"deduction\"} %d\n", deduction),
+		fmt.Sprintf("xsuconbench_score_error_count{name=\"timeout\"} %d\n", timeoutCount),
+	)
+
 	err := reporter.Report(&isuxportalResources.BenchmarkResult{
 		SurveyResponse: &isuxportalResources.SurveyResponse{
 			Language: s.Language,
@@ -227,26 +266,18 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 		panic(err)
 	}
 
+	if passed {
+		promTags = append(promTags, "xsuconbench_passed{} 1\n")
+	} else {
+		promTags = append(promTags, "xsuconbench_passed{} 0\n")
+	}
+
+	promTags.writePromFile()
+	if finish {
+		promTags.commit()
+	}
+
 	return passed
-}
-
-func writePromFile(promTags []string) {
-	if len(promOut) == 0 {
-		return
-	}
-
-	promOutNew := fmt.Sprintf("%s.new", promOut)
-	err := ioutil.WriteFile(promOutNew, []byte(strings.Join(promTags, "")), 0644)
-	if err != nil {
-		logger.AdminLogger.Printf("Failed to write prom file: %s", err)
-		return
-	}
-	err = os.Rename(promOutNew, promOut)
-	if err != nil {
-		logger.AdminLogger.Printf("Failed to write prom file: %s", err)
-		return
-	}
-
 }
 
 func main() {
@@ -360,9 +391,6 @@ func main() {
 			return nil
 		default:
 		}
-
-		// 初期実装だと fail してしまうため下駄をはかせる
-		step.AddScore(scenario.ScoreStartBenchmark)
 
 		for {
 			// 途中経過を3秒毎に送信
