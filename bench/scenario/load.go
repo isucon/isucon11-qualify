@@ -664,7 +664,7 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 		// 「今日のグラフ」についても加点
 		if behindDay == 0 {
 			// AddScoreはconditionのGETまで待つためここでタグを入れておく
-			scoreTags = append(scoreTags, getGraphScoreTag(minTimestampCount))
+			scoreTags = append(scoreTags, getTodayGraphScoreTag(minTimestampCount))
 		}
 	}
 
@@ -747,6 +747,22 @@ func getGraphScoreTag(minTimestampCount int) score.ScoreTag {
 		return ScoreGraphBad
 	}
 	return ScoreGraphWorst
+}
+
+func getTodayGraphScoreTag(minTimestampCount int) score.ScoreTag {
+	if minTimestampCount > ScoreGraphTimestampCount.Excellent {
+		return ScoreTodayGraphExcellent
+	}
+	if minTimestampCount > ScoreGraphTimestampCount.Good {
+		return ScoreTodayGraphGood
+	}
+	if minTimestampCount > ScoreGraphTimestampCount.Normal {
+		return ScoreTodayGraphNormal
+	}
+	if minTimestampCount > ScoreGraphTimestampCount.Bad {
+		return ScoreTodayGraphBad
+	}
+	return ScoreTodayGraphWorst
 }
 
 // GET /isu/{jia_isu_uuid}/graph を、「一度見たgraphの次のgraph」or「ベンチがisuの作成を投げた仮想時間の日」まで。補足: LastViewedGraphは外で更新
