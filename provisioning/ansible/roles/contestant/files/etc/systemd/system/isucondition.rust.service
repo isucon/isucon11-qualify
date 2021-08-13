@@ -1,14 +1,14 @@
 [Unit]
-Description=isucondition.go
+Description=isucondition.rust
 After=network.target mysql.service
 
 [Service]
-WorkingDirectory=/home/isucon/webapp/go
+WorkingDirectory=/home/isucon/webapp/rust
 EnvironmentFile=/home/isucon/env.sh
 
 User=isucon
 Group=isucon
-ExecStart=/home/isucon/webapp/go/isucondition
+ExecStart=/home/isucon/webapp/rust/target/release/isucondition
 
 Restart   = always
 Type      = simple

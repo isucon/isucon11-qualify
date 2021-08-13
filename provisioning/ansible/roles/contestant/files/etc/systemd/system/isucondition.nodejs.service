@@ -1,14 +1,14 @@
 [Unit]
-Description=isucondition.go
+Description=isucondition.nodejs
 After=network.target mysql.service
 
 [Service]
-WorkingDirectory=/home/isucon/webapp/go
+WorkingDirectory=/home/isucon/webapp/nodejs
 EnvironmentFile=/home/isucon/env.sh
 
 User=isucon
 Group=isucon
-ExecStart=/home/isucon/webapp/go/isucondition
+ExecStart=/home/isucon/local/node/bin/npm start
 
 Restart   = always
 Type      = simple
