@@ -26,6 +26,8 @@ import (
 	"github.com/isucon/isucon11-qualify/bench/service"
 )
 
+const NotExistJiaIsuUUID = "9e5c1109-beff-4598-b8f1-658d1994d55f"
+
 func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) error {
 	logger.ContestantLogger.Printf("===> PREPARE")
 	// keepPostingのuserTimerでctx終了させられてしまうのでprepareでも設定する
@@ -748,7 +750,7 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 
 	// check: 存在しない椅子を登録
 	req = service.PostIsuRequest{
-		JIAIsuUUID: "jiaisuuuid",
+		JIAIsuUUID: NotExistJiaIsuUUID,
 		IsuName:    "isuname",
 	}
 	resBody, res, err = postIsuErrorAction(ctx, loginUser.Agent, req)
@@ -795,7 +797,7 @@ func (s *Scenario) prepareIrregularCheckGetIsu(ctx context.Context, loginUser *m
 	}
 
 	// check: 存在しない椅子を取得
-	resBody, res, err = getIsuIdErrorAction(ctx, loginUser.Agent, "jiaisuuuid")
+	resBody, res, err = getIsuIdErrorAction(ctx, loginUser.Agent, NotExistJiaIsuUUID)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -840,7 +842,7 @@ func (s *Scenario) prepareIrregularCheckGetIsuIcon(ctx context.Context, loginUse
 	}
 
 	// check: 登録されていない椅子に対するリクエスト
-	resBody, res, err = getIsuIconErrorAction(ctx, loginUser.Agent, "jiaisuuuid")
+	resBody, res, err = getIsuIconErrorAction(ctx, loginUser.Agent, NotExistJiaIsuUUID)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -924,7 +926,7 @@ func (s *Scenario) prepareIrregularCheckGetIsuGraph(ctx context.Context, loginUs
 	// check: 登録されていない椅子に対するリクエスト
 	query = url.Values{}
 	query.Set("datetime", strconv.FormatInt(time.Now().Unix(), 10))
-	resBody, res, err = getIsuGraphErrorAction(ctx, loginUser.Agent, "jiaisuuuid", query)
+	resBody, res, err = getIsuGraphErrorAction(ctx, loginUser.Agent, NotExistJiaIsuUUID, query)
 	if err != nil {
 		step.AddError(err)
 		return
