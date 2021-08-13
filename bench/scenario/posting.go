@@ -25,7 +25,7 @@ const (
 
 var (
 	targetBaseURLMapMutex sync.Mutex
-	targetBaseURLMap      = map[string]struct{}{}
+	targetBaseURLMap      = map[string]string{}
 )
 
 func init() {
@@ -51,7 +51,7 @@ type badCondition struct {
 func (s *Scenario) keepPosting(ctx context.Context, targetBaseURL *url.URL, fqdn string, isu *model.Isu, scenarioChan *model.StreamsForPoster) {
 
 	targetBaseURLMapMutex.Lock()
-	targetBaseURLMap[targetBaseURL.String()] = struct{}{}
+	targetBaseURLMap[targetBaseURL.String()] = fqdn
 	targetBaseURLMapMutex.Unlock()
 
 	targetBaseURL.Path = path.Join(targetBaseURL.Path, "/api/condition/", isu.JIAIsuUUID)
@@ -287,6 +287,10 @@ func (s *Scenario) keepPostingError(ctx context.Context) {
 	randEngine := rand.New(rand.NewSource(rand.Int63()))
 	httpClient := http.Client{}
 	httpClient.Timeout = postConditionTimeout
+	httpClient.Transport = &http.Transport{
+		TLSClientConfig:   &tls.Config{},
+		ForceAttemptHTTP2: true,
+	}
 
 	timer := time.NewTicker(1000 * time.Millisecond)
 	defer timer.Stop()
@@ -374,13 +378,16 @@ func (s *Scenario) keepPostingError(ctx context.Context) {
 
 		// targetを取得
 		var targetPath string
+		var targetServer string
 		targetBaseURLMapMutex.Lock()
-		for pathTmp := range targetBaseURLMap {
+		for pathTmp, serverTmp := range targetBaseURLMap {
 			targetPath = pathTmp
+			targetServer = serverTmp
 			break
 		}
 		targetBaseURLMapMutex.Unlock()
 		targetPath = targetPath + "/api/condition/" + isu.JIAIsuUUID
+		httpClient.Transport.(*http.Transport).TLSClientConfig.ServerName = targetServer
 		// timeout も無視するので全てのエラーを見ない
 		postIsuConditionAction(ctx, httpClient, targetPath, &conditionsReq)
 	}
