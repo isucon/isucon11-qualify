@@ -104,6 +104,16 @@ func verifyIsuNotFound(res *http.Response, text string) error {
 
 //データ整合性チェック
 
+func verifyIsuIcon(expected *model.Isu, actual []byte, actualStatusCode int) error {
+	if expected.ImageHash != md5.Sum(actual) {
+		return failure.NewError(ErrMismatch, errorFormatWithURI(
+			actualStatusCode, http.MethodGet, "/api/isu/"+expected.JIAIsuUUID+"/icon",
+			"椅子 (ID=%s) のiconが異なります", expected.JIAIsuUUID,
+		))
+	}
+	return nil
+}
+
 func verifyIsuList(res *http.Response, expectedReverse []*model.Isu, isuList []*service.Isu) ([]string, []error) {
 	errs := []error{}
 	var newConditionUUIDs []string
