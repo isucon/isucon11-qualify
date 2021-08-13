@@ -624,12 +624,6 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 		return
 	}
 
-	// LastCompletedGraphTime を更新
-	newLastCompletedGraphTime := getNewLastCompletedGraphTime(graphResponses, virtualToday)
-	if targetIsu.LastCompletedGraphTime < newLastCompletedGraphTime {
-		targetIsu.LastCompletedGraphTime = newLastCompletedGraphTime
-	}
-
 	// AddScoreはconditionのGETまで待つためここでタグを持っておく
 	scoreTags := []score.ScoreTag{}
 
@@ -683,6 +677,12 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 	// graph の加点分を計算
 	for _, scoreTag := range scoreTags {
 		step.AddScore(scoreTag)
+	}
+
+	// LastCompletedGraphTime を更新
+	newLastCompletedGraphTime := getNewLastCompletedGraphTime(graphResponses, virtualToday)
+	if targetIsu.LastCompletedGraphTime < newLastCompletedGraphTime {
+		targetIsu.LastCompletedGraphTime = newLastCompletedGraphTime
 	}
 }
 
