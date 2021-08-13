@@ -246,13 +246,12 @@ func (s *Scenario) NewIsuWithCustomImg(ctx context.Context, step *isucandar.Benc
 			return nil
 		}
 	}
+	// GET isu のレスポンスより ID を取得して isu モデルに代入する
+	isu.ID = isuResponse.ID
 	err = verifyIsu(res, isu, isuResponse)
 	if err != nil {
 		step.AddError(err)
 	}
-
-	// POST isu のレスポンスより ID を取得して isu モデルに代入する
-	isu.ID = isuResponse.ID
 
 	// isu.ID から model.TrendCondition を取得できるようにする (GET /trend 用)
 	s.UpdateIsuFromID(isu)
