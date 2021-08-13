@@ -3,14 +3,13 @@ module github.com/isucon/isucon11-qualify/bench
 go 1.16
 
 require (
-	github.com/anthonynsimon/bild v0.13.0
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
-	github.com/docker/docker v20.10.8+incompatible
 	github.com/francoispqt/gojay v1.2.13
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/uuid v1.3.0
 	github.com/isucon/isucandar v0.0.0-20210720111100-eb5e03ab1e8c
 	github.com/isucon/isucon10-portal v0.0.0-20201008112716-8c0b637e1bd8
+	github.com/isucon/isucon11-qualify/bench/random v0.0.0-00010101000000-000000000000
 	github.com/labstack/echo/v4 v4.5.0
 	github.com/mattn/go-isatty v0.0.13 // indirect
 	github.com/pierrec/xxHash v0.1.5
@@ -22,3 +21,5 @@ require (
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
 )
+
+replace github.com/isucon/isucon11-qualify/bench/random => ./random
