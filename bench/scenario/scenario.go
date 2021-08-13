@@ -246,6 +246,9 @@ func (s *Scenario) NewIsuWithCustomImg(ctx context.Context, step *isucandar.Benc
 			return nil
 		}
 	}
+	// POST isu のレスポンスより ID を取得して isu モデルに代入する
+	isu.ID = isuResponse.ID
+
 	// TODO: これは validate でやるべきなきがする
 	if isuResponse.JIAIsuUUID != isu.JIAIsuUUID ||
 		isuResponse.Name != isu.Name ||
@@ -253,8 +256,16 @@ func (s *Scenario) NewIsuWithCustomImg(ctx context.Context, step *isucandar.Benc
 		step.AddError(errorMismatch(res, "レスポンスBodyが正しくありません"))
 	}
 
-	// POST isu のレスポンスより ID を取得して isu モデルに代入する
-	isu.ID = isuResponse.ID
+	//Icon取得
+	icon, res, err := getIsuIconAction(ctx, owner.Agent, isu.JIAIsuUUID)
+	if err != nil {
+		step.AddError(err)
+	} else {
+		err = verifyIsuIcon(isu, icon, res.StatusCode)
+		if err != nil {
+			step.AddError(err)
+		}
+	}
 
 	// isu.ID から model.TrendCondition を取得できるようにする (GET /trend 用)
 	s.UpdateIsuFromID(isu)
