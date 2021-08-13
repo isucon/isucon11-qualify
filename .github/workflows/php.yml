@@ -36,7 +36,8 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: "8.0"
-
+        env:
+          runner: self-hosted
       - name: Install dependencies
         run: ./composer.phar install
 
