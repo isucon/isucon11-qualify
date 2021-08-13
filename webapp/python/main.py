@@ -2,7 +2,7 @@ from os import getenv
 from subprocess import call
 from dataclasses import dataclass
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 import urllib.request
 from enum import Enum
 from flask import Flask, request, session, send_file, jsonify, abort, make_response
@@ -43,6 +43,47 @@ class Isu:
     jia_user_id: str
     created_at: datetime
     updated_at: datetime
+
+
+@dataclass
+class IsuCondition:
+    id: int
+    jia_isu_uuid: str
+    timestamp: datetime
+    is_sitting: bool
+    condition: str
+    message: str
+    created_at: datetime
+
+
+@dataclass
+class ConditionsPercentage:
+    sitting: int
+    is_broken: int
+    is_dirty: int
+    is_overweight: int
+
+
+@dataclass
+class GraphDataPoint:
+    score: int
+    percentage: ConditionsPercentage
+
+
+@dataclass
+class GraphDataPointWithInfo:
+    jia_isu_uuid: str
+    start_at: datetime
+    data: GraphDataPoint
+    condition_timestamps: list
+
+
+@dataclass
+class GraphResponse:
+    start_at: int
+    end_at: int
+    data: GraphDataPoint
+    condition_timestamps: list
 
 
 class CustomJSONEncoder(JSONEncoder):
@@ -314,7 +355,170 @@ def get_isu_icon(jia_isu_uuid):
 @app.route("/api/isu/<jia_isu_uuid>/graph", methods=["GET"])
 def get_isu_graph(jia_isu_uuid):
     """ISUのコンディショングラフ描画のための情報を取得"""
-    raise NotImplementedError
+    jia_user_id = get_user_id_from_session()
+
+    dt = request.args.get("datetime")
+    if dt is None:
+        raise BadRequest("missing: datetime")
+    try:
+        dt = datetime.fromtimestamp(int(dt))
+    except:
+        raise BadRequest("bad format: datetime")
+    dt = truncate_datetime(dt)
+
+    cnx = cnxpool.connect()
+    try:
+        cur = cnx.cursor(dictionary=True)
+
+        query = "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = %s AND `jia_isu_uuid` = %s"
+        cur.execute(query, (jia_user_id, jia_isu_uuid))
+        (count,) = cur.fetchone()
+        if count == 0:
+            raise NotFound("not found: isu")
+
+        res = generate_isu_graph_response(cur, jia_isu_uuid, dt)
+    finally:
+        cnx.close()
+
+    return jsonify(res)
+
+
+def truncate_datetime(dt: datetime) -> datetime:
+    """datetime 値の時刻を 00:00:00 にする"""
+    return datetime(dt.year, dt.month, dt.day)
+
+
+def generate_isu_graph_response(cur, jia_isu_uuid: str, graph_date: datetime) -> list[GraphResponse]:
+    """グラフのデータ点を一日分生成"""
+    data_points = []
+    conditions_in_this_hour = []
+    timestamps_in_this_hour = []
+    start_time_in_this_hour = None
+
+    query = "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = %s ORDER BY `timestamp` ASC"
+    cur.execute(query, (jia_isu_uuid,))
+    rows = cur.fetchall()
+    for row in rows:
+        condition = IsuCondition(**row)
+        truncated_condition_time = truncate_datetime(condition.timestamp)
+        if truncate_datetime != start_time_in_this_hour:
+            if len(conditions_in_this_hour) > 0:
+                data_points.append(
+                    GraphDataPointWithInfo(
+                        jia_isu_uuid=jia_isu_uuid,
+                        start_at=start_time_in_this_hour,
+                        data=calculate_graph_data_point(conditions_in_this_hour),
+                        condition_timestamps=timestamps_in_this_hour,
+                    )
+                )
+            start_time_in_this_hour = truncated_condition_time
+            conditions_in_this_hour = []
+            timestamps_in_this_hour = []
+        conditions_in_this_hour.append(condition)
+        timestamps_in_this_hour.append(condition.timestamp.timestamp())
+
+    if len(conditions_in_this_hour) > 0:
+        data_points.append(
+            GraphDataPointWithInfo(
+                jia_isu_uuid=jia_isu_uuid,
+                start_at=start_time_in_this_hour,
+                data=calculate_graph_data_point(conditions_in_this_hour),
+                condition_timestamps=timestamps_in_this_hour,
+            )
+        )
+
+    end_time = graph_date + timedelta(days=1)
+    start_index = 0
+    end_next_index = len(data_points)
+    for i, graph in enumerate(data_points):
+        if start_index == 0 and graph.start_at >= graph_date:
+            start_index = i
+        if end_next_index == len(data_points) and graph.start_at > end_time:
+            end_next_index = 1
+
+    filtered_data_points = []
+    if start_index < end_next_index:
+        filtered_data_points = data_points[start_index:end_next_index]
+
+    response_list = []
+    index = 0
+    this_time = graph_date
+
+    while this_time < graph_date + timedelta(days=1):
+        data = None
+        timestamps = []
+
+        if index < len(filtered_data_points):
+            data_with_info = filtered_data_points[index]
+
+            if data_with_info.start_at == this_time:
+                data = data_with_info.data
+                timestamps = data_with_info.condition_timestamps
+                index += 1
+
+        response_list.append(
+            GraphResponse(
+                start_at=this_time.timestamp(),
+                end_at=(this_time + timedelta(hours=1)).timestamp(),
+                data=data,
+                condition_timestamps=timestamps,
+            )
+        )
+
+        this_time += timedelta(hours=1)
+
+    return response_list
+
+
+def calculate_graph_data_point(isu_conditions: list[IsuCondition]) -> GraphDataPoint:
+    """複数のISUのコンディションからグラフの一つのデータ点を計算"""
+    conditions_count = {"is_broken": 0, "is_dirty": 0, "is_overweight": 0}
+    raw_score = 0
+    for condition in isu_conditions:
+        bad_conditions_count = 0
+
+        if not is_valid_condition_format(condition.condition):
+            raise Exception("invalid condition format")
+
+        for cond_str in condition.condition.split(","):
+            key_value = cond_str.split("=")
+
+            condition_name = key_value[0]
+            if key_value[1] == "true":
+                conditions_count[condition_name] += 1
+                bad_conditions_count += 1
+
+        if bad_conditions_count >= 3:
+            raw_score += SCORE_CONDITION_LEVEL.CRITICAL
+        elif bad_conditions_count >= 1:
+            raw_score += SCORE_CONDITION_LEVEL.WARNING
+        else:
+            raw_score += SCORE_CONDITION_LEVEL.INFO
+
+    sitting_count = 0
+    for condition in isu_conditions:
+        if condition.is_sitting:
+            sitting_count += 1
+
+    isu_conditions_length = len(isu_conditions)
+
+    score = raw_score / isu_conditions_length
+
+    sitting_percentage = sitting_count * 100 / isu_conditions_length
+    is_broken_percentage = conditions_count["is_broken"] * 100 / isu_conditions_length
+    is_overweight_percentage = conditions_count["is_overweight"] * 100 / isu_conditions_length
+    is_dirty_percentage = conditions_count["is_dirty"] * 100 / isu_conditions_length
+
+    data_point = GraphDataPoint(
+        score=score,
+        percentage=ConditionsPercentage(
+            sitting=int(sitting_percentage),
+            is_broken=int(is_broken_percentage),
+            is_overweight=int(is_overweight_percentage),
+            is_dirty=int(is_dirty_percentage),
+        ),
+    )
+    return data_point
 
 
 @app.route("/api/condition/<jia_isu_uuid>", methods=["GET"])
@@ -360,6 +564,33 @@ def calculate_condition_level(condition: str) -> CONDITION_LEVEL:
         raise Exception("unexpected warn count")
 
     return condition_level
+
+
+def is_valid_condition_format(condition_str: str) -> bool:
+    """ISUのコンディションの文字列がcsv形式になっているか検証"""
+    keys = ["is_dirty=", "is_overweight=", "is_broken="]
+    value_true = "true"
+    value_false = "false"
+
+    idx_cond_str = 0
+    for idx_keys, key in enumerate(keys):
+        if not condition_str[idx_cond_str:].startswith(key):
+            return False
+        idx_cond_str += len(key)
+
+        if condition_str[idx_cond_str:].startswith(value_true):
+            idx_cond_str += len(value_true)
+        elif condition_str[idx_cond_str:].startswith(value_false):
+            idx_cond_str += len(value_false)
+        else:
+            return False
+
+        if idx_keys < (len(keys) - 1):
+            if condition_str[idx_cond_str] != ",":
+                return False
+            idx_cond_str += 1
+
+    return idx_cond_str == len(condition_str)
 
 
 if __name__ == "__main__":
