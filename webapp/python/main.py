@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 import urllib.request
 from enum import Enum
-from flask import Flask, request, session, send_file, jsonify, abort
+from flask import Flask, request, session, send_file, jsonify, abort, make_response
 from flask.json import JSONEncoder
 from werkzeug.exceptions import BadRequest, Unauthorized, NotFound, InternalServerError
 import mysql.connector
@@ -291,7 +291,14 @@ def get_isu_id(jia_isu_uuid):
 @app.route("/api/isu/<jia_isu_uuid>/icon", methods=["GET"])
 def get_isu_icon(jia_isu_uuid):
     """ISUのアイコンを取得"""
-    raise NotImplementedError
+    jia_user_id = get_user_id_from_session()
+
+    query = "SELECT `image` FROM `isu` WHERE `jia_user_id` = %s AND `jia_isu_uuid` = %s"
+    res = select_row(query, (jia_user_id, jia_isu_uuid))
+    if res is None:
+        raise NotFound("not found: isu")
+
+    return make_response(res["image"], 200, {"Content-Type": "image/jpeg"})
 
 
 @app.route("/api/isu/<jia_isu_uuid>/graph", methods=["GET"])
