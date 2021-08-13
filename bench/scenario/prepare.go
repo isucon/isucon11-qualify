@@ -126,7 +126,7 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	if err != nil {
 		logger.AdminLogger.Panicln(err)
 	}
-	noIsuUser := s.NewUser(ctx, step, noIsuAgent, model.UserTypeNormal, false)
+	s.noIsuUser = s.NewUser(ctx, step, noIsuAgent, model.UserTypeNormal, false)
 
 	// 初期データで生成しているisuconユーザを利用
 	isuconUser := s.normalUsers[0]
@@ -145,11 +145,11 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	s.prepareCheckAuth(ctx, isuconUser, step)
 	s.prepareIrregularCheckPostSignout(ctx, step)
 	s.prepareIrregularCheckGetMe(ctx, guestAgent, step)
-	s.prepareIrregularCheckGetIsuList(ctx, noIsuUser, guestAgent, step)
-	s.prepareIrregularCheckGetIsu(ctx, isuconUser, noIsuUser, guestAgent, step)
-	s.prepareIrregularCheckGetIsuIcon(ctx, isuconUser, noIsuUser, guestAgent, step)
-	s.prepareIrregularCheckGetIsuGraph(ctx, isuconUser, noIsuUser, guestAgent, step)
-	s.prepareIrregularCheckGetIsuConditions(ctx, isuconUser, noIsuUser, guestAgent, step)
+	s.prepareIrregularCheckGetIsuList(ctx, s.noIsuUser, guestAgent, step)
+	s.prepareIrregularCheckGetIsu(ctx, isuconUser, s.noIsuUser, guestAgent, step)
+	s.prepareIrregularCheckGetIsuIcon(ctx, isuconUser, s.noIsuUser, guestAgent, step)
+	s.prepareIrregularCheckGetIsuGraph(ctx, isuconUser, s.noIsuUser, guestAgent, step)
+	s.prepareIrregularCheckGetIsuConditions(ctx, isuconUser, s.noIsuUser, guestAgent, step)
 
 	// MEMO: postIsuConditionのprepareチェックは確率で失敗して安定しないため、prepareステップでは行わない
 
@@ -159,7 +159,7 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	unregisteredIsu.Conditions = model.NewIsuConditionArray()
 
 	// ユーザのISUが増えるので他の検証終わった後に実行
-	s.prepareCheckPostIsu(ctx, isuconUser, noIsuUser, guestAgent, step)
+	s.prepareCheckPostIsu(ctx, isuconUser, s.noIsuUser, guestAgent, step)
 	s.prepareCheckPostIsuWithPrevCondition(ctx, isuconUser, step, unregisteredIsu)
 	if hasErrors() {
 		return failure.NewError(ErrCritical, fmt.Errorf("アプリケーション互換性チェックに失敗しました"))
