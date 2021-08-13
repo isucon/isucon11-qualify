@@ -3,14 +3,15 @@ package scenario
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/isucon/isucandar"
 	"github.com/isucon/isucandar/agent"
-	"github.com/isucon/isucandar/failure"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
 	"github.com/isucon/isucon11-qualify/bench/random"
@@ -145,7 +146,9 @@ func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a
 	//backendにpostする
 	go func() {
 		// 登録済みユーザーは trend に興味がないからリクエストを待たない
-		browserGetLandingPageIgnoreAction(ctx, a)
+		if _, err := browserGetLandingPageIgnoreAction(ctx, a); err != nil {
+			addErrorWithContext(ctx, step, err)
+		}
 	}()
 	//TODO: 確率で失敗してリトライする
 	_, errs := authAction(ctx, a, user.UserID)
@@ -157,12 +160,43 @@ func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a
 	}
 	user.Agent = a
 
+	// POST /api/auth をしたため GET /api/user/me を叩く
+	me, hres, err := getMeAction(ctx, user.Agent)
+	if err != nil {
+		addErrorWithContext(ctx, step, err)
+		// 致命的なエラーではないため return しない
+	} else {
+		err = verifyMe(user.UserID, hres, me)
+		if err != nil {
+			addErrorWithContext(ctx, step, err)
+			// 致命的なエラーではないため return しない
+		}
+	}
+
 	return user
+}
+
+var newIsuCountForImageMissing int32 = -1 //画像をnilにするかどうかの判定用変数(他用途で使用しないこと)
+
+//新しい登録済みISUの生成
+//失敗したらnilを返す
+func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, owner *model.User, addToUser bool, retry bool) *model.Isu {
+	var image []byte = nil
+	//20回に1回はnilでPOST
+	if atomic.AddInt32(&newIsuCountForImageMissing, 1)%20 != 0 {
+		//画像付きでPOST
+		var err error
+		image, err = random.Image()
+		if err != nil {
+			logger.AdminLogger.Panic(err)
+		}
+	}
+	return s.NewIsuWithCustomImg(ctx, step, owner, addToUser, image, retry)
 }
 
 //新しい登録済みISUの生成
 //失敗したらnilを返す
-func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, owner *model.User, addToUser bool, img []byte, retry bool) *model.Isu {
+func (s *Scenario) NewIsuWithCustomImg(ctx context.Context, step *isucandar.BenchmarkStep, owner *model.User, addToUser bool, img []byte, retry bool) *model.Isu {
 	isu, streamsForPoster, err := model.NewRandomIsuRaw(owner)
 	if err != nil {
 		logger.AdminLogger.Panic(err)
@@ -225,9 +259,6 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 	// isu.ID から model.TrendCondition を取得できるようにする (GET /trend 用)
 	s.UpdateIsuFromID(isu)
 
-	// poster に isu model の初期化終了を伝える
-	isu.StreamsForScenario.StateChan <- model.IsuStateChangeNone
-
 	//並列に生成する場合は後でgetにより正しい順番を得て、その順序でaddする。企業ユーザーは並列にaddしないと回らない
 	//その場合はaddToUser==falseになる
 	if addToUser {
@@ -243,9 +274,7 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 func addErrorWithContext(ctx context.Context, step *isucandar.BenchmarkStep, err error) {
 	select {
 	case <-ctx.Done():
-		if !failure.IsCode(err, ErrHTTP) {
-			step.AddError(err)
-		}
+		return
 	default:
 		step.AddError(err)
 	}
@@ -286,4 +315,22 @@ func (s *Scenario) GetIsuFromID(id int) (*model.Isu, bool) {
 	defer s.isuFromIDMutex.RUnlock()
 	isu, ok := s.isuFromID[id]
 	return isu, ok
+}
+
+func (s *Scenario) GetRandomActivatedIsu(randEngine *rand.Rand) *model.Isu {
+	targetCount := randEngine.Intn(len(s.isuFromID))
+	var isu *model.Isu
+
+	s.isuFromIDMutex.RLock()
+	defer s.isuFromIDMutex.RUnlock()
+	for _, isuP := range s.isuFromID {
+		if !isuP.IsNoPoster() {
+			isu = isuP
+		}
+		if targetCount <= 0 && isu != nil {
+			return isu
+		}
+		targetCount--
+	}
+	return isu
 }

@@ -32,12 +32,6 @@ import (
 	"github.com/isucon/isucon11-qualify/bench/service"
 )
 
-const (
-	homeIsuLimit   = 4
-	conditionLimit = 20
-	isuListLimit   = 200 // TODO 修正が必要なら変更
-)
-
 //Action
 
 // ==============================initialize==============================
@@ -74,6 +68,12 @@ func authAction(ctx context.Context, a *agent.Agent, userID string) (*service.Au
 	jwtOK, err := service.GenerateJWT(userID, time.Now())
 	if err != nil {
 		logger.AdminLogger.Panic(err)
+	}
+
+	// リダイレクト時のフロントアクセス
+	if err := BrowserAccessIndexHtml(ctx, a, "/"); err != nil {
+		errors = append(errors, err)
+		return nil, errors
 	}
 
 	//リクエスト
@@ -555,9 +555,8 @@ func getIsuGraphErrorAction(ctx context.Context, a *agent.Agent, id string, quer
 }
 
 func getTrendAction(ctx context.Context, a *agent.Agent) (service.GetTrendResponse, *http.Response, error) {
-	trend := service.GetTrendResponse{}
 	reqUrl := "/api/trend"
-	res, err := reqJSONResGojayArray(ctx, a, http.MethodGet, reqUrl, nil, &trend, []int{http.StatusOK})
+	trend, res, err := reqJSONResTrend(ctx, a, http.MethodGet, reqUrl, nil, []int{http.StatusOK})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -566,7 +565,10 @@ func getTrendAction(ctx context.Context, a *agent.Agent) (service.GetTrendRespon
 }
 
 func browserGetLandingPageAction(ctx context.Context, a *agent.Agent) (service.GetTrendResponse, *http.Response, error) {
-	// TODO: 静的ファイルのGET
+	// 静的ファイルのGET
+	if err := BrowserAccess(ctx, a, "/", TrendPage); err != nil {
+		return nil, nil, err
+	}
 
 	trend, res, err := getTrendAction(ctx, a)
 	if err != nil {
@@ -577,7 +579,10 @@ func browserGetLandingPageAction(ctx context.Context, a *agent.Agent) (service.G
 }
 
 func browserGetLandingPageIgnoreAction(ctx context.Context, a *agent.Agent) (*http.Response, error) {
-	// TODO: 静的ファイルのGET
+	// 静的ファイルのGET
+	if err := BrowserAccess(ctx, a, "/", TrendPage); err != nil {
+		return nil, err
+	}
 
 	res, err := getTrendIgnoreAction(ctx, a)
 	if err != nil {
@@ -708,6 +713,29 @@ func browserGetIsuGraphAction(ctx context.Context, a *agent.Agent, id string, da
 		errors = append(errors, validateGraph(res, graph)...)
 	}
 	return isu, graph, errors
+}
+
+func BrowserAccessIndexHtml(ctx context.Context, a *agent.Agent, rpath string) error {
+	req, err := a.GET(rpath)
+	if err != nil {
+		logger.AdminLogger.Panic(err)
+	}
+
+	res, err := a.Do(ctx, req)
+	if err != nil {
+		return failure.NewError(ErrHTTP, err)
+	}
+	defer res.Body.Close()
+
+	if err := verifyStatusCodes(res, []int{http.StatusOK, http.StatusNotModified}); err != nil {
+		return err
+	}
+
+	// index.htmlの検証
+	if err := errorHtmlChecksum(res, res.Body, "/index.html"); err != nil {
+		return err
+	}
+	return nil
 }
 
 func BrowserAccess(ctx context.Context, a *agent.Agent, rpath string, page PageType) error {
