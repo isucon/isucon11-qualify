@@ -596,11 +596,15 @@ func (s *Scenario) prepareIrregularCheckGetIsuList(ctx context.Context, noIsuUse
 		step.AddError(err)
 		return
 	}
-	expected := noIsuUser.IsuListOrderByCreatedAt
-	if errs := verifyPrepareIsuList(res, expected, isuList); errs != nil {
-		for _, err := range errs {
-			step.AddError(err)
-		}
+	//expected := noIsuUser.IsuListOrderByCreatedAt
+	// if errs := verifyPrepareIsuList(res, expected, isuList); errs != nil {
+	// 	for _, err := range errs {
+	// 		step.AddError(err)
+	// 	}
+	// 	return
+	// }
+	if len(isuList) != 0 {
+		step.AddError(errorMismatch(res, "椅子の数が異なります"))
 		return
 	}
 
