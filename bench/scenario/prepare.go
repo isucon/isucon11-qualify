@@ -164,6 +164,7 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	if hasErrors() {
 		return failure.NewError(ErrCritical, fmt.Errorf("アプリケーション互換性チェックに失敗しました"))
 	}
+	isuconUser.Agent = nil
 
 	return nil
 }
@@ -179,11 +180,14 @@ func (s *Scenario) loadErrorCheck(ctx context.Context, step *isucandar.Benchmark
 		s.normalUsersMtx.Lock()
 		loginUser := s.normalUsers[rand.Intn(len(s.normalUsers))]
 		s.normalUsersMtx.Unlock()
-		loginUser.Agent, err = s.NewAgent()
-		if err != nil {
-			logger.AdminLogger.Panicln(err)
+		if loginUser.Agent == nil {
+			//nilならシナリオループは回っていないはず
+			loginUser.Agent, err = s.NewAgent()
+			if err != nil {
+				logger.AdminLogger.Panicln(err)
+			}
+			authInfinityRetry(ctx, loginUser.Agent, loginUser.UserID, step)
 		}
-		authInfinityRetry(ctx, loginUser.Agent, loginUser.UserID, step)
 
 		select {
 		case <-ctx.Done():
