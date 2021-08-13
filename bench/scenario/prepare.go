@@ -138,7 +138,7 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	isuconUser.Agent = agt
 
 	// 各エンドポイントのチェック
-	s.prepareCheckAuth(ctx, step)
+	s.prepareCheckAuth(ctx, isuconUser, step)
 	s.prepareIrregularCheckPostSignout(ctx, step)
 	s.prepareIrregularCheckGetMe(ctx, guestAgent, step)
 	s.prepareIrregularCheckGetIsuList(ctx, noIsuUser, guestAgent, step)
@@ -494,7 +494,7 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 
 }
 
-func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.BenchmarkStep) {
+func (s *Scenario) prepareCheckAuth(ctx context.Context, isuconUser *model.User, step *isucandar.BenchmarkStep) {
 
 	//TODO: ユーザープール
 	//とりあえずは使い捨てのユーザーを使う
@@ -528,7 +528,7 @@ func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.Benchma
 		logger.AdminLogger.Panic(err)
 		return
 	}
-	userID := random.UserName()
+	userID := isuconUser.UserID
 
 	_, errs := authAction(ctx, agt, userID)
 	for _, err := range errs {
