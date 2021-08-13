@@ -149,7 +149,7 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	s.prepareIrregularCheckGetIsu(ctx, isuconUser, noIsuUser, guestAgent, step)
 	s.prepareIrregularCheckGetIsuIcon(ctx, isuconUser, noIsuUser, guestAgent, step)
 	s.prepareIrregularCheckGetIsuGraph(ctx, isuconUser, noIsuUser, guestAgent, step)
-	s.prepareIrregularCheckGetIsuConditions(ctx, isuconUser, noIsuUser, guestAgent, step, unregisteredIsu)
+	s.prepareIrregularCheckGetIsuConditions(ctx, isuconUser, noIsuUser, guestAgent, step)
 
 	// MEMO: postIsuConditionのprepareチェックは確率で失敗して安定しないため、prepareステップでは行わない
 
@@ -166,6 +166,39 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	}
 
 	return nil
+}
+
+func (s *Scenario) loadErrorCheck(ctx context.Context, step *isucandar.BenchmarkStep) {
+	// 各エンドポイントのチェック
+	guestAgent, err := s.NewAgent()
+	if err != nil {
+		logger.AdminLogger.Panicln(err)
+	}
+	loginUser := s.normalUsers[rand.Intn(len(s.normalUsers))]
+	loginUser.Agent, err = s.NewAgent(agent.WithTimeout(s.prepareTimeout))
+	if err != nil {
+		logger.AdminLogger.Panicln(err)
+	}
+	authInfinityRetry(ctx, loginUser.Agent, loginUser.UserID, step)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		time.Sleep(500 * time.Millisecond)
+
+		s.prepareCheckAuth(ctx, loginUser, step)
+		s.prepareIrregularCheckPostSignout(ctx, step)
+		s.prepareIrregularCheckGetMe(ctx, guestAgent, step)
+		s.prepareIrregularCheckGetIsuList(ctx, s.noIsuUser, guestAgent, step)
+		s.prepareIrregularCheckGetIsu(ctx, loginUser, s.noIsuUser, guestAgent, step)
+		s.prepareIrregularCheckGetIsuIcon(ctx, loginUser, s.noIsuUser, guestAgent, step)
+		s.prepareIrregularCheckGetIsuGraph(ctx, loginUser, s.noIsuUser, guestAgent, step)
+		s.prepareIrregularCheckGetIsuConditions(ctx, loginUser, s.noIsuUser, guestAgent, step)
+	}
 }
 
 func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkStep) {
@@ -945,7 +978,7 @@ func (s *Scenario) prepareIrregularCheckGetIsuGraph(ctx context.Context, loginUs
 	}
 }
 
-func (s *Scenario) prepareIrregularCheckGetIsuConditions(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep, unregisteredIsu *model.Isu) {
+func (s *Scenario) prepareIrregularCheckGetIsuConditions(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
 	isu := loginUser.IsuListOrderByCreatedAt[0]
 
 	// condition の read lock を取得
@@ -1064,7 +1097,7 @@ func (s *Scenario) prepareIrregularCheckGetIsuConditions(ctx context.Context, lo
 	query = url.Values{}
 	query.Set("end_time", strconv.FormatInt(lastTime, 10))
 	query.Set("condition_level", "info,warning,critical")
-	resBody, res, err = getIsuConditionErrorAction(ctx, loginUser.Agent, unregisteredIsu.JIAIsuUUID, query)
+	resBody, res, err = getIsuConditionErrorAction(ctx, loginUser.Agent, NotExistJiaIsuUUID, query)
 	if err != nil {
 		step.AddError(err)
 		return
