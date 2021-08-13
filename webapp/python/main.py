@@ -19,6 +19,7 @@ class CONDITION_LEVEL(str, Enum):
     CRITICAL = "critical"
 
 
+FRONTEND_CONTENTS_PATH = "../public"
 JIA_JWT_SIGNING_KEY_PATH = "../ec256-public.pem"
 DEFAULT_ICON_FILE_PATH = "../NoImage.jpg"
 DEFAULT_JIA_SERVICE_URL = "http://localhost:5000"
@@ -34,7 +35,7 @@ class CustomJSONEncoder(JSONEncoder):
         return JSONEncoder.default(self, obj)
 
 
-app = Flask(__name__, static_folder="../public/assets", static_url_path="/assets")
+app = Flask(__name__, static_folder=f"{FRONTEND_CONTENTS_PATH}/assets", static_url_path="/assets")
 app.secret_key = getenv("SESSION_KEY", "isucondition")
 app.json_encoder = CustomJSONEncoder
 
@@ -239,7 +240,7 @@ def post_isu():
                 abort(409, "duplicated: isu")
             raise
 
-        target_url = get_jia_service_url() + "/api/activate"
+        target_url = f"{get_jia_service_url()}/api/activate"
         body = {
             "target_base_url": post_isu_condition_target_base_url,
             "isu_uuid": jia_isu_uuid,
@@ -325,29 +326,15 @@ def post_isu_condition(jia_isu_uuid):
     raise NotImplementedError
 
 
-@app.route("/", methods=["GET"])
-def get_index():
-    return send_file("../public/index.html")
+def get_index(**kwargs):
+    return send_file(f"{FRONTEND_CONTENTS_PATH}/index.html")
 
 
-@app.route("/condition", methods=["GET"])
-def get_condition():
-    return send_file("../public/index.html")
-
-
-@app.route("/isu/<jia_isu_uuid>", methods=["GET"])
-def get_isu(jia_isu_uuid):
-    return send_file("../public/index.html")
-
-
-@app.route("/register", methods=["GET"])
-def get_register():
-    return send_file("../public/index.html")
-
-
-@app.route("/login", methods=["GET"])
-def get_login():
-    return send_file("../public/index.html")
+app.add_url_rule("/", view_func=get_index)
+app.add_url_rule("/isu/<jia_isu_uuid>", view_func=get_index)
+app.add_url_rule("/isu/<jia_isu_uuid>/condition", view_func=get_index)
+app.add_url_rule("/isu/<jia_isu_uuid>/graph", view_func=get_index)
+app.add_url_rule("/register", view_func=get_index)
 
 
 def calculate_condition_level(condition: str) -> CONDITION_LEVEL:
