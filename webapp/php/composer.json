@@ -7,9 +7,11 @@
         "php": "^8.0"
     },
     "require-dev": {
-        "squizlabs/php_codesniffer": "^3.6"
+        "squizlabs/php_codesniffer": "^3.6",
+        "phpstan/phpstan": "^0.12.90"
     },
     "scripts": {
-        "lint": "./vendor/bin/phpcs --standard=PSR1,PSR12 ./public"
+        "lint": "./vendor/bin/phpcs --standard=PSR1,PSR12 ./public",
+        "analyse": "./vendor/bin/phpstan analyse ./public"
     }
 }
