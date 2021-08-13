@@ -23,9 +23,9 @@ return function (ContainerBuilder $containerBuilder) {
                 'database' => [
                     'host' => getenv('MYSQL_HOST') ?: '127.0.0.1',
                     'port' => getenv('MYSQL_PORT') ?: '3306',
-                    'database' => getenv('MYSQL_DATABASE') ?: 'isucondition',
+                    'database' => getenv('MYSQL_DBNAME') ?: 'isucondition',
                     'user' => getenv('MYSQL_USER') ?: 'isucon',
-                    'password' => getenv('MYSQL_PASSWORD') ?: 'isucon',
+                    'password' => getenv('MYSQL_PASS') ?: 'isucon',
                 ],
             ]);
         }
