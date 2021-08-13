@@ -93,6 +93,18 @@ interface GetIsuConditionResponse {
   message: string;
 }
 
+interface TrendResponse {
+  character: string;
+  info: TrendCondition[];
+  warning: TrendCondition[];
+  critical: TrendCondition[];
+}
+
+interface TrendCondition {
+  isu_id: number;
+  timestamp: number;
+}
+
 const sessionName = "isucondition";
 const conditionLimit = 20;
 const frontendContentsPath = "../public";
@@ -923,7 +935,7 @@ function calculateConditionLevel(condition: string): [string, Error?] {
     case 0:
       conditionLevel = conditionLevelInfo;
       break;
-    case 1:
+    case 1: // fallthrough
     case 2:
       conditionLevel = conditionLevelWarning;
       break;
@@ -935,6 +947,79 @@ function calculateConditionLevel(condition: string): [string, Error?] {
   }
   return [conditionLevel, undefined];
 }
+
+// GET /api/trend
+// ISUの性格毎の最新のコンディション情報
+app.get("/api/trend", async (req, res) => {
+  const db = await pool.getConnection();
+  try {
+    const [characterList] = await db.query<
+      (RowDataPacket & { character: string })[]
+    >("SELECT `character` FROM `isu` GROUP BY `character`");
+
+    const trendResponse: TrendResponse[] = [];
+
+    for (const character of characterList) {
+      const [isuList] = await db.query<Isu[]>(
+        "SELECT * FROM `isu` WHERE `character` = ?",
+        [character.character]
+      );
+
+      const characterInfoIsuConditions = [];
+      const characterWarningIsuConditions = [];
+      const characterCriticalIsuConditions = [];
+      for (const isu of isuList) {
+        const [conditions] = await db.query<IsuCondition[]>(
+          "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY timestamp DESC",
+          [isu.jia_isu_uuid]
+        );
+
+        if (conditions.length > 0) {
+          const isuLastCondition = conditions[0];
+          const [conditionLevel, err] = calculateConditionLevel(
+            isuLastCondition.condition
+          );
+          if (err) {
+            console.error(err);
+            return res.status(500).send();
+          }
+          const trendCondition: TrendCondition = {
+            isu_id: isu.id,
+            timestamp: isuLastCondition.timestamp.getTime() / 1000,
+          };
+          switch (conditionLevel) {
+            case "info":
+              characterInfoIsuConditions.push(trendCondition);
+              break;
+            case "warning":
+              characterWarningIsuConditions.push(trendCondition);
+              break;
+            case "critical":
+              characterCriticalIsuConditions.push(trendCondition);
+              break;
+          }
+        }
+      }
+
+      characterInfoIsuConditions.sort((a, b) => a.timestamp - b.timestamp);
+      characterWarningIsuConditions.sort((a, b) => a.timestamp - b.timestamp);
+      characterCriticalIsuConditions.sort((a, b) => a.timestamp - b.timestamp);
+      trendResponse.push({
+        character: character.character,
+        info: characterInfoIsuConditions,
+        warning: characterWarningIsuConditions,
+        critical: characterCriticalIsuConditions,
+      });
+    }
+
+    return res.status(200).json(trendResponse);
+  } catch (err) {
+    console.error(`db error: ${err}`);
+    return res.status(500).send();
+  } finally {
+    db.release();
+  }
+});
 
 // ISUのコンディションの文字列がcsv形式になっているか検証
 function isValidConditionFormat(condition: string): boolean {
