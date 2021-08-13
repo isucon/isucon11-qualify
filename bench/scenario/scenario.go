@@ -212,11 +212,9 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 			return nil
 		}
 	}
-	// TODO: これは validate でやるべきなきがする
-	if isuResponse.JIAIsuUUID != isu.JIAIsuUUID ||
-		isuResponse.Name != isu.Name ||
-		isuResponse.Character != isu.Character {
-		step.AddError(errorMismatch(res, "レスポンスBodyが正しくありません"))
+	err = verifyIsu(res, isu, isuResponse)
+	if err != nil {
+		step.AddError(err)
 	}
 
 	// POST isu のレスポンスより ID を取得して isu モデルに代入する

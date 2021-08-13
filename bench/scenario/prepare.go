@@ -257,11 +257,9 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 					step.AddError(err)
 					return
 				}
-				if resIsu.JIAIsuUUID != jiaIsuUUID ||
-					resIsu.Name != isu.Name ||
-					resIsu.Character != isu.Character ||
-					resIsu.ID != isu.ID {
-					step.AddError(errorInvalid(res, "ユーザが所持している椅子が取得できません。"))
+				err = verifyIsu(res, isu, resIsu)
+				if err != nil {
+					step.AddError(err)
 					return
 				}
 			}
