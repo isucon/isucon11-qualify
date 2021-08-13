@@ -39,7 +39,7 @@ jobs:
         run: ./composer.phar install
 
       - name: Check coding style
-        run: ./composer.phar lint
+        run: ./composer.phar style
 
       - name: Static Analysis
         run: ./composer.phar analyse
