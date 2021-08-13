@@ -5,7 +5,6 @@ import { useState } from 'react'
 import ControlItem from './ControlItem'
 import UserControlModal from './UserControlModal'
 import ControlLinkItem from './ControlLinkItem'
-import { IoIosNotifications } from 'react-icons/io'
 import { TiPlus } from 'react-icons/ti'
 
 const Controls = () => {
