@@ -4,8 +4,66 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "f9471867a868f700fbf8f30f19ec328f",
+    "content-hash": "52518922f995c0c914eb1a8aece99a40",
     "packages": [
+        {
+            "name": "bryanjhv/slim-session",
+            "version": "4.1.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/bryanjhv/slim-session.git",
+                "reference": "f776db9278a70b7bb3ce78de5f0da27ca8b6568f"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/bryanjhv/slim-session/zipball/f776db9278a70b7bb3ce78de5f0da27ca8b6568f",
+                "reference": "f776db9278a70b7bb3ce78de5f0da27ca8b6568f",
+                "shasum": ""
+            },
+            "require": {
+                "slim/slim": "^4.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^7.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Bryan Horna",
+                    "email": "bryanjhv@gmail.com",
+                    "homepage": "https://bryanjhv.github.io",
+                    "role": "developer"
+                }
+            ],
+            "description": "Session middleware and helper for Slim framework 4.",
+            "homepage": "https://github.com/bryanjhv/slim-session",
+            "keywords": [
+                "helper",
+                "middleware",
+                "session",
+                "slim"
+            ],
+            "support": {
+                "issues": "https://github.com/bryanjhv/slim-session/issues",
+                "source": "https://github.com/bryanjhv/slim-session.git"
+            },
+            "funding": [
+                {
+                    "url": "https://paypal.me/bryanjhv",
+                    "type": "custom"
+                }
+            ],
+            "time": "2021-07-02T16:42:31+00:00"
+        },
         {
             "name": "fig/http-message-util",
             "version": "1.1.5",
