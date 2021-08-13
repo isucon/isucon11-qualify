@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 use App\Application\Handlers\HttpErrorHandler;
@@ -15,7 +16,7 @@ require __DIR__ . '/../vendor/autoload.php';
 $containerBuilder = new ContainerBuilder();
 
 if (false) { // Should be set to true in production
-	$containerBuilder->enableCompilation(__DIR__ . '/../var/cache');
+    $containerBuilder->enableCompilation(__DIR__ . '/../var/cache');
 }
 
 // Set up settings

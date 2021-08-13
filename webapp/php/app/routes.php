@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 use Psr\Http\Message\ResponseInterface as Response;
@@ -22,13 +23,15 @@ return function (App $app) {
     $app->get('/assets/{filename}', 'getAssets');
 };
 
-function getIndex(Request $request, Response $response): Response {
+function getIndex(Request $request, Response $response): Response
+{
     $response->getBody()->write(file_get_contents(FRONTEND_CONTENTS_PATH . '/index.html'));
 
     return $response;
 }
 
-function getAssets(Request $request, Response $response, array $args): Response {
+function getAssets(Request $request, Response $response, array $args): Response
+{
     $filePath = FRONTEND_CONTENTS_PATH . '/assets/' . $args['filename'];
 
     if (!file_exists($filePath)) {
