@@ -35,7 +35,37 @@ var (
 
 	// user loop の数
 	userLoopCount int32 = 0
+
+	scenario1Time  Avg
+	scenario2Time  Avg
+	scenario3Time  Avg
+	veiwerLoadTime Avg
 )
+
+type Avg struct {
+	times []int64
+	mx    sync.Mutex
+}
+
+func (a *Avg) append(ms int64) {
+	a.mx.Lock()
+	defer a.mx.Unlock()
+	a.times = append(a.times, ms)
+}
+
+func (a *Avg) getAvg() int64 {
+	a.mx.Lock()
+	defer a.mx.Unlock()
+	sum := int64(0)
+	for _, t := range a.times {
+		sum += t
+	}
+	length := int64(len(a.times))
+	if length == 0 {
+		return 0
+	}
+	return sum / length
+}
 
 type ReadConditionCount struct {
 	Info     int32
@@ -111,6 +141,11 @@ func (s *Scenario) userAdder(ctx context.Context, step *isucandar.BenchmarkStep)
 			return
 		}
 
+		logger.AdminLogger.Printf("scenario1Time  avg: %v", scenario1Time.getAvg())
+		logger.AdminLogger.Printf("scenario2Time  avg: %v", scenario2Time.getAvg())
+		logger.AdminLogger.Printf("scenario3Time  avg: %v", scenario3Time.getAvg())
+		logger.AdminLogger.Printf("veiwerLoadTime avg: %v", veiwerLoadTime.getAvg())
+
 		errCount := step.Result().Errors.Count()
 		timeoutCount, ok := errCount["timeout"]
 		if !ok {
@@ -165,9 +200,10 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 	nextScenarioIndex := 0
 	scenarioLoopStopper := time.After(1 * time.Millisecond) //ループ頻度調整
 	loopCount := 0
+	var start time.Time
 	for {
 		<-scenarioLoopStopper
-		scenarioLoopStopper = time.After(50 * time.Millisecond) //TODO: 頻度調整
+		scenarioLoopStopper = time.After(20 * time.Millisecond) //TODO: 頻度調整
 		select {
 		case <-ctx.Done():
 			return
@@ -194,6 +230,19 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 			}
 		}
 		targetIsu := user.IsuListOrderByCreatedAt[nextTargetIsuIndex]
+
+		if loopCount != 0 {
+			processTime := time.Since(start).Milliseconds()
+			switch nextScenarioIndex {
+			case 0:
+				scenario1Time.append(processTime)
+			case 1:
+				scenario2Time.append(processTime)
+			case 2:
+				scenario3Time.append(processTime)
+			}
+		}
+		start = time.Now()
 
 		//GET /
 		var newConditionUUIDs []string
@@ -264,15 +313,23 @@ func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep
 
 	viewer := s.initViewer(ctx)
 	scenarioLoopStopper := time.After(1 * time.Millisecond) //ループ頻度調整
+	isFirstLoop := true
+	var start time.Time
 	for {
 		<-scenarioLoopStopper
-		scenarioLoopStopper = time.After(10 * time.Millisecond)
+		scenarioLoopStopper = time.After(5 * time.Millisecond)
 
 		select {
 		case <-ctx.Done():
 			return
 		default:
 		}
+
+		if !isFirstLoop {
+			veiwerLoadTime.append(time.Since(start).Milliseconds())
+		}
+		start = time.Now()
+		isFirstLoop = false
 
 		// viewer が ViewerDropCount 以上エラーに遭遇していたらループから脱落
 		if viewer.ErrorCount >= ViewerDropCount {
