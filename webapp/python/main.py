@@ -153,6 +153,7 @@ app = Flask(__name__, static_folder=f"{FRONTEND_CONTENTS_PATH}/assets", static_u
 app.session_cookie_name = "isucondition"
 app.secret_key = getenv("SESSION_KEY", "isucondition")
 app.json_encoder = CustomJSONEncoder
+app.send_file_max_age_default = timedelta(0)
 
 
 @app.errorhandler(HTTPException)
