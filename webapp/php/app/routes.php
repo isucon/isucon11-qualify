@@ -1,6 +1,5 @@
 <?php
 
-// phpcs:disable PSR1.Files.SideEffects,PSR1.Classes.ClassDeclaration
 declare(strict_types=1);
 
 use Fig\Http\Message\StatusCodeInterface;
