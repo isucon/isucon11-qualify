@@ -139,8 +139,8 @@ const upload = multer();
 
 const app = express();
 
-app.use("/assets", express.static(frontendContentsPath + "/assets"));
 app.use(morgan("combined"));
+app.use("/assets", express.static(frontendContentsPath + "/assets"));
 app.use(express.json());
 app.use(
   session({
