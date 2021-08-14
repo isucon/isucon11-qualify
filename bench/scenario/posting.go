@@ -3,6 +3,7 @@ package scenario
 import (
 	"context"
 	"crypto/tls"
+	"math"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -251,6 +252,7 @@ func (state *posterState) GetNewestCondition(randEngine *rand.Rand, stateChange 
 		//ConditionLevel: model.ConditionLevelCritical,
 		Message:       "",
 		TimestampUnix: state.lastConditionTimestamp + blur,
+		ReadTime:      math.MaxInt64,
 	}
 
 	//message
