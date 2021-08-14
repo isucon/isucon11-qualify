@@ -17,12 +17,12 @@ const SittingGraph = ({ sittingData, timeCategories }: Props) => {
     series: [
       {
         type: 'heatmap',
-        data: sittingData,
+        data: sittingData.slice(1),
         name: ''
       }
     ],
     xaxis: {
-      categories: timeCategories,
+      categories: timeCategories.slice(1),
       labels: { show: false }
     },
     plotOptions: {
