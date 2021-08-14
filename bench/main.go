@@ -200,11 +200,13 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 		logger.AdminLogger.Printf("SCORE: %s: %d", p.Tag, p.Count)
 		promTags = append(promTags, fmt.Sprintf("xsuconbench_score_breakdown{name=\"%s\"} %d\n", strings.TrimRight(string(p.Tag), " "), p.Count))
 	}
-	for _, p := range tagCountPair {
-		if p.Tag[0] == '_' {
-			break //詳細のタグはコンテスタントには見せない
+	if finish {
+		for _, p := range tagCountPair {
+			if p.Tag[0] == '_' {
+				break //詳細のタグはコンテスタントには見せない
+			}
+			logger.ContestantLogger.Printf("SCORE: %s: %d", p.Tag, p.Count)
 		}
-		logger.ContestantLogger.Printf("SCORE: %s: %d", p.Tag, p.Count)
 	}
 
 	for _, err := range errors {
