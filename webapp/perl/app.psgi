@@ -3,11 +3,11 @@ use lib "$FindBin::Bin/extlib/lib/perl5";
 use lib "$FindBin::Bin/lib";
 use File::Basename;
 use Plack::Builder;
-use Isu::Web;
+use IsuCondition::Web;
 
 my $root_dir = File::Basename::dirname(__FILE__);
 
-my $app = Isu::Web->psgi($root_dir);
+my $app = IsuCondition::Web->psgi($root_dir);
 builder {
     enable 'ReverseProxy';
     enable 'Session::Cookie',

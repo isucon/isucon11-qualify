@@ -1,4 +1,4 @@
-package Isu;
+package IsuCondition;
 
 use strict;
 use warnings;

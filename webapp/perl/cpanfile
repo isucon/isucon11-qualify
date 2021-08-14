@@ -8,3 +8,4 @@ requires 'constant';
 requires 'Cpanel::JSON::XS', '4.26';
 requires 'Starlet';
 requires 'Plack::Middleware::Session';
+requires 'File::Slurp';
