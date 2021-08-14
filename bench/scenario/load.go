@@ -78,6 +78,13 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 		s.userAdder(ctx, step)
 	}()
 
+	//postした件数を記録
+	s.loadWaitGroup.Add(1)
+	go func() {
+		defer s.loadWaitGroup.Done()
+		s.postConditionNumReporter(ctx, step)
+	}()
+
 	//不正なcondition
 	s.loadWaitGroup.Add(1)
 	go func() {
@@ -265,11 +272,12 @@ func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep
 
 	select {
 	case <-ctx.Done():
-
+		return
 	default:
 	}
 
 	viewer := s.initViewer(ctx)
+	step.AddScore(ScoreViewerInitialize)
 	scenarioLoopStopper := time.After(1 * time.Millisecond) //ループ頻度調整
 	for {
 		<-scenarioLoopStopper
@@ -283,6 +291,7 @@ func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep
 
 		// viewer が ViewerDropCount 以上エラーに遭遇していたらループから脱落
 		if viewer.ErrorCount >= ViewerDropCount {
+			step.AddScore(ScoreViewerDropout)
 			return
 		}
 
@@ -348,6 +357,7 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 			user.CloseAllIsuStateChan()
 			return nil
 		}
+		step.AddScore(ScoreIsuInitialize)
 	}
 
 	return user
@@ -459,6 +469,7 @@ func (s *Scenario) requestLastBadConditionScenario(ctx context.Context, step *is
 			return
 		case targetIsu.StreamsForScenario.StateChan <- solveCondition:
 		}
+		step.AddScore(ScoreRepairIsu)
 	}
 
 	// LastReadBadConditionTimestamp を更新

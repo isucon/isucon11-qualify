@@ -11,7 +11,6 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
-	"reflect"
 	"strconv"
 	"time"
 
@@ -35,7 +34,6 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 	//TODO: 他の得点源
 	//TODO: 得点調整
 	step.Result().Score.Set(ScoreStartBenchmark, 1000)
-	step.Result().Score.Set(ScoreNormalUserInitialize, 0)
 	step.Result().Score.Set(ScoreGraphExcellent, 200)
 	step.Result().Score.Set(ScoreGraphGood, 150)
 	step.Result().Score.Set(ScoreGraphNormal, 100)
@@ -305,11 +303,9 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 					step.AddError(err)
 					return
 				}
-				if resIsu.JIAIsuUUID != jiaIsuUUID ||
-					resIsu.Name != isu.Name ||
-					resIsu.Character != isu.Character ||
-					resIsu.ID != isu.ID {
-					step.AddError(errorInvalid(res, "ユーザが所持している椅子が取得できません。"))
+				err = verifyIsu(res, isu, resIsu)
+				if err != nil {
+					step.AddError(err)
 					return
 				}
 			}
@@ -702,14 +698,14 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 		return
 	}
 
-	expected := isu.ToService()
 	actual, res, err := getIsuIdAction(ctx, loginUser.Agent, isu.JIAIsuUUID)
 	if err != nil {
 		step.AddError(err)
 		return
 	}
-	if !reflect.DeepEqual(*actual, *expected) {
-		step.AddError(errorInvalid(res, "ユーザが所持している椅子が取得できません。"))
+	err = verifyIsu(res, isu, actual)
+	if err != nil {
+		step.AddError(err)
 		return
 	}
 
@@ -748,14 +744,14 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 		return
 	}
 
-	expected = isuWithImg.ToService()
 	actual, res, err = getIsuIdAction(ctx, loginUser.Agent, isuWithImg.JIAIsuUUID)
 	if err != nil {
 		step.AddError(err)
 		return
 	}
-	if !reflect.DeepEqual(*actual, *expected) {
-		step.AddError(errorInvalid(res, "ユーザが所持している椅子が取得できません。"))
+	err = verifyIsu(res, isuWithImg, actual)
+	if err != nil {
+		step.AddError(err)
 		return
 	}
 
