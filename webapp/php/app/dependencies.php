@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Application\Middleware\AccessLog as AccessLogMiddleware;
 use App\Application\Settings\SettingsInterface;
 use DI\ContainerBuilder;
 use Monolog\Handler\StreamHandler;
@@ -14,6 +15,14 @@ use SlimSession\Helper as SessionHelper;
 
 return function (ContainerBuilder $containerBuilder) {
     $containerBuilder->addDefinitions([
+        AccessLogMiddleware::class => function (ContainerInterface $c): AccessLogMiddleware {
+            $logger = new Logger('access-log');
+
+            $handler = new StreamHandler('php://stdout');
+            $logger->pushHandler($handler);
+
+            return new AccessLogMiddleware($logger);
+        },
         LoggerInterface::class => function (ContainerInterface $c): LoggerInterface {
             $settings = $c->get(SettingsInterface::class);
 
