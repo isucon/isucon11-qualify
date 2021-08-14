@@ -205,7 +205,44 @@ ISU の登録はログイン後に以下のURLで行うことができます。
 
 ISU を登録すると、 JIA API Mockから指定された URL へのコンディションの送信が開始されます。
 
-### JIA API Mock
+## コンソールからの ISUCONDITION の動作確認
+
+トークンの取得と cookie の設定を行うことで、コンソールからも ISUCONDITION の動作確認が可能です。
+以下、コンソールからの動作確認方法の一例を示します。
+
+### 1. JIA API からの トークンの取得
+
+```
+$ TOKEN=`curl -sf -H 'content-type: application/json' http://localhost:5000/api/auth -d '{"user": "isucon", "password": "isucon"}'`
+```
+
+JIA API に送信する `user` と `password` には、 `2.2 ISUCONDITION のログイン` に記載されているものを用いてください。
+
+### 2. トークンを使った cookie の設定
+
+```
+$ curl -c cookie.txt -vf -XPOST -H "authorization: Bearer ${TOKEN}" http://localhost:3000/api/auth
+```
+
+一例として、cookie を使い `GET /api/isu` にアクセスします。
+
+```
+$ curl -b cookie.txt http://localhost:3000/api/isu
+```
+
+### 3. ISU からのコンディションを受け取る `POST /api/condition/:jia_isu_uuid` の検証
+
+ISU からのコンディションを受け取る `POST /api/condition/:jia_isu_uuid` は、 
+アクティベートを行った ISU であれば、以下のようにコンソールでコンディションを送信することが可能です。
+JIA ISU ID は、"2.3 ISU の登録" に記載されているものをもちいてください。 
+
+```
+$ export JIA_ISU_UUID=0694e4d7-dfce-4aec-b7ca-887ac42cfb8f
+$ curl -XPOST -H 'content-type: application/json' http://localhost:3000/api/condition/${JIA_ISU_UUID} \
+-d '[{"is_sitting": true, "condition": "is_dirty=true,is_overweight=true,is_broken=true","message":"test","timestamp": 1628492991}]'
+```
+
+## JIA API Mock
 
 JIA API Mock は、開発用に用いられる JIA API のモックです。
 JIA API Mock は、サーバーの5000番で待ち受けています。
