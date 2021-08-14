@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import urllib.request
 from random import random
 from enum import Enum
-from flask import Flask, request, session, send_file, jsonify, abort, make_response, send_from_directory
+from flask import Flask, request, session, send_file, jsonify, abort, make_response
 from flask.json import JSONEncoder
 from werkzeug.exceptions import (
     Forbidden,
@@ -149,7 +149,7 @@ class CustomJSONEncoder(JSONEncoder):
         return JSONEncoder.default(self, obj)
 
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder=f"{FRONTEND_CONTENTS_PATH}/assets", static_url_path="/assets")
 app.session_cookie_name = "isucondition"
 app.secret_key = getenv("SESSION_KEY", "isucondition")
 app.json_encoder = CustomJSONEncoder
@@ -780,11 +780,6 @@ app.add_url_rule("/isu/<jia_isu_uuid>", view_func=get_index)
 app.add_url_rule("/isu/<jia_isu_uuid>/condition", view_func=get_index)
 app.add_url_rule("/isu/<jia_isu_uuid>/graph", view_func=get_index)
 app.add_url_rule("/register", view_func=get_index)
-
-
-@app.route("/assets/<path:name>")
-def get_assets(name):
-    return send_from_directory(f"{FRONTEND_CONTENTS_PATH}/assets", name, conditional=False)
 
 
 def calculate_condition_level(condition: str) -> CONDITION_LEVEL:
