@@ -1,4 +1,4 @@
-import { Trend } from '../../lib/apis'
+import { Trend } from '/@/lib/apis'
 
 interface Props {
   trend: Trend
