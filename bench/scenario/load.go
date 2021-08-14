@@ -915,22 +915,22 @@ func authInfinityRetry(ctx context.Context, a *agent.Agent, userID string, step 
 	}
 }
 
-func postIsuInfinityRetry(ctx context.Context, a *agent.Agent, req service.PostIsuRequest, step *isucandar.BenchmarkStep) *http.Response {
+func postIsuInfinityRetry(ctx context.Context, a *agent.Agent, req service.PostIsuRequest, step *isucandar.BenchmarkStep) (*service.Isu, *http.Response) {
 	for {
 		select {
 		case <-ctx.Done():
-			return nil
+			return nil, nil
 		default:
 		}
-		_, res, err := postIsuAction(ctx, a, req)
+		isu, res, err := postIsuAction(ctx, a, req)
 		if err != nil {
 			if res != nil && res.StatusCode == http.StatusConflict {
-				return res
+				return nil, res
 			}
 			addErrorWithContext(ctx, step, err)
 			continue
 		}
-		return res
+		return isu, nil
 	}
 }
 
