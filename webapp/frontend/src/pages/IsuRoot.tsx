@@ -32,6 +32,7 @@ const IsuRoot = () => {
     }
     return <NowLoading />
   }
+
   return (
     <div>
       <SubHeader isu={isu} />

@@ -8,9 +8,8 @@ interface Props {
 }
 
 const IsuDetail = ({ isu }: Props) => {
-  if (!isu) {
-    return <NowLoading />
-  }
+  if (!isu) return <NowLoading />
+
   return (
     <div className="flex flex-col gap-10 items-center">
       <Card>

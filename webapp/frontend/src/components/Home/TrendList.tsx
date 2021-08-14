@@ -32,9 +32,8 @@ const TrendList = () => {
     update()
   }, [])
 
-  if (trends.length === 0) {
-    return <NowLoading />
-  }
+  if (trends.length === 0) return <NowLoading />
+
   return (
     <div>
       <h2 className="mb-6 text-xl font-bold">みんなのISU</h2>

@@ -15,9 +15,7 @@ const GuardedRoute = <T extends { path: string; children?: JSX.Element }>(
     return () => source.cancel()
   }, [login])
 
-  if (isTryLogin) {
-    return <NowLoading />
-  }
+  if (isTryLogin) return <NowLoading />
 
   if (!state.me) {
     if (props.path === '/login') {
