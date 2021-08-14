@@ -5,15 +5,21 @@ import TransitionGraph from './TransitionGraph'
 import SittingGraph from './SittingGraph'
 import useGraph from './use/graph'
 import GraphNavigator from './GraphNavigator'
+import { useState } from 'react'
+import NowLoadingOverlay from '/@/components/UI/NowLoadingOverlay'
 
 interface Props {
   isu: Isu
 }
 
 const IsuGraphCardContent = ({ isu }: Props) => {
+  const [isLoading, setIsLoading] = useState(false)
   const getGraphs = useCallback(
-    (params: GraphRequest) => {
-      return apis.getIsuGraphs(isu.jia_isu_uuid, params)
+    async (params: GraphRequest) => {
+      setIsLoading(true)
+      const res = await apis.getIsuGraphs(isu.jia_isu_uuid, params)
+      setIsLoading(false)
+      return res
     },
     [isu.jia_isu_uuid]
   )
@@ -57,6 +63,7 @@ const IsuGraphCardContent = ({ isu }: Props) => {
             timeCategories={timeCategories}
           />
         </div>
+        {isLoading ? <NowLoadingOverlay /> : null}
       </div>
     </div>
   )
