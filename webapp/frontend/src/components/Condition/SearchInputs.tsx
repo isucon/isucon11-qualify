@@ -14,7 +14,7 @@ const SearchInputs = ({ query, times, search }: Props) => {
   const [tmpTimes, setTmpTimes] = useState(times)
 
   return (
-    <div className="flex flex-wrap gap-6 items-center">
+    <div className="flex flex-wrap gap-6 items-end">
       <Input
         label="検索条件"
         value={tmpQuery}
@@ -25,6 +25,7 @@ const SearchInputs = ({ query, times, search }: Props) => {
       <Button
         label="検索"
         onClick={() => search({ times: tmpTimes, query: tmpQuery })}
+        disabled={!tmpQuery}
       />
     </div>
   )

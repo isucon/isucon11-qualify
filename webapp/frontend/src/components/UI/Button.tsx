@@ -14,7 +14,7 @@ const Button = ({ label, classname, ...buttonProps }: Props & ButtonProps) => {
   return (
     <button
       className={
-        'px-3 py-1 h-8 leading-4 border border-outline rounded focus:outline-none ' +
+        'px-3 py-1 h-8 leading-4 border border-outline rounded focus:outline-none disabled:opacity-40 disabled:cursor-default ' +
         classname
       }
       {...buttonProps}
