@@ -92,6 +92,13 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 		s.keepPostingError(ctx)
 	}()
 
+	//prepare相当のチェック
+	s.loadWaitGroup.Add(1)
+	go func() {
+		defer s.loadWaitGroup.Done()
+		s.loadErrorCheck(ctx, step)
+	}()
+
 	<-ctx.Done()
 	s.JiaPosterCancel()
 	logger.AdminLogger.Println("LOAD WAIT")
@@ -635,12 +642,6 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 		return
 	}
 
-	// LastCompletedGraphTime を更新
-	newLastCompletedGraphTime := getNewLastCompletedGraphTime(graphResponses, virtualToday)
-	if targetIsu.LastCompletedGraphTime < newLastCompletedGraphTime {
-		targetIsu.LastCompletedGraphTime = newLastCompletedGraphTime
-	}
-
 	// AddScoreはconditionのGETまで待つためここでタグを持っておく
 	scoreTags := []score.ScoreTag{}
 
@@ -656,7 +657,7 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 				minTimestampCount = len(g.ConditionTimestamps)
 			}
 		}
-		// 「今日のグラフじゃない」&「完成しているグラフ」なら加点
+		// 「今日のグラフじゃない」&「まだ見ていない完成しているグラフ」なら加点
 		if behindDay != 0 && targetIsu.LastCompletedGraphTime <= virtualToday-(int64(behindDay)*OneDay) {
 			// AddScoreはconditionのGETまで待つためここでタグを入れておく
 			scoreTags = append(scoreTags, getGraphScoreTag(minTimestampCount))
@@ -664,7 +665,7 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 		// 「今日のグラフ」についても加点
 		if behindDay == 0 {
 			// AddScoreはconditionのGETまで待つためここでタグを入れておく
-			scoreTags = append(scoreTags, getGraphScoreTag(minTimestampCount))
+			scoreTags = append(scoreTags, getTodayGraphScoreTag(minTimestampCount))
 		}
 	}
 
@@ -694,6 +695,12 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 	// graph の加点分を計算
 	for _, scoreTag := range scoreTags {
 		step.AddScore(scoreTag)
+	}
+
+	// LastCompletedGraphTime を更新
+	newLastCompletedGraphTime := getNewLastCompletedGraphTime(graphResponses, virtualToday)
+	if targetIsu.LastCompletedGraphTime < newLastCompletedGraphTime {
+		targetIsu.LastCompletedGraphTime = newLastCompletedGraphTime
 	}
 }
 
@@ -747,6 +754,22 @@ func getGraphScoreTag(minTimestampCount int) score.ScoreTag {
 		return ScoreGraphBad
 	}
 	return ScoreGraphWorst
+}
+
+func getTodayGraphScoreTag(minTimestampCount int) score.ScoreTag {
+	if minTimestampCount > ScoreGraphTimestampCount.Excellent {
+		return ScoreTodayGraphExcellent
+	}
+	if minTimestampCount > ScoreGraphTimestampCount.Good {
+		return ScoreTodayGraphGood
+	}
+	if minTimestampCount > ScoreGraphTimestampCount.Normal {
+		return ScoreTodayGraphNormal
+	}
+	if minTimestampCount > ScoreGraphTimestampCount.Bad {
+		return ScoreTodayGraphBad
+	}
+	return ScoreTodayGraphWorst
 }
 
 // GET /isu/{jia_isu_uuid}/graph を、「一度見たgraphの次のgraph」or「ベンチがisuの作成を投げた仮想時間の日」まで。補足: LastViewedGraphは外で更新
