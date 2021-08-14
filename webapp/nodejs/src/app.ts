@@ -150,6 +150,7 @@ app.use(
   })
 );
 app.set("cert", fs.readFileSync(jiaJWTSigningKeyPath));
+app.set("etag", false);
 
 async function getUserIdFromSession(
   req: express.Request,
