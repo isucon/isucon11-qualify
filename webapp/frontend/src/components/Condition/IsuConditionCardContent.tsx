@@ -1,5 +1,5 @@
 import { useCallback } from 'react'
-import apis, { ConditionRequest, Isu } from '../../lib/apis'
+import apis, { ConditionRequest, Isu } from '/@/lib/apis'
 import ConditionNavigator from './ConditionNavigator'
 import Conditions from './Conditions'
 import SearchInputs from './SearchInputs'

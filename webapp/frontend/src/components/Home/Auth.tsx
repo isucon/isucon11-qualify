@@ -1,4 +1,4 @@
-import Card from '../UI/Card'
+import Card from '/@/components/UI/Card'
 import logo_orange from '/@/assets/logo_orange.svg'
 
 const Auth = () => {

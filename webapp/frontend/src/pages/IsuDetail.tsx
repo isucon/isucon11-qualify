@@ -1,7 +1,7 @@
-import MainInfo from '../components/IsuDetail/MainInfo'
-import Card from '../components/UI/Card'
-import NowLoading from '../components/UI/NowLoading'
-import { Isu } from '../lib/apis'
+import MainInfo from '/@/components/IsuDetail/MainInfo'
+import Card from '/@/components/UI/Card'
+import NowLoading from '/@/components/UI/NowLoading'
+import { Isu } from '/@/lib/apis'
 
 interface Props {
   isu: Isu

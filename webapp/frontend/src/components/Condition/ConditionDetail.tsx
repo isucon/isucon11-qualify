@@ -1,6 +1,6 @@
-import { Condition } from '../../lib/apis'
-import { getConditionTime } from '../../lib/date'
-import Tip from '../UI/Tip'
+import { Condition } from '/@/lib/apis'
+import { getConditionTime } from '/@/lib/date'
+import Tip from '/@/components/UI/Tip'
 import ConditionIcons from './ConditionIcons'
 
 interface Props {

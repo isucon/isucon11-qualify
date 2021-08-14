@@ -1,5 +1,5 @@
-import { Condition } from '../../lib/apis'
-import NowLoading from '../UI/NowLoading'
+import { Condition } from '/@/lib/apis'
+import NowLoading from '/@/components/UI/NowLoading'
 import ConditionDetail from './ConditionDetail'
 
 interface Props {

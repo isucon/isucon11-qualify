@@ -1,8 +1,8 @@
 import axios from 'axios'
 import { useEffect } from 'react'
 import { Route, Redirect } from 'react-router-dom'
-import NowLoading from '../components/UI/NowLoading'
-import useLogin from '../lib/login'
+import NowLoading from '/@/components/UI/NowLoading'
+import useLogin from '/@/lib/login'
 
 const GuardedRoute = <T extends { path: string; children?: JSX.Element }>(
   props: T
