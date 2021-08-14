@@ -48,6 +48,9 @@ type Scenario struct {
 	mapIPAddrToFqdn map[string]string
 	mapFqdnToIPAddr map[string]string
 
+	//prepare check用のユーザー
+	noIsuUser *model.User
+
 	//内部状態
 	normalUsersMtx sync.Mutex
 	normalUsers    []*model.User

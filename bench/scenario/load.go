@@ -92,6 +92,13 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 		s.keepPostingError(ctx)
 	}()
 
+	//prepare相当のチェック
+	s.loadWaitGroup.Add(1)
+	go func() {
+		defer s.loadWaitGroup.Done()
+		s.loadErrorCheck(ctx, step)
+	}()
+
 	<-ctx.Done()
 	s.JiaPosterCancel()
 	logger.AdminLogger.Println("LOAD WAIT")

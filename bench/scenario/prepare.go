@@ -25,6 +25,8 @@ import (
 	"github.com/isucon/isucon11-qualify/bench/service"
 )
 
+const NotExistJiaIsuUUID = "9e5c1109-beff-4598-b8f1-658d1994d55f"
+
 func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) error {
 	logger.ContestantLogger.Printf("===> PREPARE")
 	// keepPostingのuserTimerでctx終了させられてしまうのでprepareでも設定する
@@ -122,7 +124,7 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	if err != nil {
 		logger.AdminLogger.Panicln(err)
 	}
-	noIsuUser := s.NewUser(ctx, step, noIsuAgent, model.UserTypeNormal, false)
+	s.noIsuUser = s.NewUser(ctx, step, noIsuAgent, model.UserTypeNormal, false)
 
 	// 初期データで生成しているisuconユーザを利用
 	isuconUser := s.normalUsers[0]
@@ -138,14 +140,14 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	isuconUser.Agent = agt
 
 	// 各エンドポイントのチェック
-	s.prepareCheckAuth(ctx, step)
+	s.prepareCheckAuth(ctx, isuconUser, step)
 	s.prepareIrregularCheckPostSignout(ctx, step)
 	s.prepareIrregularCheckGetMe(ctx, guestAgent, step)
-	s.prepareIrregularCheckGetIsuList(ctx, noIsuUser, guestAgent, step)
-	s.prepareIrregularCheckGetIsu(ctx, isuconUser, noIsuUser, guestAgent, step)
-	s.prepareIrregularCheckGetIsuIcon(ctx, isuconUser, noIsuUser, guestAgent, step)
-	s.prepareIrregularCheckGetIsuGraph(ctx, isuconUser, noIsuUser, guestAgent, step)
-	s.prepareIrregularCheckGetIsuConditions(ctx, isuconUser, noIsuUser, guestAgent, step, unregisteredIsu)
+	s.prepareIrregularCheckGetIsuList(ctx, s.noIsuUser, guestAgent, step)
+	s.prepareIrregularCheckGetIsu(ctx, isuconUser, s.noIsuUser, guestAgent, step)
+	s.prepareIrregularCheckGetIsuIcon(ctx, isuconUser, s.noIsuUser, guestAgent, step)
+	s.prepareIrregularCheckGetIsuGraph(ctx, isuconUser, s.noIsuUser, guestAgent, step)
+	s.prepareIrregularCheckGetIsuConditions(ctx, isuconUser, s.noIsuUser, guestAgent, step)
 
 	// MEMO: postIsuConditionのprepareチェックは確率で失敗して安定しないため、prepareステップでは行わない
 
@@ -155,13 +157,59 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	unregisteredIsu.Conditions = model.NewIsuConditionArray()
 
 	// ユーザのISUが増えるので他の検証終わった後に実行
-	s.prepareCheckPostIsu(ctx, isuconUser, noIsuUser, guestAgent, step)
-	s.prepareCheckPostIsuWithPrevCondition(ctx, noIsuUser, step, unregisteredIsu)
+	s.prepareCheckPostIsu(ctx, isuconUser, s.noIsuUser, guestAgent, step)
+	s.prepareCheckPostIsuWithPrevCondition(ctx, isuconUser, step, unregisteredIsu)
 	if hasErrors() {
 		return failure.NewError(ErrCritical, fmt.Errorf("アプリケーション互換性チェックに失敗しました"))
 	}
+	isuconUser.Agent = nil
 
 	return nil
+}
+
+func (s *Scenario) loadErrorCheck(ctx context.Context, step *isucandar.BenchmarkStep) {
+	// 各エンドポイントのチェック
+	guestAgent, err := s.NewAgent()
+	if err != nil {
+		logger.AdminLogger.Panicln(err)
+	}
+
+	for {
+		s.normalUsersMtx.Lock()
+		loginUser := s.normalUsers[rand.Intn(len(s.normalUsers))]
+		s.normalUsersMtx.Unlock()
+		if loginUser.Agent == nil {
+			//nilならシナリオループは回っていないはず
+			loginUser.Agent, err = s.NewAgent()
+			if err != nil {
+				logger.AdminLogger.Panicln(err)
+			}
+			authInfinityRetry(ctx, loginUser.Agent, loginUser.UserID, step)
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		time.Sleep(500 * time.Millisecond)
+
+		s.prepareCheckAuth(ctx, loginUser, step)
+		s.prepareIrregularCheckPostSignout(ctx, step)
+		s.prepareIrregularCheckGetMe(ctx, guestAgent, step)
+		s.prepareIrregularCheckGetIsuList(ctx, s.noIsuUser, guestAgent, step)
+		s.prepareIrregularCheckGetIsu(ctx, loginUser, s.noIsuUser, guestAgent, step)
+		s.prepareIrregularCheckGetIsuIcon(ctx, loginUser, s.noIsuUser, guestAgent, step)
+		s.prepareIrregularCheckGetIsuGraph(ctx, loginUser, s.noIsuUser, guestAgent, step)
+		s.prepareIrregularCheckGetIsuConditions(ctx, loginUser, s.noIsuUser, guestAgent, step)
+
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+	}
 }
 
 func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkStep) {
@@ -498,7 +546,12 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 
 }
 
-func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.BenchmarkStep) {
+func (s *Scenario) prepareCheckAuth(ctx context.Context, isuconUser *model.User, step *isucandar.BenchmarkStep) {
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
 
 	//TODO: ユーザープール
 	//とりあえずは使い捨てのユーザーを使う
@@ -532,7 +585,7 @@ func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.Benchma
 		logger.AdminLogger.Panic(err)
 		return
 	}
-	userID := random.UserName()
+	userID := isuconUser.UserID
 
 	_, errs := authAction(ctx, agt, userID)
 	for _, err := range errs {
@@ -549,6 +602,12 @@ func (s *Scenario) prepareCheckAuth(ctx context.Context, step *isucandar.Benchma
 }
 
 func (s *Scenario) prepareIrregularCheckPostSignout(ctx context.Context, step *isucandar.BenchmarkStep) {
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
+
 	// サインインしてない状態でサインアウト実行
 	agt, err := s.NewAgent(agent.WithTimeout(s.prepareTimeout))
 	if err != nil {
@@ -567,6 +626,12 @@ func (s *Scenario) prepareIrregularCheckPostSignout(ctx context.Context, step *i
 }
 
 func (s *Scenario) prepareIrregularCheckGetMe(ctx context.Context, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
+
 	// サインインしてない状態で取得
 	resBody, res, err := getMeErrorAction(ctx, guestAgent)
 	if err != nil {
@@ -580,6 +645,12 @@ func (s *Scenario) prepareIrregularCheckGetMe(ctx context.Context, guestAgent *a
 }
 
 func (s *Scenario) prepareIrregularCheckGetIsuList(ctx context.Context, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
+
 	// check: 椅子未所持の場合は椅子が存在しない
 	if err := BrowserAccess(ctx, noIsuUser.Agent, "/", HomePage); err != nil {
 		step.AddError(err)
@@ -590,11 +661,15 @@ func (s *Scenario) prepareIrregularCheckGetIsuList(ctx context.Context, noIsuUse
 		step.AddError(err)
 		return
 	}
-	expected := noIsuUser.IsuListOrderByCreatedAt
-	if errs := verifyPrepareIsuList(res, expected, isuList); errs != nil {
-		for _, err := range errs {
-			step.AddError(err)
-		}
+	//expected := noIsuUser.IsuListOrderByCreatedAt
+	// if errs := verifyPrepareIsuList(res, expected, isuList); errs != nil {
+	// 	for _, err := range errs {
+	// 		step.AddError(err)
+	// 	}
+	// 	return
+	// }
+	if len(isuList) != 0 {
+		step.AddError(errorMismatch(res, "椅子の数が異なります"))
 		return
 	}
 
@@ -744,7 +819,7 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 
 	// check: 存在しない椅子を登録
 	req = service.PostIsuRequest{
-		JIAIsuUUID: "jiaisuuuid",
+		JIAIsuUUID: NotExistJiaIsuUUID,
 		IsuName:    "isuname",
 	}
 	resBody, res, err = postIsuErrorAction(ctx, loginUser.Agent, req)
@@ -763,6 +838,12 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 }
 
 func (s *Scenario) prepareIrregularCheckGetIsu(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
+
 	isu := loginUser.IsuListOrderByCreatedAt[0]
 	// check: 未ログイン状態
 	resBody, res, err := getIsuIdErrorAction(ctx, guestAgent, isu.JIAIsuUUID)
@@ -791,7 +872,7 @@ func (s *Scenario) prepareIrregularCheckGetIsu(ctx context.Context, loginUser *m
 	}
 
 	// check: 存在しない椅子を取得
-	resBody, res, err = getIsuIdErrorAction(ctx, loginUser.Agent, "jiaisuuuid")
+	resBody, res, err = getIsuIdErrorAction(ctx, loginUser.Agent, NotExistJiaIsuUUID)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -807,6 +888,12 @@ func (s *Scenario) prepareIrregularCheckGetIsu(ctx context.Context, loginUser *m
 }
 
 func (s *Scenario) prepareIrregularCheckGetIsuIcon(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
+
 	isu := loginUser.IsuListOrderByCreatedAt[0]
 	// check: 未ログイン状態
 	resBody, res, err := getIsuIconErrorAction(ctx, guestAgent, isu.JIAIsuUUID)
@@ -836,7 +923,7 @@ func (s *Scenario) prepareIrregularCheckGetIsuIcon(ctx context.Context, loginUse
 	}
 
 	// check: 登録されていない椅子に対するリクエスト
-	resBody, res, err = getIsuIconErrorAction(ctx, loginUser.Agent, "jiaisuuuid")
+	resBody, res, err = getIsuIconErrorAction(ctx, loginUser.Agent, NotExistJiaIsuUUID)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -853,6 +940,11 @@ func (s *Scenario) prepareIrregularCheckGetIsuIcon(ctx context.Context, loginUse
 }
 
 func (s *Scenario) prepareIrregularCheckGetIsuGraph(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
 	// check: 未ログイン状態
 	isu := loginUser.IsuListOrderByCreatedAt[0]
 	query := url.Values{}
@@ -920,7 +1012,7 @@ func (s *Scenario) prepareIrregularCheckGetIsuGraph(ctx context.Context, loginUs
 	// check: 登録されていない椅子に対するリクエスト
 	query = url.Values{}
 	query.Set("datetime", strconv.FormatInt(time.Now().Unix(), 10))
-	resBody, res, err = getIsuGraphErrorAction(ctx, loginUser.Agent, "jiaisuuuid", query)
+	resBody, res, err = getIsuGraphErrorAction(ctx, loginUser.Agent, NotExistJiaIsuUUID, query)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -935,7 +1027,12 @@ func (s *Scenario) prepareIrregularCheckGetIsuGraph(ctx context.Context, loginUs
 	}
 }
 
-func (s *Scenario) prepareIrregularCheckGetIsuConditions(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep, unregisteredIsu *model.Isu) {
+func (s *Scenario) prepareIrregularCheckGetIsuConditions(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
 	isu := loginUser.IsuListOrderByCreatedAt[0]
 
 	// condition の read lock を取得
@@ -1054,7 +1151,7 @@ func (s *Scenario) prepareIrregularCheckGetIsuConditions(ctx context.Context, lo
 	query = url.Values{}
 	query.Set("end_time", strconv.FormatInt(lastTime, 10))
 	query.Set("condition_level", "info,warning,critical")
-	resBody, res, err = getIsuConditionErrorAction(ctx, loginUser.Agent, unregisteredIsu.JIAIsuUUID, query)
+	resBody, res, err = getIsuConditionErrorAction(ctx, loginUser.Agent, NotExistJiaIsuUUID, query)
 	if err != nil {
 		step.AddError(err)
 		return
