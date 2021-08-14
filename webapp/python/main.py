@@ -64,6 +64,10 @@ class IsuCondition:
     message: str
     created_at: datetime
 
+    def __post_init__(self):
+        if type(self.is_sitting) is int:
+            self.is_sitting = bool(self.is_sitting)
+
 
 @dataclass
 class ConditionsPercentage:
@@ -139,8 +143,6 @@ class PostIsuConditionRequest:
 
 class CustomJSONEncoder(JSONEncoder):
     def default(self, obj):
-        if isinstance(obj, datetime):
-            return obj.timestamp()
         if isinstance(obj, Isu):
             cols = ["id", "jia_isu_uuid", "name", "character"]
             return {col: obj.__dict__[col] for col in cols}
@@ -475,7 +477,7 @@ def generate_isu_graph_response(jia_isu_uuid: str, graph_date: datetime) -> list
             conditions_in_this_hour = []
             timestamps_in_this_hour = []
         conditions_in_this_hour.append(condition)
-        timestamps_in_this_hour.append(condition.timestamp.timestamp())
+        timestamps_in_this_hour.append(int(condition.timestamp.timestamp()))
 
     if len(conditions_in_this_hour) > 0:
         data_points.append(
@@ -518,8 +520,8 @@ def generate_isu_graph_response(jia_isu_uuid: str, graph_date: datetime) -> list
 
         response_list.append(
             GraphResponse(
-                start_at=this_time.timestamp(),
-                end_at=(this_time + timedelta(hours=1)).timestamp(),
+                start_at=int(this_time.timestamp()),
+                end_at=int((this_time + timedelta(hours=1)).timestamp()),
                 data=data,
                 condition_timestamps=timestamps,
             )
@@ -652,7 +654,7 @@ def get_isu_conditions_from_db(
                 GetIsuConditionResponse(
                     jia_isu_uuid=jia_isu_uuid,
                     isu_name=isu_name,
-                    timestamp=c.timestamp.timestamp(),
+                    timestamp=int(c.timestamp.timestamp()),
                     is_sitting=c.is_sitting,
                     condition=c.condition,
                     condition_level=c_level,
@@ -689,7 +691,7 @@ def get_trend():
                 isu_last_condition = conditions[0]
                 condition_level = calculate_condition_level(isu_last_condition.condition)
 
-                trend_condition = TrendCondition(isu_id=isu.id, timestamp=isu_last_condition.timestamp.timestamp())
+                trend_condition = TrendCondition(isu_id=isu.id, timestamp=int(isu_last_condition.timestamp.timestamp()))
 
                 if condition_level == "info":
                     character_info_isu_conditions.append(trend_condition)
