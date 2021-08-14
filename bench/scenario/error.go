@@ -120,7 +120,6 @@ func errorMismatch(res *http.Response, message string, args ...interface{}) erro
 }
 
 func errorInvalid(res *http.Response, message string, args ...interface{}) error {
-	args = append(args, res.StatusCode, res.Request.Method, res.Request.URL.Path)
 	return failure.NewError(ErrInvalid, errorFormatWithResponse(res, message, args...))
 }
 
