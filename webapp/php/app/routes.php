@@ -47,6 +47,21 @@ final class InitializeResponse implements JsonSerializable
     }
 }
 
+final class GetMeResponse implements JsonSerializable
+{
+    public function __construct(public string $jiaUserId)
+    {
+    }
+
+    /**
+     * @return array{jia_user_id: string}
+     */
+    public function jsonSerialize(): array
+    {
+        return ['jia_user_id' => $this->jiaUserId];
+    }
+}
+
 return function (App $app) {
     $app->options('/{routes:.*}', function (Request $request, Response $response) {
         // CORS Pre-Flight OPTIONS Request Handler
@@ -57,7 +72,7 @@ return function (App $app) {
 
     $app->post('/api/auth', Handler::class . ':postAuthentication');
     $app->post('/api/signout', Handler::class . ':postSignout');
-    $app->get('/api/user/me', Handler::class . 'getMe');
+    $app->get('/api/user/me', Handler::class . ':getMe');
     $app->get('/api/isu', Handler::class . 'getIsuList');
     $app->post('/api/isu', Handler::class . 'postIsu');
     $app->get('/api/isu/{jia_isu_uuid}', Handler::class . 'getIsuId');
@@ -254,7 +269,23 @@ final class Handler
     // サインインしている自分自身の情報を取得
     public function getMe(Request $request, Response $response): Response
     {
-        throw new Exception('not implemented');
+        [$jiaUserId, $errStatusCode, $err] = $this->getUserIdFromSession();
+
+        if (!empty($err)) {
+            $newResponse = $response->withStatus($errStatusCode);
+            if ($errStatusCode === StatusCodeInterface::STATUS_UNAUTHORIZED) {
+                $newResponse->withHeader('Content-Type', 'text/plain; charset=UTF-8');
+                $newResponse->getBody()->write('you are not signed in');
+
+                return $newResponse;
+            }
+
+            $this->logger->error($err);
+
+            return $newResponse;
+        }
+
+        return $this->jsonResponse($response, new GetMeResponse(jiaUserId: $jiaUserId));
     }
 
     // GET /api/isu
