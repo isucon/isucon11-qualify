@@ -294,10 +294,10 @@ def get_isu_list():
     for isu in isu_list:
         found_last_condition = True
         query = "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = %s ORDER BY `timestamp` DESC LIMIT 1"
-        last_condition = select_row(query, (isu.jia_isu_uuid,))
-        if last_condition is None:
+        row = select_row(query, (isu.jia_isu_uuid,))
+        if row is None:
             found_last_condition = False
-        last_condition = IsuCondition(**last_condition)
+        last_condition = IsuCondition(**row) if found_last_condition else None
 
         formatted_condition = None
         if found_last_condition:
