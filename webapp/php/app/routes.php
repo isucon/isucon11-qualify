@@ -1,6 +1,6 @@
 <?php
 
-// phpcs:disable PSR1.Files.SideEffects
+// phpcs:disable PSR1.Files.SideEffects,PSR1.Classes.ClassDeclaration
 declare(strict_types=1);
 
 use Fig\Http\Message\StatusCodeInterface;
@@ -38,12 +38,14 @@ final class Handler
         private PDO $dbh,
         private SessionHelper $session,
         private LoggerInterface $logger,
-    ) {}
+    ) {
+    }
 
     /**
      * @return array{0: string, 1: int, 2: string}
      */
-    private function getUserIdFromSession(): array {
+    private function getUserIdFromSession(): array
+    {
         $jiaUserId = $this->session->get('jia_user_id');
         if (empty($jiaUserId)) {
             return ['', StatusCodeInterface::STATUS_UNAUTHORIZED, 'no session'];
@@ -63,7 +65,8 @@ final class Handler
 
     // POST /api/auth
     // サインアップ・サインイン
-    public function postAuthentication(Request $request, Response $response): Response {
+    public function postAuthentication(Request $request, Response $response): Response
+    {
         $authorizationHeader = $request->getHeader('Authorization');
         if (count($authorizationHeader) < 1) {
             $newResponse = $response->withStatus(StatusCodeInterface::STATUS_FORBIDDEN)
@@ -123,7 +126,7 @@ final class Handler
     // サインアウト
     public function postSignout(Request $request, Response $response): Response
     {
-        list($_, $errStatusCode, $err) = $this->getUserIdFromSession();
+        [$_, $errStatusCode, $err] = $this->getUserIdFromSession();
 
         if (!empty($err)) {
             $newResponse = $response->withStatus($errStatusCode);
