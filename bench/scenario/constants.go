@@ -64,3 +64,6 @@ const ViewerLimitPerUser = 3
 
 // ユーザーが追加されるとき、発生していて良い Timeout のユーザー数に対する上限
 const TimeoutLimitPerUser = 20
+
+// GET /api/isu/:id/graph と GET /api/condition/:id の間で許される condition 反映の遅延
+const ConditionDelayTime = 1

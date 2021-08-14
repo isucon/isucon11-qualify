@@ -239,6 +239,11 @@ func verifyIsuConditions(res *http.Response,
 				if expected.TimestampUnix < c.Timestamp {
 					return errorMismatch(res, "POSTに成功していない時刻のデータが返されました")
 				}
+
+				// GET /api/isu/:id/graph で見た ConditionDelayTime秒以上後に、その condition がないとき
+				if expected.ReadTime < requestTimeUnix+ConditionDelayTime {
+					return errorMismatch(res, "GET /api/isu/:jia_isu_uuid/graph で確認された condition がありません")
+				}
 			}
 
 			//等価チェック
@@ -279,6 +284,26 @@ func verifyIsuConditions(res *http.Response,
 			// GET /api/isu/:id/graph と連動してる読んだ時間を更新
 			if expected.ReadTime > requestTimeUnix {
 				expected.ReadTime = requestTimeUnix
+			}
+		}
+
+		// backendData が空のときもチェックする
+		if len(backendData) == 0 {
+			var expected *model.IsuCondition
+			for {
+				expected = baseIter.Prev()
+				if expected == nil {
+					break // ok
+				}
+
+				if request.StartTime != nil && *request.StartTime > expected.TimestampUnix {
+					break // ok
+				}
+
+				// GET /api/isu/:id/graph で見た ConditionDelayTime秒以上後に、その condition がないとき
+				if expected.ReadTime < requestTimeUnix+ConditionDelayTime {
+					return errorMismatch(res, "GET /api/isu/:jia_isu_uuid/graph で確認された condition がありません")
+				}
 			}
 		}
 		return nil
@@ -624,6 +649,32 @@ func verifyGraph(
 							expected.ReadTime = requestTimeUnix
 						}
 						break //ok
+					}
+
+					// GET /api/condition/:id で見た ConditionDelayTime秒以上後に、その condition がないとき
+					if expected.ReadTime < requestTimeUnix+ConditionDelayTime {
+						return errorMismatch(res, "GET /api/condition/:jia_isu_uuid で確認された condition がありません")
+					}
+				}
+			}
+
+			// graphOne.ConditionTimestamps が空のときもチェックする
+			if len(graphOne.ConditionTimestamps) == 0 {
+				var expected *model.IsuCondition
+				for {
+					expected = baseIter.Prev()
+					if expected == nil {
+						break // ok
+					}
+
+					// 根拠 timestamps は StartAt <= timestamp < EndAt であるため
+					if expected.TimestampUnix < graphOne.StartAt {
+						break // ok
+					}
+
+					// GET /api/condition/:id で見た ConditionDelayTime秒以上後に、その condition がないとき
+					if expected.ReadTime < requestTimeUnix+ConditionDelayTime {
+						return errorMismatch(res, "GET /api/condition/:jia_isu_uuid で確認された condition がありません")
 					}
 				}
 			}
