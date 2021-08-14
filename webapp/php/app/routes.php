@@ -17,15 +17,26 @@ return function (App $app) {
         return $response;
     });
 
+    $app->post('/initialize', Handler::class . ':postInitialize');
+
     $app->post('/api/auth', Handler::class . ':postAuthentication');
     $app->post('/api/signout', Handler::class . ':postSignout');
+    $app->get('/api/user/me', Handler::class . 'getMe');
+    $app->get('/api/isu', Handler::class . 'getIsuList');
+    $app->post('/api/isu', Handler::class . 'postIsu');
+    $app->get('/api/isu/{jia_isu_uuid}', Handler::class . 'getIsuId');
+    $app->get('/api/isu/{jia_isu_uuid}/icon', Handler::class . 'getIsuIcon');
+    $app->get('/api/isu/{jia_isu_uuid}/graph', Handler::class . 'getIsuGraph');
+    $app->get('/api/condition/{jia_isu_uuid}', Handler::class . 'getIsuConditions');
+    $app->get('/api/trend', Handler::class . 'getTrend');
+
+    $app->post('/api/condition/{jia_isu_uuid}', Handler::class . 'postIsuCondition');
 
     $app->get('/', Handler::class . ':getIndex');
-    $app->get('/condition', Handler::class . ':getIndex');
     $app->get('/isu/{jia_isu_uuid}', Handler::class . ':getIndex');
+    $app->get('/isu/{jia_isu_uuid}/condition', Handler::class . ':getIndex');
+    $app->get('/isu/{jia_isu_uuid}/graph', Handler::class . ':getIndex');
     $app->get('/register', Handler::class . ':getIndex');
-    $app->get('/login', Handler::class . ':getIndex');
-
     $app->get('/assets/{filename}', Handler::class . ':getAssets');
 };
 
@@ -73,6 +84,18 @@ final class Handler
         return [$jiaUserId, 0, ''];
     }
 
+    private function getJiaServiceUrl(): string
+    {
+        throw new Exception('not implemented');
+    }
+
+    // POST /initialize
+    // サービスを初期化
+    public function postInitialize(Request $request, Response $response): Response
+    {
+        throw new Exception('not implemented');
+    }
+
     // POST /api/auth
     // サインアップ・サインイン
     public function postAuthentication(Request $request, Response $response): Response
@@ -93,8 +116,6 @@ final class Handler
 
             return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
         }
-
-        // TODO: 公開鍵の検証は必要？
 
         try {
             $token = JWT::decode($reqJwt, $jiaJwtSigningKey, ['ES256', 'ES384', 'ES512']);
@@ -155,6 +176,99 @@ final class Handler
         $this->session->destroy();
 
         return $response;
+    }
+
+    // GET /api/user/me
+    // サインインしている自分自身の情報を取得
+    public function getMe(Request $request, Response $response): Response
+    {
+        throw new Exception('not implemented');
+    }
+
+    // GET /api/isu
+    // ISUの一覧を取得
+    public function getIsuList(Request $request, Response $response): Response
+    {
+        throw new Exception('not implemented');
+    }
+
+    // POST /api/isu
+    // ISUを登録
+    public function postIsu(Request $request, Response $response): Response
+    {
+        throw new Exception('not implemented');
+    }
+
+    // GET /api/isu/:jia_isu_uuid
+    // ISUの情報を取得
+    public function getIsuID(Request $request, Response $response, array $args): Response
+    {
+        throw new Exception('not implemented');
+    }
+
+    // GET /api/isu/:jia_isu_uuid/icon
+    // ISUのアイコンを取得
+    public function getIsuIcon(Request $request, Response $response, array $args): Response
+    {
+        throw new Exception('not implemented');
+    }
+
+    // GET /api/isu/:jia_isu_uuid/graph
+    // ISUのコンディショングラフ描画のための情報を取得
+    public function getIsuGraph(Request $request, Response $response, array $args): Response
+    {
+        throw new Exception('not implemented');
+    }
+
+    // グラフのデータ点を一日分生成
+    private function generateIsuGraphResponse()
+    {
+        throw new Exception('not implemented');
+    }
+
+    // 複数のISUのコンディションからグラフの一つのデータ点を計算
+    private function calculateGraphDataPoint()
+    {
+        throw new Exception('not implemented');
+    }
+
+    // GET /api/condition/:jia_isu_uuid
+    // ISUのコンディションを取得
+    public function getIsuConditions(Request $request, Response $response, array $args): Response
+    {
+        throw new Exception('not implemented');
+    }
+
+    // ISUのコンディションをDBから取得
+    private function getIsuConditionsFromDB()
+    {
+        throw new Exception('not implemented');
+    }
+
+    // ISUのコンディションの文字列からコンディションレベルを計算
+    private function calculateConditionLevel()
+    {
+        throw new Exception('not implemented');
+    }
+
+    // GET /api/trend
+    // ISUの性格毎の最新のコンディション情報
+    public function getTrend(Request $request, Response $response): Response
+    {
+        throw new Exception('not implemented');
+    }
+
+    // POST /api/condition/:jia_isu_uuid
+    // ISUからのコンディションを受け取る
+    public function postIsuCondition(Request $request, Response $response, array $args): Response
+    {
+        throw new Exception('not implemented');
+    }
+
+    // ISUのコンディションの文字列がcsv形式になっているか検証
+    private function isValidConditionFormat()
+    {
+        throw new Exception('not implemented');
     }
 
     public function getIndex(Request $request, Response $response): Response
