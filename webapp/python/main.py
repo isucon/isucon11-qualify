@@ -213,7 +213,7 @@ def post_initialize():
 @app.route("/api/auth", methods=["POST"])
 def post_auth():
     """サインアップ・サインイン"""
-    req_jwt = request.headers["Authorization"][len("Bearer ") :]
+    req_jwt = request.headers["Authorization"].removeprefix("Bearer ")
     req_jwt_header = jwt.get_unverified_header(req_jwt)
     req_jwt_payload = jwt.decode(req_jwt, jwt_public_key, algorithms=[req_jwt_header["alg"]])
     jia_user_id = req_jwt_payload["jia_user_id"]
