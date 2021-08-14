@@ -253,6 +253,17 @@ func (s *Scenario) NewIsuWithCustomImg(ctx context.Context, step *isucandar.Benc
 		step.AddError(err)
 	}
 
+	//Icon取得
+	icon, res, err := getIsuIconAction(ctx, owner.Agent, isu.JIAIsuUUID)
+	if err != nil {
+		step.AddError(err)
+	} else {
+		err = verifyIsuIcon(isu, icon, res.StatusCode)
+		if err != nil {
+			step.AddError(err)
+		}
+	}
+
 	// isu.ID から model.TrendCondition を取得できるようにする (GET /trend 用)
 	s.UpdateIsuFromID(isu)
 

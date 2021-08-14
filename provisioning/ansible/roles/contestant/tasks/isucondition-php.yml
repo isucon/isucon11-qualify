@@ -1,0 +1,28 @@
+---
+- name: "roles/contestant/tasks/isucondition-php: Put isucondition.php-fpm.conf"
+  become: yes
+  become_user: isucon
+  copy:
+    src: home/isucon/local/php/etc/isucondition.php-fpm.conf
+    dest: /home/isucon/local/php/etc/isucondition.php-fpm.conf
+
+- name: "roles/contestant/tasks/isucondition-php: Fix php.ini for Memory Limit"
+  become: yes
+  become_user: isucon
+  ini_file:
+    path: /home/isucon/local/php/etc/php.ini
+    section: PHP
+    option: memory_limit
+    value: "-1"
+    mode: 0644
+    backup: yes
+
+- name: "roles/contestant/tasks/isucondition-php: Build Web Application PHP"
+  become: yes
+  become_user: isucon
+  environment:
+    PATH: "/home/isucon/local/php/bin:{{ ansible_env.PATH }}"
+  args:
+    chdir: /home/isucon/webapp/php
+  shell: |
+    ./composer.phar install
