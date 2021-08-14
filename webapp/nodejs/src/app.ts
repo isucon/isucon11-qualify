@@ -204,7 +204,7 @@ function isValidPostInitializeRequest(
 app.post(
   "/initialize",
   async (
-    req: express.Request<Record<string, never>, any, PostInitializeRequest>,
+    req: express.Request<Record<string, never>, unknown, PostInitializeRequest>,
     res
   ) => {
     const request = req.body;
@@ -278,7 +278,7 @@ app.post("/api/auth", async (req, res) => {
 app.post("/api/signout", async (req, res) => {
   const db = await pool.getConnection();
   try {
-    const [_, errStatusCode, err] = await getUserIdFromSession(req, db);
+    const [, errStatusCode, err] = await getUserIdFromSession(req, db);
     if (err) {
       if (errStatusCode === 401) {
         return res.status(401).type("text").send("you are not signed in");
@@ -386,7 +386,7 @@ app.get("/api/isu", async (req, res) => {
   }
 });
 
-interface PostIsuBody {
+interface PostIsuRequest {
   jia_isu_uuid: string;
   isu_name: string;
 }
@@ -395,7 +395,10 @@ interface PostIsuBody {
 // ISUを登録
 app.post(
   "/api/isu",
-  (req: express.Request<Record<string, never>, any, PostIsuBody>, res) => {
+  (
+    req: express.Request<Record<string, never>, unknown, PostIsuRequest>,
+    res
+  ) => {
     upload.single("image")(req, res, async (uploadErr) => {
       const db = await pool.getConnection();
       try {
@@ -415,15 +418,12 @@ app.post(
         const jiaIsuUUID = request.jia_isu_uuid;
         const isuName = request.isu_name;
         if (uploadErr instanceof MulterError) {
-          // TODO
+          return res.send(400).send("bad format: icon");
         }
 
-        let image: Buffer;
-        if (!req.file) {
-          image = fs.readFileSync(defaultIconFilePath);
-        } else {
-          image = req.file.buffer;
-        }
+        const image = req.file
+          ? req.file.buffer
+          : fs.readFileSync(defaultIconFilePath);
 
         await db.beginTransaction();
 
@@ -591,7 +591,12 @@ interface GetIsuGraphQuery extends qs.ParsedQs {
 app.get(
   "/api/isu/:jia_isu_uuid/graph",
   async (
-    req: express.Request<{ jia_isu_uuid: string }, any, any, GetIsuGraphQuery>,
+    req: express.Request<
+      { jia_isu_uuid: string },
+      unknown,
+      never,
+      GetIsuGraphQuery
+    >,
     res
   ) => {
     const db = await pool.getConnection();
@@ -832,8 +837,8 @@ app.get(
   async (
     req: express.Request<
       { jia_isu_uuid: string },
-      any,
-      any,
+      unknown,
+      never,
       GetIsuConditionsQuery
     >,
     res
@@ -1089,7 +1094,7 @@ app.post(
   async (
     req: express.Request<
       { jia_isu_uuid: string },
-      any,
+      unknown,
       PostIsuConditionRequest[]
     >,
     res
