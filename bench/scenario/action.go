@@ -758,7 +758,7 @@ func BrowserAccess(ctx context.Context, a *agent.Agent, rpath string, page PageT
 	buf := new(bytes.Buffer)
 	teeReader := io.TeeReader(res.Body, buf)
 
-	resources, err := a.ProcessHTML(ctx, res, ioutil.NopCloser(teeReader))
+	resources, err := AgentProcessHTML(a, ctx, res, ioutil.NopCloser(teeReader))
 	if err != nil {
 		return failure.NewError(ErrCritical, err)
 	}
@@ -790,4 +790,22 @@ func AgentDo(a *agent.Agent, ctx context.Context, req *http.Request) (*http.Resp
 		}
 	}
 	return res, nil
+}
+func AgentProcessHTML(a *agent.Agent, ctx context.Context, r *http.Response, body io.ReadCloser) (agent.Resources, error) {
+	resources, err := a.ProcessHTML(ctx, r, body)
+	if err != nil {
+		return resources, err
+	}
+
+	//304のときはbodyにcacheが入っているかどうか分からないので、確実にcacheを取得
+	if a.CacheStore != nil {
+		for _, resource := range resources {
+			cache := a.CacheStore.Get(resource.Request)
+			if cache != nil {
+				resource.Response.Body.Close()
+				resource.Response.Body = ioutil.NopCloser(bytes.NewReader(cache.Body()))
+			}
+		}
+	}
+	return resources, nil
 }
