@@ -28,6 +28,9 @@ return function (ContainerBuilder $containerBuilder) {
                     'user' => getenv('MYSQL_USER') ?: 'isucon',
                     'password' => getenv('MYSQL_PASS') ?: 'isucon',
                 ],
+                'session' => [
+                    'name' => getenv('SESSION_KEY') ?: 'isucondition',
+                ],
             ]);
         }
     ]);

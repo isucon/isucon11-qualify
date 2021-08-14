@@ -9,6 +9,8 @@ use Monolog\Logger;
 use Monolog\Processor\UidProcessor;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
+use Slim\Middleware\Session;
+use SlimSession\Helper as SessionHelper;
 
 return function (ContainerBuilder $containerBuilder) {
     $containerBuilder->addDefinitions([
@@ -41,5 +43,13 @@ return function (ContainerBuilder $containerBuilder) {
 
             return $pdo;
         },
+        Session::class => function (ContainerInterface $c): Session {
+            $sessionSettings = $c->get(SettingsInterface::class)->get('session');
+
+            return new Session($sessionSettings);
+        },
+        SessionHelper::class => function (ContainerInterface $c): SessionHelper {
+            return new SessionHelper();
+        }
     ]);
 };
