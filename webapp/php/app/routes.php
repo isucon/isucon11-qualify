@@ -31,8 +31,18 @@ return function (App $app) {
 
 final class Handler
 {
+    private const CONDITION_LIMIT = 20;
     private const FRONTEND_CONTENTS_PATH = __DIR__ . '/../../public';
     private const JIA_JWT_SIGNING_KEY_PATH = __DIR__ . '/../../ec256-public.pem';
+    private const DEFAULT_ICON_FILE_PATH = "../NoImage.jpg";
+    private const DEFAULT_JIA_SERVICE_URL = "http://localhost:5000";
+    private const MYSQL_ERR_NUM_DUPLICATE_ENTRY = 1062;
+    private const CONDITION_LEVEL_INFO = "info";
+    private const CONDITION_LEVEL_WARNING = "warning";
+    private const CONDITION_LEVEL_CRITICAL = "critical";
+    private const SCORE_CONDITION_LEVEL_INFO = 3;
+    private const SCORE_CONDITION_LEVEL_WARNING = 2;
+    private const SCORE_CONDITION_LEVEL_CRITICAL = 1;
 
     public function __construct(
         private PDO $dbh,
