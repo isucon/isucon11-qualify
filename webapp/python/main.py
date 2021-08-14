@@ -588,7 +588,7 @@ def get_isu_confitions(jia_isu_uuid):
     condition_level_csv = request.args.get("condition_level")
     if condition_level_csv is None:
         raise BadRequest("missing: condition_level")
-    condition_level = {level: None for level in condition_level_csv.split(",")}
+    condition_level = set(condition_level_csv.split(","))
 
     start_time_str = request.args.get("start_time")
     start_time = None
@@ -619,7 +619,7 @@ def get_isu_confitions(jia_isu_uuid):
 def get_isu_conditions_from_db(
     jia_isu_uuid: str,
     end_time: datetime,
-    condition_level: dict,
+    condition_level: set,
     start_time: datetime,
     limit: int,
     isu_name: str,
@@ -649,7 +649,7 @@ def get_isu_conditions_from_db(
         except:
             continue
 
-        if condition_level[c_level]:
+        if c_level.value in condition_level:
             condition_response.append(
                 GetIsuConditionResponse(
                     jia_isu_uuid=jia_isu_uuid,
