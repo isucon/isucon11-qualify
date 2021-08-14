@@ -242,7 +242,18 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 		}
 
 		//GET /isu/{jia_isu_uuid}
-		_, errs = browserGetIsuDetailAction(ctx, user.Agent, targetIsu.JIAIsuUUID)
+		_, errs = browserGetIsuDetailAction(ctx, user.Agent, targetIsu.JIAIsuUUID, func(res *http.Response, isu *service.Isu) []error {
+			errs := []error{}
+			err := verifyIsu(res, targetIsu, isu)
+			if err != nil {
+				errs = append(errs, err)
+			}
+			err = verifyIsuIcon(targetIsu, isu.Icon, isu.IconStatusCode)
+			if err != nil {
+				errs = append(errs, err)
+			}
+			return errs
+		})
 		for _, err := range errs {
 			addErrorWithContext(ctx, step, err)
 		}

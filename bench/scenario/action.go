@@ -652,12 +652,14 @@ func browserGetAuthAction(ctx context.Context, a *agent.Agent) []error {
 	return errors
 }
 
-func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string) (*service.Isu, []error) {
+func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string,
+	validateIsu func(*http.Response, *service.Isu) []error,
+) (*service.Isu, []error) {
 	// TODO: 静的ファイルのGET
 
 	errors := []error{}
 	// TODO: ここはISU個別ページから遷移してきたならすでに持ってるからリクエストしない(変えてもいいけどフロントが不思議な実装になる)
-	isu, _, err := getIsuIdAction(ctx, a, id)
+	isu, res, err := getIsuIdAction(ctx, a, id)
 	if err != nil {
 		errors = append(errors, err)
 	}
@@ -673,6 +675,7 @@ func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string) (
 
 		return isu, errors
 	}
+	errors = append(errors, validateIsu(res, isu)...)
 	return nil, errors
 }
 
