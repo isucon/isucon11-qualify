@@ -4,10 +4,11 @@ from dataclasses import dataclass
 import json
 from datetime import datetime, timedelta
 import urllib.request
+from random import random
 from enum import Enum
 from flask import Flask, request, session, send_file, jsonify, abort, make_response
 from flask.json import JSONEncoder
-from werkzeug.exceptions import BadRequest, Unauthorized, NotFound, InternalServerError
+from werkzeug.exceptions import BadRequest, Unauthorized, NotFound, InternalServerError, ServiceUnavailable
 import mysql.connector
 from sqlalchemy.pool import QueuePool
 import jwt
@@ -109,6 +110,14 @@ class TrendResponse:
     info: TrendCondition
     warning: TrendCondition
     critical: TrendCondition
+
+
+@dataclass
+class PostIsuConditionRequest:
+    is_sitting: bool
+    condition: str
+    message: str
+    timestamp: int
 
 
 class CustomJSONEncoder(JSONEncoder):
@@ -681,7 +690,56 @@ def get_trend():
 @app.route("/api/condition/<jia_isu_uuid>", methods=["POST"])
 def post_isu_condition(jia_isu_uuid):
     """ISUからのコンディションを受け取る"""
-    raise NotImplementedError
+    # TODO: 一定割合リクエストを落としてしのぐようにしたが、本来は全量さばけるようにすべき
+    drop_probability = 0.9
+    if random() <= drop_probability:
+        app.logger.warning("drop post isu condition request")
+        raise ServiceUnavailable
+
+    try:
+        req = [PostIsuConditionRequest(**row) for row in request.json]
+    except:
+        raise BadRequest("bad request body")
+
+    cnx = cnxpool.connect()
+    try:
+        cnx.start_transaction()
+        cur = cnx.cursor(dictionary=True)
+
+        query = "SELECT COUNT(*) FROM `isu` WHERE `jia_isu_uuid` = %s"
+        cur.execute(query, (jia_isu_uuid,))
+        (count,) = cur.fetchone()
+        if count == 0:
+            raise NotFound("not found: isu")
+
+        for cond in req:
+            if not is_valid_condition_format(cond.condition):
+                raise BadRequest("bad request body")
+
+            query = """
+                INSERT
+                INTO `isu_condition` (`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`)
+                VALUES (%s, %s, %s, %s, %s)
+                """
+            cur.execute(
+                query,
+                (
+                    jia_isu_uuid,
+                    datetime.fromtimestamp(cond.timestamp),
+                    cond.is_sitting,
+                    cond.condition,
+                    cond.message,
+                ),
+            )
+
+        cnx.commit()
+    except:
+        cnx.rollback()
+        raise
+    finally:
+        cnx.close()
+
+    return "", 201
 
 
 def get_index(**kwargs):
