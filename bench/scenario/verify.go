@@ -130,7 +130,7 @@ func verifyIsuList(res *http.Response, expectedReverse []*model.Isu, isuList []*
 				// isu の検証 (latest_isu_condition)
 
 				// isu.latest_isu_condition が nil &&  前回の latestIsuCondition の timestamp が初期値ならば
-				if isu.LatestIsuCondition == nil && expected.LastReadConditionTimestamp == 0 {
+				if isu.LatestIsuCondition == nil && expected.LastReadConditionTimestamps[0] == 0 {
 					// この ISU はまだ poster から condition を受け取っていないため skip
 				} else {
 					func() {
@@ -154,7 +154,7 @@ func verifyIsuList(res *http.Response, expectedReverse []*model.Isu, isuList []*
 									expectedCondition.ConditionLevel.Equal(isu.LatestIsuCondition.ConditionLevel) &&
 									expectedCondition.Message == isu.LatestIsuCondition.Message) {
 									errs = append(errs, errorMismatch(res, "%d番目の椅子 (ID=%s) の情報が異なります: latest_isu_conditionの内容が不正です", i+1, isu.JIAIsuUUID))
-								} else if expected.LastReadConditionTimestamp < isu.LatestIsuCondition.Timestamp {
+								} else if expected.LastReadConditionTimestamps[0] < isu.LatestIsuCondition.Timestamp {
 									// もし前回の latestIsuCondition の timestamp より新しいならばカウンタをインクリメント
 									// 更新はここではなく、conditionを見て加点したタイミングで更新
 									newConditionUUIDs = append(newConditionUUIDs, isu.JIAIsuUUID)
@@ -177,7 +177,8 @@ func verifyIsuList(res *http.Response, expectedReverse []*model.Isu, isuList []*
 //mustExistUntil: この値以下のtimestampを持つものは全て反映されているべき
 func verifyIsuConditions(res *http.Response,
 	targetUser *model.User, targetIsuUUID string, request *service.GetIsuConditionRequest,
-	backendData []*service.GetIsuConditionResponse) error {
+	backendData []*service.GetIsuConditionResponse,
+	mustExistTimestamps [service.ConditionLimit]int64) error {
 
 	//limitを超えているかチェック
 	if service.ConditionLimit < len(backendData) {
@@ -278,6 +279,36 @@ func verifyIsuConditions(res *http.Response,
 	}(); err != nil {
 		return err
 	}
+
+	//mustExistTimestamps
+	mustExistIndex := 0
+	for request.EndTime <= mustExistTimestamps[mustExistIndex] {
+		mustExistIndex++
+		if service.ConditionLimit <= mustExistIndex {
+			break
+		}
+	}
+	for _, c := range backendData {
+		if service.ConditionLimit <= mustExistIndex {
+			break
+		}
+
+		if mustExistTimestamps[mustExistIndex] < c.Timestamp {
+			continue
+		}
+		if mustExistTimestamps[mustExistIndex] == c.Timestamp {
+			mustExistIndex++
+			continue
+		}
+		return errorInvalid(res, "以前に存在を確認したデータが欠落しています")
+	}
+	if len(backendData) < service.ConditionLimit && mustExistIndex < service.ConditionLimit && mustExistTimestamps[mustExistIndex] != 0 {
+		if request.StartTime == nil || *request.StartTime <= mustExistTimestamps[mustExistIndex] {
+			//まだ表示されるべきデータが残っている
+			return errorInvalid(res, "limitに満たない件数のデータが返されました: 以前に存在を確認したデータが欠落しています")
+		}
+	}
+
 	return nil
 }
 
@@ -624,8 +655,11 @@ func (s *Scenario) verifyTrend(
 	var characterSet model.IsuCharacterSet
 	// レスポンスの要素にある ISU の ID を格納するための set
 	isuIDSet := make(map[int]struct{}, 8192)
-	// 新規 conditions の数を取得
+	// 新規 conditions の数を格納するための変数
 	var newConditionNum int
+
+	// 前回 getTrend 実行時の ISU の数を取得
+	previousConditionNum := viewer.NumOfIsu()
 
 	for _, trendOne := range trendResp {
 
@@ -687,6 +721,10 @@ func (s *Scenario) verifyTrend(
 
 							// 該当 condition が新規のものである場合はキャッシュを更新
 							if !viewer.ConditionAlreadyVerified(condition.IsuID, condition.Timestamp) {
+								// 該当 condition が以前のものよりも昔の timestamp で無いことの検証
+								if !viewer.ConditionIsUpdated(condition.IsuID, condition.Timestamp) {
+									return errorMismatch(res, "以前の取得結果よりも古いタイムスタンプのコンディションが返されています")
+								}
 								viewer.SetVerifiedCondition(condition.IsuID, condition.Timestamp)
 								// 一秒前(仮想時間で16時間40分以上前)よりあとのものならカウンタをインクリメント
 								if condition.Timestamp > s.ToVirtualTime(requestTime.Add(-2*time.Second)).Unix() {
@@ -707,6 +745,10 @@ func (s *Scenario) verifyTrend(
 	// characterSet の検証
 	if !characterSet.IsFull() {
 		return 0, errorInvalid(res, "全ての性格のトレンドが取得できていません")
+	}
+	// trend のレスポンスに入っている ISU の数が expected な数以上あることの検証
+	if !(len(isuIDSet) >= previousConditionNum) {
+		return 0, errorInvalid(res, "ISU の個数が不足しています")
 	}
 	return newConditionNum, nil
 }

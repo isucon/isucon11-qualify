@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"runtime"
 	"runtime/pprof"
 	"sort"
 	"strings"
@@ -21,6 +22,7 @@ import (
 	"github.com/isucon/isucandar/agent"
 	"github.com/isucon/isucandar/failure"
 	"github.com/isucon/isucandar/score"
+	"github.com/pkg/profile"
 
 	// TODO: isucon11-portal に差し替え
 	"github.com/isucon/isucon10-portal/bench-tool.go/benchrun"
@@ -50,6 +52,7 @@ var (
 	targetAddress       string
 	targetableAddresses []string
 	profileFile         string
+	memProfileDir       string
 	jiaServiceURL       *url.URL
 	useTLS              bool
 	exitStatusOnFail    bool
@@ -91,6 +94,7 @@ func init() {
 	// TODO: 環境変数名を portal チームから共有されたものに差し替える
 	flag.StringVar(&targetableAddressesStr, "targetable-addresses", getEnv("ISUXBENCH_TARGETABLE_ADDRESSES", ""), `ex: "192.168.0.1 192.168.0.2 192.168.0.3" (space separated, limit 3)`)
 	flag.StringVar(&profileFile, "profile", "", "ex: cpu.out")
+	flag.StringVar(&memProfileDir, "mem-profile", "", "path of output heap profile at max memStats.sys allocated. ex: memprof")
 	flag.BoolVar(&exitStatusOnFail, "exit-status", false, "set exit status non-zero when a benchmark result is failing")
 	flag.BoolVar(&useTLS, "tls", false, "true if target server is a tls")
 	flag.BoolVar(&noLoad, "no-load", false, "exit on finished prepare")
@@ -296,6 +300,24 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
+	if memProfileDir != "" {
+		var maxMemStats runtime.MemStats
+		go func() {
+			for {
+				time.Sleep(5 * time.Second)
+
+				var ms runtime.MemStats
+				runtime.ReadMemStats(&ms)
+				logger.AdminLogger.Printf("system: %d Kb, heap: %d Kb", ms.Sys/1024, ms.HeapAlloc/1024)
+
+				if ms.Sys > maxMemStats.Sys {
+					profile.Start(profile.MemProfile, profile.ProfilePath(memProfileDir)).Stop()
+					maxMemStats = ms
+				}
+			}
+		}()
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -391,9 +413,6 @@ func main() {
 			return nil
 		default:
 		}
-
-		// 初期実装だと fail してしまうため下駄をはかせる
-		step.AddScore(scenario.ScoreStartBenchmark)
 
 		for {
 			// 途中経過を3秒毎に送信
