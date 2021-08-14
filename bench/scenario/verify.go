@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -481,10 +480,11 @@ func verifyResources(page PageType, res *http.Response, resources agent.Resource
 }
 
 func errorHtmlChecksum(res *http.Response, body io.Reader, path string) error {
-	if res.StatusCode == 304 {
-		return nil
-	}
-	if err := verifyStatusCode(res, http.StatusOK); err != nil {
+	//前回の取得が成功している保証が無い為
+	// if res.StatusCode == 304 {
+	// 	return nil
+	// }
+	if err := verifyStatusCodes(res, []int{http.StatusOK, http.StatusNotModified}); err != nil {
 		return err
 	}
 
@@ -512,11 +512,8 @@ func errorChecksum(base string, resource *agent.Resource, path string) error {
 	}
 
 	if resource.Error != nil {
-		var nerr net.Error
-		if failure.As(resource.Error, &nerr) {
-			if nerr.Timeout() || nerr.Temporary() {
-				return nerr
-			}
+		if isTimeout(resource.Error) {
+			return resource.Error
 		}
 		return errorCheckSum("リソースの取得に失敗しました: %s: %v", path, resource.Error)
 	}
