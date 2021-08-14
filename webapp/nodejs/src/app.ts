@@ -188,21 +188,51 @@ async function getJIAServiceUrl(db: mysql.Connection): Promise<string> {
   return config.url;
 }
 
+interface PostInitializeRequest {
+  jia_service_url: string;
+}
+
+function isValidPostInitializeRequest(
+  body: PostInitializeRequest
+): body is PostInitializeRequest {
+  return typeof body === "object" && typeof body.jia_service_url === "string";
+}
+
 // POST /initialize
 // サービスを初期化
-app.post("/initialize", async (_req, res) => {
-  // TODO
+app.post(
+  "/initialize",
+  async (req: express.Request<{}, any, PostInitializeRequest>, res) => {
+    const request = req.body;
+    if (!isValidPostInitializeRequest(request)) {
+      return res.status(400).type("text").send("bad request body");
+    }
 
-  try {
-    const { stderr } = await promisify(execFile)("../sql/init.sh");
-    console.log(stderr);
-  } catch (err) {
-    console.error(`exec init.sh error: ${err}`);
-    return res.status(500).send();
+    try {
+      const { stderr } = await promisify(execFile)("../sql/init.sh");
+      console.log(stderr);
+    } catch (err) {
+      console.error(`exec init.sh error: ${err}`);
+      return res.status(500).send();
+    }
+
+    const db = await pool.getConnection();
+    try {
+      await db.query(
+        "INSERT INTO `isu_association_config` (`name`, `url`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `url` = VALUES(`url`)",
+        ["jia_service_url", request.jia_service_url]
+      );
+    } catch (err) {
+      console.error(`db error: ${err}`);
+      return res.status(500).send();
+    } finally {
+      db.release();
+    }
+
+    const initializeResponse: InitializeReponse = { language: "nodejs" };
+    return res.status(200).json(initializeResponse);
   }
-  const initializeResponse: InitializeReponse = { language: "nodejs" };
-  return res.status(200).json(initializeResponse);
-});
+);
 
 // POST /api/auth
 // サインアップ・サインイン
@@ -1028,9 +1058,9 @@ interface PostIsuConditionRequest {
   timestamp: number;
 }
 
-const isValidPostIsuConditionRequest = (
+function isValidPostIsuConditionRequest(
   body: PostIsuConditionRequest[]
-): body is PostIsuConditionRequest[] => {
+): body is PostIsuConditionRequest[] {
   return (
     Array.isArray(body) &&
     body.every((data) => {
@@ -1042,7 +1072,7 @@ const isValidPostIsuConditionRequest = (
       );
     })
   );
-};
+}
 
 // POST /api/condition/:jia_isu_uuid
 // ISUからのコンディションを受け取る
