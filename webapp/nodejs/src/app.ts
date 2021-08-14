@@ -251,10 +251,10 @@ app.post("/api/auth", async (req, res) => {
     if (typeof jiaUserId !== "string") {
       return res.status(400).type("text").send("invalid JWT payload");
     }
-    await db.query(
-      "INSERT IGNORE INTO user (`jia_user_id`) VALUES (?)",
-      jiaUserId
-    );
+    await db.query("INSERT IGNORE INTO user (`jia_user_id`) VALUES (?)", [
+      jiaUserId,
+    ]);
+
     req.session = { jia_user_id: jiaUserId };
     return res.status(200).send();
   } catch (err) {
@@ -884,7 +884,7 @@ app.get(
           conditionLimit,
           row.name
         );
-      res.send(200).json(conditionResponse);
+      res.status(200).json(conditionResponse);
     } catch (err) {
       console.error(`db error: ${err}`);
       return res.status(500).send();
@@ -1109,6 +1109,7 @@ app.post(
         [jiaIsuUUID]
       );
       if (cnt === 0) {
+        await db.rollback();
         return res.status(404).type("text").send("not found: isu");
       }
 
@@ -1116,6 +1117,7 @@ app.post(
         const timestamp = new Date(cond.timestamp * 1000);
 
         if (!isValidConditionFormat(cond.condition)) {
+          await db.rollback();
           return res.status(400).type("text").send("bad request body");
         }
 
