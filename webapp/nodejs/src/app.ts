@@ -203,7 +203,10 @@ function isValidPostInitializeRequest(
 // サービスを初期化
 app.post(
   "/initialize",
-  async (req: express.Request<{}, any, PostInitializeRequest>, res) => {
+  async (
+    req: express.Request<Record<string, never>, any, PostInitializeRequest>,
+    res
+  ) => {
     const request = req.body;
     if (!isValidPostInitializeRequest(request)) {
       return res.status(400).type("text").send("bad request body");
@@ -390,110 +393,114 @@ interface PostIsuBody {
 
 // POST /api/isu
 // ISUを登録
-app.post("/api/isu", (req: express.Request<{}, any, PostIsuBody>, res) => {
-  upload.single("image")(req, res, async (uploadErr) => {
-    const db = await pool.getConnection();
-    try {
-      const [jiaUserId, errStatusCode, err] = await getUserIdFromSession(
-        req,
-        db
-      );
-      if (err) {
-        if (errStatusCode === 401) {
-          return res.status(401).type("text").send("you are not signed in");
-        }
-        console.error(err);
-        return res.status(500).send();
-      }
-
-      const jiaIsuUUID = req.body.jia_isu_uuid;
-      const isuName = req.body.isu_name;
-      if (uploadErr instanceof MulterError) {
-        // TODO
-      }
-
-      let image: Buffer;
-      if (!req.file) {
-        image = fs.readFileSync(defaultIconFilePath);
-      } else {
-        image = req.file.buffer;
-      }
-
-      await db.beginTransaction();
-
+app.post(
+  "/api/isu",
+  (req: express.Request<Record<string, never>, any, PostIsuBody>, res) => {
+    upload.single("image")(req, res, async (uploadErr) => {
+      const db = await pool.getConnection();
       try {
-        await db.query(
-          "INSERT INTO `isu` (`jia_isu_uuid`, `name`, `image`, `jia_user_id`) VALUES (?, ?, ?, ?)",
-          [jiaIsuUUID, isuName, image, jiaUserId]
+        const [jiaUserId, errStatusCode, err] = await getUserIdFromSession(
+          req,
+          db
         );
-      } catch (err) {
-        await db.rollback();
-        if (err.errno === mysqlErrNumDuplicateEntry) {
-          return res.status(409).type("text").send("duplicated: isu");
-        } else {
-          console.error(`db error: ${err}`);
+        if (err) {
+          if (errStatusCode === 401) {
+            return res.status(401).type("text").send("you are not signed in");
+          }
+          console.error(err);
           return res.status(500).send();
         }
-      }
 
-      const targetUrl = (await getJIAServiceUrl(db)) + "/api/activate";
-
-      let isuFromJIA: { character: string };
-      try {
-        const response = await axios.post(
-          targetUrl,
-          {
-            target_base_url: postIsuConditionTargetBaseURL,
-            isu_uuid: jiaIsuUUID,
-          },
-          {
-            validateStatus: (status) => status < 500,
-          }
-        );
-        if (response.status !== 202) {
-          console.error(
-            `JIAService returned error: status code ${response.status}, message: ${response.data}`
-          );
-          await db.rollback();
-          return res
-            .status(response.status)
-            .type("text")
-            .send("JIAService returned error");
+        const request = req.body;
+        const jiaIsuUUID = request.jia_isu_uuid;
+        const isuName = request.isu_name;
+        if (uploadErr instanceof MulterError) {
+          // TODO
         }
-        isuFromJIA = response.data;
+
+        let image: Buffer;
+        if (!req.file) {
+          image = fs.readFileSync(defaultIconFilePath);
+        } else {
+          image = req.file.buffer;
+        }
+
+        await db.beginTransaction();
+
+        try {
+          await db.query(
+            "INSERT INTO `isu` (`jia_isu_uuid`, `name`, `image`, `jia_user_id`) VALUES (?, ?, ?, ?)",
+            [jiaIsuUUID, isuName, image, jiaUserId]
+          );
+        } catch (err) {
+          await db.rollback();
+          if (err.errno === mysqlErrNumDuplicateEntry) {
+            return res.status(409).type("text").send("duplicated: isu");
+          } else {
+            console.error(`db error: ${err}`);
+            return res.status(500).send();
+          }
+        }
+
+        const targetUrl = (await getJIAServiceUrl(db)) + "/api/activate";
+
+        let isuFromJIA: { character: string };
+        try {
+          const response = await axios.post(
+            targetUrl,
+            {
+              target_base_url: postIsuConditionTargetBaseURL,
+              isu_uuid: jiaIsuUUID,
+            },
+            {
+              validateStatus: (status) => status < 500,
+            }
+          );
+          if (response.status !== 202) {
+            console.error(
+              `JIAService returned error: status code ${response.status}, message: ${response.data}`
+            );
+            await db.rollback();
+            return res
+              .status(response.status)
+              .type("text")
+              .send("JIAService returned error");
+          }
+          isuFromJIA = response.data;
+        } catch (err) {
+          console.error(`failed to request to JIAService: ${err}`);
+          await db.rollback();
+          return res.status(500).send();
+        }
+
+        await db.query(
+          "UPDATE `isu` SET `character` = ? WHERE  `jia_isu_uuid` = ?",
+          [isuFromJIA.character, jiaIsuUUID]
+        );
+        const [[isu]] = await db.query<Isu[]>(
+          "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
+          [jiaUserId, jiaIsuUUID]
+        );
+
+        await db.commit();
+
+        const isuResponse: IsuResponse = {
+          id: isu.id,
+          jia_isu_uuid: isu.jia_isu_uuid,
+          name: isu.name,
+          character: isu.character,
+        };
+        return res.status(201).send(isuResponse);
       } catch (err) {
-        console.error(`failed to request to JIAService: ${err}`);
+        console.error(`db error: ${err}`);
         await db.rollback();
         return res.status(500).send();
+      } finally {
+        db.release();
       }
-
-      await db.query(
-        "UPDATE `isu` SET `character` = ? WHERE  `jia_isu_uuid` = ?",
-        [isuFromJIA.character, jiaIsuUUID]
-      );
-      const [[isu]] = await db.query<Isu[]>(
-        "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
-        [jiaUserId, jiaIsuUUID]
-      );
-
-      await db.commit();
-
-      const isuResponse: IsuResponse = {
-        id: isu.id,
-        jia_isu_uuid: isu.jia_isu_uuid,
-        name: isu.name,
-        character: isu.character,
-      };
-      return res.status(201).send(isuResponse);
-    } catch (err) {
-      console.error(`db error: ${err}`);
-      await db.rollback();
-      return res.status(500).send();
-    } finally {
-      db.release();
-    }
-  });
-});
+    });
+  }
+);
 
 // GET /api/isu/:jia_isu_uuid
 // ISUの情報を取得
