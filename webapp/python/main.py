@@ -84,7 +84,7 @@ class GraphDataPointWithInfo:
     jia_isu_uuid: str
     start_at: datetime
     data: GraphDataPoint
-    condition_timestamps: list
+    condition_timestamps: list[int]
 
 
 @dataclass
@@ -92,7 +92,7 @@ class GraphResponse:
     start_at: int
     end_at: int
     data: GraphDataPoint
-    condition_timestamps: list
+    condition_timestamps: list[int]
 
 
 @dataclass
@@ -124,9 +124,9 @@ class TrendCondition:
 @dataclass
 class TrendResponse:
     character: str
-    info: TrendCondition
-    warning: TrendCondition
-    critical: TrendCondition
+    info: list[TrendCondition]
+    warning: list[TrendCondition]
+    critical: list[TrendCondition]
 
 
 @dataclass
@@ -299,25 +299,25 @@ def get_isu_list():
 
         formatted_condition = None
         if found_last_condition:
-            condition_level = calculate_condition_level(last_condition.condition)
             formatted_condition = GetIsuConditionResponse(
                 jia_isu_uuid=last_condition.jia_isu_uuid,
                 isu_name=isu.name,
                 timestamp=int(last_condition.timestamp.timestamp()),
                 is_sitting=last_condition.is_sitting,
                 condition=last_condition.condition,
-                condition_level=condition_level,
+                condition_level=calculate_condition_level(last_condition.condition),
                 message=last_condition.message,
             )
 
-        res = GetIsuListResponse(
-            id=isu.id,
-            jia_isu_uuid=isu.jia_isu_uuid,
-            name=isu.name,
-            character=isu.character,
-            latest_isu_condition=formatted_condition,
+        response_list.append(
+            GetIsuListResponse(
+                id=isu.id,
+                jia_isu_uuid=isu.jia_isu_uuid,
+                name=isu.name,
+                character=isu.character,
+                latest_isu_condition=formatted_condition,
+            )
         )
-        response_list.append(res)
 
     return jsonify(response_list)
 
@@ -562,23 +562,15 @@ def calculate_graph_data_point(isu_conditions: list[IsuCondition]) -> GraphDataP
 
     isu_conditions_length = len(isu_conditions)
 
-    score = raw_score / isu_conditions_length
-
-    sitting_percentage = sitting_count * 100 / isu_conditions_length
-    is_broken_percentage = conditions_count["is_broken"] * 100 / isu_conditions_length
-    is_overweight_percentage = conditions_count["is_overweight"] * 100 / isu_conditions_length
-    is_dirty_percentage = conditions_count["is_dirty"] * 100 / isu_conditions_length
-
-    data_point = GraphDataPoint(
-        score=score,
+    return GraphDataPoint(
+        score=int(raw_score / isu_conditions_length),
         percentage=ConditionsPercentage(
-            sitting=int(sitting_percentage),
-            is_broken=int(is_broken_percentage),
-            is_overweight=int(is_overweight_percentage),
-            is_dirty=int(is_dirty_percentage),
+            sitting=int(sitting_count * 100 / isu_conditions_length),
+            is_broken=int(conditions_count["is_broken"] * 100 / isu_conditions_length),
+            is_overweight=int(conditions_count["is_overweight"] * 100 / isu_conditions_length),
+            is_dirty=int(conditions_count["is_dirty"] * 100 / isu_conditions_length),
         ),
     )
-    return data_point
 
 
 @app.route("/api/condition/<jia_isu_uuid>", methods=["GET"])
@@ -610,7 +602,7 @@ def get_isu_confitions(jia_isu_uuid):
         raise NotFound("not found: isu")
     isu_name = row["name"]
 
-    condition_response = get_isu_condition_from_db(
+    condition_response = get_isu_conditions_from_db(
         jia_isu_uuid,
         end_time,
         condition_level,
@@ -622,7 +614,7 @@ def get_isu_confitions(jia_isu_uuid):
     return jsonify(condition_response)
 
 
-def get_isu_condition_from_db(
+def get_isu_conditions_from_db(
     jia_isu_uuid: str,
     end_time: datetime,
     condition_level: dict,
