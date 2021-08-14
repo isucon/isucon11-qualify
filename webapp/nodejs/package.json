@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon --watch src --exec ts-node src/app.ts"
+    "dev": "nodemon --watch src --exec ts-node src/app.ts",
+    "build": "tsc --build ./tsconfig.json",
+    "start": "node ./build/app.js"
   },
   "keywords": [],
   "author": "",

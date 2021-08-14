@@ -2,6 +2,10 @@
 up-go:
 	docker-compose -f docker-compose-dev.yml up --build -- backend-go mysql-backend jiaapi-mock
 
+.PHONY: up-nodejs
+up-nodejs:
+	docker-compose -f docker-compose-dev.yml up --build -- backend-nodejs mysql-backend jiaapi-mock
+
 .PHONY: down-dev
 down-dev:
 	docker-compose -f docker-compose-dev.yml down
@@ -9,6 +13,10 @@ down-dev:
 .PHONY: test-go
 test-go:
 	target=go make test
+
+.PHONY: test-nodejs
+test-nodejs:
+	target=nodejs make test
 
 .PHONY: test
 test:
