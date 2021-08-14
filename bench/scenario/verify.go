@@ -178,7 +178,8 @@ func verifyIsuList(res *http.Response, expectedReverse []*model.Isu, isuList []*
 func verifyIsuConditions(res *http.Response,
 	targetUser *model.User, targetIsuUUID string, request *service.GetIsuConditionRequest,
 	backendData []*service.GetIsuConditionResponse,
-	mustExistTimestamps [service.ConditionLimit]int64) error {
+	mustExistTimestamps [service.ConditionLimit]int64,
+	requestTimeUnix int64) error {
 
 	//limitを超えているかチェック
 	if service.ConditionLimit < len(backendData) {
@@ -276,9 +277,8 @@ func verifyIsuConditions(res *http.Response,
 			lastSort = nowSort
 
 			// GET /api/isu/:id/graph と連動してる読んだ時間を更新
-			nowTime := time.Now().Unix()
-			if expected.ReadTime > nowTime {
-				expected.ReadTime = nowTime
+			if expected.ReadTime > requestTimeUnix {
+				expected.ReadTime = requestTimeUnix
 			}
 		}
 		return nil
@@ -549,7 +549,8 @@ func errorChecksum(base string, resource *agent.Resource, path string) error {
 func verifyGraph(
 	res *http.Response, targetUser *model.User, targetIsuUUID string,
 	getGraphReq *service.GetGraphRequest,
-	getGraphResp service.GraphResponse) error {
+	getGraphResp service.GraphResponse,
+	requestTimeUnix int64) error {
 
 	// graphResp の配列は必ず 24 つ (24時間分) である
 	if len(getGraphResp) != 24 {
@@ -619,9 +620,8 @@ func verifyGraph(
 						conditionsBaseOfScore = append(conditionsBaseOfScore, expected)
 
 						// GET /api/condition/:id と連動してる読んだ時間を更新
-						nowTime := time.Now().Unix()
-						if expected.ReadTime > nowTime {
-							expected.ReadTime = nowTime
+						if expected.ReadTime > requestTimeUnix {
+							expected.ReadTime = requestTimeUnix
 						}
 						break //ok
 					}
