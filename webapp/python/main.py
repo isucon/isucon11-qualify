@@ -107,6 +107,15 @@ class GetIsuConditionResponse:
 
 
 @dataclass
+class GetIsuListResponse:
+    id: int
+    jia_isu_uuid: str
+    name: str
+    character: str
+    latest_isu_condition: GetIsuConditionResponse
+
+
+@dataclass
 class TrendCondition:
     isu_id: int
     timestamp: int
@@ -277,35 +286,37 @@ def get_isu_list():
     jia_user_id = get_user_id_from_session()
 
     query = "SELECT * FROM `isu` WHERE `jia_user_id` = %s ORDER BY `id` DESC"
-    isu_list = select_all(query, (jia_user_id,))
+    isu_list = [Isu(**row) for row in select_all(query, (jia_user_id,))]
 
     response_list = []
     for isu in isu_list:
         found_last_condition = True
         query = "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = %s ORDER BY `timestamp` DESC LIMIT 1"
-        last_condition = select_row(query, (isu["jia_isu_uuid"],))
+        last_condition = select_row(query, (isu.jia_isu_uuid,))
         if last_condition is None:
             found_last_condition = False
+        last_condition = IsuCondition(**last_condition)
 
         formatted_condition = None
         if found_last_condition:
-            condition_level = calculate_condition_level(last_condition["condition"])
-            formatted_condition = {
-                "jia_isu_uuid": last_condition["jia_isu_uuid"],
-                "isu_name": isu["name"],
-                "timestamp": last_condition["timestamp"].timestamp(),
-                "condition": last_condition["condition"],
-                "condition_level": condition_level,
-                "message": last_condition["message"],
-            }
+            condition_level = calculate_condition_level(last_condition.condition)
+            formatted_condition = GetIsuConditionResponse(
+                jia_isu_uuid=last_condition.jia_isu_uuid,
+                isu_name=isu.name,
+                timestamp=int(last_condition.timestamp.timestamp()),
+                is_sitting=last_condition.is_sitting,
+                condition=last_condition.condition,
+                condition_level=condition_level,
+                message=last_condition.message,
+            )
 
-        res = {
-            "id": isu["id"],
-            "jia_isu_uuid": isu["jia_isu_uuid"],
-            "name": isu["name"],
-            "character": isu["character"],
-            "latest_isu_condition": formatted_condition,
-        }
+        res = GetIsuListResponse(
+            id=isu.id,
+            jia_isu_uuid=isu.jia_isu_uuid,
+            name=isu.name,
+            character=isu.character,
+            latest_isu_condition=formatted_condition,
+        )
         response_list.append(res)
 
     return jsonify(response_list)
