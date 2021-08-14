@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -104,6 +103,29 @@ func verifyIsuNotFound(res *http.Response, text string) error {
 
 //データ整合性チェック
 
+//Icon,LatestIsuConditionを除いたISUの整合性チェック
+func verifyIsu(res *http.Response, expected *model.Isu, actual *service.Isu) error {
+	if actual.JIAIsuUUID != expected.JIAIsuUUID {
+		return errorMismatch(res, "椅子が異なります(expected %s, actual %s)", expected.JIAIsuUUID, actual.JIAIsuUUID)
+	}
+	if actual.ID != expected.ID ||
+		actual.Character != expected.Character ||
+		actual.Name != expected.Name {
+		return errorMismatch(res, "椅子(JIA_ISU_UUID=%s)の情報が異なります", expected.JIAIsuUUID)
+	}
+	return nil
+}
+
+func verifyIsuIcon(expected *model.Isu, actual []byte, actualStatusCode int) error {
+	if expected.ImageHash != md5.Sum(actual) {
+		return failure.NewError(ErrMismatch, errorFormatWithURI(
+			actualStatusCode, http.MethodGet, "/api/isu/"+expected.JIAIsuUUID+"/icon",
+			"椅子 (JIA_ISU_UUID=%s) のiconが異なります", expected.JIAIsuUUID,
+		))
+	}
+	return nil
+}
+
 func verifyIsuList(res *http.Response, expectedReverse []*model.Isu, isuList []*service.Isu) ([]string, []error) {
 	errs := []error{}
 	var newConditionUUIDs []string
@@ -116,60 +138,58 @@ func verifyIsuList(res *http.Response, expectedReverse []*model.Isu, isuList []*
 
 		expected := expectedReverse[length-1-i]
 
-		// isu の検証 (jia_isu_uuid)
-		if expected.JIAIsuUUID == isu.JIAIsuUUID {
-			//iconはエンドポイントが別なので、別枠で検証
-			if isu.Icon == nil {
-				//icon取得失敗(エラー追加済み)
-			} else if expected.ImageHash != md5.Sum(isu.Icon) {
-				errs = append(errs, errorMismatch(res, "%d番目の椅子 (ID=%s) のiconが異なります", i+1, isu.JIAIsuUUID))
-			}
-
-			// isu の検証 (character, name)
-			if expected.Character == isu.Character && expected.Name == isu.Name {
-				// isu の検証 (latest_isu_condition)
-
-				// isu.latest_isu_condition が nil &&  前回の latestIsuCondition の timestamp が初期値ならば
-				if isu.LatestIsuCondition == nil && expected.LastReadConditionTimestamp == 0 {
-					// この ISU はまだ poster から condition を受け取っていないため skip
-				} else {
-					func() {
-						expected.CondMutex.RLock()
-						defer expected.CondMutex.RUnlock()
-
-						baseIter := expected.Conditions.End(model.ConditionLevelInfo | model.ConditionLevelWarning | model.ConditionLevelCritical)
-						for {
-							expectedCondition := baseIter.Prev()
-							if expectedCondition == nil || expectedCondition.TimestampUnix < isu.LatestIsuCondition.Timestamp {
-								errs = append(errs, errorMismatch(res, "%d番目の椅子 (ID=%s) の情報が異なります: POSTに成功していない時刻のデータが返されました", i+1, isu.JIAIsuUUID))
-								break
-							}
-
-							if expectedCondition.TimestampUnix == isu.LatestIsuCondition.Timestamp {
-								// timestamp 以外の要素を検証
-								if !(expected.JIAIsuUUID == isu.LatestIsuCondition.JIAIsuUUID &&
-									expected.Name == isu.LatestIsuCondition.IsuName &&
-									expectedCondition.IsSitting == isu.LatestIsuCondition.IsSitting &&
-									expectedCondition.ConditionString() == isu.LatestIsuCondition.Condition &&
-									expectedCondition.ConditionLevel.Equal(isu.LatestIsuCondition.ConditionLevel) &&
-									expectedCondition.Message == isu.LatestIsuCondition.Message) {
-									errs = append(errs, errorMismatch(res, "%d番目の椅子 (ID=%s) の情報が異なります: latest_isu_conditionの内容が不正です", i+1, isu.JIAIsuUUID))
-								} else if expected.LastReadConditionTimestamp < isu.LatestIsuCondition.Timestamp {
-									// もし前回の latestIsuCondition の timestamp より新しいならばカウンタをインクリメント
-									// 更新はここではなく、conditionを見て加点したタイミングで更新
-									newConditionUUIDs = append(newConditionUUIDs, isu.JIAIsuUUID)
-								}
-								break
-							}
-						}
-					}()
-				}
-			} else {
-				errs = append(errs, errorMismatch(res, "%d番目の椅子 (ID=%s) の情報が異なります", i+1, isu.JIAIsuUUID))
-			}
-		} else {
-			errs = append(errs, errorMismatch(res, "%d番目の椅子 (ID=%s) が異なります: expected: ID=%s", i+1, isu.JIAIsuUUID, expected.JIAIsuUUID))
+		//iconはエンドポイントが別なので、別枠で検証
+		if isu.Icon == nil {
+			//icon取得失敗(エラー追加済み)
+		} else if expected.ImageHash != md5.Sum(isu.Icon) {
+			//TODO: issue #1119 resが対応していない
+			errs = append(errs, errorMismatch(res, "%d番目の椅子 (JIA_ISU_UUID=%s) のiconが異なります", i+1, isu.JIAIsuUUID))
 		}
+
+		// isu の検証
+		err := verifyIsu(res, expected, isu)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+
+		// isu の検証 (latest_isu_condition)
+
+		// isu.latest_isu_condition が nil &&  前回の latestIsuCondition の timestamp が初期値ならば
+		if isu.LatestIsuCondition == nil && expected.LastReadConditionTimestamps[0] == 0 {
+			// この ISU はまだ poster から condition を受け取っていないため skip
+			continue
+		}
+		func() {
+			expected.CondMutex.RLock()
+			defer expected.CondMutex.RUnlock()
+
+			baseIter := expected.Conditions.End(model.ConditionLevelInfo | model.ConditionLevelWarning | model.ConditionLevelCritical)
+			for {
+				expectedCondition := baseIter.Prev()
+				if expectedCondition == nil || expectedCondition.TimestampUnix < isu.LatestIsuCondition.Timestamp {
+					errs = append(errs, errorMismatch(res, "%d番目の椅子 (JIA_ISU_UUID=%s) の情報が異なります: POSTに成功していない時刻のデータが返されました", i+1, isu.JIAIsuUUID))
+					break
+				}
+
+				if expectedCondition.TimestampUnix == isu.LatestIsuCondition.Timestamp {
+					// timestamp 以外の要素を検証
+					if !(expected.JIAIsuUUID == isu.LatestIsuCondition.JIAIsuUUID &&
+						expected.Name == isu.LatestIsuCondition.IsuName &&
+						expectedCondition.IsSitting == isu.LatestIsuCondition.IsSitting &&
+						expectedCondition.ConditionString() == isu.LatestIsuCondition.Condition &&
+						expectedCondition.ConditionLevel.Equal(isu.LatestIsuCondition.ConditionLevel) &&
+						expectedCondition.Message == isu.LatestIsuCondition.Message) {
+						errs = append(errs, errorMismatch(res, "%d番目の椅子 (JIA_ISU_UUID=%s) の情報が異なります: latest_isu_conditionの内容が不正です", i+1, isu.JIAIsuUUID))
+					} else if expected.LastReadConditionTimestamps[0] < isu.LatestIsuCondition.Timestamp {
+						// もし前回の latestIsuCondition の timestamp より新しいならばカウンタをインクリメント
+						// 更新はここではなく、conditionを見て加点したタイミングで更新
+						newConditionUUIDs = append(newConditionUUIDs, isu.JIAIsuUUID)
+					}
+					break
+				}
+			}
+		}()
 	}
 	return newConditionUUIDs, errs
 }
@@ -177,10 +197,11 @@ func verifyIsuList(res *http.Response, expectedReverse []*model.Isu, isuList []*
 //mustExistUntil: この値以下のtimestampを持つものは全て反映されているべき
 func verifyIsuConditions(res *http.Response,
 	targetUser *model.User, targetIsuUUID string, request *service.GetIsuConditionRequest,
-	backendData []*service.GetIsuConditionResponse) error {
+	backendData []*service.GetIsuConditionResponse,
+	mustExistTimestamps [service.ConditionLimit]int64) error {
 
 	//limitを超えているかチェック
-	if conditionLimit < len(backendData) {
+	if service.ConditionLimit < len(backendData) {
 		return errorInvalid(res, "要素数が正しくありません")
 	}
 	//レスポンス側のstartTimeのチェック
@@ -278,6 +299,36 @@ func verifyIsuConditions(res *http.Response,
 	}(); err != nil {
 		return err
 	}
+
+	//mustExistTimestamps
+	mustExistIndex := 0
+	for request.EndTime <= mustExistTimestamps[mustExistIndex] {
+		mustExistIndex++
+		if service.ConditionLimit <= mustExistIndex {
+			break
+		}
+	}
+	for _, c := range backendData {
+		if service.ConditionLimit <= mustExistIndex {
+			break
+		}
+
+		if mustExistTimestamps[mustExistIndex] < c.Timestamp {
+			continue
+		}
+		if mustExistTimestamps[mustExistIndex] == c.Timestamp {
+			mustExistIndex++
+			continue
+		}
+		return errorInvalid(res, "以前に存在を確認したデータが欠落しています")
+	}
+	if len(backendData) < service.ConditionLimit && mustExistIndex < service.ConditionLimit && mustExistTimestamps[mustExistIndex] != 0 {
+		if request.StartTime == nil || *request.StartTime <= mustExistTimestamps[mustExistIndex] {
+			//まだ表示されるべきデータが残っている
+			return errorInvalid(res, "limitに満たない件数のデータが返されました: 以前に存在を確認したデータが欠落しています")
+		}
+	}
+
 	return nil
 }
 
@@ -286,7 +337,7 @@ func verifyPrepareIsuConditions(res *http.Response,
 	backendData []*service.GetIsuConditionResponse) error {
 
 	//limitを超えているかチェック
-	if conditionLimit < len(backendData) {
+	if service.ConditionLimit < len(backendData) {
 		return errorInvalid(res, "要素数が正しくありません")
 	}
 	//レスポンス側のstartTimeのチェック
@@ -375,7 +426,7 @@ func verifyPrepareIsuConditions(res *http.Response,
 		// limitの検証
 		// response件数がlimitの数より少ないときは、bench側で条件に合うデータを更にもっていなければ正しい
 		prev := baseIter.Prev()
-		if len(backendData) < conditionLimit && prev != nil {
+		if len(backendData) < service.ConditionLimit && prev != nil {
 			if request.StartTime != nil && *request.StartTime <= prev.TimestampUnix {
 				return errorInvalid(res, "要素数が正しくありません")
 			}
@@ -440,10 +491,11 @@ func verifyResources(page PageType, res *http.Response, resources agent.Resource
 }
 
 func errorHtmlChecksum(res *http.Response, body io.Reader, path string) error {
-	if res.StatusCode == 304 {
-		return nil
-	}
-	if err := verifyStatusCode(res, http.StatusOK); err != nil {
+	//前回の取得が成功している保証が無い為
+	// if res.StatusCode == 304 {
+	// 	return nil
+	// }
+	if err := verifyStatusCodes(res, []int{http.StatusOK, http.StatusNotModified}); err != nil {
 		return err
 	}
 
@@ -471,11 +523,8 @@ func errorChecksum(base string, resource *agent.Resource, path string) error {
 	}
 
 	if resource.Error != nil {
-		var nerr net.Error
-		if failure.As(resource.Error, &nerr) {
-			if nerr.Timeout() || nerr.Temporary() {
-				return nerr
-			}
+		if isTimeout(resource.Error) {
+			return resource.Error
 		}
 		return errorCheckSum("リソースの取得に失敗しました: %s: %v", path, resource.Error)
 	}
@@ -624,8 +673,11 @@ func (s *Scenario) verifyTrend(
 	var characterSet model.IsuCharacterSet
 	// レスポンスの要素にある ISU の ID を格納するための set
 	isuIDSet := make(map[int]struct{}, 8192)
-	// 新規 conditions の数を取得
+	// 新規 conditions の数を格納するための変数
 	var newConditionNum int
+
+	// 前回 getTrend 実行時の ISU の数を取得
+	previousConditionNum := viewer.NumOfIsu()
 
 	for _, trendOne := range trendResp {
 
@@ -687,6 +739,10 @@ func (s *Scenario) verifyTrend(
 
 							// 該当 condition が新規のものである場合はキャッシュを更新
 							if !viewer.ConditionAlreadyVerified(condition.IsuID, condition.Timestamp) {
+								// 該当 condition が以前のものよりも昔の timestamp で無いことの検証
+								if !viewer.ConditionIsUpdated(condition.IsuID, condition.Timestamp) {
+									return errorMismatch(res, "以前の取得結果よりも古いタイムスタンプのコンディションが返されています")
+								}
 								viewer.SetVerifiedCondition(condition.IsuID, condition.Timestamp)
 								// 一秒前(仮想時間で16時間40分以上前)よりあとのものならカウンタをインクリメント
 								if condition.Timestamp > s.ToVirtualTime(requestTime.Add(-2*time.Second)).Unix() {
@@ -707,6 +763,10 @@ func (s *Scenario) verifyTrend(
 	// characterSet の検証
 	if !characterSet.IsFull() {
 		return 0, errorInvalid(res, "全ての性格のトレンドが取得できていません")
+	}
+	// trend のレスポンスに入っている ISU の数が expected な数以上あることの検証
+	if !(len(isuIDSet) >= previousConditionNum) {
+		return 0, errorInvalid(res, "ISU の個数が不足しています")
 	}
 	return newConditionNum, nil
 }
@@ -819,6 +879,15 @@ func verifyPrepareIsuList(res *http.Response, expectedReverse []*model.Isu, isuL
 	}
 	for i, isu := range isuList {
 		expected := expectedReverse[length-1-i]
+
+		// isu の検証 (jia_isu_uuid, id, character, name)
+		err := verifyIsu(res, expected, isu)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+
+		//LatestIsuCondition
 		func() {
 			expected.CondMutex.RLock()
 			defer expected.CondMutex.RUnlock()
@@ -833,30 +902,32 @@ func verifyPrepareIsuList(res *http.Response, expectedReverse []*model.Isu, isuL
 			}
 
 			if isu.LatestIsuCondition == nil {
-				errs = append(errs, errorMismatch(res, "%d番目の椅子 (ID=%s) の情報が異なります: 登録されている時刻のデータが返されていません", i+1, isu.JIAIsuUUID))
+				errs = append(errs, errorMismatch(res, "%d番目の椅子 (JIA_ISU_UUID=%s) の情報が異なります: 登録されている時刻のデータが返されていません", i+1, isu.JIAIsuUUID))
 				return
 			}
 			if expectedCondition == nil {
-				errs = append(errs, errorMismatch(res, "%d番目の椅子 (ID=%s) の情報が異なります: 登録されていない時刻のデータが返されました", i+1, isu.JIAIsuUUID))
+				errs = append(errs, errorMismatch(res, "%d番目の椅子 (JIA_ISU_UUID=%s) の情報が異なります: 登録されていない時刻のデータが返されました", i+1, isu.JIAIsuUUID))
 				return
 			}
 
-			// isu の検証 (jia_isu_uuid, id, character, name)
-			if expected.JIAIsuUUID == isu.JIAIsuUUID && expected.ID == isu.ID && expected.Character == isu.Character && expected.Name == isu.Name {
-				// conditionの検証
-				if !(expectedCondition.TimestampUnix == isu.LatestIsuCondition.Timestamp &&
-					expected.JIAIsuUUID == isu.LatestIsuCondition.JIAIsuUUID &&
-					expected.Name == isu.LatestIsuCondition.IsuName &&
-					expectedCondition.IsSitting == isu.LatestIsuCondition.IsSitting &&
-					expectedCondition.ConditionString() == isu.LatestIsuCondition.Condition &&
-					expectedCondition.ConditionLevel.Equal(isu.LatestIsuCondition.ConditionLevel) &&
-					expectedCondition.Message == isu.LatestIsuCondition.Message) {
-					errs = append(errs, errorMismatch(res, "%d番目の椅子 (ID=%s) の情報が異なります: latest_isu_conditionの内容が不正です", i+1, isu.JIAIsuUUID))
-				}
-			} else {
-				errs = append(errs, errorMismatch(res, "%d番目の椅子 (ID=%s) の情報が異なります", i+1, isu.JIAIsuUUID))
+			// conditionの検証
+			if !(expectedCondition.TimestampUnix == isu.LatestIsuCondition.Timestamp &&
+				expected.JIAIsuUUID == isu.LatestIsuCondition.JIAIsuUUID &&
+				expected.Name == isu.LatestIsuCondition.IsuName &&
+				expectedCondition.IsSitting == isu.LatestIsuCondition.IsSitting &&
+				expectedCondition.ConditionString() == isu.LatestIsuCondition.Condition &&
+				expectedCondition.ConditionLevel.Equal(isu.LatestIsuCondition.ConditionLevel) &&
+				expectedCondition.Message == isu.LatestIsuCondition.Message) {
+				errs = append(errs, errorMismatch(res, "%d番目の椅子 (JIA_ISU_UUID=%s) の情報が異なります: latest_isu_conditionの内容が不正です", i+1, isu.JIAIsuUUID))
 			}
 		}()
 	}
 	return errs
+}
+
+func verifyMe(userID string, hres *http.Response, me *service.GetMeResponse) error {
+	if me.JIAUserID != userID {
+		return errorInvalid(hres, "ログインユーザと一致しません。")
+	}
+	return nil
 }
