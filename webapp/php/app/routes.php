@@ -11,6 +11,43 @@ use Psr\Log\LoggerInterface;
 use Slim\App;
 use SlimSession\Helper as SessionHelper;
 
+final class InitializeRequest
+{
+    public function __construct(public string $jiaServiceUrl)
+    {
+    }
+
+    /**
+     * @throws UnexpectedValueException
+     */
+    public static function fromJson(string $json): self
+    {
+        try {
+            /** @var array{jia_service_url: string} $data */
+            $data = json_decode($json, true, flags: JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            throw new UnexpectedValueException();
+        }
+
+        return new self($data['jia_service_url']);
+    }
+}
+
+final class InitializeResponse implements JsonSerializable
+{
+    public function __construct(public string $language)
+    {
+    }
+
+    /**
+     * @return array{language: string}
+     */
+    public function jsonSerialize(): array
+    {
+        return ['language' => $this->language];
+    }
+}
+
 return function (App $app) {
     $app->options('/{routes:.*}', function (Request $request, Response $response) {
         // CORS Pre-Flight OPTIONS Request Handler
@@ -93,7 +130,52 @@ final class Handler
     // サービスを初期化
     public function postInitialize(Request $request, Response $response): Response
     {
-        throw new Exception('not implemented');
+        try {
+            $initializeRequest = InitializeRequest::fromJson((string)$request->getBody());
+        } catch (UnexpectedValueException) {
+            $newResponse = $response->withStatus(StatusCodeInterface::STATUS_FORBIDDEN)
+                ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
+            $newResponse->getBody()->write('bad request body');
+
+            return $newResponse;
+        }
+
+        $stderr = fopen('php://stderr', 'w');
+        $process = proc_open(
+            __DIR__ . '/../../sql/init.sh',
+            [['pipe', 'r'], $stderr, $stderr],
+            $pipes,
+        );
+        if ($process === false) {
+            $this->logger->error('exec init.sh error: cannot open process');
+
+            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+        }
+
+        $exitCode = proc_close($process);
+        if ($exitCode !== 0) {
+            $this->logger->error('exec init.sh error: exit with non-zero code');
+
+            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+        }
+
+        $stmt = $this->dbh->prepare('INSERT INTO `isu_association_config` (`name`, `url`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `url` = VALUES(`url`)');
+        if (!$stmt->execute(['jia_service_url', $initializeRequest->jiaServiceUrl])) {
+            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+
+            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+        }
+
+        $responseBody = json_encode(new InitializeResponse(language: 'php'));
+        if ($responseBody === false) {
+            $this->logger->critical('failed to json_encode');
+
+            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+        }
+
+        $response->getBody()->write($responseBody);
+
+        return $response->withHeader('Content-Type', 'application/json');
     }
 
     // POST /api/auth
