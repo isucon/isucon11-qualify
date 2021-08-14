@@ -92,6 +92,13 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 		s.keepPostingError(ctx)
 	}()
 
+	//prepare相当のチェック
+	s.loadWaitGroup.Add(1)
+	go func() {
+		defer s.loadWaitGroup.Done()
+		s.loadErrorCheck(ctx, step)
+	}()
+
 	<-ctx.Done()
 	s.JiaPosterCancel()
 	logger.AdminLogger.Println("LOAD WAIT")
@@ -243,12 +250,13 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 			continue
 		}
 
+		var isSuccess bool
 		if nextScenarioIndex == 0 {
-			s.requestNewConditionScenario(ctx, step, user, targetIsu, &readConditionCount)
+			isSuccess = s.requestNewConditionScenario(ctx, step, user, targetIsu, &readConditionCount)
 		} else if nextScenarioIndex == 1 {
-			s.requestLastBadConditionScenario(ctx, step, user, targetIsu)
+			isSuccess = s.requestLastBadConditionScenario(ctx, step, user, targetIsu)
 		} else {
-			s.requestGraphScenario(ctx, step, user, targetIsu, randEngine)
+			isSuccess = s.requestGraphScenario(ctx, step, user, targetIsu, randEngine)
 		}
 
 		// たまに signoutScenario に入る
@@ -256,8 +264,10 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 			signoutScenario(ctx, step, user)
 		}
 
-		// 次のシナリオに
-		nextScenarioIndex += 1
+		if isSuccess {
+			// 次のシナリオに
+			nextScenarioIndex += 1
+		}
 	}
 }
 
@@ -374,7 +384,7 @@ func (s *Scenario) initViewer(ctx context.Context) model.Viewer {
 }
 
 // あるISUの新しいconditionを見に行くシナリオ。
-func (s *Scenario) requestNewConditionScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User, targetIsu *model.Isu, readConditionCount *ReadConditionCount) {
+func (s *Scenario) requestNewConditionScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User, targetIsu *model.Isu, readConditionCount *ReadConditionCount) bool {
 	// 最新の condition から、一度見た condition が帰ってくるまで condition のページングをする
 	nowVirtualTime := s.ToVirtualTime(time.Now())
 	request := service.GetIsuConditionRequest{
@@ -387,7 +397,7 @@ func (s *Scenario) requestNewConditionScenario(ctx context.Context, step *isucan
 		for _, err := range errs {
 			addErrorWithContext(ctx, step, err)
 		}
-		return
+		return false
 	}
 
 	// GETに成功したのでその分を加点
@@ -413,10 +423,11 @@ func (s *Scenario) requestNewConditionScenario(ctx context.Context, step *isucan
 	targetIsu.LastReadConditionTimestamps = nextTimestamps
 
 	// このシナリオでは修理しない
+	return true
 }
 
 // あるISUの、悪い最新のconditionを見に行くシナリオ。
-func (s *Scenario) requestLastBadConditionScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User, targetIsu *model.Isu) {
+func (s *Scenario) requestLastBadConditionScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User, targetIsu *model.Isu) bool {
 	// ConditionLevel最新の condition から、一度見た condition が帰ってくるまで condition のページングをする
 	nowVirtualTime := s.ToVirtualTime(time.Now())
 	request := service.GetIsuConditionRequest{
@@ -439,10 +450,10 @@ func (s *Scenario) requestLastBadConditionScenario(ctx context.Context, step *is
 		for _, err := range errs {
 			addErrorWithContext(ctx, step, err)
 		}
-		return
+		return false
 	}
 	if len(conditions) == 0 {
-		return
+		return true
 	}
 
 	// こっちでは加点しない
@@ -452,14 +463,14 @@ func (s *Scenario) requestLastBadConditionScenario(ctx context.Context, step *is
 
 	// すでに改善してるなら修理とかはしない
 	if targetTimestamp <= targetIsu.LastReadBadConditionTimestamps[0] {
-		return
+		return true
 	}
 	if solveCondition != model.IsuStateChangeNone {
 		// 状態改善
 		// バッファがあるのでブロック率は低い読みで直列に投げる
 		select {
 		case <-ctx.Done():
-			return
+			return false
 		case targetIsu.StreamsForScenario.StateChan <- solveCondition:
 		}
 		step.AddScore(ScoreRepairIsu)
@@ -484,6 +495,8 @@ func (s *Scenario) requestLastBadConditionScenario(ctx context.Context, step *is
 		}
 	}
 	targetIsu.LastReadBadConditionTimestamps = nextTimestamps
+
+	return true
 }
 
 //GET /isu/condition/{jia_isu_uuid} を一度見たconditionが出るまでページングする === 全てが新しいなら次のページに行く。補足: LastReadTimestamp は外で更新
@@ -620,7 +633,7 @@ func isNewData(isu *model.Isu, condition *service.GetIsuConditionResponse) bool 
 }
 
 // あるISUのグラフを見に行くシナリオ
-func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User, targetIsu *model.Isu, randEngine *rand.Rand) {
+func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User, targetIsu *model.Isu, randEngine *rand.Rand) bool {
 	// 最新の condition から、一度見た condition が帰ってくるまで condition のページングをする
 	nowVirtualTime := s.ToVirtualTime(time.Now())
 	// 割り算で切り捨てを発生させている(day単位にしている)
@@ -632,13 +645,7 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 		for _, err := range errs {
 			addErrorWithContext(ctx, step, err)
 		}
-		return
-	}
-
-	// LastCompletedGraphTime を更新
-	newLastCompletedGraphTime := getNewLastCompletedGraphTime(graphResponses, virtualToday)
-	if targetIsu.LastCompletedGraphTime < newLastCompletedGraphTime {
-		targetIsu.LastCompletedGraphTime = newLastCompletedGraphTime
+		return false
 	}
 
 	// AddScoreはconditionのGETまで待つためここでタグを持っておく
@@ -656,7 +663,7 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 				minTimestampCount = len(g.ConditionTimestamps)
 			}
 		}
-		// 「今日のグラフじゃない」&「完成しているグラフ」なら加点
+		// 「今日のグラフじゃない」&「まだ見ていない完成しているグラフ」なら加点
 		if behindDay != 0 && targetIsu.LastCompletedGraphTime <= virtualToday-(int64(behindDay)*OneDay) {
 			// AddScoreはconditionのGETまで待つためここでタグを入れておく
 			scoreTags = append(scoreTags, getGraphScoreTag(minTimestampCount))
@@ -664,7 +671,7 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 		// 「今日のグラフ」についても加点
 		if behindDay == 0 {
 			// AddScoreはconditionのGETまで待つためここでタグを入れておく
-			scoreTags = append(scoreTags, getGraphScoreTag(minTimestampCount))
+			scoreTags = append(scoreTags, getTodayGraphScoreTag(minTimestampCount))
 		}
 	}
 
@@ -682,12 +689,12 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 		conditions, hres, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
 		if err != nil {
 			addErrorWithContext(ctx, step, err)
-			return
+			return false
 		}
 		err = verifyIsuConditions(hres, user, targetIsu.JIAIsuUUID, &request, conditions, targetIsu.LastReadConditionTimestamps)
 		if err != nil {
 			addErrorWithContext(ctx, step, err)
-			return
+			return false
 		}
 	}
 
@@ -695,6 +702,14 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 	for _, scoreTag := range scoreTags {
 		step.AddScore(scoreTag)
 	}
+
+	// LastCompletedGraphTime を更新
+	newLastCompletedGraphTime := getNewLastCompletedGraphTime(graphResponses, virtualToday)
+	if targetIsu.LastCompletedGraphTime < newLastCompletedGraphTime {
+		targetIsu.LastCompletedGraphTime = newLastCompletedGraphTime
+	}
+
+	return true
 }
 
 // unix timeのtimestampをその「日」に切り捨てる
@@ -747,6 +762,22 @@ func getGraphScoreTag(minTimestampCount int) score.ScoreTag {
 		return ScoreGraphBad
 	}
 	return ScoreGraphWorst
+}
+
+func getTodayGraphScoreTag(minTimestampCount int) score.ScoreTag {
+	if minTimestampCount > ScoreGraphTimestampCount.Excellent {
+		return ScoreTodayGraphExcellent
+	}
+	if minTimestampCount > ScoreGraphTimestampCount.Good {
+		return ScoreTodayGraphGood
+	}
+	if minTimestampCount > ScoreGraphTimestampCount.Normal {
+		return ScoreTodayGraphNormal
+	}
+	if minTimestampCount > ScoreGraphTimestampCount.Bad {
+		return ScoreTodayGraphBad
+	}
+	return ScoreTodayGraphWorst
 }
 
 // GET /isu/{jia_isu_uuid}/graph を、「一度見たgraphの次のgraph」or「ベンチがisuの作成を投げた仮想時間の日」まで。補足: LastViewedGraphは外で更新
