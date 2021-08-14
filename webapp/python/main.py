@@ -9,6 +9,7 @@ from enum import Enum
 from flask import Flask, request, session, send_file, jsonify, abort, make_response
 from flask.json import JSONEncoder
 from werkzeug.exceptions import (
+    Forbidden,
     HTTPException,
     BadRequest,
     Unauthorized,
@@ -226,10 +227,20 @@ def post_initialize():
 @app.route("/api/auth", methods=["POST"])
 def post_auth():
     """サインアップ・サインイン"""
-    req_jwt = request.headers["Authorization"].removeprefix("Bearer ")
-    req_jwt_header = jwt.get_unverified_header(req_jwt)
-    req_jwt_payload = jwt.decode(req_jwt, jwt_public_key, algorithms=[req_jwt_header["alg"]])
-    jia_user_id = req_jwt_payload["jia_user_id"]
+    req_authorization_header = request.headers.get("Authorization")
+    if req_authorization_header is None:
+        raise Forbidden("forbidden")
+
+    try:
+        req_jwt = req_authorization_header.removeprefix("Bearer ")
+        req_jwt_header = jwt.get_unverified_header(req_jwt)
+        req_jwt_payload = jwt.decode(req_jwt, jwt_public_key, algorithms=[req_jwt_header["alg"]])
+    except jwt.exceptions.PyJWTError:
+        raise Forbidden("forbidden")
+
+    jia_user_id = req_jwt_payload.get("jia_user_id")
+    if type(jia_user_id) is not str:
+        raise BadRequest("invalid JWT payload")
 
     cnx = cnxpool.connect()
     try:
