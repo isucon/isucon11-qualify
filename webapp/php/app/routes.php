@@ -165,16 +165,7 @@ final class Handler
             return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
         }
 
-        $responseBody = json_encode(new InitializeResponse(language: 'php'));
-        if ($responseBody === false) {
-            $this->logger->critical('failed to json_encode');
-
-            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
-        }
-
-        $response->getBody()->write($responseBody);
-
-        return $response->withHeader('Content-Type', 'application/json');
+        return $this->jsonResponse($response, new InitializeResponse(language: 'php'));
     }
 
     // POST /api/auth
@@ -378,5 +369,19 @@ final class Handler
         $newResponse->getBody()->write(file_get_contents($filePath));
 
         return $newResponse;
+    }
+
+    private function jsonResponse(Response $response, JsonSerializable $data): Response
+    {
+        $responseBody = json_encode($data);
+        if ($responseBody === false) {
+            $this->logger->critical('failed to json_encode');
+
+            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+        }
+
+        $response->getBody()->write($responseBody);
+
+        return $response->withHeader('Content-Type', 'application/json');
     }
 }
