@@ -619,7 +619,7 @@ func browserGetHomeAction(ctx context.Context, a *agent.Agent,
 		for _, isu := range isuList {
 			go func(isu *service.Isu) {
 				defer wg.Done()
-				icon, _, err := getIsuIconAction(ctx, a, isu.JIAIsuUUID)
+				icon, res, err := getIsuIconAction(ctx, a, isu.JIAIsuUUID)
 				if err != nil {
 					isu.Icon = nil
 					errMutex.Lock()
@@ -627,6 +627,7 @@ func browserGetHomeAction(ctx context.Context, a *agent.Agent,
 					errMutex.Unlock()
 				} else {
 					isu.Icon = icon
+					isu.IconStatusCode = res.StatusCode
 				}
 			}(isu)
 		}
@@ -661,12 +662,13 @@ func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string) (
 		errors = append(errors, err)
 	}
 	if isu != nil {
-		icon, _, err := getIsuIconAction(ctx, a, id)
+		icon, res, err := getIsuIconAction(ctx, a, id)
 		if err != nil {
 			isu.Icon = nil
 			errors = append(errors, err)
 		} else {
 			isu.Icon = icon
+			isu.IconStatusCode = res.StatusCode
 		}
 
 		return isu, errors
