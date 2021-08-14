@@ -23,3 +23,29 @@ const (
 	ScorePostWarningCondition  score.ScoreTag = "_7.PostWarningCondition "
 	ScorePostCriticalCondition score.ScoreTag = "_8.PostCriticalCondition"
 )
+
+func SetScoreTags(scoreTable score.ScoreTable) {
+	setScoreTag(scoreTable, ScoreStartBenchmark)
+	setScoreTag(scoreTable, ScoreGraphExcellent)
+	setScoreTag(scoreTable, ScoreGraphGood)
+	setScoreTag(scoreTable, ScoreGraphNormal)
+	setScoreTag(scoreTable, ScoreGraphBad)
+	setScoreTag(scoreTable, ScoreGraphWorst)
+	setScoreTag(scoreTable, ScoreReadInfoCondition)
+	setScoreTag(scoreTable, ScoreReadWarningCondition)
+	setScoreTag(scoreTable, ScoreReadCriticalCondition)
+	setScoreTag(scoreTable, ScoreIsuInitialize)
+	setScoreTag(scoreTable, ScoreNormalUserInitialize)
+	setScoreTag(scoreTable, ScoreViewerInitialize)
+	setScoreTag(scoreTable, ScoreViewerDropout)
+	setScoreTag(scoreTable, ScoreRepairIsu)
+	setScoreTag(scoreTable, ScorePostInfoCondition)
+	setScoreTag(scoreTable, ScorePostWarningCondition)
+	setScoreTag(scoreTable, ScorePostCriticalCondition)
+}
+
+func setScoreTag(scoreTable score.ScoreTable, tag score.ScoreTag) {
+	if _, ok := scoreTable[tag]; !ok {
+		scoreTable[tag] = 0
+	}
+}

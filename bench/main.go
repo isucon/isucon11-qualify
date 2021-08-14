@@ -189,8 +189,9 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 	}
 	tagCountPair := make([]TagCountPair, 0)
 	promTags := PromTags{}
-
-	for tag, count := range result.Score.Breakdown() {
+	scoreTable := result.Score.Breakdown()
+	scenario.SetScoreTags(scoreTable)
+	for tag, count := range scoreTable {
 		tagCountPair = append(tagCountPair, TagCountPair{Tag: tag, Count: count})
 	}
 	sort.Slice(tagCountPair, func(i, j int) bool {
