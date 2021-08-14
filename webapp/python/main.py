@@ -8,7 +8,14 @@ from random import random
 from enum import Enum
 from flask import Flask, request, session, send_file, jsonify, abort, make_response
 from flask.json import JSONEncoder
-from werkzeug.exceptions import BadRequest, Unauthorized, NotFound, InternalServerError, ServiceUnavailable
+from werkzeug.exceptions import (
+    HTTPException,
+    BadRequest,
+    Unauthorized,
+    NotFound,
+    InternalServerError,
+    ServiceUnavailable,
+)
 import mysql.connector
 from sqlalchemy.pool import QueuePool
 import jwt
@@ -134,6 +141,12 @@ app = Flask(__name__, static_folder=f"{FRONTEND_CONTENTS_PATH}/assets", static_u
 app.session_cookie_name = "isucondition"
 app.secret_key = getenv("SESSION_KEY", "isucondition")
 app.json_encoder = CustomJSONEncoder
+
+
+@app.errorhandler(HTTPException)
+def error_handler(e):
+    return make_response(e.description, e.code, {"Content-Type": "text/plain"})
+
 
 mysql_connection_env = {
     "host": getenv("MYSQL_HOST", "127.0.0.1"),
