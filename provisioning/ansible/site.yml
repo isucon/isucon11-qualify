@@ -17,11 +17,6 @@
   roles:
     - langs.go
     - langs.nodejs
-    - langs.perl
-    - langs.php
-    - langs.python
-    - langs.ruby
-    - langs.rust
     - contestant
 
 - name: "bench roles"
@@ -32,7 +27,6 @@
     - langs.go
     - langs.rust
     - bench
-    - bench.node_exporter
     - bench.supervisor
 
 - name: "bench (standalone) roles"

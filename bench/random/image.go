@@ -8,7 +8,6 @@ import (
 	"log"
 	"math/rand"
 	"path/filepath"
-	"strings"
 	"sync/atomic"
 
 	"github.com/anthonynsimon/bild/adjust"
@@ -32,10 +31,6 @@ func init() {
 
 	for i := 0; i < imageNum; i++ {
 		fileInfo := files[rand.Intn(len(files))]
-		//default.jpg以外の、.jpgで終わるファイルに限定する
-		for fileInfo.Name() == "default.jpg" || !strings.HasSuffix(fileInfo.Name(), ".jpg") {
-			fileInfo = files[rand.Intn(len(files))]
-		}
 		img, err := imgio.Open(filepath.Join(imageFolderPath, fileInfo.Name()))
 		if err != nil {
 			log.Fatalf("%+v", err)

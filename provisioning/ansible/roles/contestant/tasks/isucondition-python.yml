@@ -1,9 +1,0 @@
----
-- name: "roles/contestant/tasks/isucondition-python: Build Web Application Python"
-  become_user: isucon
-  environment:
-    PATH: "/home/isucon/local/python/bin:{{ ansible_env.PATH }}"
-  args:
-    chdir: /home/isucon/webapp/python
-  shell: |
-    pip install -r requirements.txt

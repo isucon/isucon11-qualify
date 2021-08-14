@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Redirect, Switch, useParams } from 'react-router-dom'
+import { Switch, useParams } from 'react-router-dom'
 import SubHeader from '../components/Isu/SubHeader'
 import NowLoading from '../components/UI/NowLoading'
 import apis, { Isu } from '../lib/apis'
@@ -11,25 +11,15 @@ import IsuGraph from './IsuGraph'
 const IsuRoot = () => {
   const [isu, setIsu] = useState<Isu | null>(null)
   const { id } = useParams<{ id: string }>()
-  const [notFound, setNotFound] = useState(false)
 
   useEffect(() => {
     const load = async () => {
-      try {
-        setIsu(await apis.getIsu(id))
-      } catch (e) {
-        if (e.response.status === 404) {
-          setNotFound(true)
-        }
-      }
+      setIsu(await apis.getIsu(id))
     }
     load()
-  }, [id, setNotFound])
+  }, [id])
 
   if (!isu) {
-    if (notFound) {
-      return <Redirect to={`/`} />
-    }
     return <NowLoading />
   }
   return (

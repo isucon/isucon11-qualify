@@ -1,7 +1,6 @@
 package model
 
 import (
-	"net/url"
 	"sync"
 )
 
@@ -15,8 +14,8 @@ func NewIsuConditionPosterManager() *IsuConditionPosterManager {
 	return &IsuConditionPosterManager{activatedIsu, sync.Mutex{}}
 }
 
-func (m *IsuConditionPosterManager) StartPosting(targetURL *url.URL, isuUUID string) error {
-	key := getKey(targetURL.String(), isuUUID)
+func (m *IsuConditionPosterManager) StartPosting(targetURL string, isuUUID string) error {
+	key := getKey(targetURL, isuUUID)
 
 	conflict := func() bool {
 		m.activatedIsuMtx.Lock()

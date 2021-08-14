@@ -189,8 +189,6 @@
         'sudo rm -f /var/lib/systemd/timesync/clock || :',
         'sudo rm -rf /var/lib/dbus/machine-id',
         'sudo rm -rf /root/go',
-        'sudo rm -rf /root/.ansible',
-        'sudo rm -rf /home/isucon/.ansible',
         'sudo rm -rf /dev/shm/files',
         'sudo rm -rf /dev/shm/files-generated',
         'sudo rm -rf /dev/shm/ansible',

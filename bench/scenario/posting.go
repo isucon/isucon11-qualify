@@ -2,16 +2,12 @@ package scenario
 
 import (
 	"context"
-	"crypto/tls"
 	"math/rand"
 	"net/http"
 	"net/url"
 	"path"
-	"sync"
-	"sync/atomic"
 	"time"
 
-	"github.com/isucon/isucandar"
 	"github.com/isucon/isucon11-qualify/bench/model"
 	"github.com/isucon/isucon11-qualify/bench/random"
 	"github.com/isucon/isucon11-qualify/bench/service"
@@ -19,23 +15,9 @@ import (
 
 const (
 	// MEMO: 最大でも60秒に一件しか送れないので点数上限になるが、解決できるとは思えないので良い
-	PostIntervalSecond     = 60                     //Virtual Timeでのpost間隔
-	PostIntervalBlurSecond = 5                      //Virtual Timeでのpost間隔のブレ幅(+-PostIntervalBlurSecond)
-	PostContentNum         = 10                     //一回のpostで何要素postするか virtualTimeMulti * timerDuration(20ms) / PostIntervalSecond
-	postConditionTimeout   = 100 * time.Millisecond //MEMO: timeout は気にせずにズバズバ投げる
-)
-
-var (
-	targetBaseURLMapMutex sync.Mutex
-	targetBaseURLMap      = map[string]string{}
-)
-
-var (
-	posterWaitGroup sync.WaitGroup
-	// 全ユーザーがpostしたconditionの端数の合計。Goroutine終了時に加算する
-	postInfoConditionFraction     int32 = 0
-	postWarnConditionFraction     int32 = 0
-	postCriticalConditionFraction int32 = 0
+	PostIntervalSecond     = 60 //Virtual Timeでのpost間隔
+	PostIntervalBlurSecond = 5  //Virtual Timeでのpost間隔のブレ幅(+-PostIntervalBlurSecond)
+	PostContentNum         = 10 //一回のpostで何要素postするか virtualTimeMulti * timerDuration(20ms) / PostIntervalSecond
 )
 
 func init() {
@@ -57,59 +39,9 @@ type badCondition struct {
 	isNow     bool
 }
 
-func (s *Scenario) postConditionNumReporter(ctx context.Context, step *isucandar.BenchmarkStep) {
-	var postInfoConditionNum int32 = 0
-	var postWarnConditionNum int32 = 0
-	var postCriticalConditionNum int32 = 0
-	addScore := func() {
-		postInfoConditionNum += atomic.SwapInt32(&postInfoConditionFraction, 0)
-		postWarnConditionNum += atomic.SwapInt32(&postWarnConditionFraction, 0)
-		postCriticalConditionNum += atomic.SwapInt32(&postCriticalConditionFraction, 0)
-
-		for postInfoConditionNum > ReadConditionTagStep {
-			postInfoConditionNum -= ReadConditionTagStep
-			step.AddScore(ScorePostInfoCondition)
-		}
-		for postWarnConditionNum > ReadConditionTagStep {
-			postWarnConditionNum -= ReadConditionTagStep
-			step.AddScore(ScorePostWarningCondition)
-		}
-		for postCriticalConditionNum > ReadConditionTagStep {
-			postCriticalConditionNum -= ReadConditionTagStep
-			step.AddScore(ScorePostCriticalCondition)
-		}
-	}
-	for {
-		time.Sleep(1500 * time.Millisecond)
-
-		addScore()
-		select {
-		case <-ctx.Done():
-			posterWaitGroup.Wait()
-			addScore()
-			return
-		default:
-		}
-	}
-}
-
 //POST /api/condition/{jia_isu_id}をたたく Goroutine
-func (s *Scenario) keepPosting(ctx context.Context, targetBaseURL *url.URL, fqdn string, isu *model.Isu, scenarioChan *model.StreamsForPoster) {
-
-	targetBaseURLMapMutex.Lock()
-	targetBaseURLMap[targetBaseURL.String()] = fqdn
-	targetBaseURLMapMutex.Unlock()
-
-	posterWaitGroup.Add(1)
-	var postInfoConditionNum int32 = 0
-	var postWarnConditionNum int32 = 0
-	var postCriticalConditionNum int32 = 0
-	defer func() {
-		atomic.AddInt32(&postInfoConditionFraction, postInfoConditionNum)
-		atomic.AddInt32(&postWarnConditionFraction, postWarnConditionNum)
-		atomic.AddInt32(&postCriticalConditionFraction, postCriticalConditionNum)
-		posterWaitGroup.Done()
-	}()
+func (s *Scenario) keepPosting(ctx context.Context, targetBaseURL *url.URL, isu *model.Isu, scenarioChan *model.StreamsForPoster) {
+	postConditionTimeout := 100 * time.Millisecond //MEMO: timeout は気にせずにズバズバ投げる
 
 	targetBaseURL.Path = path.Join(targetBaseURL.Path, "/api/condition/", isu.JIAIsuUUID)
 	nowTimeStamp := s.ToVirtualTime(time.Now()).Unix()
@@ -124,12 +56,6 @@ func (s *Scenario) keepPosting(ctx context.Context, targetBaseURL *url.URL, fqdn
 	randEngine := rand.New(rand.NewSource(rand.Int63()))
 	httpClient := http.Client{}
 	httpClient.Timeout = postConditionTimeout
-	httpClient.Transport = &http.Transport{
-		TLSClientConfig: &tls.Config{
-			ServerName: fqdn,
-		},
-		ForceAttemptHTTP2: true,
-	}
 
 	timer := time.NewTicker(40 * time.Millisecond)
 	defer timer.Stop()
@@ -194,31 +120,10 @@ func (s *Scenario) keepPosting(ctx context.Context, targetBaseURL *url.URL, fqdn
 				Timestamp: condition.TimestampUnix,
 			})
 
-			switch condition.ConditionLevel {
-			case model.ConditionLevelInfo:
-				postInfoConditionNum++
-			case model.ConditionLevelWarning:
-				postWarnConditionNum++
-			case model.ConditionLevelCritical:
-				postCriticalConditionNum++
-			}
 		}
 
 		if len(conditions) == 0 {
 			continue
-		}
-
-		if postInfoConditionNum > ReadConditionTagStep {
-			atomic.AddInt32(&postInfoConditionFraction, postInfoConditionNum)
-			postInfoConditionNum = 0
-		}
-		if postWarnConditionNum > ReadConditionTagStep {
-			atomic.AddInt32(&postWarnConditionFraction, postWarnConditionNum)
-			postWarnConditionNum = 0
-		}
-		if postCriticalConditionNum > ReadConditionTagStep {
-			atomic.AddInt32(&postCriticalConditionFraction, postCriticalConditionNum)
-			postCriticalConditionNum = 0
 		}
 
 		select {
@@ -346,127 +251,5 @@ func calcConditionLevel(condition model.IsuCondition) model.ConditionLevel {
 		return model.ConditionLevelWarning
 	} else {
 		return model.ConditionLevelCritical
-	}
-}
-
-//invalid
-
-//ランダムなISUにconditionを投げる
-func (s *Scenario) keepPostingError(ctx context.Context) {
-	nowTimeStamp := s.ToVirtualTime(time.Now()).Unix()
-	state := posterState{
-		// lastConditionTimestamp: 0,
-		lastConditionTimestamp: nowTimeStamp,
-		dirty:                  badCondition{0, false},
-		overWeight:             badCondition{0, false},
-		broken:                 badCondition{0, false},
-		isSitting:              false,
-	}
-	randEngine := rand.New(rand.NewSource(rand.Int63()))
-	httpClient := http.Client{}
-	httpClient.Timeout = postConditionTimeout
-	httpClient.Transport = &http.Transport{
-		TLSClientConfig:   &tls.Config{},
-		ForceAttemptHTTP2: true,
-	}
-
-	timer := time.NewTicker(1000 * time.Millisecond)
-	defer timer.Stop()
-	count := 0
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-timer.C:
-		}
-		count++
-
-		nowTimeStamp = s.ToVirtualTime(time.Now()).Unix()
-
-		//ISUを選ぶ
-		isu := s.GetRandomActivatedIsu(randEngine)
-		if isu == nil {
-			continue
-		}
-
-		//状態変化
-		stateChange := model.IsuStateChangeNone
-		if count%5 == 0 {
-			stateChange = model.IsuStateChangeClear | model.IsuStateChangeDetectOverweight | model.IsuStateChangeRepair
-		}
-
-		// 今の時間から最後のconditionの時間を引く
-		diffTimestamp := nowTimeStamp - state.lastConditionTimestamp
-		// その間に何個のconditionがあったか
-		diffConditionCount := int((diffTimestamp + PostIntervalSecond - 1) / PostIntervalSecond)
-
-		var reqLength int
-		if diffConditionCount > PostContentNum {
-			reqLength = PostContentNum
-		} else {
-			reqLength = diffConditionCount
-		}
-		conditionsReq := make([]service.PostIsuConditionRequest, 0, reqLength)
-
-		for i := 0; i < diffConditionCount; i++ {
-			// 次のstateを生成
-			state.UpdateToNextState(randEngine, stateChange)
-
-			if i+PostContentNum-diffConditionCount < 0 {
-				continue
-			}
-
-			// 作った新しいstateに基づいてconditionを生成
-			condition := state.GetNewestCondition(randEngine, stateChange, isu)
-			stateChange = model.IsuStateChangeNone //TODO: stateの適用タイミングをちゃんと考える
-
-			data := service.PostIsuConditionRequest{
-				IsSitting: condition.IsSitting,
-				Condition: condition.ConditionString(),
-				Message:   condition.Message,
-				Timestamp: condition.TimestampUnix,
-			}
-
-			//Conditionのフォーマットを崩す
-			index := randEngine.Intn(len(data.Condition) - 1)
-			data.Condition = data.Condition[:index] +
-				string((data.Condition[index]-'a'+byte(randEngine.Intn(26)))%26+'a') +
-				data.Condition[index+1:]
-
-			//リクエスト
-			conditionsReq = append(conditionsReq, data)
-		}
-
-		if len(conditionsReq) == 0 {
-			continue
-		}
-
-		//必ず一つは間違っているようにする
-		if randEngine.Intn(2) == 0 {
-			conditionsReq[len(conditionsReq)/2].Condition = "is_dirty=true,is_overweight=true,is_brokan=false"
-		} else {
-			conditionsReq[len(conditionsReq)/2].Condition = "is_dirty:true,is_overweight:true,is_broken:false"
-		}
-
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
-
-		// targetを取得
-		var targetPath string
-		var targetServer string
-		targetBaseURLMapMutex.Lock()
-		for pathTmp, serverTmp := range targetBaseURLMap {
-			targetPath = pathTmp
-			targetServer = serverTmp
-			break
-		}
-		targetBaseURLMapMutex.Unlock()
-		targetPath = targetPath + "/api/condition/" + isu.JIAIsuUUID
-		httpClient.Transport.(*http.Transport).TLSClientConfig.ServerName = targetServer
-		// timeout も無視するので全てのエラーを見ない
-		postIsuConditionAction(ctx, httpClient, targetPath, &conditionsReq)
 	}
 }

@@ -1,13 +1,13 @@
 [Unit]
 Description=jiaapi-mock
-After=network.target
 
 [Service]
-PIDFile=/run/jiaapi-mock.pid
+PIDFile=/var/run/jiaapi-mock
 
 User=isucon
 Group=isucon
 ExecStart=/usr/local/bin/jiaapi-mock
+ExecStop=/bin/kill -s QUIT $MAINPID
 
 Restart   = always
 Type      = simple

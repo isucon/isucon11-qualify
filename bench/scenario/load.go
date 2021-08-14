@@ -17,6 +17,7 @@ import (
 	"github.com/isucon/isucandar/score"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
+	"github.com/isucon/isucon11-qualify/bench/random"
 	"github.com/isucon/isucon11-qualify/bench/service"
 )
 
@@ -48,9 +49,6 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	if s.NoLoad {
 		return nil
 	}
-	// 初期実装だと fail してしまうため下駄をはかせる
-	step.AddScore(ScoreStartBenchmark)
-
 	ctx, cancel := context.WithTimeout(parent, s.LoadTimeout)
 	defer cancel()
 
@@ -78,29 +76,8 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 		s.userAdder(ctx, step)
 	}()
 
-	//postした件数を記録
-	s.loadWaitGroup.Add(1)
-	go func() {
-		defer s.loadWaitGroup.Done()
-		s.postConditionNumReporter(ctx, step)
-	}()
-
-	//不正なcondition
-	s.loadWaitGroup.Add(1)
-	go func() {
-		defer s.loadWaitGroup.Done()
-		s.keepPostingError(ctx)
-	}()
-
-	//prepare相当のチェック
-	s.loadWaitGroup.Add(1)
-	go func() {
-		defer s.loadWaitGroup.Done()
-		s.loadErrorCheck(ctx, step)
-	}()
-
 	<-ctx.Done()
-	s.JiaPosterCancel()
+	s.JiaCancel()
 	logger.AdminLogger.Println("LOAD WAIT")
 	s.loadWaitGroup.Wait()
 
@@ -250,13 +227,12 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 			continue
 		}
 
-		var isSuccess bool
 		if nextScenarioIndex == 0 {
-			isSuccess = s.requestNewConditionScenario(ctx, step, user, targetIsu, &readConditionCount)
+			s.requestNewConditionScenario(ctx, step, user, targetIsu, &readConditionCount)
 		} else if nextScenarioIndex == 1 {
-			isSuccess = s.requestLastBadConditionScenario(ctx, step, user, targetIsu)
+			s.requestLastBadConditionScenario(ctx, step, user, targetIsu)
 		} else {
-			isSuccess = s.requestGraphScenario(ctx, step, user, targetIsu, randEngine)
+			s.requestGraphScenario(ctx, step, user, targetIsu, randEngine)
 		}
 
 		// たまに signoutScenario に入る
@@ -264,10 +240,8 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 			signoutScenario(ctx, step, user)
 		}
 
-		if isSuccess {
-			// 次のシナリオに
-			nextScenarioIndex += 1
-		}
+		// 次のシナリオに
+		nextScenarioIndex += 1
 	}
 }
 
@@ -275,12 +249,11 @@ func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep
 
 	select {
 	case <-ctx.Done():
-		return
+
 	default:
 	}
 
 	viewer := s.initViewer(ctx)
-	step.AddScore(ScoreViewerInitialize)
 	scenarioLoopStopper := time.After(1 * time.Millisecond) //ループ頻度調整
 	for {
 		<-scenarioLoopStopper
@@ -294,12 +267,11 @@ func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep
 
 		// viewer が ViewerDropCount 以上エラーに遭遇していたらループから脱落
 		if viewer.ErrorCount >= ViewerDropCount {
-			step.AddScore(ScoreViewerDropout)
 			return
 		}
 
 		requestTime := time.Now()
-		trend, res, err := browserGetLandingPageAction(ctx, viewer.Agent)
+		trend, res, err := getTrendAction(ctx, viewer.Agent)
 		if err != nil {
 			viewer.ErrorCount += 1
 			addErrorWithContext(ctx, step, err)
@@ -355,12 +327,15 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 	isuCountRandEngineMutex.Unlock()
 
 	for i := 0; i < isuCount; i++ {
-		isu := s.NewIsu(ctx, step, user, true, true)
+		image, err := random.Image()
+		if err != nil {
+			logger.AdminLogger.Panic(err)
+		}
+		isu := s.NewIsu(ctx, step, user, true, image, true)
 		if isu == nil {
 			user.CloseAllIsuStateChan()
 			return nil
 		}
-		step.AddScore(ScoreIsuInitialize)
 	}
 
 	return user
@@ -384,7 +359,7 @@ func (s *Scenario) initViewer(ctx context.Context) model.Viewer {
 }
 
 // あるISUの新しいconditionを見に行くシナリオ。
-func (s *Scenario) requestNewConditionScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User, targetIsu *model.Isu, readConditionCount *ReadConditionCount) bool {
+func (s *Scenario) requestNewConditionScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User, targetIsu *model.Isu, readConditionCount *ReadConditionCount) {
 	// 最新の condition から、一度見た condition が帰ってくるまで condition のページングをする
 	nowVirtualTime := s.ToVirtualTime(time.Now())
 	request := service.GetIsuConditionRequest{
@@ -392,42 +367,27 @@ func (s *Scenario) requestNewConditionScenario(ctx context.Context, step *isucan
 		EndTime:        nowVirtualTime.Unix(),
 		ConditionLevel: "info,warning,critical",
 	}
-	conditions, newLastReadConditionTimestamps, errs := s.getIsuConditionUntilAlreadyRead(ctx, user, targetIsu, request, step, readConditionCount)
+	conditions, newLastReadConditionTimestamp, errs := s.getIsuConditionUntilAlreadyRead(ctx, user, targetIsu, request, step, readConditionCount)
 	if len(errs) != 0 {
 		for _, err := range errs {
 			addErrorWithContext(ctx, step, err)
 		}
-		return false
+		return
 	}
 
 	// GETに成功したのでその分を加点
 	readCondition(conditions, step, readConditionCount)
 
 	// LastReadConditionTimestamp を更新
-	var nextTimestamps [service.ConditionLimit]int64
-	indexIsu := 0
-	indexNew := 0
-	for i := 0; i < service.ConditionLimit; i++ {
-		if targetIsu.LastReadConditionTimestamps[indexIsu] == newLastReadConditionTimestamps[indexNew] {
-			nextTimestamps[i] = targetIsu.LastReadConditionTimestamps[indexIsu]
-			indexIsu++
-			indexNew++
-		} else if targetIsu.LastReadConditionTimestamps[indexIsu] < newLastReadConditionTimestamps[indexNew] {
-			nextTimestamps[i] = newLastReadConditionTimestamps[indexNew]
-			indexNew++
-		} else {
-			nextTimestamps[i] = targetIsu.LastReadConditionTimestamps[indexIsu]
-			indexIsu++
-		}
+	if targetIsu.LastReadConditionTimestamp < newLastReadConditionTimestamp {
+		targetIsu.LastReadConditionTimestamp = newLastReadConditionTimestamp
 	}
-	targetIsu.LastReadConditionTimestamps = nextTimestamps
 
 	// このシナリオでは修理しない
-	return true
 }
 
 // あるISUの、悪い最新のconditionを見に行くシナリオ。
-func (s *Scenario) requestLastBadConditionScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User, targetIsu *model.Isu) bool {
+func (s *Scenario) requestLastBadConditionScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User, targetIsu *model.Isu) {
 	// ConditionLevel最新の condition から、一度見た condition が帰ってくるまで condition のページングをする
 	nowVirtualTime := s.ToVirtualTime(time.Now())
 	request := service.GetIsuConditionRequest{
@@ -439,7 +399,7 @@ func (s *Scenario) requestLastBadConditionScenario(ctx context.Context, step *is
 	_, conditions, errs := browserGetIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
 		request,
 		func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
-			err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request, conditions, targetIsu.LastReadBadConditionTimestamps)
+			err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request, conditions)
 			if err != nil {
 				return []error{err}
 			}
@@ -449,11 +409,11 @@ func (s *Scenario) requestLastBadConditionScenario(ctx context.Context, step *is
 	if len(errs) > 0 {
 		for _, err := range errs {
 			addErrorWithContext(ctx, step, err)
+			return
 		}
-		return false
 	}
 	if len(conditions) == 0 {
-		return true
+		return
 	}
 
 	// こっちでは加点しない
@@ -462,41 +422,22 @@ func (s *Scenario) requestLastBadConditionScenario(ctx context.Context, step *is
 	solveCondition, targetTimestamp := findBadIsuState(conditions)
 
 	// すでに改善してるなら修理とかはしない
-	if targetTimestamp <= targetIsu.LastReadBadConditionTimestamps[0] {
-		return true
+	if targetTimestamp <= targetIsu.LastReadBadConditionTimestamp {
+		return
 	}
 	if solveCondition != model.IsuStateChangeNone {
 		// 状態改善
 		// バッファがあるのでブロック率は低い読みで直列に投げる
 		select {
 		case <-ctx.Done():
-			return false
+			return
 		case targetIsu.StreamsForScenario.StateChan <- solveCondition:
 		}
-		step.AddScore(ScoreRepairIsu)
 	}
 
 	// LastReadBadConditionTimestamp を更新
 	// condition の順番保障はされてる
-	var nextTimestamps [service.ConditionLimit]int64
-	indexIsu := 0
-	indexNew := 0
-	for i := 0; i < service.ConditionLimit; i++ {
-		if indexNew < len(conditions) && targetIsu.LastReadBadConditionTimestamps[indexIsu] == conditions[indexNew].Timestamp {
-			nextTimestamps[i] = targetIsu.LastReadBadConditionTimestamps[indexIsu]
-			indexIsu++
-			indexNew++
-		} else if indexNew < len(conditions) && targetIsu.LastReadBadConditionTimestamps[indexIsu] < conditions[indexNew].Timestamp {
-			nextTimestamps[i] = conditions[indexNew].Timestamp
-			indexNew++
-		} else {
-			nextTimestamps[i] = targetIsu.LastReadBadConditionTimestamps[indexIsu]
-			indexIsu++
-		}
-	}
-	targetIsu.LastReadBadConditionTimestamps = nextTimestamps
-
-	return true
+	targetIsu.LastReadBadConditionTimestamp = conditions[0].Timestamp
 }
 
 //GET /isu/condition/{jia_isu_uuid} を一度見たconditionが出るまでページングする === 全てが新しいなら次のページに行く。補足: LastReadTimestamp は外で更新
@@ -507,9 +448,9 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 	request service.GetIsuConditionRequest,
 	step *isucandar.BenchmarkStep,
 	readConditionCount *ReadConditionCount,
-) ([]*service.GetIsuConditionResponse, [service.ConditionLimit]int64, []error) {
+) ([]*service.GetIsuConditionResponse, int64, []error) {
 	// 更新用のLastReadConditionTimestamp
-	var newLastReadConditionTimestamps [service.ConditionLimit]int64
+	var newLastReadConditionTimestamp int64 = 0
 
 	// 今回のこの関数で取得した condition の配列
 	conditions := []*service.GetIsuConditionResponse{}
@@ -518,7 +459,7 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 	_, firstPageConditions, errs := browserGetIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
 		request,
 		func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
-			err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request, conditions, targetIsu.LastReadConditionTimestamps)
+			err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request, conditions)
 			if err != nil {
 				return []error{err}
 			}
@@ -526,10 +467,10 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 		},
 	)
 	if len(errs) > 0 {
-		return nil, newLastReadConditionTimestamps, errs
+		return nil, newLastReadConditionTimestamp, errs
 	}
-	for i, c := range firstPageConditions {
-		newLastReadConditionTimestamps[i] = c.Timestamp
+	if len(firstPageConditions) > 0 {
+		newLastReadConditionTimestamp = firstPageConditions[0].Timestamp
 	}
 	for _, cond := range firstPageConditions {
 		// 新しいやつだけなら append
@@ -537,12 +478,12 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 			conditions = append(conditions, cond)
 		} else {
 			// timestamp順なのは validation で保証しているので読んだやつが出てきたタイミングで return
-			return conditions, newLastReadConditionTimestamps, nil
+			return conditions, newLastReadConditionTimestamp, nil
 		}
 	}
 	// 最初のページが最後のページならやめる
-	if len(firstPageConditions) < service.ConditionLimit {
-		return conditions, newLastReadConditionTimestamps, nil
+	if len(firstPageConditions) < conditionLimit {
+		return conditions, newLastReadConditionTimestamp, nil
 	}
 
 	pagingCount := 1
@@ -563,11 +504,11 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 
 		tmpConditions, hres, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
 		if err != nil {
-			return nil, newLastReadConditionTimestamps, []error{err}
+			return nil, newLastReadConditionTimestamp, []error{err}
 		}
-		err = verifyIsuConditions(hres, user, targetIsu.JIAIsuUUID, &request, tmpConditions, targetIsu.LastReadConditionTimestamps)
+		err = verifyIsuConditions(hres, user, targetIsu.JIAIsuUUID, &request, tmpConditions)
 		if err != nil {
-			return nil, newLastReadConditionTimestamps, []error{err}
+			return nil, newLastReadConditionTimestamp, []error{err}
 		}
 
 		for _, cond := range tmpConditions {
@@ -576,13 +517,13 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 				conditions = append(conditions, cond)
 			} else {
 				// timestamp順なのは validation で保証しているので読んだやつが出てきたタイミングで return
-				return conditions, newLastReadConditionTimestamps, nil
+				return conditions, newLastReadConditionTimestamp, nil
 			}
 		}
 
 		// 最後のページまで見ちゃってるならやめる
-		if len(tmpConditions) != service.ConditionLimit {
-			return conditions, newLastReadConditionTimestamps, nil
+		if len(tmpConditions) != conditionLimit {
+			return conditions, newLastReadConditionTimestamp, nil
 		}
 	}
 }
@@ -629,11 +570,11 @@ func addConditionScoreTag(step *isucandar.BenchmarkStep, readConditionCount *Rea
 }
 
 func isNewData(isu *model.Isu, condition *service.GetIsuConditionResponse) bool {
-	return condition.Timestamp > isu.LastReadConditionTimestamps[0]
+	return condition.Timestamp > isu.LastReadConditionTimestamp
 }
 
 // あるISUのグラフを見に行くシナリオ
-func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User, targetIsu *model.Isu, randEngine *rand.Rand) bool {
+func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User, targetIsu *model.Isu, randEngine *rand.Rand) {
 	// 最新の condition から、一度見た condition が帰ってくるまで condition のページングをする
 	nowVirtualTime := s.ToVirtualTime(time.Now())
 	// 割り算で切り捨てを発生させている(day単位にしている)
@@ -645,7 +586,13 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 		for _, err := range errs {
 			addErrorWithContext(ctx, step, err)
 		}
-		return false
+		return
+	}
+
+	// LastCompletedGraphTime を更新
+	newLastCompletedGraphTime := getNewLastCompletedGraphTime(graphResponses, virtualToday)
+	if targetIsu.LastCompletedGraphTime < newLastCompletedGraphTime {
+		targetIsu.LastCompletedGraphTime = newLastCompletedGraphTime
 	}
 
 	// AddScoreはconditionのGETまで待つためここでタグを持っておく
@@ -663,7 +610,7 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 				minTimestampCount = len(g.ConditionTimestamps)
 			}
 		}
-		// 「今日のグラフじゃない」&「まだ見ていない完成しているグラフ」なら加点
+		// 「今日のグラフじゃない」&「完成しているグラフ」なら加点
 		if behindDay != 0 && targetIsu.LastCompletedGraphTime <= virtualToday-(int64(behindDay)*OneDay) {
 			// AddScoreはconditionのGETまで待つためここでタグを入れておく
 			scoreTags = append(scoreTags, getGraphScoreTag(minTimestampCount))
@@ -671,7 +618,7 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 		// 「今日のグラフ」についても加点
 		if behindDay == 0 {
 			// AddScoreはconditionのGETまで待つためここでタグを入れておく
-			scoreTags = append(scoreTags, getTodayGraphScoreTag(minTimestampCount))
+			scoreTags = append(scoreTags, getGraphScoreTag(minTimestampCount))
 		}
 	}
 
@@ -689,12 +636,12 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 		conditions, hres, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
 		if err != nil {
 			addErrorWithContext(ctx, step, err)
-			return false
+			return
 		}
-		err = verifyIsuConditions(hres, user, targetIsu.JIAIsuUUID, &request, conditions, targetIsu.LastReadConditionTimestamps)
+		err = verifyIsuConditions(hres, user, targetIsu.JIAIsuUUID, &request, conditions)
 		if err != nil {
 			addErrorWithContext(ctx, step, err)
-			return false
+			return
 		}
 	}
 
@@ -702,14 +649,6 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 	for _, scoreTag := range scoreTags {
 		step.AddScore(scoreTag)
 	}
-
-	// LastCompletedGraphTime を更新
-	newLastCompletedGraphTime := getNewLastCompletedGraphTime(graphResponses, virtualToday)
-	if targetIsu.LastCompletedGraphTime < newLastCompletedGraphTime {
-		targetIsu.LastCompletedGraphTime = newLastCompletedGraphTime
-	}
-
-	return true
 }
 
 // unix timeのtimestampをその「日」に切り捨てる
@@ -762,22 +701,6 @@ func getGraphScoreTag(minTimestampCount int) score.ScoreTag {
 		return ScoreGraphBad
 	}
 	return ScoreGraphWorst
-}
-
-func getTodayGraphScoreTag(minTimestampCount int) score.ScoreTag {
-	if minTimestampCount > ScoreGraphTimestampCount.Excellent {
-		return ScoreTodayGraphExcellent
-	}
-	if minTimestampCount > ScoreGraphTimestampCount.Good {
-		return ScoreTodayGraphGood
-	}
-	if minTimestampCount > ScoreGraphTimestampCount.Normal {
-		return ScoreTodayGraphNormal
-	}
-	if minTimestampCount > ScoreGraphTimestampCount.Bad {
-		return ScoreTodayGraphBad
-	}
-	return ScoreTodayGraphWorst
 }
 
 // GET /isu/{jia_isu_uuid}/graph を、「一度見たgraphの次のgraph」or「ベンチがisuの作成を投げた仮想時間の日」まで。補足: LastViewedGraphは外で更新
@@ -870,12 +793,11 @@ func signoutScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *m
 		// MEMO: ここで実は signout に成功していました、みたいな状況だと以降のこのユーザーループが死ぬがそれはユーザー責任とする
 		return
 	}
-	user.Agent.CacheStore.Clear()
 
 	// signout したらトップページに飛ぶ(MEMO: 初期状態だと trend おもすぎて backend をころしてしまうかも)
 	go func() {
 		// 登録済みユーザーは trend に興味はないので verify はせず投げっぱなし
-		_, err = browserGetLandingPageIgnoreAction(ctx, user.Agent)
+		_, err = getTrendIgnoreAction(ctx, user.Agent)
 		if err != nil {
 			addErrorWithContext(ctx, step, err)
 			// return するとこのあとのログイン必須なシナリオが回らないから return はしない
@@ -899,16 +821,6 @@ func authInfinityRetry(ctx context.Context, a *agent.Agent, userID string, step 
 			for _, err := range errs {
 				addErrorWithContext(ctx, step, err)
 			}
-			continue
-		}
-		me, hres, err := getMeAction(ctx, a)
-		if err != nil {
-			addErrorWithContext(ctx, step, err)
-			continue
-		}
-		err = verifyMe(userID, hres, me)
-		if err != nil {
-			addErrorWithContext(ctx, step, err)
 			continue
 		}
 		return

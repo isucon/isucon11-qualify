@@ -8,3 +8,13 @@
   shell: |
     go build -o isucondition .
 
+- name: "roles/contestant/tasks/isucondition-go: Deploy Service file"
+  become_user: root
+  copy:
+    src: "{{ item }}"
+    dest: "/{{ item }}"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+  with_items:
+    - etc/systemd/system/isucondition.go.service

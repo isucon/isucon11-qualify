@@ -1,9 +1,0 @@
----
-- name: "roles/contestant/tasks/isucondition-rust: Build Web Application Rust"
-  become_user: isucon
-  args:
-    chdir: /home/isucon/webapp/rust
-  environment:
-    PATH: "/home/isucon/.cargo/bin:{{ ansible_env.PATH }}"
-  shell: |
-    make build

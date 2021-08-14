@@ -1,4 +1,4 @@
-import { BrowserRouter, Redirect, Route, Switch } from 'react-router-dom'
+import { BrowserRouter, Switch } from 'react-router-dom'
 import PageHeader from './components/PageHeader/PageHeader'
 import Home from './pages/Home'
 import IsuRoot from './pages/IsuRoot'
@@ -21,9 +21,6 @@ const App = () => {
             <GuardedRoute path="/register" exact>
               <Register />
             </GuardedRoute>
-            <Route>
-              <Redirect to="/" />
-            </Route>
           </Switch>
         </div>
       </BrowserRouter>

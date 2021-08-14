@@ -2,7 +2,6 @@
 FROM golang:1.16.5-alpine3.13 AS builder01
 WORKDIR /workdir
 COPY bench/go.mod bench/go.sum ./bench/
-COPY bench/random ./bench/random
 COPY extra/initial-data ./extra/initial-data
 WORKDIR /workdir/bench
 RUN go mod download

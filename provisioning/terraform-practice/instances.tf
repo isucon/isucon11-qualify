@@ -19,30 +19,30 @@ locals {
       gitTag   = var.defaultGitTag
       baseAddr = 30
     }
-    #"temma" : {
-    #  gitTag   = var.defaultGitTag
-    #  baseAddr = 40
-    #}
+    "temma" : {
+      gitTag   = var.defaultGitTag
+      baseAddr = 40
+    }
     "takonomura" : {
       gitTag   = var.defaultGitTag
       baseAddr = 50
     }
-    #"eagletmt" : {
-    #  gitTag   = var.defaultGitTag
-    #  baseAddr = 60
-    #}
-    #"hosshii" : {
-    #  gitTag   = var.defaultGitTag
-    #  baseAddr = 70
-    #}
-    #"sapphi_red" : {
-    #  gitTag   = var.defaultGitTag
-    #  baseAddr = 80
-    #}
-    #"karino" : {
-    #  gitTag   = var.defaultGitTag
-    #  baseAddr = 90
-    #}
+    "eagletmt" : {
+      gitTag   = var.defaultGitTag
+      baseAddr = 60
+    }
+    "hosshii" : {
+      gitTag   = var.defaultGitTag
+      baseAddr = 70
+    }
+    "sapphi_red" : {
+      gitTag   = var.defaultGitTag
+      baseAddr = 80
+    }
+    "karino" : {
+      gitTag   = var.defaultGitTag
+      baseAddr = 90
+    }
   }
 }
 
