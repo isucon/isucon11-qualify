@@ -186,13 +186,13 @@ def get_user_id_from_session():
     jia_user_id = session.get("jia_user_id")
 
     if jia_user_id is None:
-        raise Unauthorized("no session")
+        raise Unauthorized("you are not signed in")
 
     query = "SELECT COUNT(*) FROM `user` WHERE `jia_user_id` = %s"
     (count,) = select_row(query, (jia_user_id,), dictionary=False)
 
     if count == 0:
-        raise Unauthorized("not found: user")
+        raise Unauthorized("you are not signed in")
 
     return jia_user_id
 
