@@ -27,6 +27,9 @@ jobs:
     name: Lint
     runs-on: self-hosted
     timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: webapp/nodejs
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
