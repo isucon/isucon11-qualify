@@ -46,7 +46,11 @@ return function (ContainerBuilder $containerBuilder) {
                 $databaseSettings['port']
             ]);
 
-            $pdo = new PDO($dsn, $databaseSettings['user'], $databaseSettings['password']);
+            $pdo = new PDO($dsn, $databaseSettings['user'], $databaseSettings['password'], [
+                // TODO: 持続的な接続で問題ないか要検証
+                PDO::ATTR_PERSISTENT => true,
+            ]);
+
             $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
             return $pdo;
