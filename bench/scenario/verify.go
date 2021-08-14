@@ -120,7 +120,7 @@ func verifyIsuIcon(expected *model.Isu, actual []byte, actualStatusCode int) err
 	if expected.ImageHash != md5.Sum(actual) {
 		return failure.NewError(ErrMismatch, errorFormatWithURI(
 			actualStatusCode, http.MethodGet, "/api/isu/"+expected.JIAIsuUUID+"/icon",
-			"椅子 (JIA_ISU_UUID=%s) のiconが異なります", expected.JIAIsuUUID,
+			"椅子のiconが異なります", //UUIDはpathでわかるので省略
 		))
 	}
 	return nil
