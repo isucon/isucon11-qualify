@@ -174,7 +174,7 @@ func verifyIsuList(res *http.Response, expectedReverse []*model.Isu, isuList []*
 	return newConditionUUIDs, errs
 }
 
-//mustExistUntil: この値以下のtimestampを持つものは全て反映されているべき
+//mustExistUntil: この値以下のtimestampを持つものは全て反映されているべき。副作用: IsuCondition の ReadTime を更新する。
 func verifyIsuConditions(res *http.Response,
 	targetUser *model.User, targetIsuUUID string, request *service.GetIsuConditionRequest,
 	backendData []*service.GetIsuConditionResponse,
@@ -274,6 +274,12 @@ func verifyIsuConditions(res *http.Response,
 				return errorMismatch(res, "データが正しくありません")
 			}
 			lastSort = nowSort
+
+			// GET /api/isu/:id/graph と連動してる読んだ時間を更新
+			nowTime := time.Now().Unix()
+			if expected.ReadTime > nowTime {
+				expected.ReadTime = nowTime
+			}
 		}
 		return nil
 	}(); err != nil {
@@ -539,6 +545,7 @@ func errorChecksum(base string, resource *agent.Resource, path string) error {
 	return nil
 }
 
+// 副作用: IsuCondition の ReadTime を更新する。
 func verifyGraph(
 	res *http.Response, targetUser *model.User, targetIsuUUID string,
 	getGraphReq *service.GetGraphRequest,
@@ -610,6 +617,12 @@ func verifyGraph(
 					if expected.TimestampUnix == timestamp {
 						// graphOne.ConditionTimestamps[n] から condition を取得
 						conditionsBaseOfScore = append(conditionsBaseOfScore, expected)
+
+						// GET /api/condition/:id と連動してる読んだ時間を更新
+						nowTime := time.Now().Unix()
+						if expected.ReadTime > nowTime {
+							expected.ReadTime = nowTime
+						}
 						break //ok
 					}
 				}
