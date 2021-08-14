@@ -246,14 +246,11 @@ func (s *Scenario) NewIsuWithCustomImg(ctx context.Context, step *isucandar.Benc
 			return nil
 		}
 	}
-	// POST isu のレスポンスより ID を取得して isu モデルに代入する
+	// GET isu のレスポンスより ID を取得して isu モデルに代入する
 	isu.ID = isuResponse.ID
-
-	// TODO: これは validate でやるべきなきがする
-	if isuResponse.JIAIsuUUID != isu.JIAIsuUUID ||
-		isuResponse.Name != isu.Name ||
-		isuResponse.Character != isu.Character {
-		step.AddError(errorMismatch(res, "レスポンスBodyが正しくありません"))
+	err = verifyIsu(res, isu, isuResponse)
+	if err != nil {
+		step.AddError(err)
 	}
 
 	//Icon取得
