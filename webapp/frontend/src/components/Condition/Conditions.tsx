@@ -1,5 +1,4 @@
 import { Condition } from '/@/lib/apis'
-import NowLoading from '/@/components/UI/NowLoading'
 import ConditionDetail from './ConditionDetail'
 
 interface Props {
@@ -7,8 +6,6 @@ interface Props {
 }
 
 const Conditions = ({ conditions }: Props) => {
-  if (!conditions) return <NowLoading />
-
   return (
     <div className="flex flex-col gap-4 items-center w-full">
       <div className="w-full border border-b-0 border-outline">
