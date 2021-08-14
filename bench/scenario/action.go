@@ -800,6 +800,9 @@ func AgentProcessHTML(a *agent.Agent, ctx context.Context, r *http.Response, bod
 	//304のときはbodyにcacheが入っているかどうか分からないので、確実にcacheを取得
 	if a.CacheStore != nil {
 		for _, resource := range resources {
+			if resource.Response.StatusCode != http.StatusNotModified {
+				continue
+			}
 			cache := a.CacheStore.Get(resource.Request)
 			if cache != nil {
 				resource.Response.Body.Close()
