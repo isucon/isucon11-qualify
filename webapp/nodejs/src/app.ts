@@ -646,7 +646,6 @@ async function generateIsuGraphResponse(
           data,
           conditionTimeStamps: timestampsInThisHour,
         });
-        // TODO
       }
       startTimeInThisHour = truncatedConditionTime;
       conditionsInThisHour.splice(0);
@@ -738,7 +737,7 @@ function calculateGraphDataPoint(
       const keyValue = condStr.split("=");
 
       const conditionName = keyValue[0];
-      if ((keyValue[1] = "true")) {
+      if (keyValue[1] === "true") {
         conditionsCount[conditionName] += 1;
         badConditionsCount++;
       }
@@ -755,7 +754,7 @@ function calculateGraphDataPoint(
 
   let sittingCount = 0;
   isuConditions.forEach((condition) => {
-    if (!!condition.is_sitting) {
+    if (condition.is_sitting) {
       sittingCount++;
     }
   });
@@ -919,7 +918,7 @@ async function getIsuConditions(
 
 // ISUのコンディションの文字列からコンディションレベルを計算
 function calculateConditionLevel(condition: string): [string, Error?] {
-  var conditionLevel: string;
+  let conditionLevel: string;
   const warnCount = (() => {
     let count = 0;
     let pos = 0;
@@ -1029,6 +1028,22 @@ interface PostIsuConditionRequest {
   timestamp: number;
 }
 
+const isValidPostIsuConditionRequest = (
+  body: PostIsuConditionRequest[]
+): body is PostIsuConditionRequest[] => {
+  return (
+    Array.isArray(body) &&
+    body.every((data) => {
+      return (
+        typeof data.is_sitting === "boolean" &&
+        typeof data.condition === "string" &&
+        typeof data.message === "string" &&
+        typeof data.timestamp === "number"
+      );
+    })
+  );
+};
+
 // POST /api/condition/:jia_isu_uuid
 // ISUからのコンディションを受け取る
 app.post(
@@ -1052,7 +1067,10 @@ app.post(
     try {
       const jiaIsuUUID = req.params.jia_isu_uuid;
 
-      // TODO: validate request body
+      const request = req.body;
+      if (!isValidPostIsuConditionRequest(request) || request.length === 0) {
+        return res.status(400).type("text").send("bad request body");
+      }
 
       await db.beginTransaction();
 
@@ -1064,7 +1082,7 @@ app.post(
         return res.status(404).type("text").send("not found: isu");
       }
 
-      for (const cond of req.body) {
+      for (const cond of request) {
         const timestamp = new Date(cond.timestamp * 1000);
 
         if (!isValidConditionFormat(cond.condition)) {
@@ -1137,4 +1155,4 @@ function isValidConditionFormat(condition: string): boolean {
   });
 });
 
-app.listen(parseInt(process.env["SERVER_APP_PORT"] ?? "3000", 10), () => {});
+app.listen(parseInt(process.env["SERVER_APP_PORT"] ?? "3000", 10));
