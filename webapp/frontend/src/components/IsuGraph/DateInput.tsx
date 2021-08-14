@@ -3,10 +3,10 @@ import AutosizeInput from 'react-input-autosize'
 
 interface Props {
   day: string
-  fetchGraphs: (payload: { day: string }) => Promise<void>
+  setDay: (day: string) => Promise<void>
 }
 
-const DateInput = ({ day, fetchGraphs }: Props) => {
+const DateInput = ({ day, setDay }: Props) => {
   const [tmpDay, setTmpDay] = useState(day)
 
   useEffect(() => {
@@ -21,7 +21,7 @@ const DateInput = ({ day, fetchGraphs }: Props) => {
         onKeyPress={e => {
           if (e.key === 'Enter') {
             e.preventDefault()
-            fetchGraphs({ day: tmpDay })
+            setDay(tmpDay)
           }
         }}
       />

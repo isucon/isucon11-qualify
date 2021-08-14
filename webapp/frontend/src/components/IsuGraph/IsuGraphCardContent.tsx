@@ -25,35 +25,30 @@ const IsuGraphCardContent = ({ isu }: Props) => {
   )
 
   const {
-    graphs,
+    loading,
     transitionData,
     sittingData,
     timeCategories,
     day,
-    tooltipData,
-    fetchGraphs,
+    conditions,
+    specify,
     prev,
     next
   } = useGraph(getGraphs)
 
-  if (graphs.length === 0) return <NowLoading />
+  if (loading) return <NowLoading />
 
   return (
     <div className="flex flex-col gap-12">
       <div className="flex justify-center w-full">
-        <GraphNavigator
-          prev={prev}
-          next={next}
-          day={day}
-          fetchGraphs={fetchGraphs}
-        />
+        <GraphNavigator prev={prev} next={next} specify={specify} day={day} />
       </div>
       <div className="relative flex flex-col gap-8">
         <div className="z-10">
           <TransitionGraph
             transitionData={transitionData}
             timeCategories={timeCategories}
-            tooltipData={tooltipData}
+            tooltipData={conditions}
           />
         </div>
 
