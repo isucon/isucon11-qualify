@@ -40,7 +40,7 @@ return function (ContainerBuilder $containerBuilder) {
         PDO::class => function (ContainerInterface $c): PDO {
             $databaseSettings = $c->get(SettingsInterface::class)->get('database');
 
-            $dsn = vsprintf('mysql:host=%s;dbname=%s;port=%d', [
+            $dsn = vsprintf('mysql:host=%s;dbname=%s;port=%d;charset=utf8mb4', [
                 $databaseSettings['host'],
                 $databaseSettings['database'],
                 $databaseSettings['port']
