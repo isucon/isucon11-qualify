@@ -179,26 +179,26 @@ func (s *Scenario) loadErrorCheck(ctx context.Context, step *isucandar.Benchmark
 	if err != nil {
 		logger.AdminLogger.Panicln(err)
 	}
+	//loginUser.Agentはsignoutするかもしれないので自前でagentを確保
+	loginUserAgent, err := s.NewAgent()
+	if err != nil {
+		logger.AdminLogger.Panicln(err)
+	}
 
 	for {
 		var loginUser *model.User
+		//POSTが完了している(IsuListOrderByCreatedAtにwriteアクセスが来ない)userをランダムに取る
 		for {
 			s.normalUsersMtx.Lock()
-			//loginUser = s.normalUsers[rand.Intn(len(s.normalUsers))]
-			loginUser = s.normalUsers[len(s.normalUsers)-1] //DEBUG
+			loginUser = s.normalUsers[rand.Intn(len(s.normalUsers))]
 			s.normalUsersMtx.Unlock()
 			if atomic.LoadInt32(&loginUser.PostIsuFinish) != 0 {
 				break
 			}
 		}
-		if loginUser.Agent == nil {
-			//nilならシナリオループは回っていないはず
-			loginUser.Agent, err = s.NewAgent()
-			if err != nil {
-				logger.AdminLogger.Panicln(err)
-			}
-			authInfinityRetry(ctx, loginUser.Agent, loginUser.UserID, step)
-		}
+		loginUserAgent.ClearCookie()
+		loginUserAgent.CacheStore.Clear()
+		authInfinityRetry(ctx, loginUserAgent, loginUser.UserID, step)
 
 		select {
 		case <-ctx.Done():
@@ -212,10 +212,10 @@ func (s *Scenario) loadErrorCheck(ctx context.Context, step *isucandar.Benchmark
 		s.prepareIrregularCheckPostSignout(ctx, step)
 		s.prepareIrregularCheckGetMe(ctx, guestAgent, step)
 		s.prepareIrregularCheckGetIsuList(ctx, s.noIsuUser, guestAgent, step)
-		s.prepareIrregularCheckGetIsu(ctx, getRandomIsu(loginUser).JIAIsuUUID, loginUser.Agent, s.noIsuUser, guestAgent, step)
-		s.prepareIrregularCheckGetIsuIcon(ctx, getRandomIsu(loginUser).JIAIsuUUID, loginUser.Agent, s.noIsuUser, guestAgent, step)
-		s.prepareIrregularCheckGetIsuGraph(ctx, getRandomIsu(loginUser).JIAIsuUUID, loginUser.Agent, s.noIsuUser, guestAgent, step)
-		s.prepareIrregularCheckGetIsuConditions(ctx, getRandomIsu(loginUser), loginUser.Agent, s.noIsuUser, guestAgent, step)
+		s.prepareIrregularCheckGetIsu(ctx, getRandomIsu(loginUser).JIAIsuUUID, loginUserAgent, s.noIsuUser, guestAgent, step)
+		s.prepareIrregularCheckGetIsuIcon(ctx, getRandomIsu(loginUser).JIAIsuUUID, loginUserAgent, s.noIsuUser, guestAgent, step)
+		s.prepareIrregularCheckGetIsuGraph(ctx, getRandomIsu(loginUser).JIAIsuUUID, loginUserAgent, s.noIsuUser, guestAgent, step)
+		s.prepareIrregularCheckGetIsuConditions(ctx, getRandomIsu(loginUser), loginUserAgent, s.noIsuUser, guestAgent, step)
 
 		select {
 		case <-ctx.Done():
