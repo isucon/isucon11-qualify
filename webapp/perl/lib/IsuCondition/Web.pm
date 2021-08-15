@@ -11,7 +11,7 @@ use DBIx::Sunny;
 use File::Slurp qw(read_file);
 use HTTP::Status qw(:constants);
 use Log::Minimal;
-use JSON::MaybeXS qw(encode_json);
+use JSON::MaybeXS qw(encode_json decode_json);
 use Cpanel::JSON::XS::Type;
 use Crypt::JWT qw(decode_jwt);
 use Furl;
@@ -339,7 +339,7 @@ sub post_isu($self, $c) {
             $c->halt_text($res->status, "JIAService returned error");
         }
 
-        my $isu_from_jia = $res->decoded_content;
+        my $isu_from_jia = decode_json($res->body);
         $self->dbh->query("UPDATE `isu` SET `character` = ? WHERE  `jia_isu_uuid` = ?", $isu_from_jia->{character}, $jia_isu_uuid);
 
         $isu = $self->dbh->select_row(
@@ -357,7 +357,8 @@ sub post_isu($self, $c) {
         $c->halt_no_content(HTTP_INTERNAL_SERVER_ERROR);
     }
 
-    return $c->render_json(HTTP_CREATED, $isu, Isu);
+    delete $isu->{image};
+    return $c->render_json($isu, Isu, HTTP_CREATED);
 }
 
 # GET /api/isu/:jia_isu_uuid
@@ -375,7 +376,7 @@ sub get_isu_id($self, $c) {
         $c->halt_text(HTTP_NOT_FOUND, "not found: isu");
     }
 
-    return $c->render_json(HTTP_OK, $isu, Isu);
+    return $c->render_json($isu, Isu);
 }
 
 # GET /api/isu/:jia_isu_uuid/icon
@@ -672,7 +673,7 @@ sub get_isu_conditions_from_db($self, $jia_isu_uuid, $end_time, $condition_level
 }
 
 # ISUのコンディションの文字列からコンディションレベルを計算
-sub calculate_condition_level($self, $condition) {
+sub calculate_condition_level($condition) {
     my $warn_count = () = $condition =~ m!=true!g;
 
     my $condition_level;
@@ -909,7 +910,7 @@ sub dbh {
     # override
     my $_JSON = JSON::MaybeXS->new()->allow_blessed(1)->convert_blessed(1)->ascii(1);
     *Kossy::Connection::render_json = sub {
-        my ($c, $obj, $json_spec) = @_;
+        my ($c, $obj, $json_spec, $status) = @_;
 
         my $body = $_JSON->encode($obj, $json_spec); # Cpanel::JSON::XS::Typeを利用する
         $body = $c->escape_json($body);
@@ -918,7 +919,9 @@ sub dbh {
             $body = "\xEF\xBB\xBF" . $body;
         }
 
-        $c->res->status( 200 );
+        $status //= 200;
+
+        $c->res->status( $status );
         $c->res->content_type('application/json; charset=UTF-8');
         $c->res->header( 'X-Content-Type-Options' => 'nosniff' ); # defense from XSS
         $c->res->body( $body );
