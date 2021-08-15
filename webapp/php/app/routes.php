@@ -470,7 +470,7 @@ final class Handler
         } catch (UnexpectedValueException) {
             $response->getBody()->write('bad request body');
 
-            return $response->withStatus(StatusCodeInterface::STATUS_FORBIDDEN)
+            return $response->withStatus(StatusCodeInterface::STATUS_BAD_REQUEST)
                 ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
         }
 
