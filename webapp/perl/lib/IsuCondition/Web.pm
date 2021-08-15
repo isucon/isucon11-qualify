@@ -875,14 +875,14 @@ sub dbh {
 
 # XXX hack Kossy
 {
-
+    no warnings qw(redefine);
     my $orig = \&Kossy::Exception::response;
     *Kossy::Exception::response = sub {
-        my $self = shift;
+        my $self = $_[0];
         if ($self->{my_response}) {
             return $self->{my_response};
         }
-        return $orig->();
+        goto $orig;
     };
 
     *Kossy::Connection::halt_text = sub {
