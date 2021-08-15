@@ -1,6 +1,6 @@
 import { IoIosArrowBack, IoIosArrowForward } from 'react-icons/io'
-import { Condition, DEFAULT_CONDITION_LIMIT } from '../../lib/apis'
-import IconButton from '../UI/IconButton'
+import { Condition, DEFAULT_CONDITION_LIMIT } from '/@/lib/apis'
+import IconButton from '/@/components/UI/IconButton'
 
 interface Props {
   conditions: Condition[]

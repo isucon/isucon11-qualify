@@ -71,7 +71,6 @@ func reqNoContentResError(ctx context.Context, agent *agent.Agent, method string
 		logger.AdminLogger.Panic(err)
 	}
 
-	// TODO: resBodyの扱いを考える(現状でここに置いてるのは Close 周りの都合)
 	httpres, err := doRequest(ctx, agent, httpreq, allowedStatusCodes)
 	if err != nil {
 		return nil, "", err
@@ -249,7 +248,7 @@ func reqMultipartResError(ctx context.Context, agent *agent.Agent, method string
 }
 
 func doRequest(ctx context.Context, agent *agent.Agent, httpreq *http.Request, allowedStatusCodes []int) (*http.Response, error) {
-	httpres, err := agent.Do(ctx, httpreq)
+	httpres, err := AgentDo(agent, ctx, httpreq)
 	if err != nil {
 		return nil, failure.NewError(ErrHTTP, err)
 	}

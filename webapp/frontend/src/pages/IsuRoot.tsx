@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Redirect, Switch, useParams } from 'react-router-dom'
-import SubHeader from '../components/Isu/SubHeader'
-import NowLoading from '../components/UI/NowLoading'
-import apis, { Isu } from '../lib/apis'
-import GuardedRoute from '../router/GuardedRoute'
+import SubHeader from '/@/components/Isu/SubHeader'
+import NowLoading from '/@/components/UI/NowLoading'
+import apis, { Isu } from '/@/lib/apis'
+import GuardedRoute from '/@/router/GuardedRoute'
 import IsuCondition from './IsuCondition'
 import IsuDetail from './IsuDetail'
 import IsuGraph from './IsuGraph'
@@ -32,6 +32,7 @@ const IsuRoot = () => {
     }
     return <NowLoading />
   }
+
   return (
     <div>
       <SubHeader isu={isu} />

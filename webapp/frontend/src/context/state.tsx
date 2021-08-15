@@ -1,5 +1,5 @@
 import { createContext, Dispatch, useContext, useReducer } from 'react'
-import { User } from '../lib/apis'
+import { User } from '/@/lib/apis'
 
 export interface State {
   me: User | null

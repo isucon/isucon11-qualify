@@ -1,5 +1,5 @@
-import { GetIsuListResponse } from '../../lib/apis'
-import { getConditionTime } from '../../lib/date'
+import { GetIsuListResponse } from '/@/lib/apis'
+import { getConditionTime } from '/@/lib/date'
 import Isu from './Isu'
 import Tip from './Tip'
 

@@ -34,7 +34,7 @@ import (
 
 const (
 	// FAIL になるエラー回数
-	FAIL_ERROR_COUNT int64 = 100 //TODO:ちゃんと決める
+	FAIL_ERROR_COUNT int64 = 100
 	//load context
 	LOAD_TIMEOUT time.Duration = 60 * time.Second
 )
@@ -103,7 +103,7 @@ func init() {
 
 	var jiaServiceURLStr, timeoutDuration, initializeTimeoutDuration string
 	flag.StringVar(&jiaServiceURLStr, "jia-service-url", getEnv("JIA_SERVICE_URL", "http://apitest:5000"), "jia service url")
-	flag.StringVar(&timeoutDuration, "timeout", "5s", "request timeout duration")
+	flag.StringVar(&timeoutDuration, "timeout", "1s", "request timeout duration")
 	flag.StringVar(&initializeTimeoutDuration, "initialize-timeout", "20s", "request timeout duration of POST /initialize")
 
 	flag.Parse()
@@ -189,8 +189,9 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 	}
 	tagCountPair := make([]TagCountPair, 0)
 	promTags := PromTags{}
-
-	for tag, count := range result.Score.Breakdown() {
+	scoreTable := result.Score.Breakdown()
+	scenario.SetScoreTags(scoreTable)
+	for tag, count := range scoreTable {
 		tagCountPair = append(tagCountPair, TagCountPair{Tag: tag, Count: count})
 	}
 	sort.Slice(tagCountPair, func(i, j int) bool {
@@ -212,7 +213,7 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 		case isCritical:
 			passed = false
 			reason = "Critical error"
-			logger.AdminLogger.Printf("Critical error because: %+v\n", err) //TODO: Contestantでも良いかも
+			logger.AdminLogger.Printf("Critical error because: %+v\n", err)
 		case isTimeout:
 			timeoutCount++
 		case isDeduction:
@@ -223,7 +224,7 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 			}
 		}
 	}
-	deductionTotal := deduction + timeoutCount/10 //TODO:
+	deductionTotal := deduction + timeoutCount/10
 
 	if passed && deduction > FAIL_ERROR_COUNT {
 		passed = false

@@ -1,4 +1,4 @@
-import { Isu } from '../../lib/apis'
+import { Isu } from '/@/lib/apis'
 
 interface Props {
   isu: Isu
