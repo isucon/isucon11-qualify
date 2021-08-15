@@ -1,4 +1,8 @@
-module.exports = {
+import { defineConfig } from 'vite-plugin-windicss'
+import forms from 'windicss/plugin/forms'
+
+export default defineConfig({
+  plugins: [forms],
   theme: {
     backgroundColor: theme => ({
       ...theme('colors'),
@@ -53,4 +57,4 @@ module.exports = {
       }
     }
   }
-}
+})
