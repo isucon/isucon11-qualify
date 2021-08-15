@@ -493,12 +493,15 @@ final class Handler
             return ['', StatusCodeInterface::STATUS_UNAUTHORIZED, 'no session'];
         }
 
-        $stmt = $this->dbh->prepare('SELECT COUNT(*) FROM `user` WHERE `jia_user_id` = ?');
-        if (!$stmt->execute([$jiaUserId])) {
-            return ['', StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR, 'db error: ' . $this->dbh->errorInfo()[2]];
+        try {
+            $stmt = $this->dbh->prepare('SELECT COUNT(*) FROM `user` WHERE `jia_user_id` = ?');
+            $stmt->execute([$jiaUserId]);
+            $count = $stmt->fetch()[0];
+        } catch (PDOException $e) {
+            return ['', StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR, 'db error: ' . $e->errorInfo[2]];
         }
 
-        if ($stmt->fetch()[0] == 0) {
+        if ($count == 0) {
             return ['', StatusCodeInterface::STATUS_UNAUTHORIZED, 'not found: user'];
         }
 
@@ -507,14 +510,16 @@ final class Handler
 
     private function getJiaServiceUrl(): string
     {
-        $stmt = $this->dbh->prepare('SELECT * FROM `isu_association_config` WHERE `name` = ?');
-        if (!$stmt->execute(['jia_service_url'])) {
-            $this->logger->warning($this->dbh->errorInfo()[2]);
+        try {
+            $stmt = $this->dbh->prepare('SELECT * FROM `isu_association_config` WHERE `name` = ?');
+            $stmt->execute(['jia_service_url']);
+            $rows = $stmt->fetchAll();
+        } catch (PDOException $e) {
+            $this->logger->warning($e->errorInfo[2]);
 
             return self::DEFAULT_JIA_SERVICE_URL;
         }
 
-        $rows = $stmt->fetchAll();
         if (count($rows) === 0) {
             return self::DEFAULT_JIA_SERVICE_URL;
         }
@@ -554,9 +559,11 @@ final class Handler
             return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
         }
 
-        $stmt = $this->dbh->prepare('INSERT INTO `isu_association_config` (`name`, `url`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `url` = VALUES(`url`)');
-        if (!$stmt->execute(['jia_service_url', $initializeRequest->jiaServiceUrl])) {
-            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+        try {
+            $stmt = $this->dbh->prepare('INSERT INTO `isu_association_config` (`name`, `url`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `url` = VALUES(`url`)');
+            $stmt->execute(['jia_service_url', $initializeRequest->jiaServiceUrl]);
+        } catch (PDOException $e) {
+            $this->logger->error('db error: ' . $e->errorInfo[2]);
 
             return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
         }
@@ -606,9 +613,12 @@ final class Handler
         }
         $jiaUserId = (string)$jiaUserIdVar;
 
-        $stmt = $this->dbh->prepare('INSERT IGNORE INTO user (`jia_user_id`) VALUES (?)');
-        if (!$stmt->execute([$jiaUserId])) {
-            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+
+        try {
+            $stmt = $this->dbh->prepare('INSERT IGNORE INTO user (`jia_user_id`) VALUES (?)');
+            $stmt->execute([$jiaUserId]);
+        } catch (PDOException $e) {
+            $this->logger->error('db error: ' . $e->errorInfo[2]);
 
             return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
         }
@@ -683,24 +693,15 @@ final class Handler
             return $newResponse;
         }
 
-        if (!$this->dbh->beginTransaction()) {
-            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+        $this->dbh->beginTransaction();
 
-            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
-        }
-
-        $stmt = $this->dbh->prepare('SELECT * FROM `isu` WHERE `jia_user_id` = ? ORDER BY `id` DESC');
-        if (!$stmt->execute([$jiaUserId])) {
+        try {
+            $stmt = $this->dbh->prepare('SELECT * FROM `isu` WHERE `jia_user_id` = ? ORDER BY `id` DESC');
+            $stmt->execute([$jiaUserId]);
+            $rows = $stmt->fetchAll();
+        } catch (PDOException $e) {
             $this->dbh->rollBack();
-            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
-
-            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
-        }
-
-        $rows = $stmt->fetchAll();
-        if ($rows === false) {
-            $this->dbh->rollBack();
-            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+            $this->logger->error('db error: ' . $e->errorInfo[2]);
 
             return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
         }
@@ -713,25 +714,20 @@ final class Handler
 
         /** @var GetIsuListResponse[] $responseList */
         $responseList = [];
-
         foreach ($isuList as $isu) {
-            $foundLastCondition = true;
-
-            $stmt = $this->dbh->prepare('SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` DESC LIMIT 1');
-            if (!$stmt->execute([$isu->jiaUserId])) {
+            try {
+                $stmt = $this->dbh->prepare('SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` DESC LIMIT 1');
+                $stmt->execute([$isu->jiaUserId]);
+                $rows = $stmt->fetchAll();
+            } catch (PDOException $e) {
                 $this->dbh->rollBack();
-                $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+                $this->logger->error('db error: ' . $e->errorInfo[2]);
 
                 return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
             }
 
-            $rows = $stmt->fetchAll();
-            if (count($rows) === 0) {
-                $foundLastCondition = false;
-            }
-
             $formattedCondition = null;
-            if ($foundLastCondition) {
+            if (count($rows) != 0) {
                 $lastCondition = IsuCondition::fromDbRow($rows[0]);
                 try {
                     $conditionLevel = $this->calculateConditionLevel($lastCondition->condition);
@@ -763,12 +759,7 @@ final class Handler
             $responseList[] = $res;
         }
 
-        if (!$this->dbh->commit()) {
-            $this->dbh->rollBack();
-            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
-
-            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
-        }
+        $this->dbh->commit();
 
         return $this->jsonResponse($response, $responseList);
     }
@@ -830,28 +821,23 @@ final class Handler
             }
         }
 
-        if (!$this->dbh->beginTransaction()) {
-            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+        $this->dbh->beginTransaction();
 
-            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
-        }
-
-        $stmt = $this->dbh->prepare('INSERT INTO `isu`' .
-                               '	(`jia_isu_uuid`, `name`, `image`, `jia_user_id`) VALUES (?, ?, ?, ?)');
         try {
+            $stmt = $this->dbh->prepare('INSERT INTO `isu`' .
+                                        '	(`jia_isu_uuid`, `name`, `image`, `jia_user_id`) VALUES (?, ?, ?, ?)');
             $stmt->execute([$jiaIsuUuid, $isuName, $image, $jiaUserId]);
         } catch (PDOException $e) {
-            $errorInfo = $e->errorInfo;
             $this->dbh->rollBack();
 
-            if ($errorInfo[1] === self::MYSQL_ERR_NUM_DUPLICATE_ENTRY) {
+            if ($e->errorInfo[1] === self::MYSQL_ERR_NUM_DUPLICATE_ENTRY) {
                 $response->getBody()->write('duplicated: isu');
 
                 return $response->withStatus(StatusCodeInterface::STATUS_CONFLICT)
                     ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
             }
 
-            $this->logger->error('db error: ' . $errorInfo[2]);
+            $this->logger->error('db error: ' . $e->errorInfo[2]);
 
             return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
         }
@@ -896,23 +882,20 @@ final class Handler
             return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
         }
 
-        $stmt = $this->dbh->prepare('UPDATE `isu` SET `character` = ? WHERE  `jia_isu_uuid` = ?');
-        if (!$stmt->execute([$isuFromJia->character, $jiaIsuUuid])) {
+        try {
+            $stmt = $this->dbh->prepare('UPDATE `isu` SET `character` = ? WHERE  `jia_isu_uuid` = ?');
+            $stmt->execute([$isuFromJia->character, $jiaIsuUuid]);
+
+            $stmt = $this->dbh->prepare('SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?');
+            $stmt->execute([$jiaUserId, $jiaIsuUuid]);
+            $rows = $stmt->fetchAll();
+        } catch (PDOException $e) {
             $this->dbh->rollBack();
-            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+            $this->logger->error('db error: ' . $e->errorInfo[2]);
 
             return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
         }
 
-        $stmt = $this->dbh->prepare('SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?');
-        if (!$stmt->execute([$jiaUserId, $jiaIsuUuid])) {
-            $this->dbh->rollBack();
-            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
-
-            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
-        }
-
-        $rows = $stmt->fetchAll();
         if (count($rows) === 0) {
             $this->dbh->rollBack();
             $this->logger->error('db error: failed to insert isu');
@@ -922,12 +905,7 @@ final class Handler
 
         $isu = Isu::fromDbRow($rows[0]);
 
-        if (!$this->dbh->commit()) {
-            $this->dbh->rollBack();
-            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
-
-            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
-        }
+        $this->dbh->commit();
 
         return $this->jsonResponse($response, $isu, StatusCodeInterface::STATUS_CREATED);
     }
@@ -953,14 +931,16 @@ final class Handler
 
         $jiaIsuUuid = $args['jia_isu_uuid'];
 
-        $stmt = $this->dbh->prepare('SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?');
-        if (!$stmt->execute([$jiaUserId, $jiaIsuUuid])) {
-            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+        try {
+            $stmt = $this->dbh->prepare('SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?');
+            $stmt->execute([$jiaUserId, $jiaIsuUuid]);
+            $rows = $stmt->fetchAll();
+        } catch (PDOException $e) {
+            $this->logger->error('db error: ' . $e->errorInfo[2]);
 
             return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
         }
 
-        $rows = $stmt->fetchAll();
         if (count($rows) === 0) {
             $response->getBody()->write('not found: isu');
 
@@ -994,14 +974,16 @@ final class Handler
 
         $jiaIsuUuid = $args['jia_isu_uuid'];
 
-        $stmt = $this->dbh->prepare('SELECT `image` FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?');
-        if (!$stmt->execute([$jiaUserId, $jiaIsuUuid])) {
-            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+        try {
+            $stmt = $this->dbh->prepare('SELECT `image` FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?');
+            $stmt->execute([$jiaUserId, $jiaIsuUuid]);
+            $rows = $stmt->fetchAll();
+        } catch (PDOException $e) {
+            $this->logger->error('db error: ' . $e->errorInfo[2]);
 
             return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
         }
 
-        $rows = $stmt->fetchAll();
         if (count($rows) === 0) {
             $response->getBody()->write('not found: isu');
 
@@ -1053,21 +1035,20 @@ final class Handler
         }
         $date = new DateTimeImmutable(date('Y-m-d', $datetimeInt), new DateTimeZone('Asia/Tokyo'));
 
-        if (!$this->dbh->beginTransaction()) {
-            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+        $this->dbh->beginTransaction();
 
-            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
-        }
-
-        $stmt = $this->dbh->prepare('SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?');
-        if (!$stmt->execute([$jiaUserId, $jiaIsuUuid])) {
+        try {
+            $stmt = $this->dbh->prepare('SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?');
+            $stmt->execute([$jiaUserId, $jiaIsuUuid]);
+            $count = $stmt->fetch()[0];
+        } catch (PDOException $e) {
             $this->dbh->rollBack();
-            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+            $this->logger->error('db error: ' . $e->errorInfo[2]);
 
             return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
         }
 
-        if ($stmt->fetch()[0] == 0) {
+        if ($count == 0) {
             $this->dbh->rollBack();
             $response->getBody()->write('not found: isu');
 
@@ -1083,12 +1064,7 @@ final class Handler
             return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
         }
 
-        if (!$this->dbh->commit()) {
-            $this->dbh->rollBack();
-            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
-
-            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
-        }
+        $this->dbh->commit();
 
         return $this->jsonResponse($response, $res);
     }
@@ -1108,42 +1084,44 @@ final class Handler
         /** @var ?DateTimeInterface $startTimeInThisHour */
         $startTimeInThisHour = null;
 
-        $stmt = $this->dbh->prepare(
-            'SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` ASC',
-            [PDO::ATTR_CURSOR => PDO::CURSOR_SCROLL],
-        );
-        if (!$stmt->execute([$jiaIsuUuid])) {
-            $err = 'db error: ' . $this->dbh->errorInfo()[2];
+        try {
+            $stmt = $this->dbh->prepare(
+                'SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` ASC',
+                [PDO::ATTR_CURSOR => PDO::CURSOR_SCROLL],
+            );
+            $stmt->execute([$jiaIsuUuid]);
 
-            return [[], $err];
-        }
+            while ($row = $stmt->fetch()) {
+                $condition = IsuCondition::fromDbRow($row);
 
-        while ($row = $stmt->fetch()) {
-            $condition = IsuCondition::fromDbRow($row);
+                $truncatedConditionTime = $condition->timestamp->setTime(0, 0);
+                if ($truncatedConditionTime != $startTimeInThisHour) {
+                    if (count($conditionsInThisHour) > 0) {
+                        [$data, $err] = $this->calculateGraphDataPoint($conditionsInThisHour);
+                        if (!empty($err)) {
+                            return [[], $err];
+                        }
 
-            $truncatedConditionTime = $condition->timestamp->setTime(0, 0);
-            if ($truncatedConditionTime != $startTimeInThisHour) {
-                if (count($conditionsInThisHour) > 0) {
-                    [$data, $err] = $this->calculateGraphDataPoint($conditionsInThisHour);
-                    if (!empty($err)) {
-                        return [[], $err];
+                        $dataPoints[] = new GraphDataPointWithInfo(
+                            jiaIsuUuid: $jiaIsuUuid,
+                            startAt: $startTimeInThisHour,
+                            data: $data,
+                            conditionTimestamps: $timestampsInThisHour,
+                        );
                     }
 
-                    $dataPoints[] = new GraphDataPointWithInfo(
-                        jiaIsuUuid: $jiaIsuUuid,
-                        startAt: $startTimeInThisHour,
-                        data: $data,
-                        conditionTimestamps: $timestampsInThisHour,
-                    );
+                    $startTimeInThisHour = $truncatedConditionTime;
+                    $conditionsInThisHour = [];
+                    $timestampsInThisHour = [];
                 }
 
-                $startTimeInThisHour = $truncatedConditionTime;
-                $conditionsInThisHour = [];
-                $timestampsInThisHour = [];
+                $conditionsInThisHour[] = $condition;
+                $timestampsInThisHour[] = $condition->timestamp->getTimestamp();
             }
+        } catch (PDOException $e) {
+            $err = 'db error: ' . $e->errorInfo[2];
 
-            $conditionsInThisHour[] = $condition;
-            $timestampsInThisHour[] = $condition->timestamp->getTimestamp();
+            return [[], $err];
         }
 
         if (count($conditionsInThisHour) > 0) {
@@ -1307,17 +1285,17 @@ final class Handler
     // ISUの性格毎の最新のコンディション情報
     public function getTrend(Request $request, Response $response): Response
     {
-        /** @var Isu[] $characterList */
-        $characterList = [];
-
-        $stmt = $this->dbh->query('SELECT `character` FROM `isu` GROUP BY `character`');
-        if ($stmt === false) {
-            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+        try {
+            $stmt = $this->dbh->query('SELECT `character` FROM `isu` GROUP BY `character`');
+            $rows = $stmt->fetchAll();
+        } catch (PDOException $e) {
+            $this->logger->error('db error: ' . $e->errorInfo[2]);
 
             return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
         }
 
-        $rows = $stmt->fetchAll();
+        /** @var Isu[] $characterList */
+        $characterList = [];
         foreach ($rows as $row) {
             $characterList[] = Isu::fromDbRow($row);
         }
@@ -1325,17 +1303,18 @@ final class Handler
         /** @var TrendResponse[] $res */
         $res = [];
         foreach ($characterList as $character) {
-            /** @var Isu[] $isuList */
-            $isuList = [];
-
-            $stmt = $this->dbh->prepare('SELECT * FROM `isu` WHERE `character` = ?');
-            if (!$stmt->execute([$character->character])) {
-                $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+            try {
+                $stmt = $this->dbh->prepare('SELECT * FROM `isu` WHERE `character` = ?');
+                $stmt->execute([$character->character]);
+                $rows = $stmt->fetchAll();
+            } catch (PDOException $e) {
+                $this->logger->error('db error: ' . $e->errorInfo[2]);
 
                 return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
             }
 
-            $rows = $stmt->fetchAll();
+            /** @var Isu[] $isuList */
+            $isuList = [];
             foreach ($rows as $row) {
                 $isuList[] = Isu::fromDbRow($row);
             }
@@ -1348,17 +1327,18 @@ final class Handler
             $characterCriticalIsuConditions = [];
 
             foreach ($isuList as $isu) {
-                /** @var IsuCondition[] $conditions */
-                $conditions = [];
-
-                $stmt = $this->dbh->prepare('SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY timestamp DESC');
-                if (!$stmt->execute([$isu->jiaIsuUuid])) {
-                    $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+                try {
+                    $stmt = $this->dbh->prepare('SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY timestamp DESC');
+                    $stmt->execute([$isu->jiaIsuUuid]);
+                    $rows = $stmt->fetchAll();
+                } catch (PDOException $e) {
+                    $this->logger->error('db error: ' . $e->errorInfo[2]);
 
                     return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
                 }
 
-                $rows = $stmt->fetchAll();
+                /** @var IsuCondition[] $conditions */
+                $conditions = [];
                 foreach ($rows as $row) {
                     $conditions[] = IsuCondition::fromDbRow($row);
                 }
@@ -1448,20 +1428,20 @@ final class Handler
                 ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
         }
 
-        if (!$this->dbh->beginTransaction()) {
-            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+        $this->dbh->beginTransaction();
 
-            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
-        }
-
-        $stmt = $this->dbh->prepare('SELECT COUNT(*) FROM `isu` WHERE `jia_isu_uuid` = ?');
-        if (!$stmt->execute([$jiaIsuUuid])) {
+        try {
+            $stmt = $this->dbh->prepare('SELECT COUNT(*) FROM `isu` WHERE `jia_isu_uuid` = ?');
+            $stmt->execute([$jiaIsuUuid]);
+            $count = $stmt->fetch()[0];
+        } catch (PDOException $e) {
             $this->dbh->rollBack();
             $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
 
             return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
         }
-        if ($stmt->fetch()[0] == 0) {
+
+        if ($count == 0) {
             $this->dbh->rollBack();
             $response->getBody()->write('not found: isu');
 
@@ -1478,25 +1458,29 @@ final class Handler
                     ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
             }
 
-            $stmt = $this->dbh->prepare(
-                'INSERT INTO `isu_condition`' .
+
+            try {
+                $stmt = $this->dbh->prepare(
+                    'INSERT INTO `isu_condition`' .
                     '	(`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`)' .
                     '	VALUES (?, ?, ?, ?, ?)'
-            );
-            if (!$stmt->execute([$jiaIsuUuid, $cond->timestamp, $cond->isSitting, $cond->condition, $cond->message])) {
+                );
+                $stmt->execute([
+                    $jiaIsuUuid,
+                    date('Y-m-d H:i:s', $cond->timestamp),
+                    $cond->isSitting,
+                    $cond->condition,
+                    $cond->message,
+                ]);
+            } catch (PDOException $e) {
                 $this->dbh->rollBack();
-                $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+                $this->logger->error('db error: ' . $e->errorInfo[2]);
 
                 return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
             }
         }
 
-        if (!$this->dbh->commit()) {
-            $this->dbh->rollBack();
-            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
-
-            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
-        }
+        $this->dbh->commit();
 
         return $response->withStatus(StatusCodeInterface::STATUS_CREATED);
     }
