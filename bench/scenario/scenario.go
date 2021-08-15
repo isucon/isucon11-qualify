@@ -23,8 +23,6 @@ import (
 // および、全ステップで使うシナリオ関数
 
 type Scenario struct {
-	// TODO: シナリオ実行に必要なフィールドを書く
-
 	BaseURL                  string        // ベンチ対象 Web アプリの URL
 	UseTLS                   bool          // ベンチ対象 Web アプリが HTTPS で動いているかどうか (本番時ture/CI時false)
 	NoLoad                   bool          // Load(ベンチ負荷)を強要しない
@@ -69,8 +67,6 @@ var (
 
 func NewScenario(jiaServiceURL *url.URL, loadTimeout time.Duration) (*Scenario, error) {
 	return &Scenario{
-		// TODO: シナリオを初期化する
-		//realTimeStart: time.Now()
 		LoadTimeout:       loadTimeout,
 		virtualTimeStart:  random.BaseTime, //初期データ生成時のベースタイムと合わせるために当パッケージの値を利用
 		virtualTimeMulti:  30000,           //5分=300秒に一回 => 1秒に100回
@@ -153,7 +149,6 @@ func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a
 			addErrorWithContext(ctx, step, err)
 		}
 	}()
-	//TODO: 確率で失敗してリトライする
 	_, errs := authAction(ctx, a, user.UserID)
 	for _, err := range errs {
 		addErrorWithContext(ctx, step, err)
@@ -210,7 +205,6 @@ func (s *Scenario) NewIsuWithCustomImg(ctx context.Context, step *isucandar.Benc
 	RegisterToJiaAPI(isu, streamsForPoster)
 
 	//backendにpostする
-	//TODO: 確率で失敗してリトライする
 	req := service.PostIsuRequest{
 		JIAIsuUUID: isu.JIAIsuUUID,
 		IsuName:    isu.Name,

@@ -19,7 +19,6 @@ func (cl ConditionLevel) Equal(conditionLevel string) bool {
 	return false
 }
 
-//TODO: メモリ節約の必要があるなら考える
 type IsuCondition struct {
 	StateChange   IsuStateChange
 	TimestampUnix int64 `json:"timestamp"`

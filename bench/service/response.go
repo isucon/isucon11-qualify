@@ -21,7 +21,7 @@ type Isu struct {
 	Name               string                   `json:"name"`
 	Character          string                   `json:"character"`
 	LatestIsuCondition *GetIsuConditionResponse `json:"latest_isu_condition"`
-	// TODO: これはmodelの方にあるのが正しそう
+
 	Icon []byte `json:"-"`
 }
 

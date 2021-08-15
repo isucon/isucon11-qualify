@@ -31,8 +31,6 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 	logger.ContestantLogger.Printf("===> PREPARE")
 	// keepPostingのuserTimerでctx終了させられてしまうのでprepareでも設定する
 
-	//TODO: 他の得点源
-	//TODO: 得点調整
 	step.Result().Score.Set(ScoreStartBenchmark, 1000)
 	step.Result().Score.Set(ScoreGraphExcellent, 200)
 	step.Result().Score.Set(ScoreGraphGood, 150)
@@ -558,7 +556,6 @@ func (s *Scenario) prepareCheckAuth(ctx context.Context, isuconUser *model.User,
 	default:
 	}
 
-	//TODO: ユーザープール
 	//とりあえずは使い捨てのユーザーを使う
 	w, err := worker.NewWorker(func(ctx context.Context, index int) {
 

@@ -85,22 +85,6 @@ func verifyNotSignedIn(res *http.Response, text string) error {
 	return verify4xxError(res, text, expected, http.StatusUnauthorized)
 }
 
-// TODO: 統一され次第消す
-func verifyNotSignedInTODO(res *http.Response, text string) error {
-	expected := "you are not sign in"
-	return verify4xxError(res, text, expected, http.StatusUnauthorized)
-}
-
-func verifyBadReqBody(res *http.Response, text string) error {
-	expected := "bad request body"
-	return verify4xxError(res, text, expected, http.StatusBadRequest)
-}
-
-func verifyIsuNotFound(res *http.Response, text string) error {
-	expected := "not found: isu"
-	return verify4xxError(res, text, expected, http.StatusNotFound)
-}
-
 //データ整合性チェック
 
 //Icon,LatestIsuConditionを除いたISUの整合性チェック
@@ -445,7 +429,7 @@ func joinURL(base *url.URL, target string) string {
 	return u
 }
 
-// TODO: vendor.****.jsで取得処理が記述されているlogo_white, logo_orangeも取得できてない
+// TODO: vendor.****.jsで取得処理が記述されているlogo_white, logo_orangeも取得できてない。#448
 func verifyResources(page PageType, res *http.Response, resources agent.Resources, body io.Reader) []error {
 	base := res.Request.URL.String()
 
