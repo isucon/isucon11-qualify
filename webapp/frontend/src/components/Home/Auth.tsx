@@ -1,9 +1,9 @@
-import Card from '../UI/Card'
+import Card from '/@/components/UI/Card'
 import logo_orange from '/@/assets/logo_orange.svg'
 
 const Auth = () => {
   const click = async () => {
-    location.href = `${location.protocol}//${document.domain}:5000?callback=${location.href}`
+    location.href = `${location.protocol}//${document.domain}:5000?callback=${location.protocol}//${location.host}`
   }
 
   return (

@@ -44,21 +44,21 @@ type StreamsForScenario struct {
 //一つのIsuにつき、一つの送信用 Goroutineがある
 //IsuはISU協会 Goroutineからも読み込まれる
 type Isu struct {
-	Owner                         *User               `json:"-"`
-	ID                            int                 `json:"id"`
-	JIAIsuUUID                    string              `json:"jia_isu_uuid"`
-	Name                          string              `json:"name"`
-	ImageHash                     [md5.Size]byte      `json:"image_file_hash"` // 画像の検証用
-	Character                     string              `json:"character"`
-	CharacterID                   int                 `json:"-"`
-	StreamsForScenario            *StreamsForScenario `json:"-"`          //poster Goroutineとの通信
-	Conditions                    IsuConditionArray   `json:"conditions"` //シナリオ Goroutineからのみ参照
-	CondMutex                     sync.RWMutex
-	LastCompletedGraphTime        int64     //シナリオ Goroutineからのみ参照
-	PostTime                      time.Time //POST /isu/:id を叩いた仮想時間
-	LastReadConditionTimestamp    int64     //シナリオ Goroutineからのみ参照
-	LastReadBadConditionTimestamp int64     //シナリオ Goroutineからのみ参照
-	CreatedAt                     time.Time `json:"created_at"`
+	Owner                          *User               `json:"-"`
+	ID                             int                 `json:"id"`
+	JIAIsuUUID                     string              `json:"jia_isu_uuid"`
+	Name                           string              `json:"name"`
+	ImageHash                      [md5.Size]byte      `json:"image_file_hash"` // 画像の検証用
+	Character                      string              `json:"character"`
+	CharacterID                    int                 `json:"-"`
+	StreamsForScenario             *StreamsForScenario `json:"-"`          //poster Goroutineとの通信
+	Conditions                     IsuConditionArray   `json:"conditions"` //シナリオ Goroutineからのみ参照
+	CondMutex                      sync.RWMutex
+	LastCompletedGraphTime         int64                         //シナリオ Goroutineからのみ参照
+	PostTime                       time.Time                     //POST /isu/:id を叩いた仮想時間
+	LastReadConditionTimestamps    [service.ConditionLimit]int64 //シナリオ Goroutineからのみ参照
+	LastReadBadConditionTimestamps [service.ConditionLimit]int64 //シナリオ Goroutineからのみ参照
+	CreatedAt                      time.Time                     `json:"created_at"`
 }
 
 //新しいISUの生成
@@ -96,30 +96,22 @@ func NewRandomIsuRaw(owner *User) (*Isu, *StreamsForPoster, error) {
 	return isu, streamsForPoster, nil
 }
 
-func NewIsuRawForInitData(isu *Isu, owner *User, jiaIsuUUID string) (*Isu, *StreamsForPoster, error) {
-	stateChan := make(chan IsuStateChange, 1)
+func NewIsuRawForInitData(isu *Isu, owner *User, jiaIsuUUID string) (*Isu, error) {
+	//stateChan := make(chan IsuStateChange, 1)
 	//conditionChan := make(chan []IsuCondition, 10)
 
 	isu = &Isu{
-		ID:         isu.ID,
-		Owner:      owner,
-		JIAIsuUUID: jiaIsuUUID,
-		Name:       isu.Name,
-		ImageHash:  isu.ImageHash,
-		Character:  isu.Character,
-		Conditions: isu.Conditions,
-		StreamsForScenario: &StreamsForScenario{
-			StateChan: stateChan,
-			//ConditionChan: conditionChan,
-		},
+		ID:                 isu.ID,
+		Owner:              owner,
+		JIAIsuUUID:         jiaIsuUUID,
+		Name:               isu.Name,
+		ImageHash:          isu.ImageHash,
+		Character:          isu.Character,
+		Conditions:         isu.Conditions,
+		StreamsForScenario: nil,
 	}
 
-	streamsForPoster := &StreamsForPoster{
-		StateChan: stateChan,
-		//ConditionChan: conditionChan,
-	}
-
-	return isu, streamsForPoster, nil
+	return isu, nil
 }
 
 var defaultIconHash [md5.Size]byte
@@ -132,15 +124,6 @@ func init() {
 		log.Fatalf("failed to read default icon: %v", err)
 	}
 	defaultIconHash = md5.Sum(image)
-}
-
-func (isu *Isu) ToService() *service.Isu {
-	return &service.Isu{
-		ID:         isu.ID,
-		JIAIsuUUID: isu.JIAIsuUUID,
-		Name:       isu.Name,
-		Character:  isu.Character,
-	}
 }
 
 func (isu *Isu) SetImage(image []byte) {
@@ -160,3 +143,7 @@ func (i *Isu) AddIsuConditions(conditions []IsuCondition) {
 // 	defer i.condMutex.RUnlock()
 // 	return i.conditions[:]
 // }
+
+func (isu *Isu) IsNoPoster() bool {
+	return isu.StreamsForScenario == nil
+}

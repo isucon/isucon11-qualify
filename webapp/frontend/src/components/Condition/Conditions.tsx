@@ -1,4 +1,4 @@
-import { Condition } from '../../lib/apis'
+import { Condition } from '/@/lib/apis'
 import ConditionDetail from './ConditionDetail'
 
 interface Props {

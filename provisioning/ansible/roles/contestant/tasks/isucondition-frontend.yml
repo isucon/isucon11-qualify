@@ -1,7 +1,0 @@
----
-- name: "roles/contestant/tasks/isucondition-frontend: Remove frontend source code"
-  become_user: root
-  file:
-    path: /home/isucon/webapp/frontend
-    state: absent
-

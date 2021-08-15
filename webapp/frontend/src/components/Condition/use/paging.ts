@@ -3,8 +3,8 @@ import {
   Condition,
   ConditionRequest,
   DEFAULT_CONDITION_LIMIT
-} from '../../../lib/apis'
-import { getNowDate } from '../../../lib/date'
+} from '/@/lib/apis'
+import { getNowDate } from '/@/lib/date'
 
 const usePaging = (
   getConditions: (req: ConditionRequest) => Promise<Condition[]>

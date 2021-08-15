@@ -42,7 +42,7 @@ ISUCON11 サポート Discord サーバーは競技中ならびにその前後�
 
 ### 質問について
 
-選手は主催者へ質問を送信することができます。質問は競技内容・マニュアル・レギュレーション等に対する疑問点・明確にしたい事項の確認や、サーバー障害などのトラブル報告・サポート依頼に利用することができるが、これに限りません。
+選手は主催者へ質問を送信することができます。質問は競技内容・マニュアル・レギュレーション等に対する疑問点・明確にしたい事項の確認や、サーバー障害などのトラブル報告・サポート依頼に利用することができるが、これに限りません。ただし、事前にお知らせしているように、競技時間中 AWS クーポンの適用についての質問・サポートは対象外となります。
 
 主催者は質問された内容について競技の一環である場合は、回答できない旨を返答することがあります。
 
@@ -53,34 +53,75 @@ ISUCON11 サポート Discord サーバーは競技中ならびにその前後�
 
 ## サーバー、ネットワーク構成について
 
-**ToDo:構築方法についてポータルチーム、Infra班と確認**
-AWS CloudFormation で構築するサーバーは 3 台あり、これらのサーバーに SSH を用いて接続し競技を行います。
+予選では各チームで用意した AWS アカウントで競技環境を下記の手順に従って構築し、競技に参加します。
 
-上記のサーバーに接続するために SSH 接続を行います。
+### 1. テンプレートのダウンロード
+
+（TODO:ポータルとkanataくんに確認する）
+
+環境構築には AWS CloudFormation を利用するため、ポータルサイト上から AWS CloudFormation のテンプレートのダウンロードを行います。
+テンプレートはチームごとに固有のものとなっているため**共有厳禁**です。
+
+このテンプレートでは以下のリソースを作成します。
+
+- EC2 インスタンス (x5.large) x 3
+- EBS (gp3) x 3
+- VPC
+- インターネットゲートウェイ
+- セキュリティグループ
+- Availability Zone 情報取得に利用する Lambda 関数
+- IAM ロール
+
+テンプレートから作成される IAM ロールは EC2 インスタンスおよび Lambda 関数でのみ利用され、EC2 リソースの情報取得を行うために利用します。
+許可されているアクションは AWS の仕様上、アカウントに存在する他の EC2 リソースの情報も閲覧できる設定になっていますが、主催者は不要な情報の取得いたしません。
+
+### 2. テンプレートでのスタックの作成
+
+1. [AWS マネジメントコンソールの CloudFormation](https://ap-northeast-1.console.aws.amazon.com/cloudformation/home?region=ap-northeast-1#/) を開き、右上が「東京」(アジアパシフィック (東京) ap-northeast-1)になっていることを確認します。
+2. 「スタックの作成」をクリックします。
+   - 既存のスタックがある場合は「スタックの作成」から「新しいリソースを使用（標準）」を選択します。
+3. "スタックの作成" ページから「テンプレートの準備完了」、「テンプレートファイルのアップロード」を選択し、ダウンロードしたテンプレートのアップロードを行なった後に「次へ」をクリックします。
+4. "ステップ 2 スタックの詳細を指定" では任意のスタック名を設定し、「次へ」をクリックします。
+5. 以降は変更を行わず画面にしたがって進めますが、"ステップ 4 レビュー" において「スタックの作成」の上に表示されている「AWS CloudFormation によって IAM リソースが作成される場合があることを承認します。」にチェックを入れた上で、「スタックの作成」をクリックを行います。
+
+TODO: テンプレートを使った AWS CloudFormation での作成手順を確認
+
+### 3. インスタンスへの SSH
+
+スタックの作成後、5分程度でインスタンスが起動し GitHub に登録している SSH 鍵によりインスタンスへ SSH ができるようになります。
+インスタンスにはユーザー名 `isucon` で SSH を行います。
+
 [ssh_config(5)](https://man.openbsd.org/ssh_config.5) の例を以下に示します。なお、あくまで例示であり必ず以下の設定を利用する必要はありません。
 
 ```
  Host isucon-server1
    HostName **<Elastic IPアドレス 1>**
-   User ubuntu
+   User isucon
 
 Host isucon-server2
    HostName **<Elastic IPアドレス 2>**
-   User ubuntu
+   User isucon
 
 Host isucon-server3
    HostName **<Elastic IPアドレス 3>**
-   User ubuntu
+   User isucon
 ```
 
 ### 重要事項
 
-- **競技に利用できる計算機資源は主催者が公開した上記の所定手順で起動された EC2 インスタンスのみです。** 
+- **競技に利用できる計算機資源は主催者が公開した上記の所定手順で起動された EC2 インスタンスのみです。**
+  - テンプレートで作成されたリソースに対して、変更（インスタンスタイプの変更など）を行うことは禁止行為にあたり失格となります。
   - 特例として外部のメトリクス計測サービスの使用のみ許可をしますが、スコアを向上させるいかなる効果も持つものであってはいけません。
 - **競技終了後は、ベンチマーク走行成績の追試を行いますので、Discord サーバー および http://isucon.net/ にて主催者からお知らせをするまで、サーバーの操作はしないでください。**
   - 競技終了後の作業は禁止行為にあたり失格となります。
-- **サーバー上の `ubuntu` ならびに `isucon` 以外のユーザに関して、ユーザ削除や既存の公開鍵の削除、その他 sshd の設定変更等を行ったことにより、主催者による追試をおこなうことができない場合は、失格とします。**
+- **サーバー上の `isucon` 以外のユーザに関して、ユーザ削除や既存の公開鍵の削除、その他 sshd の設定変更等を行ったことにより、主催者による追試をおこなうことができない場合は、失格とします。**
 
+#### 競技環境の再構築方法
+
+選手自らが設定変更等により競技環境を破壊し復旧できなくなった際は、上記「テンプレートでのスタックの作成」を参考に選手自らが AWS CloudFormation で新たに競技環境の構築を行うことになります。再構築の際は、 AWS CloudFormation で既存のスタックとは異なる名前で新しいスタックを作成します。古い競技環境は競技リソースとして利用することができないため、古い競技環境のスタックは削除が必要となります。
+新規競技環境は競技開始時点の初期状態となります。古い競技環境上で変更を加えたソースコードや設定ファイル等の移行が必要な場合は、各チームの責任で行ってください。
+
+TODO: 再構築手順を実際に確認（スタック名の変更は必要か、ポータル側が上書きされているか、古い競技環境を消さないとチェックスクリプトがどうなるか、etc...）
 
 ## 作業手順
 
@@ -88,127 +129,19 @@ Host isucon-server3
 
 ### 1. サーバーへのログイン
 
-上記に記載したサーバーに対して SSH 接続してください。
+`3. インスタンスへの SSH` 節に示した三台のサーバーのいずれかに対して SSH 接続してください。
 ログインには参加登録に利用した ( = ポータルのログインに利用している) GitHub アカウントに登録されている SSH 鍵を利用します。
 
-SSH ログインのユーザ名は `ubuntu` です。
+SSH ログインのユーザ名は `isucon` です。
 
 ### 2. アプリケーションの動作確認
 
-アプリケーションは Web ブラウザから動作確認をすることができます。
+Web ブラウザで以下の URL にアクセスすることで， ISUCONDITION のトップページを閲覧できます。
 
-#### アプリケーションへのログイン方法
+- `https://<Elastic IP アドレス 1,2,3>:5000/`
 
-アプリケーションは所定の手順で起動された EC2 インスタンス上で起動した状態となっています。
-以下は `https://<Elastic IP アドレス 1>` でアプリケーションへ、`https://<Elastic IP アドレス 1>:5000` で JIA へアクセスする場合の例です。
-
-- ISUCONDITION トップページ
-  - `https://<Elastic IP アドレス 1>/`
-
-
-- JIA のログインページ
-  - `https://<Elastic IP アドレス 1>:5000/`
-
-MEMO: 本番ではHTTPSで接続できるようにするので `/etc/hosts` 周りの話を追記する
-
-ログインには Japan ISU Association（以下 JIA）のアカウントが必要です。
-下記の 4 ユーザが登録されているので、動作確認にご利用ください。ログインはトップページから行うことができます。
-
-| ログイン ID (contestant_id) | パスワード | 備考     |
-| --------------------------- | ---------- | -------- |
-| isucon                      | isucon     | 初期ユーザ |
-| isucon1                     | isucon1    | 初期ユーザ |
-| isucon2                     | isucon2    | 初期ユーザ |
-| isucon3                     | isucon3    | 初期ユーザ |
-
-#### ISU の登録に使える JIA ISU IDについて
-
-アプリケーションの動作確認用に以下の JIA ISU ID が登録に使うことができます。
-
-| JIA ISU ID |
-| --------- |
-| 0694e4d7-dfce-4aec-b7ca-887ac42cfb8f |
-| 3a8ae675-3702-45b5-b1eb-1e56e96738ea |
-| 3efff0fa-75bc-4e3c-8c9d-ebfa89ecd15e |
-| f67fcb64-f91c-4e7b-a48d-ddf1164194d0 |
-| 32d1c708-e6ef-49d0-8ca9-4fd51844dcc8 |
-| f012233f-c50e-4349-9473-95681becff1e |
-| af64735c-667a-4d95-a75e-22d0c76083e0 |
-| cb68f47f-25ef-46ec-965b-d72d9328160f |
-| 57d600ef-15b4-43bc-ab79-6399fab5c497 |
-| aa0844e6-812d-41d2-908a-eeb82a50b627 |
-
-ISU の登録はログイン後に以下のURLで行うことができます。
-
-- `https://<Elastic IP アドレス 1>/register`
-
-#### データベースの初期化方法
-
-初期状態のアプリケーションでは、初期化処理（`POST /initialize`）においてデータベースを初期状態に戻します。
-次のコマンドを実行してもデータベースを初期状態に戻すことができます。
-
-```
-~isucon/isucondition/webapp/sql/initi.sh
-```
-
-#### 競技環境の再構築方法
-
-選手自らが設定変更等により競技環境を破壊し復旧できなくなった際は、上記環境構築手順を参考に選手自らが AWS CloudFormation で新たに競技環境を構築を行うことになります。
-再構築の際は古い競技環境上で変更を加えたソースコードや設定ファイル等は新規競技環境には反映されず、初期状態となります。必要なソースコードや設定ファイル等は各チームの責任で管理を行ってください。
-古い競技環境はリソースとして使うことができないため、新規競技環境の動作確認や必要なファイルの移行が終わり次第、古い競技環境は削除が必要です。
-
-TODO: 再構築手順を実際に確認（スタック名の変更は必要か、ポータル側が上書きされているか、古い競技環境を消さないとチェックスクリプトがどうなるか、etc...）
-
-#### 動作確認に必要なアプリケーション
-
-JIA API Mock は JIA のページを模したアプリケーションであり、ローカルでの開発/動作検証に利用することができます。
-
-JIA API Mockは以下の2つのエンドポイントと ISU からのコンディション送信を模擬したリクエストを送る機能を持っています。
-
-- `POST /api/auth` - ISUCONDITION へログインするためのトークンの発行 
-- `POST /api/activate` - 仮想 ISU の登録（アクティベート）
-- 登録した仮想 ISU から ISUCONDITION へ向けたコンディションの送信
-
-JIA APIについての詳細は [ISUCONDITION アプリケーションマニュアル](./isucondition.md)を参照してください。
-
-登録した仮想 ISU からのコンディション送信を止める場合は JIA API Mock のサービスを以下のように再起動して下さい。
-   
-```shell
-sudo systemctl restart jiaapi-mock.service
-```
-
-#### ローカルでの開発方法
-
-ローカルでの動作検証にはサーバー上の JIA API Mock への [SSH におけるローカルポートフォワーディング](https://help.ubuntu.com/community/SSH/OpenSSH/PortForwarding#Local_Port_Forwarding) が必要ですが、これ以外の方法で開発をしてもかまいません。
-
-以下にローカルポートフォワーディングを実行するコマンドを例示します。
-これは「リモートホスト `isucon-server1` に SSH 接続をした上で」「ローカルの `localhost:5000` への TCP 接続を」「リモートホストを通して `10.160.1.101:5000` へ転送する」というコマンドです。
-
-```shell
-$ ssh -L localhost:5000:10.160.1.101:5000 isucon-server1
-```
-
-以上を踏まえると、上記のコマンド例を実行している場合、 `http://localhost:5000` で JIA API Mock へアクセスすることができます。
-
-
-アプリケーションの動作確認はWebブラウザから行うことができますが、下記のようにトークンの取得と cookie の設定を行うことでコンソールからも API へのアクセスが可能です。
-
-```
-TOKEN=`curl -sf -H 'content-type: application/json' http://localhost:5000/api/auth -d '{"user": "isucon", "password": "isucon"}'`
-curl -c cookie.txt -vf -XPOST -H "authorization: Bearer ${TOKEN}" http://localhost:3000/api/auth
-curl -b cookie.txt http://localhost:3000/api/isu
-```
-
-`POST /api/condition/:jia_isu_uuid` の検証を行うには、"ISU の登録に使える JIA ISU ID について" に記載されている JIA ISU ID を用います。
-アクティベートを行った ISU から送信されるコンディションは下記の様にデータを送信することが可能です。
-
-```
-export JIA_ISU_UUID=0694e4d7-dfce-4aec-b7ca-887ac42cfb8f
-curl -XPOST -H 'content-type: application/json' http://localhost:3000/api/condition/${JIA_ISU_UUID} \
--d '[{"is_sitting": true, "condition": "is_dirty=true,is_overweight=true,is_broken=true","message":"test","timestamp": 1628492991}]'
-```
-
-この他にも [SSH Remote Port Forwarding](https://help.ubuntu.com/community/SSH/OpenSSH/PortForwarding#Remote_Port_Forwarding) を利用する方法がありますが、詳細は省略します。
+なお、ブラウザから ISUCONDITION のすべての機能の動作確認をするには、ブラウザからサーバー内部のJIA API Mockへアクセスできるようにするため、ポートフォワーディングの設定が必要です．
+詳細は `ブラウザからの ISUCONDITION の動作確認` の節を確認してください．
 
 ### 3. 負荷走行 (ベンチマーク)
 
@@ -221,6 +154,125 @@ curl -XPOST -H 'content-type: application/json' http://localhost:3000/api/condit
 
 なお、負荷走行が待機中 (PENDING) もしくは実行中 (RUNNING) の間は追加の Enqueue を行うことはできません。
 
+## ブラウザからの ISUCONDITION の動作確認
+
+### 2.1 ポートフォワーディング
+
+ブラウザから ISUCONDITION の動作確認をするには、ブラウザからサーバー上の 5000番ポートで待ち受けている JIA API Mock へアクセスできるようにするため、ポートフォワーディングが必要です。
+
+以下に[SSH におけるローカルポートフォワーディング](https://help.ubuntu.com/community/SSH/OpenSSH/PortForwarding#Local_Port_Forwarding) を実行するコマンドを例示します。
+これは「リモートホスト `isucon-server1` に SSH 接続をした上で」「ローカルの `localhost:5000` への TCP 接続を」「リモートホストを通して `isucondition-1.t.isucon.dev` へ転送する」というコマンドです。
+
+```shell
+$ ssh -L localhost:5000:isucondition-1.t.isucon.dev:5000 isucon-server1
+```
+
+### 2.2 ISUCONDITION へのログイン
+
+ログインには Japan ISU Association（以下 JIA）のアカウントが必要です。
+下記の 4 ユーザが登録されているので、動作確認にご利用ください。
+
+| ログイン ID (contestant_id) | パスワード | 備考       |
+|-----------------------------|------------|------------|
+| isucon                      | isucon     | 初期ユーザ |
+| isucon1                     | isucon1    | 初期ユーザ |
+| isucon2                     | isucon2    | 初期ユーザ |
+| isucon3                     | isucon3    | 初期ユーザ |
+
+MEMO: 本番ではHTTPSで接続できるようにするので `/etc/hosts` 周りの話を追記する
+
+### 2.3 ISU の登録
+
+ISU の登録はログイン後に以下のURLで行うことができます。
+以下のURLには ISUCONDITION の「ISUの登録」ボタンからも遷移できます
+
+- `https://<Elastic IP アドレス 1,2,3>/register`
+
+アプリケーションの動作確認用に以下の JIA ISU ID が登録に使うことができます。
+
+| JIA ISU ID                           |
+|--------------------------------------|
+| 0694e4d7-dfce-4aec-b7ca-887ac42cfb8f |
+| 3a8ae675-3702-45b5-b1eb-1e56e96738ea |
+| 3efff0fa-75bc-4e3c-8c9d-ebfa89ecd15e |
+| f67fcb64-f91c-4e7b-a48d-ddf1164194d0 |
+| 32d1c708-e6ef-49d0-8ca9-4fd51844dcc8 |
+| f012233f-c50e-4349-9473-95681becff1e |
+| af64735c-667a-4d95-a75e-22d0c76083e0 |
+| cb68f47f-25ef-46ec-965b-d72d9328160f |
+| 57d600ef-15b4-43bc-ab79-6399fab5c497 |
+| aa0844e6-812d-41d2-908a-eeb82a50b627 |
+
+ISU を登録すると、 JIA API Mockから指定された URL へのコンディションの送信が開始されます。
+
+## コンソールからの ISUCONDITION の動作確認
+
+トークンの取得と cookie の設定を行うことで、コンソールからも ISUCONDITION の動作確認が可能です。
+以下、コンソールからの動作確認方法の一例を示します。
+
+### 1. JIA API からの トークンの取得
+
+```
+$ TOKEN=`curl -sf -H 'content-type: application/json' http://localhost:5000/api/auth -d '{"user": "isucon", "password": "isucon"}'`
+```
+
+JIA API に送信する `user` と `password` には、 `2.2 ISUCONDITION のログイン` に記載されているものを用いてください。
+
+### 2. トークンを使った cookie の設定
+
+```
+$ curl -c cookie.txt -vf -XPOST -H "authorization: Bearer ${TOKEN}" http://localhost:3000/api/auth
+```
+
+一例として、cookie を使い `GET /api/isu` にアクセスします。
+
+```
+$ curl -b cookie.txt http://localhost:3000/api/isu
+```
+
+### 3. ISU からのコンディションを受け取る `POST /api/condition/:jia_isu_uuid` の検証
+
+ISU からのコンディションを受け取る `POST /api/condition/:jia_isu_uuid` は、 
+アクティベートを行った ISU であれば、以下のようにコンソールでコンディションを送信することが可能です。
+JIA ISU ID は、"2.3 ISU の登録" に記載されているものをもちいてください。 
+
+```
+$ export JIA_ISU_UUID=0694e4d7-dfce-4aec-b7ca-887ac42cfb8f
+$ curl -XPOST -H 'content-type: application/json' http://localhost:3000/api/condition/${JIA_ISU_UUID} \
+-d '[{"is_sitting": true, "condition": "is_dirty=true,is_overweight=true,is_broken=true","message":"test","timestamp": 1628492991}]'
+```
+
+## JIA API Mock
+
+JIA API Mock は、開発用に用いられる JIA API のモックです。
+JIA API Mock は、サーバーの5000番で待ち受けています。
+
+JIA API Mock は以下のエンドポイントと、 ISU からのコンディション送信を模擬したリクエストを送る機能を持っています。
+
+- `POST /api/auth` - ISUCONDITION へログインするためのトークンの発行
+- `POST /api/activate` - ISU の登録（アクティベート）
+- 登録した仮想 ISU から ISUCONDITION へ向けたコンディションの送信
+
+- JIA のログインページ
+  - `https://<Elastic IP アドレス 1>:5000/`
+
+JIA API のエンドポイントの仕様は [ISUCONDITION アプリケーションマニュアル](./isucondition.md)を参照してください。
+
+JIA API Mock は ISU を登録（アクティベート）すると、指定されたURLへのコンディションの送信を開始します。
+登録したISUからのコンディション送信を止める場合は、 JIA API Mock のサービスを以下のように再起動して下さい。
+
+```shell
+$ sudo systemctl restart jiaapi-mock.service
+```
+
+### データベースの初期化方法
+
+初期状態のアプリケーションでは、初期化処理（`POST /initialize`）においてデータベースを初期状態に戻します。
+次のコマンドを実行してもデータベースを初期状態に戻すことができます。
+
+```
+$ ~isucon/webapp/sql/init.sh
+```
 
 ### 参考実装
 
@@ -341,7 +393,7 @@ sudo systemctl restart isucondition.go
 グラフの確認による加点は、1日のグラフを構成する 1 時間毎のデータの中に含まれる最少のコンディション数 (n) に応じて下記の表を元に得点を加点します。
 コンディションが送られてきている当日のグラフは、コンディションが送られてきている時間までで 1 時間毎のデータの中に含まれる最少のコンディション数 (n) を決定します。
 
-| レベル     | 得点  | 条件         |
+| レベル    | 得点 | 条件         |
 |-----------|------|--------------|
 | Excellent | 5    | 30 <= n      |
 | Good      | 4    | 20 <= n < 30 |
@@ -378,7 +430,7 @@ sudo systemctl restart isucondition.go
 - 負荷走行中のアプリケーション互換性チェック、もしくはデータ整合性チェックに 100 回失敗した
 - その他、ベンチマーカーが失敗を検出したケース
 
-最初に呼ばれる初期化処理 `POST /initialize` は用意された環境内で、チェッカツールが要求する範囲の整合性を担保します。 
+最初に呼ばれる初期化処理 `POST /initialize` は用意された環境内で、チェッカツールが要求する範囲の整合性を担保します。
 サーバーサイドで処理の変更・データ構造の変更などを行う場合、この処理が行っている内容を漏れなく提供してください。
 
 予選終了後に行われる主催者による確認作業 （追試） において下記の点が確認できなかった場合は失格となります。
@@ -406,7 +458,7 @@ language の値が実装に利用した言語となります。 language が空�
 ## ソフトウェア事項
 
 選手は主催者から Web アプリケーション (問題) が与えられ、選手は競技時間内にその Web アプリケーションの高速化を行う。
-選手は高速化された実装 (回答) を作成する時、主催者より与えられたソフトウェア (初期実装) をベースに実装しても良いし、しなくても良い。 
+選手は高速化された実装 (回答) を作成する時、主催者より与えられたソフトウェア (初期実装) をベースに実装しても良いし、しなくても良い。
 下記の環境に記載されているプログラミング言語で初期実装が提供されるが、その各々の性能が一致することは保証されない。
 
 提供される初期実装
