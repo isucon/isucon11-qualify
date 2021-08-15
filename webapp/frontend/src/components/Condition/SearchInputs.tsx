@@ -2,30 +2,47 @@ import { useState } from 'react'
 import ButtonSub from '/@/components/UI/ButtonSub'
 import Input from '/@/components/UI/Input'
 import TimeInputs from './TimeInputs'
+import { ConditionRequest } from '/@/lib/apis'
+import { getNowDate } from '/@/lib/date'
 
 interface Props {
-  query: string
-  times: string[]
-  search: (payload: { times: string[]; query: string }) => Promise<void>
+  query: ConditionRequest
+  search: (params: ConditionRequest) => Promise<void>
 }
 
-const SearchInputs = ({ query, times, search }: Props) => {
-  const [tmpQuery, setTmpQuery] = useState(query)
-  const [tmpTimes, setTmpTimes] = useState(times)
+const SearchInputs = ({ query, search }: Props) => {
+  const [tmpConditionLevel, setTmpConditionLevel] = useState(
+    query.condition_level
+  )
+  const [tmpStartTime, setTmpStartTime] = useState('')
+  const [tmpEndTime, setTmpEndTime] = useState('')
 
   return (
+    // string→Dateのパースはここでやる
     <div className="flex flex-wrap gap-6 items-end">
       <Input
         label="検索条件"
-        value={tmpQuery}
-        setValue={setTmpQuery}
+        value={tmpConditionLevel}
+        setValue={setTmpConditionLevel}
         classname="flex-1"
       />
-      <TimeInputs times={tmpTimes} setTimes={setTmpTimes} />
+      <TimeInputs
+        start_time={tmpStartTime}
+        end_time={tmpEndTime}
+        setStartTime={setTmpStartTime}
+        setEndTime={setTmpEndTime}
+      />
       <ButtonSub
         label="検索"
-        onClick={() => search({ times: tmpTimes, query: tmpQuery })}
-        disabled={!tmpQuery}
+        onClick={() => {
+          const start_time = new Date(tmpStartTime)
+          const end_time = new Date(tmpEndTime)
+          search({
+            start_time: !isNaN(start_time.getTime()) ? start_time : new Date(0),
+            end_time: !isNaN(end_time.getTime()) ? end_time : getNowDate(),
+            condition_level: tmpConditionLevel
+          })
+        }}
       />
     </div>
   )

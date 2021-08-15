@@ -3,7 +3,7 @@ import apis, { ConditionRequest, Isu } from '/@/lib/apis'
 import ConditionNavigator from '/@/components/Condition/ConditionNavigator'
 import ConditionList from '/@/components/Condition/ConditionList'
 import SearchInputs from '/@/components/Condition/SearchInputs'
-import usePaging from '/@/components/Condition/use/paging'
+import usePagingCondition from '/@/components/Condition/use/paging'
 import NowLoading from '/@/components/UI/NowLoading'
 
 interface Props {
@@ -21,12 +21,12 @@ const IsuCondition = ({ isu }: Props) => {
     },
     [isu]
   )
-  const { conditions, query, times, search, next, prev, page } =
-    usePaging(getConditions)
+  const { conditions, query, search, next, prev, page } =
+    usePagingCondition(getConditions)
 
   return (
     <div className="flex flex-col gap-8">
-      <SearchInputs query={query} times={times} search={search} />
+      <SearchInputs query={query} search={search} />
       <div className="relative flex flex-col gap-4 items-center">
         <ConditionList conditions={conditions} />
         {isLoading ? <NowLoading top /> : null}
