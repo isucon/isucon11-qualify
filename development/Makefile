@@ -9,6 +9,10 @@ up-nodejs:
 up-ruby:
 	docker-compose -f docker-compose-dev.yml up --build -- backend-ruby mysql-backend jiaapi-mock
 
+.PHONY: up-python
+up-python:
+	docker-compose -f docker-compose-dev.yml up --build -- backend-python mysql-backend jiaapi-mock
+
 .PHONY: down-dev
 down-dev:
 	docker-compose -f docker-compose-dev.yml down
@@ -20,6 +24,10 @@ test-go:
 .PHONY: test-nodejs
 test-nodejs:
 	target=nodejs make test
+
+.PHONY: test-python
+test-python:
+	target=python make test
 
 .PHONY: test
 test:
