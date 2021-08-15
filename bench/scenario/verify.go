@@ -283,7 +283,7 @@ func verifyIsuConditions(res *http.Response,
 
 			// GET /api/isu/:id/graph と連動してる読んだ時間を更新
 			if expected.ReadTime > requestTimeUnix {
-				expected.ReadTime = requestTimeUnix
+				expected.ReadTime = time.Now().Unix()
 			}
 		}
 
@@ -646,7 +646,7 @@ func verifyGraph(
 
 						// GET /api/condition/:id と連動してる読んだ時間を更新
 						if expected.ReadTime > requestTimeUnix {
-							expected.ReadTime = requestTimeUnix
+							expected.ReadTime = time.Now().Unix()
 						}
 						break //ok
 					}
