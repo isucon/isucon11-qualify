@@ -149,7 +149,7 @@ func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a
 	//backendにpostする
 	go func() {
 		// 登録済みユーザーは trend に興味がないからリクエストを待たない
-		if _, err := browserGetLandingPageIgnoreAction(ctx, a); err != nil {
+		if err := browserGetLandingPageIgnoreAction(ctx, a); err != nil {
 			addErrorWithContext(ctx, step, err)
 		}
 	}()
