@@ -391,11 +391,11 @@ module Isucondition
       end
 
       end_time = graph_date + (3600 * 24)
-      start_index = 0
+      start_index = data_points.size
       end_next_index = data_points.size
 
       data_points.each_with_index do |graph, i|
-        start_index = i if start_index == 0 && graph.fetch(:start_at) >= graph_date
+        start_index = i if start_index == data_points.size && graph.fetch(:start_at) >= graph_date
         end_next_index = i if end_next_index == data_points.size && graph.fetch(:start_at) >= end_time
       end
 
