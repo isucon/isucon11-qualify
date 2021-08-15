@@ -702,6 +702,8 @@ sub calculate_condition_level($self, $condition) {
 # GET /api/trend
 # ISUの性格毎の最新のコンディション情報
 sub get_trend($self, $c) {
+    $c->halt(503); # FIXME
+
     my $character_list = $self->select_all(
         "SELECT `character` FROM `isu` GROUP BY `character`");
 
