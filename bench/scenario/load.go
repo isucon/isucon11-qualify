@@ -138,11 +138,11 @@ func (s *Scenario) userAdder(ctx context.Context, step *isucandar.BenchmarkStep)
 		addStep := AddUserStep * atomic.LoadInt32(&userLoopCount)
 		addCount := atomic.LoadInt32(&viewUpdatedTrendCounter) / addStep
 		if addCount > 0 {
-			logger.ContestantLogger.Printf("現レベルの負荷へ応答ができているため、負荷レベルを%d上昇させます", addCount)
+			logger.ContestantLogger.Printf("現レベルの負荷へ応答ができているため、ユーザーを%d人追加します", addCount)
 			s.AddNormalUser(ctx, step, AddUserCount*int(addCount))
 			atomic.AddInt32(&viewUpdatedTrendCounter, -addStep*addCount)
 		} else {
-			logger.ContestantLogger.Println("負荷レベルは上昇しませんでした")
+			logger.ContestantLogger.Println("ユーザーは追加されませんでした")
 		}
 	}
 }
