@@ -69,6 +69,10 @@ class IsuCondition:
     def __post_init__(self):
         if type(self.is_sitting) is int:
             self.is_sitting = bool(self.is_sitting)
+        if type(self.timestamp) is datetime:
+            self.timestamp = self.timestamp.astimezone(TZ)
+        if type(self.created_at) is datetime:
+            self.created_at = self.created_at.astimezone(TZ)
 
 
 @dataclass
@@ -439,7 +443,7 @@ def get_isu_graph(jia_isu_uuid):
         dt = datetime.fromtimestamp(int(dt), tz=TZ)
     except:
         raise BadRequest("bad format: datetime")
-    dt = truncate_datetime(dt)
+    dt = truncate_datetime(dt, timedelta(hours=1))
 
     query = "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = %s AND `jia_isu_uuid` = %s"
     (count,) = select_row(query, (jia_user_id, jia_isu_uuid), dictionary=False)
@@ -450,9 +454,11 @@ def get_isu_graph(jia_isu_uuid):
     return jsonify(res)
 
 
-def truncate_datetime(dt: datetime) -> datetime:
-    """datetime 値の時刻を 00:00:00 にする"""
-    return datetime(dt.year, dt.month, dt.day)
+def truncate_datetime(dt: datetime, duration: timedelta) -> datetime:
+    """datetime 値の指定した粒度で切り捨てる"""
+    if duration == timedelta(hours=1):
+        return datetime(dt.year, dt.month, dt.day, dt.hour, tzinfo=dt.tzinfo)
+    raise Exception("unsupported duration")
 
 
 def generate_isu_graph_response(jia_isu_uuid: str, graph_date: datetime) -> list[GraphResponse]:
@@ -466,7 +472,7 @@ def generate_isu_graph_response(jia_isu_uuid: str, graph_date: datetime) -> list
     rows = select_all(query, (jia_isu_uuid,))
     for row in rows:
         condition = IsuCondition(**row)
-        truncated_condition_time = truncate_datetime(condition.timestamp)
+        truncated_condition_time = truncate_datetime(condition.timestamp, timedelta(hours=1))
         if truncate_datetime != start_time_in_this_hour:
             if len(conditions_in_this_hour) > 0:
                 data_points.append(
