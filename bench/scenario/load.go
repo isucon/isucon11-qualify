@@ -35,6 +35,9 @@ var (
 
 	// user loop の数
 	userLoopCount int32 = 0
+
+	// Viewer の制限
+	viewerLimiter chan struct{} = make(chan struct{})
 )
 
 type ReadConditionCount struct {
@@ -149,6 +152,12 @@ func (s *Scenario) userAdder(ctx context.Context, step *isucandar.BenchmarkStep)
 
 func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.BenchmarkStep, isIsuconUser bool) {
 	atomic.AddInt32(&userLoopCount, 1)
+	go func() {
+		// 「1 set のシナリオが ViewerAddLoopStep 回終わった」＆「 viewer が ユーザー数×ViewerLimitPerUser 以下」なら Viewer を増やす
+		for i := 0; i < ViewerLimitPerUser; i++ {
+			viewerLimiter <- struct{}{}
+		}
+	}()
 
 	select {
 	case <-ctx.Done():
@@ -198,12 +207,7 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 			loopCount++
 
 			if loopCount%ViewerAddLoopStep == 0 {
-				s.viewerMtx.Lock()
-				// 「1 set のシナリオが ViewerAddLoopStep 回終わった」＆「 viewer が ユーザー数×ViewerLimitPerUser 以下」なら Viewer を増やす
-				if len(s.viewers) < int(atomic.LoadInt32(&userLoopCount))*ViewerLimitPerUser {
-					s.AddViewer(ctx, step, 1)
-				}
-				s.viewerMtx.Unlock()
+				s.AddViewer(ctx, step, 1)
 			}
 		}
 		targetIsu := user.IsuListOrderByCreatedAt[nextTargetIsuIndex]
@@ -275,7 +279,7 @@ func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep
 	select {
 	case <-ctx.Done():
 		return
-	default:
+	case <-viewerLimiter:
 	}
 
 	viewer := s.initViewer(ctx)
