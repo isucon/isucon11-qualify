@@ -1,5 +1,5 @@
 import { IoIosArrowBack, IoIosArrowForward } from 'react-icons/io'
-import IconButton from '../UI/IconButton'
+import IconButton from '/@/components/UI/IconButton'
 
 interface Props {
   length: number

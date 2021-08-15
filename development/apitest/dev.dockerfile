@@ -6,5 +6,6 @@ RUN ln -sf /usr/share/zoneinfo/Asia/Tokyo /etc/localtime
 WORKDIR /workdir
 COPY extra/initial-data /extra/initial-data
 COPY bench/go.mod bench/go.sum ./
+COPY bench/random ./random
 RUN go mod download
 

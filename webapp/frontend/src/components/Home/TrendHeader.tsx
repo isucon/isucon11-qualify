@@ -1,4 +1,4 @@
-import Tip from '../UI/Tip'
+import Tip from '/@/components/UI/Tip'
 
 const TrendHeadeer = () => {
   return (

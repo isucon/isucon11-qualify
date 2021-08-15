@@ -1,8 +1,8 @@
-import Auth from '../components/Home/Auth'
-import Isus from '../components/Home/Isus'
-import TrendList from '../components/Home/TrendList'
-import Card from '../components/UI/Card'
-import { useStateContext } from '../context/state'
+import Auth from '/@/components/Home/Auth'
+import Isus from '/@/components/Home/Isus'
+import TrendList from '/@/components/Home/TrendList'
+import Card from '/@/components/UI/Card'
+import { useStateContext } from '/@/context/state'
 
 const Home = () => {
   const state = useStateContext()

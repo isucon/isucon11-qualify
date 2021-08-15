@@ -29,6 +29,7 @@ module.exports = {
     'react/prop-types': 'off',
     'react/react-in-jsx-scope': 'off',
     'no-console': 'warn',
-    '@typescript-eslint/explicit-module-boundary-types': 'off'
+    '@typescript-eslint/explicit-module-boundary-types': 'off',
+    'no-restricted-imports': ['error', { patterns: ['../*'] }]
   }
 }
