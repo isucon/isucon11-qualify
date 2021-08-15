@@ -36,6 +36,20 @@ module.exports = {
       gridTemplateColumns: {
         isus: 'repeat(auto-fill,minmax(10rem,1fr))',
         trend: '10rem 1fr'
+      },
+      keyframes: {
+        scale: {
+          '0%': { transform: 'scaley(1.0)' },
+          '50%': { transform: 'scaley(0.4)' },
+          '100%': { transform: 'scaley(1.0)' }
+        }
+      },
+      animation: {
+        loader0: 'scale 1s infinite cubic-bezier(0.2, 0.68, 0.18, 1.08)',
+        loader1: 'scale 1s 0.1s infinite cubic-bezier(0.2, 0.68, 0.18, 1.08)',
+        loader2: 'scale 1s 0.2s infinite cubic-bezier(0.2, 0.68, 0.18, 1.08)',
+        loader3: 'scale 1s 0.3s infinite cubic-bezier(0.2, 0.68, 0.18, 1.08)',
+        loader4: 'scale 1s 0.4s infinite cubic-bezier(0.2, 0.68, 0.18, 1.08)'
       }
     }
   }

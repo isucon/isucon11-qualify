@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { useHistory } from 'react-router-dom'
-import Card from '../components/UI/Card'
-import IconInput from '../components/UI/IconInput'
-import Input from '../components/UI/Input'
-import apis, { PostIsuRequest } from '../lib/apis'
+import Card from '/@/components/UI/Card'
+import IconInput from '/@/components/UI/IconInput'
+import Input from '/@/components/UI/Input'
+import apis, { PostIsuRequest } from '/@/lib/apis'
 
 const Register = () => {
   const [id, setId] = useState('')

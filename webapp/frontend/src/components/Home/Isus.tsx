@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useState } from 'react'
-import apis, { GetIsuListResponse } from '../../lib/apis'
-import IsuList from '../UI/IsuList'
+import apis, { GetIsuListResponse } from '/@/lib/apis'
+import IsuList from '/@/components/UI/IsuList'
 
 const LIMIT = 4
 

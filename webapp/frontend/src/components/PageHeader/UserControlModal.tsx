@@ -1,8 +1,8 @@
 import Modal from 'react-modal'
 import { IoMdLogOut } from 'react-icons/io'
 import { Link } from 'react-router-dom'
-import { useDispatchContext } from '../../context/state'
-import apis from '../../lib/apis'
+import { useDispatchContext } from '/@/context/state'
+import apis from '/@/lib/apis'
 
 interface Props {
   isOpen: boolean
