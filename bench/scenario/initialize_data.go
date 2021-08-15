@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"sort"
+	"sync/atomic"
 
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
@@ -60,5 +61,6 @@ func (s *Scenario) InitializeData(ctx context.Context) {
 	//初期データを登録
 	for _, u := range s.normalUsers {
 		random.SetGeneratedUser(u.UserID)
+		atomic.StoreInt32(&u.PostIsuFinish, 1)
 	}
 }
