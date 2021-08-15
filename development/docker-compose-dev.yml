@@ -30,6 +30,16 @@ services:
   # backend-python:
   # ...
 
+  backend-nodejs:
+    build:
+      context: ..
+      dockerfile: development/backend-nodejs/dev.dockerfile
+
+  backend-perl:
+    build:
+      context: ..
+      dockerfile: development/backend-perl/dev.dockerfile
+
   backend-php:
     build:
       context: ..
@@ -55,6 +65,16 @@ services:
       - "../development/mysql-backend/2_Init.sql:/webapp/sql/1_InitData.sql"
     depends_on:
       - mysql-backend
+
+  backend-python:
+    build:
+      context: ..
+      dockerfile: development/backend-python/dev.dockerfile
+
+  backend-ruby:
+    build:
+      context: ..
+      dockerfile: development/backend-ruby/dev.dockerfile
 
   backend-rust:
     build:
