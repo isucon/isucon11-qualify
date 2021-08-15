@@ -494,10 +494,10 @@ def generate_isu_graph_response(jia_isu_uuid: str, graph_date: datetime) -> list
         )
 
     end_time = graph_date + timedelta(days=1)
-    start_index = 0
+    start_index = len(data_points)
     end_next_index = len(data_points)
     for i, graph in enumerate(data_points):
-        if start_index == 0 and graph.start_at >= graph_date:
+        if start_index == len(data_points) and graph.start_at >= graph_date:
             start_index = i
         if end_next_index == len(data_points) and graph.start_at > end_time:
             end_next_index = 1
