@@ -186,13 +186,13 @@ sub post_initialize($self, $c) {
         $c->halt_no_content(HTTP_INTERNAL_SERVER_ERROR);
     }
 
-    $self->query(
+    $self->dbh->query(
         "INSERT INTO `isu_association_config` (`name`, `url`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `url` = VALUES(`url`)",
         "jia_service_url",
         $c->req->parameters->{'jia_service_url'},
     );
 
-    return $c->res_json({
+    return $c->render_json({
         language => "perl",
     }, InitializeResponse);
 }
