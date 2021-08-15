@@ -252,9 +252,12 @@ final class InitializeRequest
     public static function fromJson(string $json): self
     {
         try {
-            /** @var array{jia_service_url: string} $data */
             $data = json_decode($json, true, flags: JSON_THROW_ON_ERROR);
         } catch (JsonException) {
+            throw new UnexpectedValueException();
+        }
+
+        if (!isset($data['jia_service_url'])) {
             throw new UnexpectedValueException();
         }
 
