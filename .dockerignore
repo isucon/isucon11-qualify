@@ -1,4 +1,7 @@
 webapp/frontend/node_modules
 webapp/frontend/dist
+# Rust
+webapp/rust/target
+# Node.js
 webapp/nodejs/node_modules
 webapp/nodejs/build

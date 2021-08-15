@@ -393,10 +393,22 @@ func postIsuErrorAction(ctx context.Context, a *agent.Agent, req service.PostIsu
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 	}
-	// TODO: 画像も追加する
-	// TODO: file.Nameを正しく渡すと不正出来そうなので、拡張子残すくらいにしておきたい
-	//part, err := writer.CreateFormFile("image", filepath.Base(file.Name()))
-	//io.Copy(part, file)
+
+	if req.Img != nil {
+		partHeader := textproto.MIMEHeader{}
+		partHeader.Set("Content-Type", "image/jpeg")
+		partHeader.Set("Content-Disposition", `form-data; name="image"; filename="image.jpeg"`)
+
+		part, err := writer.CreatePart(partHeader)
+		if err != nil {
+			logger.AdminLogger.Panic(err)
+		}
+		_, err = part.Write(req.Img)
+		if err != nil {
+			logger.AdminLogger.Panic(err)
+		}
+	}
+
 	err = writer.Close()
 	if err != nil {
 		logger.AdminLogger.Panic(err)
@@ -434,7 +446,6 @@ func getIsuIconAction(ctx context.Context, a *agent.Agent, id string) ([]byte, *
 	if err != nil {
 		return nil, nil, err
 	}
-	// TODO: imageの取り扱いについて考える
 	return image, res, nil
 }
 
@@ -535,12 +546,6 @@ func getIsuGraphAction(ctx context.Context, a *agent.Agent, id string, req servi
 		return nil, nil, err
 	}
 
-	//TODO: バリデーション
-	// res, text, err := reqJSONResError(ctx, a, http.MethodPost, reqUrl, bytes.NewReader(body), []int{http.StatusNotFound, http.StatusBadRequest})
-	// if err != nil {
-	// 	return "", nil, err
-	// }
-
 	return graph, res, nil
 }
 
@@ -578,18 +583,19 @@ func browserGetLandingPageAction(ctx context.Context, a *agent.Agent) (service.G
 	return trend, res, nil
 }
 
-func browserGetLandingPageIgnoreAction(ctx context.Context, a *agent.Agent) (*http.Response, error) {
+func browserGetLandingPageIgnoreAction(ctx context.Context, a *agent.Agent) error {
 	// 静的ファイルのGET
 	if err := BrowserAccess(ctx, a, "/", TrendPage); err != nil {
-		return nil, err
+		return err
 	}
 
-	res, err := getTrendIgnoreAction(ctx, a)
+	_, err := getTrendIgnoreAction(ctx, a)
 	if err != nil {
-		return nil, err
+		// ここのエラーは気にしないので握りつぶす
+		return nil
 	}
 
-	return res, nil
+	return nil
 }
 
 func getTrendIgnoreAction(ctx context.Context, a *agent.Agent) (*http.Response, error) {
@@ -605,8 +611,6 @@ func getTrendIgnoreAction(ctx context.Context, a *agent.Agent) (*http.Response, 
 func browserGetHomeAction(ctx context.Context, a *agent.Agent,
 	validateIsu func(*http.Response, []*service.Isu) []error,
 ) ([]*service.Isu, []error) {
-	// TODO: 静的ファイルのGET
-
 	errors := []error{}
 	isuList, hres, err := getIsuAction(ctx, a)
 	if err != nil {
@@ -619,7 +623,7 @@ func browserGetHomeAction(ctx context.Context, a *agent.Agent,
 		for _, isu := range isuList {
 			go func(isu *service.Isu) {
 				defer wg.Done()
-				icon, _, err := getIsuIconAction(ctx, a, isu.JIAIsuUUID)
+				icon, res, err := getIsuIconAction(ctx, a, isu.JIAIsuUUID)
 				if err != nil {
 					isu.Icon = nil
 					errMutex.Lock()
@@ -627,6 +631,7 @@ func browserGetHomeAction(ctx context.Context, a *agent.Agent,
 					errMutex.Unlock()
 				} else {
 					isu.Icon = icon
+					isu.IconStatusCode = res.StatusCode
 				}
 			}(isu)
 		}
@@ -637,82 +642,42 @@ func browserGetHomeAction(ctx context.Context, a *agent.Agent,
 	return isuList, errors
 }
 
-func browserGetRegisterAction(ctx context.Context, a *agent.Agent) []error {
-	// TODO: 静的ファイルのGET
+func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string,
+	validateIsu func(*http.Response, *service.Isu) []error,
+) (*service.Isu, []error) {
 
 	errors := []error{}
-	return errors
-}
-
-func browserGetAuthAction(ctx context.Context, a *agent.Agent) []error {
-	// TODO: 静的ファイルのGET
-
-	errors := []error{}
-	return errors
-}
-
-func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string) (*service.Isu, []error) {
-	// TODO: 静的ファイルのGET
-
-	errors := []error{}
-	// TODO: ここはISU個別ページから遷移してきたならすでに持ってるからリクエストしない(変えてもいいけどフロントが不思議な実装になる)
-	isu, _, err := getIsuIdAction(ctx, a, id)
+	isu, res, err := getIsuIdAction(ctx, a, id)
 	if err != nil {
 		errors = append(errors, err)
 	}
 	if isu != nil {
-		icon, _, err := getIsuIconAction(ctx, a, id)
+		icon, res, err := getIsuIconAction(ctx, a, id)
 		if err != nil {
 			isu.Icon = nil
 			errors = append(errors, err)
 		} else {
 			isu.Icon = icon
+			isu.IconStatusCode = res.StatusCode
 		}
 
 		return isu, errors
 	}
+	errors = append(errors, validateIsu(res, isu)...)
 	return nil, errors
 }
 
 func browserGetIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req service.GetIsuConditionRequest,
 	validateCondition func(*http.Response, []*service.GetIsuConditionResponse) []error,
-) (*service.Isu, []*service.GetIsuConditionResponse, []error) {
-	// TODO: 静的ファイルのGET
-
+) ([]*service.GetIsuConditionResponse, []error) {
 	errors := []error{}
-	// TODO: ここはISU個別ページから遷移してきたならすでに持ってるからリクエストしない(変えてもいいけどフロントが不思議な実装になる)
-	isu, _, err := getIsuIdAction(ctx, a, id)
-	if err != nil {
-		errors = append(errors, err)
-	}
 	conditions, hres, err := getIsuConditionAction(ctx, a, id, req)
 	if err != nil {
 		errors = append(errors, err)
 	} else {
 		errors = append(errors, validateCondition(hres, conditions)...)
 	}
-	return isu, conditions, errors
-}
-
-func browserGetIsuGraphAction(ctx context.Context, a *agent.Agent, id string, date int64,
-	validateGraph func(*http.Response, service.GraphResponse) []error,
-) (*service.Isu, service.GraphResponse, []error) {
-	// TODO: 静的ファイルのGET
-
-	errors := []error{}
-	// TODO: ここはISU個別ページから遷移してきたならすでに持ってるからリクエストしない(変えてもいいけどフロントが不思議な実装になる)
-	isu, _, err := getIsuIdAction(ctx, a, id)
-	if err != nil {
-		errors = append(errors, err)
-	}
-	req := service.GetGraphRequest{Date: date}
-	graph, res, err := getIsuGraphAction(ctx, a, id, req)
-	if err != nil {
-		errors = append(errors, err)
-	} else {
-		errors = append(errors, validateGraph(res, graph)...)
-	}
-	return isu, graph, errors
+	return conditions, errors
 }
 
 func BrowserAccessIndexHtml(ctx context.Context, a *agent.Agent, rpath string) error {

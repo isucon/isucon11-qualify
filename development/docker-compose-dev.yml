@@ -30,6 +30,33 @@ services:
   # backend-python:
   # ...
 
+  backend-rust:
+    build:
+      context: ..
+      dockerfile: development/backend-rust/dev.dockerfile
+    environment:
+      MYSQL_HOST: mysql-backend
+      MYSQL_PORT: 3306
+      MYSQL_DBNAME: isucondition
+      MYSQL_USER: isucon
+      MYSQL_PASS: isucon
+      POST_ISUCONDITION_TARGET_BASE_URL: http://backend-rust:3000
+    entrypoint: dockerize -wait tcp://mysql-backend:3306 -timeout 60s
+    command: systemfd --no-pid -s http::0.0.0.0:3000 -- cargo watch -x run
+    ports:
+      - "3000:3000"
+    volumes:
+      - "../webapp/rust:/webapp/rust:ro"
+      - "../webapp/ec256-public.pem:/webapp/ec256-public.pem"
+      - "../webapp/NoImage.jpg:/webapp/NoImage.jpg"
+      - "rust-target:/webapp/rust/target"
+      # SQLs
+      - "../webapp/sql/init.sh:/webapp/sql/init.sh"
+      - "../webapp/sql/0_Schema.sql:/webapp/sql/0_Schema.sql"
+      - "../development/mysql-backend/2_Init.sql:/webapp/sql/1_InitData.sql"
+    depends_on:
+      - mysql-backend
+
   backend-nodejs:
     build:
       context: ..
@@ -85,3 +112,6 @@ services:
       - "5000:5000"
     volumes:
       - "../extra/jiaapi-mock:/jiaapi"
+
+volumes:
+  rust-target:

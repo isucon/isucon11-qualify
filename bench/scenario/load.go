@@ -117,7 +117,6 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 // UserLoop を増やすかどうか判定し、増やすなり減らす
 func (s *Scenario) userAdder(ctx context.Context, step *isucandar.BenchmarkStep) {
 	defer logger.AdminLogger.Println("--- userAdder END")
-	//TODO: パラメーター調整
 	for {
 		select {
 		case <-time.After(5000 * time.Millisecond):
@@ -181,7 +180,7 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 	loopCount := 0
 	for {
 		<-scenarioLoopStopper
-		scenarioLoopStopper = time.After(50 * time.Millisecond) //TODO: 頻度調整
+		scenarioLoopStopper = time.After(10 * time.Millisecond)
 		select {
 		case <-ctx.Done():
 			return
@@ -191,7 +190,7 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 		// 一つのISUに対するシナリオが終わっているとき
 		if nextScenarioIndex > 2 {
 			//conditionを見るISUを選択
-			//TODO: 乱数にする
+			// できるだけガチャにならないように順番は確定でやる
 			nextTargetIsuIndex += 1
 			nextTargetIsuIndex %= len(user.IsuListOrderByCreatedAt)
 			nextScenarioIndex = 0
@@ -242,7 +241,18 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 		}
 
 		//GET /isu/{jia_isu_uuid}
-		_, errs = browserGetIsuDetailAction(ctx, user.Agent, targetIsu.JIAIsuUUID)
+		_, errs = browserGetIsuDetailAction(ctx, user.Agent, targetIsu.JIAIsuUUID, func(res *http.Response, isu *service.Isu) []error {
+			errs := []error{}
+			err := verifyIsu(res, targetIsu, isu)
+			if err != nil {
+				errs = append(errs, err)
+			}
+			err = verifyIsuIcon(targetIsu, isu.Icon, isu.IconStatusCode)
+			if err != nil {
+				errs = append(errs, err)
+			}
+			return errs
+		})
 		for _, err := range errs {
 			addErrorWithContext(ctx, step, err)
 		}
@@ -349,7 +359,6 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 	}
 
 	//椅子作成
-	// TODO: 実際に解いてみてこの isu 数の上限がいい感じに働いているか検証する
 	isuCountRandEngineMutex.Lock()
 	isuCount := isuCountRandEngine.Intn(IsuCountMax) + 1
 	isuCountRandEngineMutex.Unlock()
@@ -362,6 +371,8 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 		}
 		step.AddScore(ScoreIsuInitialize)
 	}
+
+	atomic.StoreInt32(&user.PostIsuFinish, 1)
 
 	return user
 }
@@ -436,7 +447,7 @@ func (s *Scenario) requestLastBadConditionScenario(ctx context.Context, step *is
 		ConditionLevel: "warning,critical",
 	}
 	// GET condition/{jia_isu_uuid} を取得してバリデーション
-	_, conditions, errs := browserGetIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
+	conditions, errs := browserGetIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
 		request,
 		func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
 			err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request, conditions, targetIsu.LastReadBadConditionTimestamps)
@@ -515,7 +526,7 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 	conditions := []*service.GetIsuConditionResponse{}
 
 	// GET condition/{jia_isu_uuid} を取得してバリデーション
-	_, firstPageConditions, errs := browserGetIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
+	firstPageConditions, errs := browserGetIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
 		request,
 		func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
 			err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request, conditions, targetIsu.LastReadConditionTimestamps)
@@ -853,9 +864,9 @@ func findBadIsuState(conditions []*service.GetIsuConditionResponse) (model.IsuSt
 				}
 			}
 		}
-		// TODO: これ == 0 で大丈夫？一度 virtualTimestamp に値を入れた時点で break したほうが良さそう(is_overweight も解消されないようにするなら break させる)
 		if bad && virtualTimestamp == 0 {
 			virtualTimestamp = c.Timestamp
+			break
 		}
 	}
 
@@ -875,8 +886,7 @@ func signoutScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *m
 	// signout したらトップページに飛ぶ(MEMO: 初期状態だと trend おもすぎて backend をころしてしまうかも)
 	go func() {
 		// 登録済みユーザーは trend に興味はないので verify はせず投げっぱなし
-		_, err = browserGetLandingPageIgnoreAction(ctx, user.Agent)
-		if err != nil {
+		if err := browserGetLandingPageIgnoreAction(ctx, user.Agent); err != nil {
 			addErrorWithContext(ctx, step, err)
 			// return するとこのあとのログイン必須なシナリオが回らないから return はしない
 		}
@@ -915,22 +925,22 @@ func authInfinityRetry(ctx context.Context, a *agent.Agent, userID string, step 
 	}
 }
 
-func postIsuInfinityRetry(ctx context.Context, a *agent.Agent, req service.PostIsuRequest, step *isucandar.BenchmarkStep) *http.Response {
+func postIsuInfinityRetry(ctx context.Context, a *agent.Agent, req service.PostIsuRequest, step *isucandar.BenchmarkStep) (*service.Isu, *http.Response) {
 	for {
 		select {
 		case <-ctx.Done():
-			return nil
+			return nil, nil
 		default:
 		}
-		_, res, err := postIsuAction(ctx, a, req)
+		isu, res, err := postIsuAction(ctx, a, req)
 		if err != nil {
 			if res != nil && res.StatusCode == http.StatusConflict {
-				return res
+				return nil, res
 			}
 			addErrorWithContext(ctx, step, err)
 			continue
 		}
-		return res
+		return isu, res
 	}
 }
 

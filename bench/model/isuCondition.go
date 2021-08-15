@@ -19,7 +19,6 @@ func (cl ConditionLevel) Equal(conditionLevel string) bool {
 	return false
 }
 
-//TODO: メモリ節約の必要があるなら考える
 type IsuCondition struct {
 	StateChange   IsuStateChange
 	TimestampUnix int64 `json:"timestamp"`
@@ -115,32 +114,32 @@ func (ia *IsuConditionArray) Back() *IsuCondition {
 
 // IsuConditionArrayは、後ろの方が新しい
 // UpperBound は IsuConditionArray から特定の時間「より新しい」最も古い(手前の)コンディションを指すイテレータを返す
-func (ia *IsuConditionArray) UpperBound(filter ConditionLevel, targetTimestamp int64, targetOwnerIsuUUID string) IsuConditionArrayIterator {
+func (ia *IsuConditionArray) UpperBound(filter ConditionLevel, targetTimestamp int64) IsuConditionArrayIterator {
 	iter := ia.End(filter)
 	if (iter.filter & ConditionLevelInfo) != 0 {
-		iter.indexInfo = upperBoundIsuConditionIndex(iter.parent.Info, len(iter.parent.Info), targetTimestamp, targetOwnerIsuUUID)
+		iter.indexInfo = upperBoundIsuConditionIndex(iter.parent.Info, len(iter.parent.Info), targetTimestamp)
 	}
 	if (iter.filter & ConditionLevelWarning) != 0 {
-		iter.indexWarning = upperBoundIsuConditionIndex(iter.parent.Warning, len(iter.parent.Warning), targetTimestamp, targetOwnerIsuUUID)
+		iter.indexWarning = upperBoundIsuConditionIndex(iter.parent.Warning, len(iter.parent.Warning), targetTimestamp)
 	}
 	if (iter.filter & ConditionLevelCritical) != 0 {
-		iter.indexCritical = upperBoundIsuConditionIndex(iter.parent.Critical, len(iter.parent.Critical), targetTimestamp, targetOwnerIsuUUID)
+		iter.indexCritical = upperBoundIsuConditionIndex(iter.parent.Critical, len(iter.parent.Critical), targetTimestamp)
 	}
 	return iter
 }
 
 // IsuConditionArrayは、後ろの方が新しい
 // LowerBound は IsuConditionArray から特定の時間「以上の」最も古い(手前の)コンディションを指すイテレータを返す
-func (ia *IsuConditionArray) LowerBound(filter ConditionLevel, targetTimestamp int64, targetOwnerIsuUUID string) IsuConditionArrayIterator {
+func (ia *IsuConditionArray) LowerBound(filter ConditionLevel, targetTimestamp int64) IsuConditionArrayIterator {
 	iter := ia.End(filter)
 	if (iter.filter & ConditionLevelInfo) != 0 {
-		iter.indexInfo = lowerBoundIsuConditionIndex(iter.parent.Info, len(iter.parent.Info), targetTimestamp, targetOwnerIsuUUID)
+		iter.indexInfo = lowerBoundIsuConditionIndex(iter.parent.Info, len(iter.parent.Info), targetTimestamp)
 	}
 	if (iter.filter & ConditionLevelWarning) != 0 {
-		iter.indexWarning = lowerBoundIsuConditionIndex(iter.parent.Warning, len(iter.parent.Warning), targetTimestamp, targetOwnerIsuUUID)
+		iter.indexWarning = lowerBoundIsuConditionIndex(iter.parent.Warning, len(iter.parent.Warning), targetTimestamp)
 	}
 	if (iter.filter & ConditionLevelCritical) != 0 {
-		iter.indexCritical = lowerBoundIsuConditionIndex(iter.parent.Critical, len(iter.parent.Critical), targetTimestamp, targetOwnerIsuUUID)
+		iter.indexCritical = lowerBoundIsuConditionIndex(iter.parent.Critical, len(iter.parent.Critical), targetTimestamp)
 	}
 	return iter
 }
@@ -181,7 +180,7 @@ func (iter *IsuConditionArrayIterator) Prev() *IsuCondition {
 
 //baseはlessの昇順
 //「より大きい」を返す（C++と同じ）
-func upperBoundIsuConditionIndex(base []IsuCondition, end int, targetTimestamp int64, targetOwnerIsuUUID string) int {
+func upperBoundIsuConditionIndex(base []IsuCondition, end int, targetTimestamp int64) int {
 	//末尾の方にあることが分かっているので、末尾を固定要素ずつ線形探索 + 二分探索
 	//assert end <= len(base)
 	target := IsuConditionCursor{TimestampUnix: targetTimestamp}
@@ -224,7 +223,7 @@ func upperBoundIsuConditionIndex(base []IsuCondition, end int, targetTimestamp i
 
 //baseはlessの昇順
 //「以上」を返す（C++と同じ）
-func lowerBoundIsuConditionIndex(base []IsuCondition, end int, targetTimestamp int64, targetOwnerIsuUUID string) int {
+func lowerBoundIsuConditionIndex(base []IsuCondition, end int, targetTimestamp int64) int {
 	//末尾の方にあることが分かっているので、末尾を固定要素ずつ線形探索 + 二分探索
 	//assert end <= len(base)
 	target := IsuConditionCursor{TimestampUnix: targetTimestamp}
