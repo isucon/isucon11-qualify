@@ -270,27 +270,29 @@ sub get_isu_list($self, $c) {
             }
 
             $formatted_condition = {
-                jia_isu_uuid =>      $last_condition->{jia_isu_uuid},
-                isu_name =>         $isu->{name},
-                timestamp =>       $last_condition->{timestamp}, # TODO unix timestamp
-                is_sitting =>       $last_condition->{is_sitting},
-                condition =>       $last_condition->{condition},
-                condition_level =>  $condition_level,
-                message =>         $last_condition->{message},
+                jia_isu_uuid    => $last_condition->{jia_isu_uuid},
+                isu_name        => $isu->{name},
+                timestamp       => unix_from_mysql_datetime($last_condition->{timestamp}),
+                is_sitting      => $last_condition->{is_sitting},
+                condition       => $last_condition->{condition},
+                condition_level => $condition_level,
+                message         => $last_condition->{message},
             }
         }
 
         my $res = {
-            id => $isu->{id},
-            jia_isu_uuid => $isu->{jia_isu_uuid},
-            name => $isu->{name},
-            character => $isu->{character},
+            id                   => $isu->{id},
+            jia_isu_uuid         => $isu->{jia_isu_uuid},
+            name                 => $isu->{name},
+            character            => $isu->{character},
             latest_isu_condition => $formatted_condition,
         };
         push $response_list->@* => $res;
     }
 
-    return $c->render_json($response_list, json_type_arrayof(GetIsuListResponse));
+    # TODO
+    #return $c->render_json($response_list, json_type_arrayof(GetIsuListResponse));
+    return $c->render_json($response_list);
 }
 
 # POST /api/isu
