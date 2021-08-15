@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
+import { useHistory, useLocation } from 'react-router-dom'
 import { GraphRequest, Graph } from '/@/lib/apis'
-import { getNextDate, getPrevDate, getTodayDate } from '/@/lib/date'
+import { dateToTimestamp, getNextDate, getPrevDate, getTodayDate } from '/@/lib/date'
 
 export interface IsuCondition {
   score: string
@@ -26,9 +27,12 @@ const useGraph = (getGraphs: (req: GraphRequest) => Promise<Graph[]>) => {
     conditions: []
   })
   const [date, updateDate] = useState<Date>(getTodayDate())
+  const history = useHistory()
+  const location = useLocation()
 
   useEffect(() => {
     const fetchGraphs = async () => {
+      history.push(location.pathname + '?datetime=' + dateToTimestamp(date))
       const graphs = await getGraphs({ date: date })
       const graphData = genGraphData(graphs)
       updateResult(state => ({
@@ -41,7 +45,7 @@ const useGraph = (getGraphs: (req: GraphRequest) => Promise<Graph[]>) => {
       }))
     }
     fetchGraphs()
-  }, [getGraphs, updateResult, date])
+  }, [getGraphs, updateResult, date, history, location.pathname])
 
   const specify = async (day: string) => {
     const date = new Date(day)
