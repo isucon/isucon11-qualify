@@ -120,7 +120,7 @@ ISUCONDITION は、ISU から送信されるコンディションのデータを
 
 ## Japan ISU Association (JIA) の API 
 
-JIA はブラウザからトップページ (`GET /`) へアクセスすることができますが、それ以外にも API を提供しています。
+JIA はブラウザからトップページ (`GET /`) へアクセスしログインをすることができますが、それ以外にも API を提供しています。
 現在 ISUCONDITION が利用している JIA　の API は以下の２つです。JIA のユーザ登録については ISUCONDITION 側では取り扱わないため、本アプリケーションマニュアルでは記載しません。
 
 ### `POST /api/activate`
