@@ -232,7 +232,7 @@ func verifyIsuConditions(res *http.Response,
 		defer targetIsu.CondMutex.RUnlock()
 
 		conditions := targetIsu.Conditions
-		iterTmp := conditions.LowerBound(filter, request.EndTime, targetIsuUUID)
+		iterTmp := conditions.LowerBound(filter, request.EndTime)
 		baseIter := &iterTmp
 
 		//backendDataは新しい順にソートされているはずなので、先頭からチェック
@@ -367,7 +367,7 @@ func verifyPrepareIsuConditions(res *http.Response,
 		targetIsu.CondMutex.RLock()
 		defer targetIsu.CondMutex.RUnlock()
 
-		iterTmp := targetIsu.Conditions.LowerBound(filter, request.EndTime, targetIsuUUID)
+		iterTmp := targetIsu.Conditions.LowerBound(filter, request.EndTime)
 		baseIter := &iterTmp
 
 		//backendDataは新しい順にソートされているはずなので、先頭からチェック
@@ -598,7 +598,7 @@ func verifyGraph(
 			// 特定の ISU における expected な conditions を新しい順に取得するイテレータを生成
 			conditions := targetIsu.Conditions
 			filter := model.ConditionLevelInfo | model.ConditionLevelWarning | model.ConditionLevelCritical
-			baseIter := conditions.LowerBound(filter, graphOne.EndAt, targetIsu.JIAIsuUUID)
+			baseIter := conditions.LowerBound(filter, graphOne.EndAt)
 
 			var lastSort model.IsuConditionCursor
 			// graphOne.ConditionTimestamps を逆順 (timestamp が新しい順) に loop
@@ -815,7 +815,7 @@ func verifyPrepareGraph(res *http.Response, targetUser *model.User, targetIsuUUI
 
 			// 特定の ISU における expected な conditions を新しい順に取得するイテレータを生成
 			filter := model.ConditionLevelInfo | model.ConditionLevelWarning | model.ConditionLevelCritical
-			baseIter := targetIsu.Conditions.LowerBound(filter, graphOne.EndAt, targetIsu.JIAIsuUUID)
+			baseIter := targetIsu.Conditions.LowerBound(filter, graphOne.EndAt)
 
 			var lastSort model.IsuConditionCursor
 			// graphOne.ConditionTimestamps を逆順 (timestamp が新しい順) に loop
