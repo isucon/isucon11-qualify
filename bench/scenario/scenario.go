@@ -235,11 +235,13 @@ func (s *Scenario) NewIsuWithCustomImg(ctx context.Context, step *isucandar.Benc
 			return nil
 		}
 	}
+	isuIdUpdated := false
 	if res != nil && res.StatusCode == http.StatusConflict {
 		// pass
 	} else {
 		// POST isu のレスポンスより ID を取得して isu モデルに代入する
 		isu.ID = isuResponse.ID
+		isuIdUpdated = true
 		err = verifyIsu(res, isu, isuResponse)
 		if err != nil {
 			step.AddError(err)
@@ -262,7 +264,10 @@ func (s *Scenario) NewIsuWithCustomImg(ctx context.Context, step *isucandar.Benc
 		}
 	}
 	// GET isu のレスポンスより ID を取得して isu モデルに代入する
-	isu.ID = isuResponse.ID
+	if !isuIdUpdated {
+		isu.ID = isuResponse.ID
+		isuIdUpdated = true
+	}
 	err = verifyIsu(res, isu, isuResponse)
 	if err != nil {
 		step.AddError(err)
