@@ -829,10 +829,10 @@ func generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Tim
 	}
 
 	endTime := graphDate.Add(time.Hour * 24)
-	startIndex := 0
+	startIndex := len(dataPoints)
 	endNextIndex := len(dataPoints)
 	for i, graph := range dataPoints {
-		if startIndex == 0 && !graph.StartAt.Before(graphDate) {
+		if startIndex == len(dataPoints) && !graph.StartAt.Before(graphDate) {
 			startIndex = i
 		}
 		if endNextIndex == len(dataPoints) && graph.StartAt.After(endTime) {

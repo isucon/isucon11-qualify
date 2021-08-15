@@ -86,7 +86,7 @@ func init() {
 
 	var jiaServiceURLStr, timeoutDuration, initializeTimeoutDuration string
 	flag.StringVar(&jiaServiceURLStr, "jia-service-url", getEnv("JIA_SERVICE_URL", "http://apitest:5000"), "jia service url")
-	flag.StringVar(&timeoutDuration, "timeout", "5s", "request timeout duration")
+	flag.StringVar(&timeoutDuration, "timeout", "1s", "request timeout duration")
 	flag.StringVar(&initializeTimeoutDuration, "initialize-timeout", "20s", "request timeout duration of POST /initialize")
 
 	flag.Parse()
@@ -138,7 +138,10 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 		Count int64
 	}
 	tagCountPair := make([]TagCountPair, 0)
-	for tag, count := range result.Score.Breakdown() {
+	promTags := PromTags{}
+	scoreTable := result.Score.Breakdown()
+	scenario.SetScoreTags(scoreTable)
+	for tag, count := range scoreTable {
 		tagCountPair = append(tagCountPair, TagCountPair{Tag: tag, Count: count})
 	}
 	sort.Slice(tagCountPair, func(i, j int) bool {

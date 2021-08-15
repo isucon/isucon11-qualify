@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import Button from '../UI/Button'
-import Input from '../UI/Input'
+import Button from '/@/components/UI/Button'
+import Input from '/@/components/UI/Input'
 import TimeInputs from './TimeInputs'
 
 interface Props {

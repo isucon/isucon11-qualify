@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { GraphRequest, Graph } from '../../../lib/apis'
-import { getNextDate, getPrevDate, getTodayDate } from '../../../lib/date'
+import { GraphRequest, Graph } from '/@/lib/apis'
+import { getNextDate, getPrevDate, getTodayDate } from '/@/lib/date'
 
 export interface Tooltip {
   score: string

@@ -12,6 +12,8 @@ import (
 	"github.com/labstack/gommon/log"
 )
 
+const postingIntervalSec = 3
+
 type IsuConditionPoster struct {
 	TargetURL string
 	IsuUUID   string
@@ -20,7 +22,14 @@ type IsuConditionPoster struct {
 	cancelFunc context.CancelFunc
 }
 
-func NewIsuConditionPoster(targetURL string, isuUUID string) IsuConditionPoster {
+type IsuConditionRequest struct {
+	IsSitting bool   `json:"is_sitting"`
+	Condition string `json:"condition"`
+	Message   string `json:"message"`
+	Timestamp int64  `json:"timestamp"`
+}
+
+func NewIsuConditionPoster(targetURL *url.URL, isuUUID string) IsuConditionPoster {
 	ctx, cancel := context.WithCancel(context.Background())
 	return IsuConditionPoster{targetURL, isuUUID, ctx, cancel}
 }
@@ -32,7 +41,10 @@ func (m *IsuConditionPoster) KeepPosting() {
 	)
 	randEngine := rand.New(rand.NewSource(0))
 
-	timer := time.NewTicker(2 * time.Second)
+	nowTime := time.Now()
+	randEngine.Seed(nowTime.UnixNano()/1000000000 + 961054102) // 乱数初期化（逆算できるように）
+
+	timer := time.NewTicker(postingIntervalSec * time.Second)
 	defer timer.Stop()
 	for {
 		select {
@@ -41,20 +53,24 @@ func (m *IsuConditionPoster) KeepPosting() {
 		case <-timer.C:
 		}
 
-		//乱数初期化（逆算できるように）
-		nowTime := time.Now()
-		randEngine.Seed(nowTime.UnixNano()/1000000000 + 961054102)
+		conditions := []IsuConditionRequest{}
+		for i := 0; i < postingIntervalSec; i++ {
+			cond := IsuConditionRequest{
+				IsSitting: (randEngine.Intn(100) <= 70),
+				Condition: fmt.Sprintf("is_dirty=%v,is_overweight=%v,is_broken=%v",
+					(randEngine.Intn(2) == 0),
+					(randEngine.Intn(2) == 0),
+					(randEngine.Intn(2) == 0),
+				),
+				Message:   "テストメッセージです",
+				Timestamp: nowTime.Unix(),
+			}
+			conditions = append(conditions, cond)
 
-		notification, err := json.Marshal(IsuNotificationRequest{{
-			IsSitting: (randEngine.Intn(100) <= 70),
-			Condition: fmt.Sprintf("is_dirty=%v,is_overweight=%v,is_broken=%v",
-				(randEngine.Intn(2) == 0),
-				(randEngine.Intn(2) == 0),
-				(randEngine.Intn(2) == 0),
-			),
-			Message:   "今日もいい天気",
-			Timestamp: nowTime.Unix(),
-		}})
+			nowTime = nowTime.Add(1 * time.Second)
+		}
+
+		conditionsJSON, err := json.Marshal(conditions)
 		if err != nil {
 			log.Error(err)
 			continue
@@ -62,8 +78,8 @@ func (m *IsuConditionPoster) KeepPosting() {
 
 		func() {
 			resp, err := http.Post(
-				targetURL, "application/json",
-				bytes.NewBuffer(notification),
+				targetURL.String(), "application/json",
+				bytes.NewBuffer(conditionsJSON),
 			)
 			if err != nil {
 				log.Error(err)
@@ -81,11 +97,4 @@ func (m *IsuConditionPoster) KeepPosting() {
 
 func (m *IsuConditionPoster) StopPosting() {
 	m.cancelFunc()
-}
-
-type IsuNotificationRequest []struct {
-	IsSitting bool   `json:"is_sitting"`
-	Condition string `json:"condition"`
-	Message   string `json:"message"`
-	Timestamp int64  `json:"timestamp"`
 }

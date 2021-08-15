@@ -1,5 +1,9 @@
+<<<<<<< HEAD
 import { useHistory } from 'react-router-dom'
 import apis, { Isu } from '../../lib/apis'
+=======
+import { Isu } from '/@/lib/apis'
+>>>>>>> 08.15.1
 import IsuIcon from './IsuIcon'
 
 interface Props {

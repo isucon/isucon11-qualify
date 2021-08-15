@@ -212,7 +212,7 @@ func reqMultipartResError(ctx context.Context, agent *agent.Agent, method string
 }
 
 func doRequest(ctx context.Context, agent *agent.Agent, httpreq *http.Request, allowedStatusCodes []int) (*http.Response, error) {
-	httpres, err := agent.Do(ctx, httpreq)
+	httpres, err := AgentDo(agent, ctx, httpreq)
 	if err != nil {
 		return nil, failure.NewError(ErrHTTP, err)
 	}
