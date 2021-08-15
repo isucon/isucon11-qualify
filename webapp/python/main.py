@@ -3,6 +3,7 @@ from subprocess import call
 from dataclasses import dataclass
 import json
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 import urllib.request
 from random import random
 from enum import Enum
@@ -22,6 +23,7 @@ from sqlalchemy.pool import QueuePool
 import jwt
 
 
+TZ = ZoneInfo("Asia/Tokyo")
 CONDITION_LIMIT = 20
 FRONTEND_CONTENTS_PATH = "../public"
 JIA_JWT_SIGNING_KEY_PATH = "../ec256-public.pem"
@@ -167,6 +169,7 @@ mysql_connection_env = {
     "user": getenv("MYSQL_USER", "isucon"),
     "password": getenv("MYSQL_PASS", "isucon"),
     "database": getenv("MYSQL_DBNAME", "isucondition"),
+    "time_zone": "+09:00",
 }
 
 cnxpool = QueuePool(lambda: mysql.connector.connect(**mysql_connection_env), pool_size=10)
@@ -433,7 +436,7 @@ def get_isu_graph(jia_isu_uuid):
     if dt is None:
         raise BadRequest("missing: datetime")
     try:
-        dt = datetime.fromtimestamp(int(dt))
+        dt = datetime.fromtimestamp(int(dt), tz=TZ)
     except:
         raise BadRequest("bad format: datetime")
     dt = truncate_datetime(dt)
@@ -582,7 +585,7 @@ def get_isu_confitions(jia_isu_uuid):
     jia_user_id = get_user_id_from_session()
 
     try:
-        end_time = datetime.fromtimestamp(int(request.args.get("end_time")))
+        end_time = datetime.fromtimestamp(int(request.args.get("end_time")), tz=TZ)
     except:
         raise BadRequest("bad format: end_time")
 
@@ -595,7 +598,7 @@ def get_isu_confitions(jia_isu_uuid):
     start_time = None
     if start_time_str is not None:
         try:
-            start_time = datetime.fromtimestamp(int(start_time_str))
+            start_time = datetime.fromtimestamp(int(start_time_str), tz=TZ)
         except:
             raise BadRequest("bad format: start_time")
 
@@ -755,7 +758,7 @@ def post_isu_condition(jia_isu_uuid):
                 query,
                 (
                     jia_isu_uuid,
-                    datetime.fromtimestamp(cond.timestamp),
+                    datetime.fromtimestamp(cond.timestamp, tz=TZ),
                     cond.is_sitting,
                     cond.condition,
                     cond.message,
