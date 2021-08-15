@@ -105,11 +105,11 @@ final class IsuCondition
         return new self(
             isset($dbRow['id']) ? (int)$dbRow['id'] : null,
             $dbRow['jia_isu_uuid'] ?? null,
-            isset($dbRow['timestamp']) ? new DateTimeImmutable($dbRow['timestamp']) : null,
+            isset($dbRow['timestamp']) ? new DateTimeImmutable($dbRow['timestamp'], new DateTimeZone('Asia/Tokyo')) : null,
             isset($dbRow['is_sitting']) ? (bool)$dbRow['is_sitting'] : null,
             $dbRow['condition'] ?? null,
             $dbRow['message'] ?? null,
-            isset($dbRow['created_at']) ? new DateTimeImmutable($dbRow['created_at']) : null,
+            isset($dbRow['created_at']) ? new DateTimeImmutable($dbRow['created_at'], new DateTimeZone('Asia/Tokyo')) : null,
         );
     }
 }
