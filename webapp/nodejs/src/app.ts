@@ -712,10 +712,10 @@ async function generateIsuGraphResponse(
   }
 
   const endTime = new Date(graphDate.getTime() + 24 * 60 * 60 * 1000);
-  let startIndex = 0;
+  let startIndex = dataPoints.length;
   let endNextIndex = dataPoints.length;
   dataPoints.forEach((graph, i) => {
-    if (startIndex === 0 && graph.startAt >= graphDate) {
+    if (startIndex === dataPoints.length && graph.startAt >= graphDate) {
       startIndex = i;
     }
     if (endNextIndex === dataPoints.length && graph.startAt > endTime) {
