@@ -10,3 +10,4 @@ requires 'Starlet';
 requires 'Plack::Middleware::Session';
 requires 'File::Slurp';
 requires 'Crypt::JWT';
+requires 'Furl';
