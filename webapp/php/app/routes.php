@@ -43,11 +43,10 @@ final class Isu implements JsonSerializable
     }
 
     /**
-     * @return array{id: int, jia_isu_uuid: string, name: string, character: string}
+     * @return array{id: ?int, jia_isu_uuid: ?string, name: ?string, character: ?string}
      */
     public function jsonSerialize(): array
     {
-        // TODO: null 考慮どこまでやるか検討
         return [
             'id' => $this->id,
             'jia_isu_uuid' => $this->jiaIsuUuid,
