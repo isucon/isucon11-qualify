@@ -718,41 +718,37 @@ func (s *Scenario) verifyTrend(
 					defer isu.CondMutex.RUnlock()
 
 					// condition を最新順に取得するイテレータを生成
-					// TODO LowerBound(condition.Timestamp) で出来るようにする
 					filter := model.ConditionLevelInfo | model.ConditionLevelWarning | model.ConditionLevelCritical
 					conditions := isu.Conditions
-					baseIter := conditions.End(filter)
+					baseIter := conditions.UpperBound(filter, condition.Timestamp)
 
 					// condition.timestamp と condition.condition の値を検証
-					for {
-						expected := baseIter.Prev()
+					expected := baseIter.Prev()
+					if expected == nil || expected.TimestampUnix != condition.Timestamp {
+						return errorMismatch(res, "POSTに成功していない時刻のデータが返されました")
+					}
+					if !expected.ConditionLevel.Equal(conditionLevel) {
+						return errorMismatch(res, "コンディションレベルが正しくありません")
+					}
+					// 同じ isu の condition が複数返されてないことの検証
+					if _, exist := isuIDSet[condition.IsuID]; exist {
+						return errorMismatch(res, "同じ ISU のコンディションが複数登録されています")
+					}
+					isuIDSet[condition.IsuID] = struct{}{}
 
-						if expected == nil || expected.TimestampUnix < condition.Timestamp {
-							return errorMismatch(res, "POSTに成功していない時刻のデータが返されました")
+					// 該当 condition が新規のものである場合はキャッシュを更新
+					if !viewer.ConditionAlreadyVerified(condition.IsuID, condition.Timestamp) {
+						// 該当 condition が以前のものよりも昔の timestamp で無いことの検証
+						if !viewer.ConditionIsUpdated(condition.IsuID, condition.Timestamp) {
+							return errorMismatch(res, "以前の取得結果よりも古いタイムスタンプのコンディションが返されています")
 						}
-						if expected.TimestampUnix == condition.Timestamp && expected.ConditionLevel.Equal(conditionLevel) {
-							// 同じ isu の condition が複数返されてないことの検証
-							if _, exist := isuIDSet[condition.IsuID]; exist {
-								return errorMismatch(res, "同じ ISU のコンディションが複数登録されています")
-							}
-							isuIDSet[condition.IsuID] = struct{}{}
-
-							// 該当 condition が新規のものである場合はキャッシュを更新
-							if !viewer.ConditionAlreadyVerified(condition.IsuID, condition.Timestamp) {
-								// 該当 condition が以前のものよりも昔の timestamp で無いことの検証
-								if !viewer.ConditionIsUpdated(condition.IsuID, condition.Timestamp) {
-									return errorMismatch(res, "以前の取得結果よりも古いタイムスタンプのコンディションが返されています")
-								}
-								viewer.SetVerifiedCondition(condition.IsuID, condition.Timestamp)
-								// 一秒前(仮想時間で16時間40分以上前)よりあとのものならカウンタをインクリメント
-								if condition.Timestamp > s.ToVirtualTime(requestTime.Add(-2*time.Second)).Unix() {
-									newConditionNum += 1
-								}
-							}
-
-							break
+						viewer.SetVerifiedCondition(condition.IsuID, condition.Timestamp)
+						// 一秒前(仮想時間で16時間40分以上前)よりあとのものならカウンタをインクリメント
+						if condition.Timestamp > s.ToVirtualTime(requestTime.Add(-2*time.Second)).Unix() {
+							newConditionNum += 1
 						}
 					}
+
 					return nil
 				}(); err != nil {
 					return 0, err
