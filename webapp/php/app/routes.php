@@ -10,6 +10,140 @@ use Psr\Log\LoggerInterface;
 use Slim\App;
 use SlimSession\Helper as SessionHelper;
 
+final class Isu implements JsonSerializable
+{
+    public function __construct(
+        public ?int $id,
+        public ?string $jiaIsuUuid,
+        public ?string $name,
+        public ?string $image,
+        public ?string $character,
+        public ?string $jiaUserId,
+        public ?DateTimeInterface $createdAt,
+        public ?DateTimeInterface $updatedAt,
+    ) {
+    }
+
+    /**
+     * @param array{id?: string, jia_isu_uuid?: string, name?: string, image?: string, character?: string, jia_user_id?: string, created_at?: string, updated_at?: string} $dbRow
+     * @throws Exception
+     */
+    public static function fromDbRow(array $dbRow): self
+    {
+        return new self(
+            isset($dbRow['id']) ? (int)$dbRow['id'] : null,
+            $dbRow['jia_isu_uuid'] ?? null,
+            $dbRow['name'] ?? null,
+            $dbRow['image'] ?? null,
+            $dbRow['character'] ?? null,
+            $dbRow['jia_user_id'] ?? null,
+            isset($dbRow['created_at']) ? new DateTimeImmutable($dbRow['created_at'], new DateTimeZone('Asia/Tokyo')) : null,
+            isset($dbRow['updated_at']) ? new DateTimeImmutable($dbRow['updated_at'], new DateTimeZone('Asia/Tokyo')) : null,
+        );
+    }
+
+    /**
+     * @return array{id: int, jia_isu_uuid: string, name: string, character: string}
+     */
+    public function jsonSerialize(): array
+    {
+        // TODO: null 考慮どこまでやるか検討
+        return [
+            'id' => $this->id,
+            'jia_isu_uuid' => $this->jiaIsuUuid,
+            'name' => $this->name,
+            'character' => $this->character,
+        ];
+    }
+}
+
+final class GetIsuListResponse implements JsonSerializable
+{
+    public function __construct(
+        public int $id,
+        public string $jiaIsuUuid,
+        public string $name,
+        public string $character,
+        public GetIsuConditionResponse $latestIsuCondition,
+    ) {
+    }
+
+    /**
+     * @return array{id: int, jia_isu_uuid: string, name: string, character: string, latest_isu_condition: GetIsuConditionResponse}
+     */
+    public function jsonSerialize(): array
+    {
+        return [
+            'id' => $this->id,
+            'jia_isu_uuid' => $this->jiaIsuUuid,
+            'name' => $this->name,
+            'character' => $this->character,
+            'latest_isu_condition' => $this->latestIsuCondition,
+        ];
+    }
+}
+
+final class IsuCondition
+{
+    public function __construct(
+        public ?int $id,
+        public ?string $jiaIsuUuid,
+        public ?DateTimeInterface $timestamp,
+        public ?bool $isSitting,
+        public ?string $condition,
+        public ?string $message,
+        public ?DateTimeInterface $createdAt,
+    ) {
+    }
+
+    /**
+     * @param array{id?: string, jia_isu_uuid?: string, timestamp?: string, is_sitting?: string, condition?: string, message?: string, created_at?: string} $dbRow
+     * @throws Exception
+     */
+    public static function fromDbRow(array $dbRow): self
+    {
+        return new self(
+            isset($dbRow['id']) ? (int)$dbRow['id'] : null,
+            $dbRow['jia_isu_uuid'] ?? null,
+            isset($dbRow['timestamp']) ? new DateTimeImmutable($dbRow['timestamp']) : null,
+            isset($dbRow['is_sitting']) ? (bool)$dbRow['is_sitting'] : null,
+            $dbRow['condition'] ?? null,
+            $dbRow['message'] ?? null,
+            isset($dbRow['created_at']) ? new DateTimeImmutable($dbRow['created_at']) : null,
+        );
+    }
+}
+
+final class GetIsuConditionResponse implements JsonSerializable
+{
+    public function __construct(
+        public string $jiaIsuUuid,
+        public string $isuName,
+        public int $timestamp,
+        public bool $isSitting,
+        public string $condition,
+        public string $conditionLevel,
+        public string $message,
+    ) {
+    }
+
+    /**
+     * @return array{jia_isu_uuid: string, isu_name: string, timestamp: int, is_sitting: bool, condition: string, condition_level: string, message: string}
+     */
+    public function jsonSerialize(): array
+    {
+        return [
+            'jia_isu_uuid' => $this->jiaIsuUuid,
+            'isu_name' => $this->isuName,
+            'timestamp' => $this->timestamp,
+            'is_sitting' => $this->isSitting,
+            'condition' => $this->condition,
+            'condition_level' => $this->conditionLevel,
+            'message' => $this->message,
+        ];
+    }
+}
+
 final class InitializeRequest
 {
     public function __construct(public string $jiaServiceUrl)
@@ -292,7 +426,109 @@ final class Handler
     // ISUの一覧を取得
     public function getIsuList(Request $request, Response $response): Response
     {
-        throw new Exception('not implemented');
+        [$jiaUserId, $errStatusCode, $err] = $this->getUserIdFromSession();
+
+        if (!empty($err)) {
+            $newResponse = $response->withStatus($errStatusCode);
+            if ($errStatusCode === StatusCodeInterface::STATUS_UNAUTHORIZED) {
+                $newResponse->withHeader('Content-Type', 'text/plain; charset=UTF-8');
+                $newResponse->getBody()->write('you are not signed in');
+
+                return $newResponse;
+            }
+
+            $this->logger->error($err);
+
+            return $newResponse;
+        }
+
+        if (!$this->dbh->beginTransaction()) {
+            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+
+            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+        }
+
+        $stmt = $this->dbh->prepare('SELECT * FROM `isu` WHERE `jia_user_id` = ? ORDER BY `id` DESC');
+        if (!$stmt->execute([$jiaUserId])) {
+            $this->dbh->rollBack();
+            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+
+            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+        }
+
+        $rows = $stmt->fetchAll();
+        if ($rows === false) {
+            $this->dbh->rollBack();
+            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+
+            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+        }
+
+        /** @var Isu[] $isuList */
+        $isuList = [];
+        foreach ($rows as $row) {
+            $isuList[] = Isu::fromDbRow($row);
+        }
+
+        /** @var GetIsuListResponse[] $responseList */
+        $responseList = [];
+
+        foreach ($isuList as $isu) {
+            $foundLastCondition = true;
+
+            $stmt = $this->dbh->prepare('SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` DESC LIMIT 1');
+            if (!$stmt->execute([$isu->jiaUserId])) {
+                $this->dbh->rollBack();
+                $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+
+                return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+            }
+
+            $rows = $stmt->fetchAll();
+            if (count($rows) === 0) {
+                $foundLastCondition = false;
+            }
+
+            if ($foundLastCondition) {
+                $lastCondition = IsuCondition::fromDbRow($rows[0]);
+                try {
+                    $conditionLevel = $this->calculateConditionLevel($lastCondition->condition);
+                } catch (UnhandledMatchError) {
+                    $this->dbh->rollBack();
+                    $this->logger->error('unexpected warn count');
+
+                    return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+                }
+
+                $formattedCondition = new GetIsuConditionResponse(
+                    jiaIsuUuid: $lastCondition->jiaIsuUuid,
+                    isuName: $isu->name,
+                    timestamp: $lastCondition->timestamp->getTimestamp(),
+                    isSitting: $lastCondition->isSitting,
+                    condition: $lastCondition->condition,
+                    conditionLevel: $conditionLevel,
+                    message: $lastCondition->message,
+                );
+            }
+
+            $res = new GetIsuListResponse(
+                id: $isu->id,
+                jiaIsuUuid: $isu->jiaIsuUuid,
+                name: $isu->name,
+                character: $isu->character,
+                latestIsuCondition: $formattedCondition
+            );
+            $responseList[] = $res;
+        }
+
+        if (!$this->dbh->commit()) {
+            $this->dbh->rollBack();
+            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+
+            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+        }
+
+        return $this->jsonResponse($response, $responseList);
     }
 
     // POST /api/isu
@@ -349,9 +585,15 @@ final class Handler
     }
 
     // ISUのコンディションの文字列からコンディションレベルを計算
-    private function calculateConditionLevel()
+    private function calculateConditionLevel(string $condition): string
     {
-        throw new Exception('not implemented');
+        $warnCount = mb_substr_count($condition, '=true');
+
+        return match ($warnCount) {
+            0 => self::CONDITION_LEVEL_INFO,
+            1, 2 => self::CONDITION_LEVEL_WARNING,
+            3 => self::CONDITION_LEVEL_CRITICAL,
+        };
     }
 
     // GET /api/trend
@@ -402,7 +644,7 @@ final class Handler
         return $newResponse;
     }
 
-    private function jsonResponse(Response $response, JsonSerializable $data): Response
+    private function jsonResponse(Response $response, JsonSerializable|array $data): Response
     {
         $responseBody = json_encode($data);
         if ($responseBody === false) {
