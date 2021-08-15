@@ -18,7 +18,7 @@ const SearchInputs = ({ query, search }: Props) => {
   const [tmpEndTime, setTmpEndTime] = useState('')
 
   return (
-    // string→Dateのパースはここでやる
+    // string→Dateのバリデーション・パースはここでやる
     <div className="flex flex-wrap gap-6 items-end">
       <Input
         label="検索条件"
@@ -35,12 +35,31 @@ const SearchInputs = ({ query, search }: Props) => {
       <ButtonSub
         label="検索"
         onClick={() => {
+          if (
+            tmpConditionLevel
+              .split(',')
+              .every(condition =>
+                ['critical', 'warning', 'info'].includes(condition)
+              )
+          ) {
+            alert(
+              '検索条件には critical,warning,info のいずれか一つ以上をカンマ区切りで入力してください'
+            )
+          }
           const start_time = new Date(tmpStartTime)
+          if (tmpStartTime && isNaN(start_time.getTime())) {
+            alert('時間指定（since〜）が不正です')
+            return
+          }
           const end_time = new Date(tmpEndTime)
+          if (tmpEndTime && isNaN(end_time.getTime())) {
+            alert('時間指定（〜until）が不正です')
+            return
+          }
           search({
-            start_time: !isNaN(start_time.getTime()) ? start_time : new Date(0),
-            end_time: !isNaN(end_time.getTime()) ? end_time : getNowDate(),
-            condition_level: tmpConditionLevel
+            condition_level: tmpConditionLevel,
+            start_time: tmpStartTime ? start_time : undefined,
+            end_time: tmpEndTime ? end_time : getNowDate()
           })
         }}
       />

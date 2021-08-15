@@ -1,64 +1,48 @@
 import { useEffect, useState } from 'react'
+import { useHistory, useLocation } from 'react-router-dom'
 import {
   Condition,
   ConditionRequest,
   DEFAULT_CONDITION_LIMIT
 } from '/@/lib/apis'
-import { getNowDate } from '/@/lib/date'
+import { dateToTimestamp, getNowDate } from '/@/lib/date'
 
 const usePagingCondition = (
   getConditions: (req: ConditionRequest) => Promise<Condition[]>
 ) => {
-  const [conditions, setConditions] = useState<Condition[]>([])
-
   const [query, setQuery] = useState<ConditionRequest>({
     condition_level: 'critical,warning,info',
     end_time: getNowDate()
   })
-
+  const [page, setPage] = useState(1)
+  const [conditions, setConditions] = useState<Condition[]>([])
   // 1-indexed
   const [cache, setCache] = useState<Condition[][]>([[]])
-  const [page, setPage] = useState(1)
+
+  const history = useHistory()
+  const location = useLocation()
 
   useEffect(() => {
     const fetchCondtions = async () => {
+      const newLocation = `${location.pathname}?condition_level=${
+        query.condition_level
+      }${
+        !isNaN(query.end_time.getTime())
+          ? '&end_time=' + dateToTimestamp(query.end_time)
+          : ''
+      }${
+        query.start_time && !isNaN(query.start_time.getTime())
+          ? '&start_time=' + dateToTimestamp(query.start_time)
+          : ''
+      }`
+      history.push(newLocation)
       const conditions = await getConditions(query)
       setConditions(conditions)
     }
     fetchCondtions()
-  }, [getConditions, setConditions, query])
+  }, [getConditions, setConditions, query, location.pathname, history])
 
   const search = async (params: ConditionRequest) => {
-    if (params.condition_level) {
-      if (!validateConditionLevel(params.condition_level)) {
-        return
-      }
-    }
-
-    if (params.start_time) {
-      if (!isNaN(params.start_time.getTime())) {
-        setQuery(query => ({
-          ...query,
-          start_time: params.start_time
-        }))
-      } else {
-        alert('時間指定の下限が不正です')
-        return
-      }
-    }
-
-    if (params.end_time) {
-      if (!isNaN(params.end_time.getTime())) {
-        setQuery(query => ({
-          ...query,
-          end_time: params.end_time
-        }))
-      } else {
-        alert('時間指定の上限が不正です')
-        return
-      }
-    }
-
     setQuery(params)
     setPage(1)
     setCache([[], conditions])
@@ -78,30 +62,16 @@ const usePagingCondition = (
   }
 
   const getNextRequestParams = (): ConditionRequest => {
-    const start_time = query.start_time ? query.start_time : new Date(0)
+    const start_time = query.start_time
     const end_time = conditions[DEFAULT_CONDITION_LIMIT - 1].date
-
     return {
-      end_time,
+      condition_level: query.condition_level,
       start_time,
-      condition_level: query.condition_level
+      end_time
     }
   }
 
   return { conditions, query, search, page, next, prev }
-}
-
-const validateConditionLevel = (query: string) => {
-  const splitQuery = query.split(',')
-  for (const sq of splitQuery) {
-    if (!['critical', 'warning', 'info'].includes(sq)) {
-      alert(
-        '検索条件には critical,warning,info のいずれか一つ以上をカンマ区切りで入力してください'
-      )
-      return false
-    }
-  }
-  return true
 }
 
 export default usePagingCondition
