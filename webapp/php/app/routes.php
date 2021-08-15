@@ -194,6 +194,52 @@ final class TrendCondition implements JsonSerializable
     }
 }
 
+final class PostIsuConditionRequest
+{
+    public function __construct(
+        public bool $isSitting,
+        public string $condition,
+        public string $message,
+        public int $timestamp,
+    ) {
+    }
+
+    /**
+     * @return self[]
+     * @throws UnexpectedValueException
+     */
+    public static function listFromJson(string $json): array
+    {
+        try {
+            $data = json_decode($json, true, flags: JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            throw new UnexpectedValueException();
+        }
+
+        /** @var self[] $list */
+        $list = [];
+        foreach ($data as $condition) {
+            if (
+                !isset($condition['is_sitting']) ||
+                !isset($condition['condition']) ||
+                !isset($condition['message']) ||
+                !isset($condition['timestamp'])
+            ) {
+                throw new UnexpectedValueException();
+            }
+
+            $list[] = new self(
+                $condition['is_sitting'],
+                $condition['condition'],
+                $condition['message'],
+                $condition['timestamp']
+            );
+        }
+
+        return $list;
+    }
+}
+
 final class InitializeRequest
 {
     public function __construct(public string $jiaServiceUrl)
@@ -1152,7 +1198,91 @@ final class Handler
     // ISUからのコンディションを受け取る
     public function postIsuCondition(Request $request, Response $response, array $args): Response
     {
-        throw new Exception('not implemented');
+        // TODO: 一定割合リクエストを落としてしのぐようにしたが、本来は全量さばけるようにすべき
+        $dropProbability = 0.9;
+
+        if ((rand() / getrandmax()) < $dropProbability) {
+            $this->logger->warning('drop post isu condition request');
+
+            return $response->withStatus(StatusCodeInterface::STATUS_SERVICE_UNAVAILABLE);
+        }
+
+        $jiaIsuUuid = $args['jia_isu_uuid'];
+        if ($jiaIsuUuid === '') {
+            $response->getBody()->write('missing: jia_isu_uuid');
+
+            return $response->withStatus(StatusCodeInterface::STATUS_BAD_REQUEST)
+                ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
+        }
+
+        try {
+            /** @var PostIsuConditionRequest[] $req */
+            $req = PostIsuConditionRequest::listFromJson((string)$request->getBody());
+        } catch (UnexpectedValueException) {
+            $response->getBody()->write('bad request body');
+
+            return $response->withStatus(StatusCodeInterface::STATUS_BAD_REQUEST)
+                ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
+        }
+
+        if (count($req) === 0) {
+            $response->getBody()->write('bad request body');
+
+            return $response->withStatus(StatusCodeInterface::STATUS_BAD_REQUEST)
+                ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
+        }
+
+        if (!$this->dbh->beginTransaction()) {
+            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+
+            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+        }
+
+        $stmt = $this->dbh->prepare('SELECT COUNT(*) FROM `isu` WHERE `jia_isu_uuid` = ?');
+        if (!$stmt->execute([$jiaIsuUuid])) {
+            $this->dbh->rollBack();
+            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+
+            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+        }
+        if ($stmt->fetch()[0] == 0) {
+            $this->dbh->rollBack();
+            $response->getBody()->write('not found: isu');
+
+            return $response->withStatus(StatusCodeInterface::STATUS_NOT_FOUND)
+                ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
+        }
+
+        foreach ($req as $cond) {
+            if (!$this->isValidConditionFormat($cond->condition)) {
+                $this->dbh->rollBack();
+                $response->getBody()->write('bad request body');
+
+                return $response->withStatus(StatusCodeInterface::STATUS_BAD_REQUEST)
+                    ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
+            }
+
+            $stmt = $this->dbh->prepare(
+                'INSERT INTO `isu_condition`' .
+                    '	(`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`)' .
+                    '	VALUES (?, ?, ?, ?, ?)'
+            );
+            if (!$stmt->execute([$jiaIsuUuid, $cond->timestamp, $cond->isSitting, $cond->condition, $cond->message])) {
+                $this->dbh->rollBack();
+                $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+
+                return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+            }
+        }
+
+        if (!$this->dbh->commit()) {
+            $this->dbh->rollBack();
+            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+
+            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+        }
+
+        return $response->withStatus(StatusCodeInterface::STATUS_CREATED);
     }
 
     // ISUのコンディションの文字列がcsv形式になっているか検証
