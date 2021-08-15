@@ -487,9 +487,9 @@ final class Handler
                 $lastCondition = IsuCondition::fromDbRow($rows[0]);
                 try {
                     $conditionLevel = $this->calculateConditionLevel($lastCondition->condition);
-                } catch (UnhandledMatchError) {
+                } catch (UnexpectedValueException $e) {
                     $this->dbh->rollBack();
-                    $this->logger->error('unexpected warn count');
+                    $this->logger->error($e->getMessage());
 
                     return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
                 }
@@ -615,15 +615,22 @@ final class Handler
     }
 
     // ISUのコンディションの文字列からコンディションレベルを計算
+    /**
+     * @throws UnexpectedValueException
+     */
     private function calculateConditionLevel(string $condition): string
     {
         $warnCount = mb_substr_count($condition, '=true');
 
-        return match ($warnCount) {
-            0 => self::CONDITION_LEVEL_INFO,
-            1, 2 => self::CONDITION_LEVEL_WARNING,
-            3 => self::CONDITION_LEVEL_CRITICAL,
-        };
+        try {
+            return match ($warnCount) {
+                0 => self::CONDITION_LEVEL_INFO,
+                1, 2 => self::CONDITION_LEVEL_WARNING,
+                3 => self::CONDITION_LEVEL_CRITICAL,
+            };
+        } catch (UnhandledMatchError) {
+            throw new UnexpectedValueException('unexpected warn count');
+        }
     }
 
     // GET /api/trend
