@@ -17,13 +17,15 @@ const SittingGraph = ({ sittingData, timeCategories }: Props) => {
     series: [
       {
         type: 'heatmap',
-        data: sittingData.slice(1),
+        data: sittingData,
         name: ''
       }
     ],
     xaxis: {
-      categories: timeCategories.slice(1),
-      labels: { show: false }
+      categories: timeCategories,
+      labels: { show: false },
+      axisBorder: { show: false },
+      axisTicks: { show: false }
     },
     plotOptions: {
       heatmap: {
@@ -42,7 +44,7 @@ const SittingGraph = ({ sittingData, timeCategories }: Props) => {
 
   return (
     <div
-      style={{ transform: 'translateX(13px) translateY(-32px) scaleX(0.993)' }}
+      style={{ transform: 'translateX(13px) translateY(-32px) scaleX(1.04)' }}
     >
       <Chart type="heatmap" options={option} series={option.series}></Chart>
     </div>
