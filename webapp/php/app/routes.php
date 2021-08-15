@@ -64,12 +64,12 @@ final class GetIsuListResponse implements JsonSerializable
         public string $jiaIsuUuid,
         public string $name,
         public string $character,
-        public GetIsuConditionResponse $latestIsuCondition,
+        public ?GetIsuConditionResponse $latestIsuCondition,
     ) {
     }
 
     /**
-     * @return array{id: int, jia_isu_uuid: string, name: string, character: string, latest_isu_condition: GetIsuConditionResponse}
+     * @return array{id: int, jia_isu_uuid: string, name: string, character: string, latest_isu_condition: ?GetIsuConditionResponse}
      */
     public function jsonSerialize(): array
     {
@@ -489,6 +489,7 @@ final class Handler
                 $foundLastCondition = false;
             }
 
+            $formattedCondition = null;
             if ($foundLastCondition) {
                 $lastCondition = IsuCondition::fromDbRow($rows[0]);
                 try {
@@ -516,7 +517,7 @@ final class Handler
                 jiaIsuUuid: $isu->jiaIsuUuid,
                 name: $isu->name,
                 character: $isu->character,
-                latestIsuCondition: $formattedCondition
+                latestIsuCondition: $formattedCondition,
             );
             $responseList[] = $res;
         }
