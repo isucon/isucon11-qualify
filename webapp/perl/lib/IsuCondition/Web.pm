@@ -14,6 +14,7 @@ use Log::Minimal;
 use JSON::MaybeXS;
 use Cpanel::JSON::XS::Type;
 use Crypt::JWT qw(decode_jwt);
+use Furl;
 
 use constant {
     CONDITION_LIMIT              => 20,
@@ -150,9 +151,31 @@ sub get_jia_service_url($self) {
     return $config->{url};
 }
 
+
+post("/initialize",                   [qw/allow_json_request/], \&post_initialize);
+
+post("/api/auth",                     \&post_authentication);
+post("/api/signout",                  \&post_signout);
+get("/api/user/me",                   \&get_me);
+get("/api/isu",                       \&get_isu_list);
+post("/api/isu",                      \&post_isu);
+get("/api/isu/{jia_isu_uuid}/icon",   \&get_isu_icon);
+get("/api/isu/{jia_isu_uuid}/graph",  \&get_isu_graph);
+get("/api/isu/{jia_isu_uuid}",        \&get_isu_id);
+get("/api/condition/{jia_isu_uuid}",  \&get_isu_conditions);
+get("/api/trend",                     \&get_trend);
+
+post("/api/condition/{jia_isu_uuid}", [qw/allow_json_request/], \&post_isu_condition);
+
+get("/",                              \&get_index);
+get("/isu/{jia_isu_uuid}/condition",  \&get_index);
+get("/isu/{jia_isu_uuid}/graph",      \&get_index);
+get("/isu/{jia_isu_uuid}",            \&get_index);
+get("/register",                      \&get_index);
+
 # POST /initialize
 # サービスを初期化
-post '/initialize' => [qw/allow_json_request/] => sub ($self, $c) {
+sub post_initialize($self, $c) {
     if (!$c->req->parameters->{'jia_service_url'}) {
         $c->halt_text(HTTP_BAD_REQUEST, "bad request body");
     }
@@ -176,7 +199,7 @@ post '/initialize' => [qw/allow_json_request/] => sub ($self, $c) {
 
 # POST /api/auth
 # サインアップ・サインイン
-post '/api/auth' => sub ($self, $c) {
+sub post_authentication($self, $c) {
     my $auth = $c->req->header('Authorization');
     if (!$auth) {
         $c->halt_no_content(HTTP_FORBIDDEN);
@@ -200,7 +223,7 @@ post '/api/auth' => sub ($self, $c) {
 
 # POST /api/signout
 # サインアウト
-post '/api/signout' => sub ($self, $c) {
+sub post_signout($self, $c) {
     my $jia_user_id = $self->get_user_id_from_session($c);
     $c->req->session->clear();
 
@@ -209,7 +232,7 @@ post '/api/signout' => sub ($self, $c) {
 
 # GET /api/user/me
 # サインインしている自分自身の情報を取得
-get '/api/user/me' => sub ($self, $c) {
+sub get_me($self, $c) {
     my $jia_user_id = $self->get_user_id_from_session($c);
 
     return $c->render_json({
@@ -219,7 +242,7 @@ get '/api/user/me' => sub ($self, $c) {
 
 # GET /api/isu
 # ISUの一覧を取得
-get '/api/isu' => sub ($self, $c) {
+sub get_isu_list($self, $c) {
     my $jia_user_id = $self->get_user_id_from_session($c);
 
     my $isu_list = $self->dbh->select_all(
@@ -272,7 +295,7 @@ get '/api/isu' => sub ($self, $c) {
 
 # POST /api/isu
 # ISUを登録
-post '/api/isu' => sub ($self, $c) {
+sub post_isu($self, $c) {
     my $jia_user_id = $self->get_user_id_from_session($c);
 
     my $use_default_image = !!0;
@@ -307,7 +330,7 @@ post '/api/isu' => sub ($self, $c) {
             isu_uuid => $jia_isu_uuid,
         };
 
-        # TODO
+        # FIXME
         my $furl = Furl->new;;
         my $res = $furl->post(
             $target_url,
@@ -347,7 +370,7 @@ post '/api/isu' => sub ($self, $c) {
 
 # GET /api/isu/:jia_isu_uuid
 # ISUの情報を取得
-get '/api/isu/{jia_isu_uuid}' => sub ($self, $c) {
+sub get_isu_id($self, $c) {
     my $jia_user_id = $self->get_user_id_from_session($c);
 
     my $jia_isu_uuid = $c->req->parameters->{'jia_isu_uuid'};
@@ -365,7 +388,7 @@ get '/api/isu/{jia_isu_uuid}' => sub ($self, $c) {
 
 # GET /api/isu/:jia_isu_uuid/icon
 # ISUのアイコンを取得
-get '/api/isu/:jia_isu_uuid/icon' => sub ($self, $c) {
+sub get_isu_icon($self, $c) {
     my $jia_user_id = $self->get_user_id_from_session($c);
 
     my $jia_isu_uuid = $c->req->parameters->{'jia_isu_uuid'};
@@ -387,7 +410,7 @@ get '/api/isu/:jia_isu_uuid/icon' => sub ($self, $c) {
 
 # GET /api/isu/:jia_isu_uuid/graph
 # ISUのコンディショングラフ描画のための情報を取得
-get '/api/isu/{jia_isu_uuid}/graph' => sub ($self, $c) {
+sub get_isu_graph($self, $c) {
     my $jia_user_id = $self->get_user_id_from_session($c);
 
     my $jia_isu_uuid = $c->req->parameters->{'jia_isu_uuid'};
@@ -570,7 +593,7 @@ sub calculate_graph_data_point($isu_conditions) {
 
 # GET /api/condition/:jia_isu_uuid
 # ISUのコンディションを取得
-get '/api/condition/:jia_isu_uuid' => sub ($self, $c) {
+sub get_isu_conditions($self, $c) {
     my $jia_user_id = $self->get_user_id_from_session($c);
     my $jia_isu_uuid = $c->req->parameters->{'jia_isu_uuid'};
     if (!$jia_isu_uuid) {
@@ -678,8 +701,7 @@ sub calculate_condition_level($self, $condition) {
 
 # GET /api/trend
 # ISUの性格毎の最新のコンディション情報
-get '/api/trend' => sub ($self, $c) {
-
+sub get_trend($self, $c) {
     my $character_list = $self->select_all(
         "SELECT `character` FROM `isu` GROUP BY `character`");
 
@@ -728,7 +750,7 @@ get '/api/trend' => sub ($self, $c) {
 
 # POST /api/condition/:jia_isu_uuid
 # ISUからのコンディションを受け取る
-post '/api/condition/:jia_isu_uuid' => [qw/allow_json_request/] => sub ($self, $c) {
+sub post_isu_condition($self, $c) {
     # TODO: 一定割合リクエストを落としてしのぐようにしたが、本来は全量さばけるようにすべき
     my $drop_probability = 0.9;
     if (rand() <= $drop_probability) {
@@ -818,7 +840,7 @@ sub is_valid_condition_format($condition_str) {
     return $idx_cond_str == length $condition_str;
 };
 
-get "/" => sub ($self, $c) {
+sub get_index($self, $c) {
     my $file = FRONTEND_CONTENTS_PATH + "/index.html";
     return $c->render($file);
 };

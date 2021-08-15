@@ -15,7 +15,7 @@ builder {
         expires     => 3600,
         secret      => 'tagomoris';
     enable 'Static',
-        path => qr!^/(?:(?:static|upload|js)/|([^/]+)\.(?:js|png|ico)$|asset-manifest\.json$|manifest\.json$)!,
-        root => $root_dir . '/public';
+        path => qr!^/assets/!,
+        root => $root_dir . '/public/';
     $app;
 };
