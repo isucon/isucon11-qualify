@@ -1,10 +1,12 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useState, useEffect } from 'react'
 import apis, { ConditionRequest, Isu } from '/@/lib/apis'
 import ConditionNavigator from '/@/components/Condition/ConditionNavigator'
 import ConditionList from '/@/components/Condition/ConditionList'
 import SearchInputs from '/@/components/Condition/SearchInputs'
 import usePagingCondition from '/@/components/Condition/use/paging'
 import NowLoading from '/@/components/UI/NowLoading'
+import { useLocation } from 'react-router-dom'
+import { getNowDate, timestampToDate } from '/@/lib/date'
 
 interface Props {
   isu: Isu
@@ -21,8 +23,30 @@ const IsuCondition = ({ isu }: Props) => {
     },
     [isu]
   )
-  const { conditions, query, search, next, prev, page } =
-    usePagingCondition(getConditions)
+
+  const queryParams = useLocation()
+    .search.substring(1)
+    .split('&')
+    .reduce((acc, cur) => {
+      acc[cur.split('=')[0]] = cur.split('=')[1]
+      return acc
+    }, {} as { [key: string]: string })
+  const condition_level = queryParams.condition_level ?? 'critical,warning,info'
+  let start_time = undefined
+  let end_time = getNowDate()
+  const start_timestamp = Number(queryParams.start_time)
+  if (!isNaN(start_timestamp) && start_timestamp > 0) {
+    start_time = timestampToDate(start_timestamp)
+  }
+  const end_timestamp = Number(queryParams.end_time)
+  if (!isNaN(end_timestamp) && end_timestamp > (start_timestamp || 0)) {
+    end_time = timestampToDate(end_timestamp)
+  }
+
+  const { conditions, query, search, next, prev, page } = usePagingCondition(
+    getConditions,
+    { condition_level, start_time, end_time }
+  )
 
   return (
     <div className="flex flex-col gap-8">

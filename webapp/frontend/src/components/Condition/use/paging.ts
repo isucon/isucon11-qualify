@@ -5,15 +5,13 @@ import {
   ConditionRequest,
   DEFAULT_CONDITION_LIMIT
 } from '/@/lib/apis'
-import { dateToTimestamp, getNowDate } from '/@/lib/date'
+import { dateToTimestamp } from '/@/lib/date'
 
 const usePagingCondition = (
-  getConditions: (req: ConditionRequest) => Promise<Condition[]>
+  getConditions: (req: ConditionRequest) => Promise<Condition[]>,
+  initialQuery: ConditionRequest
 ) => {
-  const [query, setQuery] = useState<ConditionRequest>({
-    condition_level: 'critical,warning,info',
-    end_time: getNowDate()
-  })
+  const [query, setQuery] = useState<ConditionRequest>(initialQuery)
   const [page, setPage] = useState(1)
   const [conditions, setConditions] = useState<Condition[]>([])
   // 1-indexed
