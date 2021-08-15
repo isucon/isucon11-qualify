@@ -7,7 +7,7 @@ interface Props {
 
 const ConditionList = ({ conditions }: Props) => {
   return (
-    <div className="flex flex-col gap-4 items-center w-full overflow-scroll">
+    <div className="flex flex-col gap-4 items-center w-full">
       <div className="w-full border border-b-0 border-outline">
         {conditions.map((condition, i) => (
           <div className="border-b border-outline" key={i}>

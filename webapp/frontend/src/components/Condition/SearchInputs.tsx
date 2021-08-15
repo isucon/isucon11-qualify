@@ -36,7 +36,7 @@ const SearchInputs = ({ query, search }: Props) => {
         label="検索"
         onClick={() => {
           if (
-            tmpConditionLevel
+            !tmpConditionLevel
               .split(',')
               .every(condition =>
                 ['critical', 'warning', 'info'].includes(condition)
