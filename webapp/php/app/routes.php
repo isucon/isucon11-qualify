@@ -1253,13 +1253,183 @@ final class Handler
     // ISUのコンディションを取得
     public function getIsuConditions(Request $request, Response $response, array $args): Response
     {
-        throw new Exception('not implemented');
+        [$jiaUserId, $errStatusCode, $err] = $this->getUserIdFromSession();
+
+        if (!empty($err)) {
+            $newResponse = $response->withStatus($errStatusCode);
+            if ($errStatusCode === StatusCodeInterface::STATUS_UNAUTHORIZED) {
+                $newResponse->getBody()->write('you are not signed in');
+
+                return $newResponse->withHeader('Content-Type', 'text/plain; charset=UTF-8');
+            }
+
+            $this->logger->error($err);
+
+            return $newResponse;
+        }
+
+        $jiaIsuUuid = $args['jia_isu_uuid'];
+        if ($jiaIsuUuid === '') {
+            $response->getBody()->write('missing: jia_isu_uuid');
+
+            return $response->withStatus(StatusCodeInterface::STATUS_BAD_REQUEST)
+                ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
+        }
+
+        $params = $request->getQueryParams();
+        if (!isset($params['end_time'])) {
+            $response->getBody()->write('missing: end_time');
+
+            return $response->withStatus(StatusCodeInterface::STATUS_BAD_REQUEST)
+                ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
+        }
+        $endTimeStr = $params['end_time'];
+        $endTimeInt = filter_var($endTimeStr, FILTER_VALIDATE_INT);
+        if (!is_int($endTimeInt)) {
+            $response->getBody()->write('bad format: end_time');
+
+            return $response->withStatus(StatusCodeInterface::STATUS_BAD_REQUEST)
+                ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
+        }
+        $endTime = new DateTimeImmutable(date(DateTimeInterface::RFC3339, $endTimeInt), new DateTimeZone('Asia/Tokyo'));
+
+        if (!isset($params['condition_level'])) {
+            $response->getBody()->write('missing: condition_level');
+
+            return $response->withStatus(StatusCodeInterface::STATUS_BAD_REQUEST)
+                ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
+        }
+        $conditionLevelCsv = $params['condition_level'];
+        $conditionLevel = [];
+        foreach (explode(',', $conditionLevelCsv) as $level) {
+            $conditionLevel[$level] = [];
+        }
+
+        $startTimeStr = $params['start_time'] ?? '0';
+        $startTimeInt = filter_var($startTimeStr, FILTER_VALIDATE_INT);
+        if (!is_int($startTimeInt)) {
+            $response->getBody()->write('bad format: start_time');
+
+            return $response->withStatus(StatusCodeInterface::STATUS_BAD_REQUEST)
+                ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
+        }
+        $startTime = new DateTimeImmutable(date(DateTimeInterface::RFC3339, $startTimeInt), new DateTimeZone('Asia/Tokyo'));
+
+        try {
+            $stmt = $this->dbh->prepare('SELECT name FROM `isu` WHERE `jia_isu_uuid` = ? AND `jia_user_id` = ?');
+            $stmt->execute([$jiaIsuUuid, $jiaUserId]);
+            $rows = $stmt->fetchAll();
+        } catch (PDOException $e) {
+            $this->logger->error('db error: ' . $e->errorInfo[2]);
+
+            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+        }
+
+        if (count($rows) === 0) {
+            $response->getBody()->write('not found: isu');
+
+            return $response->withStatus(StatusCodeInterface::STATUS_NOT_FOUND)
+                ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
+        }
+        $isuName = $rows[0]['name'];
+
+        [$conditionsResponse, $err] = $this->getIsuConditionsFromDb(
+            $jiaIsuUuid,
+            $endTime,
+            $conditionLevel,
+            $startTime,
+            self::CONDITION_LIMIT,
+            $isuName,
+        );
+        if (!empty($err)) {
+            $this->logger->error($err);
+
+            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+        }
+
+        return $this->jsonResponse($response, $conditionsResponse);
     }
 
     // ISUのコンディションをDBから取得
-    private function getIsuConditionsFromDB()
-    {
-        throw new Exception('not implemented');
+    /**
+     * @return array{0: array<GetIsuConditionResponse>, 1: string}
+     */
+    private function getIsuConditionsFromDb(
+        string $jiaIsuUuid,
+        DateTimeImmutable $endTime,
+        array $conditionLevel,
+        DateTimeImmutable $startTime,
+        int $limit,
+        string $isuName
+    ): array {
+        try {
+            if ($startTime->getTimestamp() === 0) {
+                $stmt = $this->dbh->prepare(
+                    'SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ?' .
+                    '	AND `timestamp` < ?' .
+                    '	ORDER BY `timestamp` DESC'
+                );
+                $stmt->execute([
+                    $jiaIsuUuid,
+                    $endTime->format('Y-m-d H:i:s'),
+                ]);
+            } else {
+                $stmt = $this->dbh->prepare(
+                    'SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ?' .
+                    '	AND `timestamp` < ?' .
+                    '	AND ? <= `timestamp`' .
+                    '	ORDER BY `timestamp` DESC'
+                );
+                $stmt->execute([
+                    $jiaIsuUuid,
+                    $endTime->format('Y-m-d H:i:s'),
+                    $startTime->format('Y-m-d H:i:s'),
+                ]);
+            }
+
+            $rows = $stmt->fetchAll();
+        } catch (PDOException $e) {
+            $err = 'db error: ' . $e->errorInfo[2];
+
+            return [[], $err];
+        }
+
+        /** @var IsuCondition[] $conditions */
+        $conditions = [];
+        foreach ($rows as $row) {
+            $conditions[] = IsuCondition::fromDbRow($row);
+        }
+
+        /** @var GetIsuConditionResponse[] $conditionsResponse */
+        $conditionsResponse = [];
+        foreach ($conditions as $c) {
+            try {
+                $cLevel = $this->calculateConditionLevel($c->condition);
+            } catch (UnexpectedValueException $e) {
+                continue;
+            }
+
+            if (!isset($conditionLevel[$cLevel])) {
+                continue;
+            }
+
+            $data = new GetIsuConditionResponse(
+                jiaIsuUuid: $c->jiaIsuUuid,
+                isuName: $isuName,
+                timestamp: $c->timestamp->getTimestamp(),
+                isSitting: $c->isSitting,
+                condition: $c->condition,
+                conditionLevel: $cLevel,
+                message: $c->message,
+            );
+            $conditionsResponse[] = $data;
+        }
+
+        if (count($conditionsResponse) > $limit) {
+            $conditionsResponse = array_slice($conditionsResponse, 0, $limit);
+        }
+
+        return [$conditionsResponse, ''];
     }
 
     // ISUのコンディションの文字列からコンディションレベルを計算
