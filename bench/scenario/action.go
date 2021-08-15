@@ -623,7 +623,7 @@ func browserGetHomeAction(ctx context.Context, a *agent.Agent,
 		for _, isu := range isuList {
 			go func(isu *service.Isu) {
 				defer wg.Done()
-				icon, _, err := getIsuIconAction(ctx, a, isu.JIAIsuUUID)
+				icon, res, err := getIsuIconAction(ctx, a, isu.JIAIsuUUID)
 				if err != nil {
 					isu.Icon = nil
 					errMutex.Lock()
@@ -631,6 +631,7 @@ func browserGetHomeAction(ctx context.Context, a *agent.Agent,
 					errMutex.Unlock()
 				} else {
 					isu.Icon = icon
+					isu.IconStatusCode = res.StatusCode
 				}
 			}(isu)
 		}
@@ -641,23 +642,28 @@ func browserGetHomeAction(ctx context.Context, a *agent.Agent,
 	return isuList, errors
 }
 
-func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string) (*service.Isu, []error) {
+func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string,
+	validateIsu func(*http.Response, *service.Isu) []error,
+) (*service.Isu, []error) {
+
 	errors := []error{}
-	isu, _, err := getIsuIdAction(ctx, a, id)
+	isu, res, err := getIsuIdAction(ctx, a, id)
 	if err != nil {
 		errors = append(errors, err)
 	}
 	if isu != nil {
-		icon, _, err := getIsuIconAction(ctx, a, id)
+		icon, res, err := getIsuIconAction(ctx, a, id)
 		if err != nil {
 			isu.Icon = nil
 			errors = append(errors, err)
 		} else {
 			isu.Icon = icon
+			isu.IconStatusCode = res.StatusCode
 		}
 
 		return isu, errors
 	}
+	errors = append(errors, validateIsu(res, isu)...)
 	return nil, errors
 }
 

@@ -104,7 +104,7 @@ func verifyIsuIcon(expected *model.Isu, actual []byte, actualStatusCode int) err
 	if expected.ImageHash != md5.Sum(actual) {
 		return failure.NewError(ErrMismatch, errorFormatWithURI(
 			actualStatusCode, http.MethodGet, "/api/isu/"+expected.JIAIsuUUID+"/icon",
-			"椅子 (JIA_ISU_UUID=%s) のiconが異なります", expected.JIAIsuUUID,
+			"椅子のiconが異なります", //UUIDはpathでわかるので省略
 		))
 	}
 	return nil
@@ -125,9 +125,11 @@ func verifyIsuList(res *http.Response, expectedReverse []*model.Isu, isuList []*
 		//iconはエンドポイントが別なので、別枠で検証
 		if isu.Icon == nil {
 			//icon取得失敗(エラー追加済み)
-		} else if expected.ImageHash != md5.Sum(isu.Icon) {
-			//TODO: issue #1119 resが対応していない
-			errs = append(errs, errorMismatch(res, "%d番目の椅子 (JIA_ISU_UUID=%s) のiconが異なります", i+1, isu.JIAIsuUUID))
+		} else {
+			err := verifyIsuIcon(expected, isu.Icon, isu.IconStatusCode)
+			if err != nil {
+				errs = append(errs, err)
+			}
 		}
 
 		// isu の検証

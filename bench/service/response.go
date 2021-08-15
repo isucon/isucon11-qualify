@@ -22,7 +22,8 @@ type Isu struct {
 	Character          string                   `json:"character"`
 	LatestIsuCondition *GetIsuConditionResponse `json:"latest_isu_condition"`
 
-	Icon []byte `json:"-"`
+	Icon           []byte `json:"-"`
+	IconStatusCode int    //icon取得時のstatus code(200 or 304想定)
 }
 
 type GetIsuConditionResponse struct {
