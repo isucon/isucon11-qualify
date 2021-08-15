@@ -146,14 +146,14 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 	isuconUser.Agent = agt
 
 	// 各エンドポイントのチェック
-	s.prepareCheckAuth(ctx, isuconUser, step)
+	s.prepareCheckAuth(ctx, isuconUser.UserID, step)
 	s.prepareIrregularCheckPostSignout(ctx, step)
 	s.prepareIrregularCheckGetMe(ctx, guestAgent, step)
 	s.prepareIrregularCheckGetIsuList(ctx, s.noIsuUser, guestAgent, step)
-	s.prepareIrregularCheckGetIsu(ctx, isuconUser, s.noIsuUser, guestAgent, step)
-	s.prepareIrregularCheckGetIsuIcon(ctx, isuconUser, s.noIsuUser, guestAgent, step)
-	s.prepareIrregularCheckGetIsuGraph(ctx, isuconUser, s.noIsuUser, guestAgent, step)
-	s.prepareIrregularCheckGetIsuConditions(ctx, isuconUser, s.noIsuUser, guestAgent, step)
+	s.prepareIrregularCheckGetIsu(ctx, getRandomIsu(isuconUser).JIAIsuUUID, isuconUser.Agent, s.noIsuUser, guestAgent, step)
+	s.prepareIrregularCheckGetIsuIcon(ctx, getRandomIsu(isuconUser).JIAIsuUUID, isuconUser.Agent, s.noIsuUser, guestAgent, step)
+	s.prepareIrregularCheckGetIsuGraph(ctx, getRandomIsu(isuconUser).JIAIsuUUID, isuconUser.Agent, s.noIsuUser, guestAgent, step)
+	s.prepareIrregularCheckGetIsuConditions(ctx, getRandomIsu(isuconUser), isuconUser.Agent, s.noIsuUser, guestAgent, step)
 
 	// MEMO: postIsuConditionのprepareチェックは確率で失敗して安定しないため、prepareステップでは行わない
 
@@ -184,7 +184,8 @@ func (s *Scenario) loadErrorCheck(ctx context.Context, step *isucandar.Benchmark
 		var loginUser *model.User
 		for {
 			s.normalUsersMtx.Lock()
-			loginUser = s.normalUsers[rand.Intn(len(s.normalUsers))]
+			//loginUser = s.normalUsers[rand.Intn(len(s.normalUsers))]
+			loginUser = s.normalUsers[len(s.normalUsers)-1] //DEBUG
 			s.normalUsersMtx.Unlock()
 			if atomic.LoadInt32(&loginUser.PostIsuFinish) != 0 {
 				break
@@ -207,14 +208,14 @@ func (s *Scenario) loadErrorCheck(ctx context.Context, step *isucandar.Benchmark
 
 		time.Sleep(500 * time.Millisecond)
 
-		s.prepareCheckAuth(ctx, loginUser, step)
+		s.prepareCheckAuth(ctx, loginUser.UserID, step)
 		s.prepareIrregularCheckPostSignout(ctx, step)
 		s.prepareIrregularCheckGetMe(ctx, guestAgent, step)
 		s.prepareIrregularCheckGetIsuList(ctx, s.noIsuUser, guestAgent, step)
-		s.prepareIrregularCheckGetIsu(ctx, loginUser, s.noIsuUser, guestAgent, step)
-		s.prepareIrregularCheckGetIsuIcon(ctx, loginUser, s.noIsuUser, guestAgent, step)
-		s.prepareIrregularCheckGetIsuGraph(ctx, loginUser, s.noIsuUser, guestAgent, step)
-		s.prepareIrregularCheckGetIsuConditions(ctx, loginUser, s.noIsuUser, guestAgent, step)
+		s.prepareIrregularCheckGetIsu(ctx, getRandomIsu(loginUser).JIAIsuUUID, loginUser.Agent, s.noIsuUser, guestAgent, step)
+		s.prepareIrregularCheckGetIsuIcon(ctx, getRandomIsu(loginUser).JIAIsuUUID, loginUser.Agent, s.noIsuUser, guestAgent, step)
+		s.prepareIrregularCheckGetIsuGraph(ctx, getRandomIsu(loginUser).JIAIsuUUID, loginUser.Agent, s.noIsuUser, guestAgent, step)
+		s.prepareIrregularCheckGetIsuConditions(ctx, getRandomIsu(loginUser), loginUser.Agent, s.noIsuUser, guestAgent, step)
 
 		select {
 		case <-ctx.Done():
@@ -558,7 +559,7 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 
 }
 
-func (s *Scenario) prepareCheckAuth(ctx context.Context, isuconUser *model.User, step *isucandar.BenchmarkStep) {
+func (s *Scenario) prepareCheckAuth(ctx context.Context, isuconUserID string, step *isucandar.BenchmarkStep) {
 	select {
 	case <-ctx.Done():
 		return
@@ -597,7 +598,7 @@ func (s *Scenario) prepareCheckAuth(ctx context.Context, isuconUser *model.User,
 		logger.AdminLogger.Panic(err)
 		return
 	}
-	userID := isuconUser.UserID
+	userID := isuconUserID
 
 	_, errs := authAction(ctx, agt, userID)
 	for _, err := range errs {
@@ -849,16 +850,15 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 	}
 }
 
-func (s *Scenario) prepareIrregularCheckGetIsu(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
+func (s *Scenario) prepareIrregularCheckGetIsu(ctx context.Context, existJiaIsuUUID string, loginUserAgent *agent.Agent, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
 	select {
 	case <-ctx.Done():
 		return
 	default:
 	}
 
-	isu := loginUser.IsuListOrderByCreatedAt[0]
 	// check: 未ログイン状態
-	resBody, res, err := getIsuIdErrorAction(ctx, guestAgent, isu.JIAIsuUUID)
+	resBody, res, err := getIsuIdErrorAction(ctx, guestAgent, existJiaIsuUUID)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -869,7 +869,7 @@ func (s *Scenario) prepareIrregularCheckGetIsu(ctx context.Context, loginUser *m
 	}
 
 	// check: 他ユーザの椅子に対するリクエスト
-	resBody, res, err = getIsuIdErrorAction(ctx, noIsuUser.Agent, isu.JIAIsuUUID)
+	resBody, res, err = getIsuIdErrorAction(ctx, noIsuUser.Agent, existJiaIsuUUID)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -884,7 +884,7 @@ func (s *Scenario) prepareIrregularCheckGetIsu(ctx context.Context, loginUser *m
 	}
 
 	// check: 存在しない椅子を取得
-	resBody, res, err = getIsuIdErrorAction(ctx, loginUser.Agent, NotExistJiaIsuUUID)
+	resBody, res, err = getIsuIdErrorAction(ctx, loginUserAgent, NotExistJiaIsuUUID)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -899,16 +899,15 @@ func (s *Scenario) prepareIrregularCheckGetIsu(ctx context.Context, loginUser *m
 	}
 }
 
-func (s *Scenario) prepareIrregularCheckGetIsuIcon(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
+func (s *Scenario) prepareIrregularCheckGetIsuIcon(ctx context.Context, existJiaIsuUUID string, loginUserAgent *agent.Agent, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
 	select {
 	case <-ctx.Done():
 		return
 	default:
 	}
 
-	isu := loginUser.IsuListOrderByCreatedAt[0]
 	// check: 未ログイン状態
-	resBody, res, err := getIsuIconErrorAction(ctx, guestAgent, isu.JIAIsuUUID)
+	resBody, res, err := getIsuIconErrorAction(ctx, guestAgent, existJiaIsuUUID)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -920,7 +919,7 @@ func (s *Scenario) prepareIrregularCheckGetIsuIcon(ctx context.Context, loginUse
 
 	// check: 他ユーザの椅子画像取得
 	//  - nginxキャッシュで他ユーザが見れたらダメ(cache OKにするならcache時間の検討必要そう
-	resBody, res, err = getIsuIconErrorAction(ctx, noIsuUser.Agent, isu.JIAIsuUUID)
+	resBody, res, err = getIsuIconErrorAction(ctx, noIsuUser.Agent, existJiaIsuUUID)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -935,7 +934,7 @@ func (s *Scenario) prepareIrregularCheckGetIsuIcon(ctx context.Context, loginUse
 	}
 
 	// check: 登録されていない椅子に対するリクエスト
-	resBody, res, err = getIsuIconErrorAction(ctx, loginUser.Agent, NotExistJiaIsuUUID)
+	resBody, res, err = getIsuIconErrorAction(ctx, loginUserAgent, NotExistJiaIsuUUID)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -951,17 +950,16 @@ func (s *Scenario) prepareIrregularCheckGetIsuIcon(ctx context.Context, loginUse
 
 }
 
-func (s *Scenario) prepareIrregularCheckGetIsuGraph(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
+func (s *Scenario) prepareIrregularCheckGetIsuGraph(ctx context.Context, existJiaIsuUUID string, loginUserAgent *agent.Agent, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
 	select {
 	case <-ctx.Done():
 		return
 	default:
 	}
 	// check: 未ログイン状態
-	isu := loginUser.IsuListOrderByCreatedAt[0]
 	query := url.Values{}
 	query.Set("datetime", strconv.FormatInt(time.Now().Unix(), 10))
-	resBody, res, err := getIsuGraphErrorAction(ctx, guestAgent, isu.JIAIsuUUID, query)
+	resBody, res, err := getIsuGraphErrorAction(ctx, guestAgent, existJiaIsuUUID, query)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -973,7 +971,7 @@ func (s *Scenario) prepareIrregularCheckGetIsuGraph(ctx context.Context, loginUs
 
 	// check: dateパラメータ不足
 	query = url.Values{}
-	resBody, res, err = getIsuGraphErrorAction(ctx, loginUser.Agent, isu.JIAIsuUUID, query)
+	resBody, res, err = getIsuGraphErrorAction(ctx, loginUserAgent, existJiaIsuUUID, query)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -990,7 +988,7 @@ func (s *Scenario) prepareIrregularCheckGetIsuGraph(ctx context.Context, loginUs
 	// check: dateパラメータのフォーマット違反
 	query = url.Values{}
 	query.Set("datetime", "datetime")
-	resBody, res, err = getIsuGraphErrorAction(ctx, loginUser.Agent, isu.JIAIsuUUID, query)
+	resBody, res, err = getIsuGraphErrorAction(ctx, loginUserAgent, existJiaIsuUUID, query)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -1007,7 +1005,7 @@ func (s *Scenario) prepareIrregularCheckGetIsuGraph(ctx context.Context, loginUs
 	// check: 他ユーザの椅子に対するリクエスト
 	query = url.Values{}
 	query.Set("datetime", strconv.FormatInt(time.Now().Unix(), 10))
-	resBody, res, err = getIsuGraphErrorAction(ctx, noIsuUser.Agent, isu.JIAIsuUUID, query)
+	resBody, res, err = getIsuGraphErrorAction(ctx, noIsuUser.Agent, existJiaIsuUUID, query)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -1024,7 +1022,7 @@ func (s *Scenario) prepareIrregularCheckGetIsuGraph(ctx context.Context, loginUs
 	// check: 登録されていない椅子に対するリクエスト
 	query = url.Values{}
 	query.Set("datetime", strconv.FormatInt(time.Now().Unix(), 10))
-	resBody, res, err = getIsuGraphErrorAction(ctx, loginUser.Agent, NotExistJiaIsuUUID, query)
+	resBody, res, err = getIsuGraphErrorAction(ctx, loginUserAgent, NotExistJiaIsuUUID, query)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -1039,13 +1037,12 @@ func (s *Scenario) prepareIrregularCheckGetIsuGraph(ctx context.Context, loginUs
 	}
 }
 
-func (s *Scenario) prepareIrregularCheckGetIsuConditions(ctx context.Context, loginUser *model.User, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
+func (s *Scenario) prepareIrregularCheckGetIsuConditions(ctx context.Context, isu *model.Isu, loginUserAgent *agent.Agent, noIsuUser *model.User, guestAgent *agent.Agent, step *isucandar.BenchmarkStep) {
 	select {
 	case <-ctx.Done():
 		return
 	default:
 	}
-	isu := loginUser.IsuListOrderByCreatedAt[0]
 
 	// condition の read lock を取得
 	isu.CondMutex.RLock()
@@ -1057,7 +1054,6 @@ func (s *Scenario) prepareIrregularCheckGetIsuConditions(ctx context.Context, lo
 	query.Set("end_time", strconv.FormatInt(lastTime, 10))
 	query.Set("condition_level", "info,warning,critical")
 
-	isu = loginUser.IsuListOrderByCreatedAt[0]
 	resBody, res, err := getIsuConditionErrorAction(ctx, guestAgent, isu.JIAIsuUUID, query)
 	if err != nil {
 		step.AddError(err)
@@ -1072,7 +1068,7 @@ func (s *Scenario) prepareIrregularCheckGetIsuConditions(ctx context.Context, lo
 	query = url.Values{}
 	query.Set("condition_level", "info,warning,critical")
 
-	resBody, res, err = getIsuConditionErrorAction(ctx, loginUser.Agent, isu.JIAIsuUUID, query)
+	resBody, res, err = getIsuConditionErrorAction(ctx, loginUserAgent, isu.JIAIsuUUID, query)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -1091,7 +1087,7 @@ func (s *Scenario) prepareIrregularCheckGetIsuConditions(ctx context.Context, lo
 	query = url.Values{}
 	query.Set("end_time", "end_time")
 	query.Set("condition_level", "info,warning,critical")
-	resBody, res, err = getIsuConditionErrorAction(ctx, loginUser.Agent, isu.JIAIsuUUID, query)
+	resBody, res, err = getIsuConditionErrorAction(ctx, loginUserAgent, isu.JIAIsuUUID, query)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -1108,7 +1104,7 @@ func (s *Scenario) prepareIrregularCheckGetIsuConditions(ctx context.Context, lo
 	// check: condition_levelパラメータ不足(空文字含む)
 	query = url.Values{}
 	query.Set("end_time", strconv.FormatInt(lastTime, 10))
-	resBody, res, err = getIsuConditionErrorAction(ctx, loginUser.Agent, isu.JIAIsuUUID, query)
+	resBody, res, err = getIsuConditionErrorAction(ctx, loginUserAgent, isu.JIAIsuUUID, query)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -1127,7 +1123,7 @@ func (s *Scenario) prepareIrregularCheckGetIsuConditions(ctx context.Context, lo
 	query.Set("end_time", strconv.FormatInt(lastTime, 10))
 	query.Set("condition_level", "info,warning,critical")
 	query.Set("start_time", "start_time")
-	resBody, res, err = getIsuConditionErrorAction(ctx, loginUser.Agent, isu.JIAIsuUUID, query)
+	resBody, res, err = getIsuConditionErrorAction(ctx, loginUserAgent, isu.JIAIsuUUID, query)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -1163,7 +1159,7 @@ func (s *Scenario) prepareIrregularCheckGetIsuConditions(ctx context.Context, lo
 	query = url.Values{}
 	query.Set("end_time", strconv.FormatInt(lastTime, 10))
 	query.Set("condition_level", "info,warning,critical")
-	resBody, res, err = getIsuConditionErrorAction(ctx, loginUser.Agent, NotExistJiaIsuUUID, query)
+	resBody, res, err = getIsuConditionErrorAction(ctx, loginUserAgent, NotExistJiaIsuUUID, query)
 	if err != nil {
 		step.AddError(err)
 		return
@@ -1274,4 +1270,8 @@ func (s *Scenario) prepareCheckPostIsuWithPrevCondition(ctx context.Context, log
 		step.AddError(err)
 		return
 	}
+}
+
+func getRandomIsu(user *model.User) *model.Isu {
+	return user.IsuListOrderByCreatedAt[rand.Intn(len(user.IsuListOrderByCreatedAt))]
 }
