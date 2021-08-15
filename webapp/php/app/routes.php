@@ -142,132 +142,6 @@ final class IsuCondition
     }
 }
 
-final class GetIsuConditionResponse implements JsonSerializable
-{
-    public function __construct(
-        public string $jiaIsuUuid,
-        public string $isuName,
-        public int $timestamp,
-        public bool $isSitting,
-        public string $condition,
-        public string $conditionLevel,
-        public string $message,
-    ) {
-    }
-
-    /**
-     * @return array{jia_isu_uuid: string, isu_name: string, timestamp: int, is_sitting: bool, condition: string, condition_level: string, message: string}
-     */
-    public function jsonSerialize(): array
-    {
-        return [
-            'jia_isu_uuid' => $this->jiaIsuUuid,
-            'isu_name' => $this->isuName,
-            'timestamp' => $this->timestamp,
-            'is_sitting' => $this->isSitting,
-            'condition' => $this->condition,
-            'condition_level' => $this->conditionLevel,
-            'message' => $this->message,
-        ];
-    }
-}
-
-final class TrendResponse implements JsonSerializable
-{
-    /**
-     * @param string $character
-     * @param TrendCondition[] $info
-     * @param TrendCondition[] $warning
-     * @param TrendCondition[] $critical
-     */
-    public function __construct(
-        public string $character,
-        public array $info,
-        public array $warning,
-        public array $critical,
-    ) {
-    }
-
-    /**
-     * @return array{character: string, info: array<TrendCondition>, warning: array<TrendCondition>, critical: array<TrendCondition>}
-     */
-    public function jsonSerialize(): array
-    {
-        return [
-            'character' => $this->character,
-            'info' => $this->info,
-            'warning' => $this->warning,
-            'critical' => $this->critical,
-        ];
-    }
-}
-
-final class TrendCondition implements JsonSerializable
-{
-    public function __construct(
-        public int $id,
-        public int $timestamp,
-    ) {
-    }
-
-    /**
-     * @return array{isu_id: int, timestamp: int}
-     */
-    public function jsonSerialize(): array
-    {
-        return [
-            'isu_id' => $this->id,
-            'timestamp' => $this->timestamp,
-        ];
-    }
-}
-
-final class PostIsuConditionRequest
-{
-    public function __construct(
-        public bool $isSitting,
-        public string $condition,
-        public string $message,
-        public int $timestamp,
-    ) {
-    }
-
-    /**
-     * @return self[]
-     * @throws UnexpectedValueException
-     */
-    public static function listFromJson(string $json): array
-    {
-        try {
-            $data = json_decode($json, true, flags: JSON_THROW_ON_ERROR);
-        } catch (JsonException) {
-            throw new UnexpectedValueException();
-        }
-
-        /** @var self[] $list */
-        $list = [];
-        foreach ($data as $condition) {
-            if (
-                !isset($condition['is_sitting']) ||
-                !isset($condition['condition']) ||
-                !isset($condition['message']) ||
-                !isset($condition['timestamp'])
-            ) {
-                throw new UnexpectedValueException();
-            }
-
-            $list[] = new self(
-                $condition['is_sitting'],
-                $condition['condition'],
-                $condition['message'],
-                $condition['timestamp']
-            );
-        }
-
-        return $list;
-    }
-}
-
 final class InitializeRequest
 {
     public function __construct(public string $jiaServiceUrl)
@@ -408,6 +282,132 @@ final class GraphDataPointWithInfo
         public GraphDataPoint $data,
         public array $conditionTimestamps,
     ) {
+    }
+}
+
+final class GetIsuConditionResponse implements JsonSerializable
+{
+    public function __construct(
+        public string $jiaIsuUuid,
+        public string $isuName,
+        public int $timestamp,
+        public bool $isSitting,
+        public string $condition,
+        public string $conditionLevel,
+        public string $message,
+    ) {
+    }
+
+    /**
+     * @return array{jia_isu_uuid: string, isu_name: string, timestamp: int, is_sitting: bool, condition: string, condition_level: string, message: string}
+     */
+    public function jsonSerialize(): array
+    {
+        return [
+            'jia_isu_uuid' => $this->jiaIsuUuid,
+            'isu_name' => $this->isuName,
+            'timestamp' => $this->timestamp,
+            'is_sitting' => $this->isSitting,
+            'condition' => $this->condition,
+            'condition_level' => $this->conditionLevel,
+            'message' => $this->message,
+        ];
+    }
+}
+
+final class TrendResponse implements JsonSerializable
+{
+    /**
+     * @param string $character
+     * @param TrendCondition[] $info
+     * @param TrendCondition[] $warning
+     * @param TrendCondition[] $critical
+     */
+    public function __construct(
+        public string $character,
+        public array $info,
+        public array $warning,
+        public array $critical,
+    ) {
+    }
+
+    /**
+     * @return array{character: string, info: array<TrendCondition>, warning: array<TrendCondition>, critical: array<TrendCondition>}
+     */
+    public function jsonSerialize(): array
+    {
+        return [
+            'character' => $this->character,
+            'info' => $this->info,
+            'warning' => $this->warning,
+            'critical' => $this->critical,
+        ];
+    }
+}
+
+final class TrendCondition implements JsonSerializable
+{
+    public function __construct(
+        public int $id,
+        public int $timestamp,
+    ) {
+    }
+
+    /**
+     * @return array{isu_id: int, timestamp: int}
+     */
+    public function jsonSerialize(): array
+    {
+        return [
+            'isu_id' => $this->id,
+            'timestamp' => $this->timestamp,
+        ];
+    }
+}
+
+final class PostIsuConditionRequest
+{
+    public function __construct(
+        public bool $isSitting,
+        public string $condition,
+        public string $message,
+        public int $timestamp,
+    ) {
+    }
+
+    /**
+     * @return self[]
+     * @throws UnexpectedValueException
+     */
+    public static function listFromJson(string $json): array
+    {
+        try {
+            $data = json_decode($json, true, flags: JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            throw new UnexpectedValueException();
+        }
+
+        /** @var self[] $list */
+        $list = [];
+        foreach ($data as $condition) {
+            if (
+                !isset($condition['is_sitting']) ||
+                !isset($condition['condition']) ||
+                !isset($condition['message']) ||
+                !isset($condition['timestamp'])
+            ) {
+                throw new UnexpectedValueException();
+            }
+
+            $list[] = new self(
+                $condition['is_sitting'],
+                $condition['condition'],
+                $condition['message'],
+                $condition['timestamp']
+            );
+        }
+
+        return $list;
     }
 }
 
