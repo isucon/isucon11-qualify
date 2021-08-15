@@ -255,27 +255,28 @@ app.post("/api/auth", async (req, res) => {
     const token = authHeader.startsWith("Bearer ")
       ? authHeader.slice(7)
       : authHeader;
-    const decoded = jwt.verify(token, req.app.get("cert")) as jwt.JwtPayload;
-    if (!("jia_user_id" in decoded)) {
-      return res.status(400).type("text").send("invalid JWT payload");
+
+    let decoded: jwt.JwtPayload;
+    try {
+      decoded = jwt.verify(token, req.app.get("cert")) as jwt.JwtPayload;
+    } catch (err) {
+      return res.status(403).type("text").send("forbidden");
     }
+
     const jiaUserId = decoded["jia_user_id"];
     if (typeof jiaUserId !== "string") {
       return res.status(400).type("text").send("invalid JWT payload");
     }
+
     await db.query("INSERT IGNORE INTO user (`jia_user_id`) VALUES (?)", [
       jiaUserId,
     ]);
-
     req.session = { jia_user_id: jiaUserId };
+
     return res.status(200).send();
   } catch (err) {
-    if (err instanceof JsonWebTokenError || err instanceof SyntaxError) {
-      return res.status(403).type("text").send("forbidden");
-    } else {
-      console.error(`db error: ${err}`);
-      return res.status(500).send();
-    }
+    console.error(`db error: ${err}`);
+    return res.status(500).send();
   } finally {
     db.release();
   }
