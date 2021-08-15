@@ -32,10 +32,14 @@ const TransitionGraph = ({
       }
     ],
     xaxis: {
-      categories: timeCategories
+      categories: timeCategories,
+      offsetY: 8
     },
     yaxis: {
-      min: 0
+      min: 0,
+      labels: {
+        offsetX: -16
+      }
     },
     tooltip: {
       custom: ({ dataPointIndex }) => {
