@@ -246,6 +246,94 @@ final class GetMeResponse implements JsonSerializable
     }
 }
 
+final class GraphResponse implements JsonSerializable
+{
+    /**
+     * @param int $startAt
+     * @param int $endAt
+     * @param GraphDataPoint $data
+     * @param array<int> $conditionTimestamps
+     */
+    public function __construct(
+        public int $startAt,
+        public int $endAt,
+        public GraphDataPoint $data,
+        public array $conditionTimestamps,
+    ) {
+    }
+
+    /**
+     * @return array{start_at: int, end_at: int, data: GraphDataPoint, condition_timestamps: array<int>}
+     */
+    public function jsonSerialize(): array
+    {
+        return [
+            'start_at' => $this->startAt,
+            'end_at' => $this->endAt,
+            'data' => $this->data,
+            'condition_timestamps' => $this->conditionTimestamps,
+        ];
+    }
+}
+
+final class GraphDataPoint implements JsonSerializable
+{
+    public function __construct(
+        public int $score,
+        public ConditionsPercentage $percentage,
+    ) {
+    }
+
+    /**
+     * @return array{score: int, percentage: ConditionsPercentage}
+     */
+    public function jsonSerialize(): array
+    {
+        return [
+            'score' => $this->score,
+            'percentage' => $this->percentage,
+        ];
+    }
+}
+
+final class ConditionsPercentage implements JsonSerializable
+{
+    public function __construct(
+        public int $sitting,
+        public int $isBroken,
+        public int $isDirty,
+        public int $isOverweight,
+    ) {
+    }
+
+    /**
+     * @return array{sitting: int, is_broken: int, is_dirty: int, is_overweight: int}
+     */
+    public function jsonSerialize(): array
+    {
+        return [
+            'sitting' => $this->sitting,
+            'is_broken' => $this->isBroken,
+            'is_dirty' => $this->isDirty,
+            'is_overweight' => $this->isOverweight,
+        ];
+    }
+}
+
+final class GraphDataPointWithInfo
+{
+    /**
+     * @param array<int> $conditionTimestamps
+     */
+    public function __construct(
+        public string $jiaIsuUuid,
+        public DateTimeInterface $startAt,
+        public GraphDataPoint $data,
+        public array $conditionTimestamps,
+    ) {
+    }
+}
+
 return function (App $app) {
     $app->options('/{routes:.*}', function (Request $request, Response $response) {
         // CORS Pre-Flight OPTIONS Request Handler
@@ -636,19 +724,255 @@ final class Handler
     // ISUのコンディショングラフ描画のための情報を取得
     public function getIsuGraph(Request $request, Response $response, array $args): Response
     {
-        throw new Exception('not implemented');
+        [$jiaUserId, $errStatusCode, $err] = $this->getUserIdFromSession();
+
+        if (!empty($err)) {
+            $newResponse = $response->withStatus($errStatusCode);
+            if ($errStatusCode === StatusCodeInterface::STATUS_UNAUTHORIZED) {
+                $newResponse->getBody()->write('you are not signed in');
+
+                return $newResponse->withHeader('Content-Type', 'text/plain; charset=UTF-8');
+            }
+
+            $this->logger->error($err);
+
+            return $newResponse;
+        }
+
+        $jiaIsuUuid = $args['jia_isu_uuid'];
+
+        if (!isset($request->getQueryParams()['datetime'])) {
+            $response->getBody()->write('missing: datetime');
+
+            return $response->withStatus(StatusCodeInterface::STATUS_BAD_REQUEST)
+                ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
+        }
+        $datetimeStr = $request->getQueryParams()['datetime'];
+        $datetimeInt = filter_var($datetimeStr, FILTER_VALIDATE_INT);
+        if (!is_int($datetimeInt)) {
+            $response->getBody()->write('bad format: datetime');
+
+            return $response->withStatus(StatusCodeInterface::STATUS_BAD_REQUEST)
+                ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
+        }
+        $date = new DateTimeImmutable(date('Y-m-d', $datetimeInt), new DateTimeZone('Asia/Tokyo'));
+
+        if (!$this->dbh->beginTransaction()) {
+            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+
+            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+        }
+
+        $stmt = $this->dbh->prepare('SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?');
+        if (!$stmt->execute([$jiaUserId, $jiaIsuUuid])) {
+            $this->dbh->rollBack();
+            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+
+            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+        }
+
+        if ($stmt->fetch()[0] == 0) {
+            $this->dbh->rollBack();
+            $response->getBody()->write('not found: isu');
+
+            return $response->withStatus(StatusCodeInterface::STATUS_NOT_FOUND)
+                ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
+        }
+
+        [$res, $err] = $this->generateIsuGraphResponse($jiaIsuUuid, $date);
+        if (!empty($err)) {
+            $this->dbh->rollBack();
+            $this->logger->error($err);
+
+            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+        }
+
+        if (!$this->dbh->commit()) {
+            $this->dbh->rollBack();
+            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+
+            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+        }
+
+        return $this->jsonResponse($response, $res);
     }
 
     // グラフのデータ点を一日分生成
-    private function generateIsuGraphResponse()
+    /**
+     * @return array{0: GraphResponse[], 1: string}
+     */
+    private function generateIsuGraphResponse(string $jiaIsuUuid, DateTimeImmutable $graphDate): array
     {
-        throw new Exception('not implemented');
+        /** @var GraphDataPointWithInfo[] $dataPoints */
+        $dataPoints = [];
+        /** @var IsuCondition[] $conditionsInThisHour */
+        $conditionsInThisHour = [];
+        /** @var int[] $timestampsInThisHour */
+        $timestampsInThisHour = [];
+        /** @var ?DateTimeInterface $startTimeInThisHour */
+        $startTimeInThisHour = null;
+
+        $stmt = $this->dbh->prepare(
+            'SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` ASC',
+            [PDO::ATTR_CURSOR => PDO::CURSOR_SCROLL],
+        );
+        if (!$stmt->execute([$jiaIsuUuid])) {
+            $err = 'db error: ' . $this->dbh->errorInfo()[2];
+
+            return [[], $err];
+        }
+
+        while ($row = $stmt->fetch()) {
+            $condition = IsuCondition::fromDbRow($row);
+
+            $truncatedConditionTime = $condition->timestamp->setTime(0, 0);
+            if ($truncatedConditionTime != $startTimeInThisHour) {
+                if (count($conditionsInThisHour) > 0) {
+                    [$data, $err] = $this->calculateGraphDataPoint($conditionsInThisHour);
+                    if (!empty($err)) {
+                        return [[], $err];
+                    }
+
+                    $dataPoints[] = new GraphDataPointWithInfo(
+                        jiaIsuUuid: $jiaIsuUuid,
+                        startAt: $startTimeInThisHour,
+                        data: $data,
+                        conditionTimestamps: $timestampsInThisHour,
+                    );
+                }
+
+                $startTimeInThisHour = $truncatedConditionTime;
+                $conditionsInThisHour = [];
+                $timestampsInThisHour = [];
+            }
+
+            $conditionsInThisHour[] = $condition;
+            $timestampsInThisHour[] = $condition->timestamp->getTimestamp();
+        }
+
+        if (count($conditionsInThisHour) > 0) {
+            [$data, $err] = $this->calculateGraphDataPoint($conditionsInThisHour);
+
+            if (!empty($err)) {
+                return [[], $err];
+            }
+
+            $dataPoints[] = new GraphDataPointWithInfo(
+                jiaIsuUuid: $jiaIsuUuid,
+                startAt: $startTimeInThisHour,
+                data: $data,
+                conditionTimestamps: $timestampsInThisHour,
+            );
+        }
+
+        $endTime = $graphDate->modify('+24 hours');
+        $startIndex = count($dataPoints);
+        $endNextIndex = count($dataPoints);
+        foreach ($dataPoints as $i => $graph) {
+            if ($startIndex == count($dataPoints) && $graph->startAt >= $graphDate) {
+                $startIndex = $i;
+            }
+            if ($endNextIndex == count($dataPoints) && $graph->startAt > $endTime) {
+                $endNextIndex = $i;
+            }
+        }
+
+        /** @var GraphDataPointWithInfo[] $filteredDataPoints */
+        $filteredDataPoints = [];
+        if ($startIndex < $endNextIndex) {
+            $filteredDataPoints = array_slice($dataPoints, $startIndex, $endNextIndex - $startIndex);
+        }
+
+        /** @var GraphResponse[] $responseList */
+        $responseList = [];
+        $index = 0;
+        $thisTime = $graphDate;
+
+        while ($thisTime < $graphDate->modify('+24 hours')) {
+            if ($index < count($filteredDataPoints)) {
+                $dataWithInfo = $filteredDataPoints[$index];
+
+                if ($dataWithInfo->startAt == $thisTime) {
+                    $data = $dataWithInfo->data;
+                    $timestamps = $dataWithInfo->conditionTimestamps;
+                    $index++;
+                }
+            }
+
+            $resp = new GraphResponse(
+                startAt: $thisTime->getTimestamp(),
+                endAt: $thisTime->modify('+1 hour')->getTimestamp(),
+                data: $data,
+                conditionTimestamps: $timestamps ?? [],
+            );
+            $responseList[] = $resp;
+        }
+
+        return [$responseList, ''];
     }
 
     // 複数のISUのコンディションからグラフの一つのデータ点を計算
-    private function calculateGraphDataPoint()
+    /**
+     * @param IsuCondition[] $isuConditions
+     * @return array{0: GraphDataPoint, 1: string}
+     */
+    private function calculateGraphDataPoint(array $isuConditions): array
     {
-        throw new Exception('not implemented');
+        $conditionsCount = ['is_broken' => 0, 'is_dirty' => 0, 'is_overweight' => 0];
+        $rawScore = 0;
+
+        foreach ($isuConditions as $condition) {
+            $badConditionsCount = 0;
+
+            if (!$this->isValidConditionFormat($condition->condition)) {
+                return [[], 'invalid condition format'];
+            }
+
+            foreach (explode(',', $condition->condition) as $condStr) {
+                $keyValue = explode('=', $condStr);
+
+                $conditionName = $keyValue[0];
+                if ($keyValue[1] == 'true') {
+                    $conditionsCount[$conditionName] += 1;
+                    $badConditionsCount++;
+                }
+            }
+
+            if ($badConditionsCount >= 3) {
+                $rawScore += self::SCORE_CONDITION_LEVEL_CRITICAL;
+            } elseif ($badConditionsCount >= 1) {
+                $rawScore += self::SCORE_CONDITION_LEVEL_WARNING;
+            } else {
+                $rawScore += self::SCORE_CONDITION_LEVEL_INFO;
+            }
+        }
+
+        $sittingCount = 0;
+        foreach ($isuConditions as $condition) {
+            if ($condition->isSitting) {
+                $sittingCount++;
+            }
+        }
+
+        $isuConditionsLength = count($isuConditions);
+        $score = (int)($rawScore / $isuConditionsLength);
+
+        $sittingPercentage = $sittingCount * 100 / $isuConditionsLength;
+        $isBrokenPercentage = $conditionsCount['is_broken'] * 100 / $isuConditionsLength;
+        $isOverweightPercentage = $conditionsCount['is_overweight'] * 100 / $isuConditionsLength;
+        $isDirtyPercentage = $conditionsCount['is_dirty'] * 100 / $isuConditionsLength;
+
+        $dataPoint = new GraphDataPoint(
+            score: $score,
+            percentage: new ConditionsPercentage(
+                sitting: $sittingPercentage,
+                isBroken: $isBrokenPercentage,
+                isOverweight: $isOverweightPercentage,
+                isDirty: $isDirtyPercentage,
+            ),
+        );
+
+        return [$dataPoint, ''];
     }
 
     // GET /api/condition/:jia_isu_uuid
@@ -798,9 +1122,38 @@ final class Handler
     }
 
     // ISUのコンディションの文字列がcsv形式になっているか検証
-    private function isValidConditionFormat()
+    private function isValidConditionFormat(string $conditionStr): bool
     {
-        throw new Exception('not implemented');
+        $keys = ["is_dirty=", "is_overweight=", "is_broken="];
+
+        $VALUE_TRUE = 'true';
+        $VALUE_FALSE = 'false';
+
+        $idxCondStr = 0;
+
+        foreach ($keys as $idxKeys => $key) {
+            if (!str_starts_with(mb_substr($conditionStr, $idxCondStr), $key)) {
+                return false;
+            }
+            $idxCondStr += mb_strlen($key);
+
+            if (str_starts_with(mb_substr($conditionStr, $idxCondStr), $VALUE_TRUE)) {
+                $idxCondStr += mb_strlen($VALUE_TRUE);
+            } elseif (str_starts_with(mb_substr($conditionStr, $idxCondStr), $VALUE_FALSE)) {
+                $idxCondStr += mb_strlen($VALUE_FALSE);
+            } else {
+                return false;
+            }
+
+            if ($idxKeys < (count($keys) - 1)) {
+                if ($conditionStr[$idxCondStr] !== ',') {
+                    return false;
+                }
+                $idxCondStr++;
+            }
+        }
+
+        return $idxCondStr == mb_strlen($conditionStr);
     }
 
     public function getIndex(Request $request, Response $response): Response
