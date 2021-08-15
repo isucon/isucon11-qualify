@@ -71,7 +71,6 @@ func reqNoContentResError(ctx context.Context, agent *agent.Agent, method string
 		logger.AdminLogger.Panic(err)
 	}
 
-	// TODO: resBodyの扱いを考える(現状でここに置いてるのは Close 周りの都合)
 	httpres, err := doRequest(ctx, agent, httpreq, allowedStatusCodes)
 	if err != nil {
 		return nil, "", err

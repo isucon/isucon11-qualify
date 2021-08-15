@@ -17,9 +17,9 @@ import (
 )
 
 func CheckError(err error) (critical bool, timeout bool, deduction bool) {
-	critical = false  // TODO: クリティカルなエラー(起きたら即ベンチを止める)
-	timeout = false   // TODO: リクエストタイムアウト(ある程度の数許容するかも)
-	deduction = false // TODO: 減点対象になるエラー
+	critical = false  // クリティカルなエラー(起きたら即ベンチを止める)
+	timeout = false   // リクエストタイムアウト(ある程度の数許容するかも)
+	deduction = false // 減点対象になるエラー
 
 	if isCritical(err) {
 		critical = true

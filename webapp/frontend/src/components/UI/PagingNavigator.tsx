@@ -1,5 +1,5 @@
 import { IoIosArrowBack, IoIosArrowForward } from 'react-icons/io'
-import IconButton from '/@/components/UI/IconButton'
+import Button from '/@/components/UI/Button'
 
 interface Props {
   length: number
@@ -15,13 +15,13 @@ const PagingNavigator = ({ length, maxLength, next, prev, page }: Props) => {
 
   return (
     <div className="center flex gap-8">
-      <IconButton disabled={!isPrevExist} onClick={prev}>
+      <Button label="Prev" disabled={!isPrevExist} onClick={prev}>
         <IoIosArrowBack size={24} />
-      </IconButton>
+      </Button>
       <div className="align-middle text-xl">{page}</div>
-      <IconButton disabled={!isNextExist} onClick={next}>
+      <Button label="Next" disabled={!isNextExist} onClick={next}>
         <IoIosArrowForward size={24} />
-      </IconButton>
+      </Button>
     </div>
   )
 }

@@ -20,6 +20,7 @@ type User struct {
 	Type                    UserType
 	IsuListOrderByCreatedAt []*Isu          //CreatedAtは厳密にはわからないので、並列postの場合はpostした後にgetをした順番を正とする
 	IsuListByID             map[string]*Isu `json:"isu_list_by_id"` //IDをkeyにアクセス
+	PostIsuFinish           int32
 
 	Agent *agent.Agent
 }
@@ -36,6 +37,7 @@ func NewRandomUserRaw(userType UserType, isIsuconUser bool) (*User, error) {
 		Type:                    userType,
 		IsuListOrderByCreatedAt: []*Isu{},
 		IsuListByID:             map[string]*Isu{},
+		PostIsuFinish:           0,
 		Agent:                   nil,
 	}, nil
 }
