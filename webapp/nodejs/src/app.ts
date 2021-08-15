@@ -1,7 +1,6 @@
-import { execFile } from "child_process";
+import { spawn } from "child_process";
 import fs from "fs";
 import path from "path";
-import { promisify } from "util";
 
 import axios from "axios";
 import session from "cookie-session";
@@ -213,8 +212,17 @@ app.post(
     }
 
     try {
-      const { stderr } = await promisify(execFile)("../sql/init.sh");
-      console.log(stderr);
+      await new Promise((resolve, reject) => {
+        const cmd = spawn("../sql/init.sh");
+        cmd.stdout.pipe(process.stderr);
+        cmd.stderr.pipe(process.stderr);
+        cmd.on("exit", (code) => {
+          resolve(code);
+        });
+        cmd.on("error", (err) => {
+          reject(err);
+        });
+      });
     } catch (err) {
       console.error(`exec init.sh error: ${err}`);
       return res.status(500).send();
