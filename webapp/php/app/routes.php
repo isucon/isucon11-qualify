@@ -144,6 +144,56 @@ final class GetIsuConditionResponse implements JsonSerializable
     }
 }
 
+final class TrendResponse implements JsonSerializable
+{
+    /**
+     * @param string $character
+     * @param TrendCondition[] $info
+     * @param TrendCondition[] $warning
+     * @param TrendCondition[] $critical
+     */
+    public function __construct(
+        public string $character,
+        public array $info,
+        public array $warning,
+        public array $critical,
+    ) {
+    }
+
+    /**
+     * @return array{character: string, info: array<TrendCondition>, warning: array<TrendCondition>, critical: array<TrendCondition>}
+     */
+    public function jsonSerialize(): array
+    {
+        return [
+            'character' => $this->character,
+            'info' => $this->info,
+            'warning' => $this->warning,
+            'critical' => $this->critical,
+        ];
+    }
+}
+
+final class TrendCondition implements JsonSerializable
+{
+    public function __construct(
+        public int $id,
+        public int $timestamp,
+    ) {
+    }
+
+    /**
+     * @return array{isu_id: int, timestamp: int}
+     */
+    public function jsonSerialize(): array
+    {
+        return [
+            'isu_id' => $this->id,
+            'timestamp' => $this->timestamp,
+        ];
+    }
+}
+
 final class InitializeRequest
 {
     public function __construct(public string $jiaServiceUrl)
@@ -637,7 +687,107 @@ final class Handler
     // ISUの性格毎の最新のコンディション情報
     public function getTrend(Request $request, Response $response): Response
     {
-        throw new Exception('not implemented');
+        /** @var Isu[] $characterList */
+        $characterList = [];
+
+        $stmt = $this->dbh->query('SELECT `character` FROM `isu` GROUP BY `character`');
+        if ($stmt === false) {
+            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+
+            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+        }
+
+        $rows = $stmt->fetchAll();
+        foreach ($rows as $row) {
+            $characterList[] = Isu::fromDbRow($row);
+        }
+
+        /** @var TrendResponse[] $res */
+        $res = [];
+        foreach ($characterList as $character) {
+            /** @var Isu[] $isuList */
+            $isuList = [];
+
+            $stmt = $this->dbh->prepare('SELECT * FROM `isu` WHERE `character` = ?');
+            if (!$stmt->execute([$character->character])) {
+                $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+
+                return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+            }
+
+            $rows = $stmt->fetchAll();
+            foreach ($rows as $row) {
+                $isuList[] = Isu::fromDbRow($row);
+            }
+
+            /** @var TrendCondition[] $characterInfoIsuConditions */
+            $characterInfoIsuConditions = [];
+            /** @var TrendCondition[] $characterWarningIsuConditions */
+            $characterWarningIsuConditions = [];
+            /** @var TrendCondition[] $characterCriticalIsuConditions */
+            $characterCriticalIsuConditions = [];
+
+            foreach ($isuList as $isu) {
+                /** @var IsuCondition[] $conditions */
+                $conditions = [];
+
+                $stmt = $this->dbh->prepare('SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY timestamp DESC');
+                if (!$stmt->execute([$isu->jiaIsuUuid])) {
+                    $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+
+                    return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+                }
+
+                $rows = $stmt->fetchAll();
+                foreach ($rows as $row) {
+                    $conditions[] = IsuCondition::fromDbRow($row);
+                }
+
+                if (count($conditions) > 0) {
+                    $isuLastCondition = $conditions[0];
+                    try {
+                        $conditionLevel = $this->calculateConditionLevel($isuLastCondition->condition);
+                    } catch (UnexpectedValueException $e) {
+                        $this->logger->error($e->getMessage());
+
+                        return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+                    }
+
+                    $trendCondition = new TrendCondition(
+                        id: $isu->id,
+                        timestamp: $isuLastCondition->timestamp->getTimestamp(),
+                    );
+
+                    switch ($conditionLevel) {
+                        case 'info':
+                            $characterInfoIsuConditions[] = $trendCondition;
+                            break;
+                        case 'warning':
+                            $characterWarningIsuConditions[] = $trendCondition;
+                            break;
+                        case 'critical':
+                            $characterCriticalIsuConditions[] = $trendCondition;
+                            break;
+                    }
+                }
+            }
+
+            $cmp = function (TrendCondition $a, TrendCondition $b): int {
+                return $b->timestamp <=> $a->timestamp;
+            };
+            usort($characterInfoIsuConditions, $cmp);
+            usort($characterWarningIsuConditions, $cmp);
+            usort($characterCriticalIsuConditions, $cmp);
+
+            $res[] = new TrendResponse(
+                character: $character->character,
+                info: $characterInfoIsuConditions,
+                warning: $characterWarningIsuConditions,
+                critical: $characterCriticalIsuConditions,
+            );
+        }
+
+        return $this->jsonResponse($response, $res);
     }
 
     // POST /api/condition/:jia_isu_uuid
