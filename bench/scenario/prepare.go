@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/isucon/isucon11-qualify/bench/model"
@@ -180,9 +181,15 @@ func (s *Scenario) loadErrorCheck(ctx context.Context, step *isucandar.Benchmark
 	}
 
 	for {
-		s.normalUsersMtx.Lock()
-		loginUser := s.normalUsers[rand.Intn(len(s.normalUsers))]
-		s.normalUsersMtx.Unlock()
+		var loginUser *model.User
+		for {
+			s.normalUsersMtx.Lock()
+			loginUser = s.normalUsers[rand.Intn(len(s.normalUsers))]
+			s.normalUsersMtx.Unlock()
+			if atomic.LoadInt32(&loginUser.PostIsuFinish) != 0 {
+				break
+			}
+		}
 		if loginUser.Agent == nil {
 			//nilならシナリオループは回っていないはず
 			loginUser.Agent, err = s.NewAgent()

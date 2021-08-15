@@ -363,6 +363,8 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 		step.AddScore(ScoreIsuInitialize)
 	}
 
+	atomic.StoreInt32(&user.PostIsuFinish, 1)
+
 	return user
 }
 
