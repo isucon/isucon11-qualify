@@ -15,6 +15,7 @@ use JSON::MaybeXS qw(encode_json decode_json);
 use Cpanel::JSON::XS::Type;
 use Crypt::JWT qw(decode_jwt);
 use Furl;
+use Time::Moment;
 
 use constant {
     CONDITION_LIMIT              => 20,
@@ -870,6 +871,12 @@ sub dbh {
             },
         });
     };
+}
+
+sub unix_from_mysql_datetime {
+    my $str = shift;
+    my $tm = Time::Moment->from_string($str.'+09', lenient => 1);
+    return $tm->epoch;
 }
 
 # XXX hack Kossy
