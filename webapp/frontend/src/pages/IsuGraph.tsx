@@ -1,7 +1,7 @@
-import Card from '../components/UI/Card'
-import NowLoading from '../components/UI/NowLoading'
-import { Isu } from '../lib/apis'
-import IsuGraphCardContent from '../components/IsuGraph/IsuGraphCardContent'
+import Card from '/@/components/UI/Card'
+import NowLoading from '/@/components/UI/NowLoading'
+import { Isu } from '/@/lib/apis'
+import IsuGraphCardContent from '/@/components/IsuGraph/IsuGraphCardContent'
 
 interface Props {
   isu: Isu

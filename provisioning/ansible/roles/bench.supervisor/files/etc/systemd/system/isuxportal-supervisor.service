@@ -1,6 +1,6 @@
 [Unit]
 Description=isuxportal-supervisor
-After=network.target
+After=network.target cloud-config.service
 
 [Service]
 # 基本設定
@@ -29,8 +29,6 @@ ExecStartPre=-/bin/mv /tmp/isuxportal-supervisor /home/isucon/bin/isuxportal-sup
 ExecStartPre=-/bin/mv /tmp/bench /home/isucon/bench/bench
 TimeoutStopSec=200s
 KillMode=mixed
-
-
 
 [Install]
 WantedBy=multi-user.target

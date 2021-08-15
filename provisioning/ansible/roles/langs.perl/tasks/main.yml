@@ -1,0 +1,18 @@
+---
+- name: "roles/langs.perl/tasks/main: Install Perl 5.34.0 from xbuild"
+  become_user: isucon
+  command: /tmp/xbuild/perl-install 5.34.0 /home/isucon/local/perl -- -Duselongdouble -j {{ ansible_processor_vcpus }}
+
+- name: "roles/langs.perl/tasks/main: Add PATH for perl"
+  become_user: isucon
+  blockinfile:
+    marker: "# {mark} ANSIBLE MANAGED BLOCK perl"
+    path: /home/isucon/.bashrc
+    content: |
+      export PATH=/home/isucon/local/perl/bin:$PATH
+
+- name: "roles/langs.perl/tasks/main: Download cpm"
+  get_url:
+    url: https://raw.githubusercontent.com/skaji/cpm/master/cpm
+    dest: /home/isucon/local/perl/bin/cpm
+    mode: '0755'

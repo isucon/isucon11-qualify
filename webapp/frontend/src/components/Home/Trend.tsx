@@ -1,5 +1,5 @@
-import { Trend } from '../../lib/apis'
-import { getConditionTime } from '../../lib/date'
+import { Trend } from '/@/lib/apis'
+import { getConditionTime } from '/@/lib/date'
 import TrendGraph from './TrendGraph'
 
 interface Props {

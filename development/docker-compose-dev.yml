@@ -80,7 +80,7 @@ services:
     image: golang:1.16.5-buster
     restart: always
     working_dir: /jiaapi
-    command: ["go", "run", "."]
+    command: ["go", "run", "--tags", "dev", "."]
     ports:
       - "5000:5000"
     volumes:

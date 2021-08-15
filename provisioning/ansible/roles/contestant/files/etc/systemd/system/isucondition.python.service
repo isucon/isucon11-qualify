@@ -1,0 +1,17 @@
+[Unit]
+Description=isucondition.python
+After=network.target mysql.service
+
+[Service]
+WorkingDirectory=/home/isucon/webapp/python
+EnvironmentFile=/home/isucon/env.sh
+
+User=isucon
+Group=isucon
+ExecStart=/home/isucon/local/python/bin/python app.py
+
+Restart   = always
+Type      = simple
+
+[Install]
+WantedBy=multi-user.target
