@@ -4,7 +4,7 @@ interface Props {
 
 const Card = ({ children }: Props) => {
   return (
-    <div className="px-16 py-12 w-full max-w-4xl bg-secondary border border-outline rounded">
+    <div className="bg-secondary px-16 py-12 w-full max-w-4xl border rounded">
       {children}
     </div>
   )

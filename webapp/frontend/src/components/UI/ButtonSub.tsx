@@ -11,7 +11,7 @@ const ButtonSub = ({ label, onClick, disabled }: Props) => {
   return (
     <Button
       label={label}
-      customClass="px-3 py-1 h-8 leading-4 border border-outline rounded"
+      customClass="px-3 py-1 h-8 leading-4 border rounded"
       onClick={onClick}
       disabled={disabled}
     />

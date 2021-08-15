@@ -7,10 +7,10 @@ import GuardedRoute from './router/GuardedRoute'
 
 const App = () => {
   return (
-    <div className="flex flex-col min-h-full text-primary">
+    <div className="text-primary flex flex-col min-h-full">
       <BrowserRouter>
         <PageHeader></PageHeader>
-        <div className="flex-1 bg-primary">
+        <div className="bg-primary flex-1">
           <Switch>
             <GuardedRoute path="/" exact>
               <Home />

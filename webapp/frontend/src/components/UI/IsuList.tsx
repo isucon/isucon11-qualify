@@ -9,7 +9,7 @@ interface Props {
 
 const IsuList = ({ isus }: Props) => {
   return (
-    <div className="grid gap-8 grid-cols-isus w-full">
+    <div className="grid-cols-isus grid gap-8 w-full">
       {isus.map(isu => (
         <div key={isu.jia_isu_uuid} className="flex flex-col items-center">
           <Isu isu={isu} />

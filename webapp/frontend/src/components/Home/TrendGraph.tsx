@@ -16,19 +16,19 @@ const TrendGraph = ({ trend, maxConditionCount }: Props) => {
   return (
     <div className="flex items-center w-full h-4">
       <div
-        className="h-full bg-status-info"
+        className="bg-status-info h-full"
         style={{
           width: calcWidthPercentage(trend.info.length, maxConditionCount)
         }}
       />
       <div
-        className="h-full bg-status-warning"
+        className="bg-status-warning h-full"
         style={{
           width: calcWidthPercentage(trend.warning.length, maxConditionCount)
         }}
       />
       <div
-        className="h-full bg-status-critical"
+        className="bg-status-critical h-full"
         style={{
           width: calcWidthPercentage(trend.critical.length, maxConditionCount)
         }}

@@ -1,51 +1,48 @@
 import { defineConfig } from 'vite-plugin-windicss'
 import forms from 'windicss/plugin/forms'
+import colors from 'windicss/colors'
+
+const mainColor = '#FF6433'
 
 export default defineConfig({
   plugins: [forms],
   theme: {
-    backgroundColor: theme => ({
-      ...theme('colors'),
-      primary: '#F3F4F5',
-      secondary: '#FFFFFF',
-      teritary: '#F1F1F1',
-      button: '#21394B',
-      'accent-primary': '#FF6433',
-      'status-info': '#94EFBC',
-      'status-warning': '#FFEF5B',
-      'status-sitting': '#FFBC7E',
-      'status-critical': '#F69898'
-    }),
-    textColor: theme => ({
-      ...theme('colors'),
-      primary: '#241E12',
-      secondary: '#6B6965',
-      teritary: '#CCCCCC',
-      error: '#CF1717',
-      'white-primary': '#FFFFFF',
-      'white-secondary': '#FFFFFF',
-      'accent-primary': '#FF6433',
-      'status-info': '#22623E',
-      'status-warning': '#605910',
-      'status-sitting': '#603A18',
-      'status-critical': '#512424'
-    }),
-    borderColor: theme => ({
-      ...theme('colors'),
-      outline: '#E1E5E6',
-      error: '#CF1717',
-      'accent-primary': '#FF6433'
-    }),
     extend: {
+      colors: {
+        main: mainColor
+      },
+      backgroundColor: {
+        primary: colors.light[500],
+        secondary: colors.light[50],
+        input: colors.light[900],
+        button: colors.blueGray[900],
+        'accent-primary': mainColor,
+        'status-info': colors.green[300],
+        'status-warning': colors.yellow[300],
+        'status-sitting': colors.orange[300],
+        'status-critical': colors.red[300]
+      },
+      textColor: {
+        primary: colors.trueGray[900],
+        secondary: colors.trueGray[500],
+        white: colors.light[50],
+        'accent-primary': mainColor,
+        'status-info': colors.green[900],
+        'status-warning': colors.yellow[900],
+        'status-sitting': colors.orange[900],
+        'status-critical': colors.red[900]
+      },
+      borderColor: {
+        'accent-primary': mainColor
+      },
       gridTemplateColumns: {
         isus: 'repeat(auto-fill,minmax(10rem,1fr))',
         trend: '10rem 1fr'
       },
       keyframes: {
         scale: {
-          '0%': { transform: 'scaley(1.0)' },
-          '50%': { transform: 'scaley(0.4)' },
-          '100%': { transform: 'scaley(1.0)' }
+          '0%, 100%': { transform: 'scaley(1.0)' },
+          '50%': { transform: 'scaley(0.4)' }
         }
       },
       animation: {
