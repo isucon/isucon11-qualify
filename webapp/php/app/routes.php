@@ -199,7 +199,7 @@ final class Handler
 
         $jiaJwtSigningKey = file_get_contents(self::JIA_JWT_SIGNING_KEY_PATH);
         if ($jiaJwtSigningKey === false) {
-            $this->get(LoggerInterface::class)->critical('failed to read file: ' . self::JIA_JWT_SIGNING_KEY_PATH);
+            $this->logger->critical('failed to read file: ' . self::JIA_JWT_SIGNING_KEY_PATH);
 
             return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
         }
