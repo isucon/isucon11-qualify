@@ -578,18 +578,19 @@ func browserGetLandingPageAction(ctx context.Context, a *agent.Agent) (service.G
 	return trend, res, nil
 }
 
-func browserGetLandingPageIgnoreAction(ctx context.Context, a *agent.Agent) (*http.Response, error) {
+func browserGetLandingPageIgnoreAction(ctx context.Context, a *agent.Agent) error {
 	// 静的ファイルのGET
 	if err := BrowserAccess(ctx, a, "/", TrendPage); err != nil {
-		return nil, err
+		return err
 	}
 
-	res, err := getTrendIgnoreAction(ctx, a)
+	_, err := getTrendIgnoreAction(ctx, a)
 	if err != nil {
-		return nil, err
+		// ここのエラーは気にしないので握りつぶす
+		return nil
 	}
 
-	return res, nil
+	return nil
 }
 
 func getTrendIgnoreAction(ctx context.Context, a *agent.Agent) (*http.Response, error) {

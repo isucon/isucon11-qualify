@@ -875,8 +875,7 @@ func signoutScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *m
 	// signout したらトップページに飛ぶ(MEMO: 初期状態だと trend おもすぎて backend をころしてしまうかも)
 	go func() {
 		// 登録済みユーザーは trend に興味はないので verify はせず投げっぱなし
-		_, err = browserGetLandingPageIgnoreAction(ctx, user.Agent)
-		if err != nil {
+		if err := browserGetLandingPageIgnoreAction(ctx, user.Agent); err != nil {
 			addErrorWithContext(ctx, step, err)
 			// return するとこのあとのログイン必須なシナリオが回らないから return はしない
 		}
