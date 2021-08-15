@@ -8,6 +8,7 @@
         "ext-json": "*",
         "bryanjhv/slim-session": "~4.0",
         "firebase/php-jwt": "^5.4",
+        "guzzlehttp/guzzle": "^7.3",
         "monolog/monolog": "^2.2",
         "php-di/php-di": "^6.3",
         "slim/psr7": "^1.3",
