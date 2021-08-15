@@ -424,11 +424,13 @@ func (s *Scenario) requestLastBadConditionScenario(ctx context.Context, step *is
 		EndTime:        nowVirtualTime.Unix(),
 		ConditionLevel: "warning,critical",
 	}
+
+	requestTimeUnix := time.Now().Unix()
 	// GET condition/{jia_isu_uuid} を取得してバリデーション
 	_, conditions, errs := browserGetIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
 		request,
 		func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
-			err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request, conditions, targetIsu.LastReadBadConditionTimestamps, nowVirtualTime.Unix())
+			err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request, conditions, targetIsu.LastReadBadConditionTimestamps, requestTimeUnix)
 			if err != nil {
 				return []error{err}
 			}

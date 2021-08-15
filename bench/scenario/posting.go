@@ -252,7 +252,7 @@ func (state *posterState) GetNewestCondition(randEngine *rand.Rand, stateChange 
 		//ConditionLevel: model.ConditionLevelCritical,
 		Message:       "",
 		TimestampUnix: state.lastConditionTimestamp + blur,
-		ReadTime:      math.MaxInt64,
+		ReadTime:      math.MaxInt64 - ConditionDelayTime, // 減算しているのはオーバーフロー対策
 	}
 
 	//message
