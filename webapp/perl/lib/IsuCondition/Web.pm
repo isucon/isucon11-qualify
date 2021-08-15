@@ -3,7 +3,7 @@ use v5.34;
 use warnings;
 use utf8;
 
-use experimental qw(try signatures);
+use experimental qw(isa try signatures);
 
 use Kossy;
 
@@ -130,7 +130,7 @@ sub POST_ISUCONDITION_TARGET_BASE_URL() {
 }
 
 sub get_user_id_from_session($self, $c) {
-    my $jia_user_id = $c->req->session->get('jia_user_id');
+    my $jia_user_id = $c->session->get('jia_user_id');
     if (!$jia_user_id) {
         $c->halt_no_content(HTTP_UNAUTHORIZED, "you are not signed in");
     }
@@ -216,7 +216,7 @@ sub post_authentication($self, $c) {
 
     $self->query("INSERT IGNORE INTO user (`jia_user_id`) VALUES (?)", $jia_user_id);
 
-    $c->req->session->set(jia_user_id => $jia_user_id);
+    $c->session->set(jia_user_id => $jia_user_id);
 
     return $c->halt_no_content(HTTP_OK);
 };
@@ -225,7 +225,7 @@ sub post_authentication($self, $c) {
 # サインアウト
 sub post_signout($self, $c) {
     my $jia_user_id = $self->get_user_id_from_session($c);
-    $c->req->session->clear();
+    $c->session->expire();
 
     return $c->halt_no_content(HTTP_OK);
 };
@@ -881,12 +881,14 @@ sub dbh {
 
 # XXX hack Kossy
 {
+    use Plack::Session;
+
     no warnings qw(redefine);
     my $orig = \&Kossy::Exception::response;
     *Kossy::Exception::response = sub {
         my $self = $_[0];
-        if ($self->{my_response}) {
-            return $self->{my_response};
+        if ($self->{my_response} isa Plack::Response) {
+            return $self->{my_response}->finalize;
         }
         goto $orig;
     };
@@ -905,6 +907,11 @@ sub dbh {
         $c->res->content_length(0);
         $c->res->code($status);
         $c->halt($status, my_response => $c->res);
+    };
+
+    *Kossy::Connection::session = sub {
+        my $c = shift;
+        Plack::Session->new($c->env);
     };
 
     # override
