@@ -82,7 +82,7 @@ func authAction(ctx context.Context, a *agent.Agent, userID string) (*service.Au
 		logger.AdminLogger.Panic(err)
 	}
 	req.Header.Set("Authorization", jwtOK)
-	res, err := a.Do(ctx, req)
+	res, err := AgentDo(a, ctx, req)
 	if err != nil {
 		err = failure.NewError(ErrHTTP, err)
 		errors = append(errors, err)
@@ -126,7 +126,7 @@ func authActionWithInvalidJWT(ctx context.Context, a *agent.Agent, invalidJWT st
 		logger.AdminLogger.Panic(err)
 	}
 	req.Header.Set("Authorization", invalidJWT)
-	res, err := a.Do(ctx, req)
+	res, err := AgentDo(a, ctx, req)
 	if err != nil {
 		err = failure.NewError(ErrHTTP, err)
 		errors = append(errors, err)
@@ -159,7 +159,7 @@ func authActionWithoutJWT(ctx context.Context, a *agent.Agent) []error {
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 	}
-	res, err := a.Do(ctx, req)
+	res, err := AgentDo(a, ctx, req)
 	if err != nil {
 		err = failure.NewError(ErrHTTP, err)
 		errors = append(errors, err)
@@ -721,7 +721,7 @@ func BrowserAccessIndexHtml(ctx context.Context, a *agent.Agent, rpath string) e
 		logger.AdminLogger.Panic(err)
 	}
 
-	res, err := a.Do(ctx, req)
+	res, err := AgentDo(a, ctx, req)
 	if err != nil {
 		return failure.NewError(ErrHTTP, err)
 	}
@@ -744,7 +744,7 @@ func BrowserAccess(ctx context.Context, a *agent.Agent, rpath string, page PageT
 		logger.AdminLogger.Panic(err)
 	}
 
-	res, err := a.Do(ctx, req)
+	res, err := AgentDo(a, ctx, req)
 	if err != nil {
 		return failure.NewError(ErrHTTP, err)
 	}
@@ -758,7 +758,7 @@ func BrowserAccess(ctx context.Context, a *agent.Agent, rpath string, page PageT
 	buf := new(bytes.Buffer)
 	teeReader := io.TeeReader(res.Body, buf)
 
-	resources, err := a.ProcessHTML(ctx, res, ioutil.NopCloser(teeReader))
+	resources, err := AgentProcessHTML(a, ctx, res, ioutil.NopCloser(teeReader))
 	if err != nil {
 		return failure.NewError(ErrCritical, err)
 	}
@@ -771,4 +771,44 @@ func BrowserAccess(ctx context.Context, a *agent.Agent, rpath string, page PageT
 	}
 
 	return nil
+}
+
+func AgentDo(a *agent.Agent, ctx context.Context, req *http.Request) (*http.Response, error) {
+	res, err := a.Do(ctx, req)
+	if err != nil {
+		return res, err
+	}
+	if res.StatusCode != http.StatusNotModified {
+		return res, nil
+	}
+	//304のときはbodyにcacheが入っているかどうか分からないので、確実にcacheを取得
+	if a.CacheStore != nil {
+		cache := a.CacheStore.Get(req)
+		if cache != nil {
+			res.Body.Close()
+			res.Body = ioutil.NopCloser(bytes.NewReader(cache.Body()))
+		}
+	}
+	return res, nil
+}
+func AgentProcessHTML(a *agent.Agent, ctx context.Context, r *http.Response, body io.ReadCloser) (agent.Resources, error) {
+	resources, err := a.ProcessHTML(ctx, r, body)
+	if err != nil {
+		return resources, err
+	}
+
+	//304のときはbodyにcacheが入っているかどうか分からないので、確実にcacheを取得
+	if a.CacheStore != nil {
+		for _, resource := range resources {
+			if resource.Response.StatusCode != http.StatusNotModified {
+				continue
+			}
+			cache := a.CacheStore.Get(resource.Request)
+			if cache != nil {
+				resource.Response.Body.Close()
+				resource.Response.Body = ioutil.NopCloser(bytes.NewReader(cache.Body()))
+			}
+		}
+	}
+	return resources, nil
 }
