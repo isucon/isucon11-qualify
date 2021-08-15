@@ -990,7 +990,7 @@ final class Handler
             return $response->withStatus(StatusCodeInterface::STATUS_NOT_FOUND)
                     ->withHeader('Content-Type', 'text/plain; charset=utf-8');
         }
-        $image = $rows[0][0];
+        $image = $rows[0]['image'];
         $mimeType = (new finfo(FILEINFO_MIME))->buffer($image);
 
         $response->getBody()->write($image);
@@ -1638,7 +1638,7 @@ final class Handler
                 $stmt->execute([
                     $jiaIsuUuid,
                     date('Y-m-d H:i:s', $cond->timestamp),
-                    $cond->isSitting,
+                    (int)$cond->isSitting,
                     $cond->condition,
                     $cond->message,
                 ]);
