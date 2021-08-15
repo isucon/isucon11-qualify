@@ -302,7 +302,7 @@ sub post_isu($self, $c) {
 
     my $use_default_image = !!0;
 
-    my $jia_isu_uuid = $c->req->parameters->{'jia_isu_uuid'};
+    my $jia_isu_uuid = $c->args->{'jia_isu_uuid'};
     my $isu_name = $c->req->parameters->{'isu_name'};
 
     my $file = $c->req->uploads->{'image'};
@@ -369,7 +369,7 @@ sub post_isu($self, $c) {
 sub get_isu_id($self, $c) {
     my $jia_user_id = $self->get_user_id_from_session($c);
 
-    my $jia_isu_uuid = $c->req->parameters->{'jia_isu_uuid'};
+    my $jia_isu_uuid = $c->args->{'jia_isu_uuid'};
 
     my $isu = $self->dbh->select_row(
         "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
@@ -387,7 +387,7 @@ sub get_isu_id($self, $c) {
 sub get_isu_icon($self, $c) {
     my $jia_user_id = $self->get_user_id_from_session($c);
 
-    my $jia_isu_uuid = $c->req->parameters->{'jia_isu_uuid'};
+    my $jia_isu_uuid = $c->args->{'jia_isu_uuid'};
 
     my $image = $self->dbh->select_one(
         "SELECT `image` FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
@@ -409,7 +409,7 @@ sub get_isu_icon($self, $c) {
 sub get_isu_graph($self, $c) {
     my $jia_user_id = $self->get_user_id_from_session($c);
 
-    my $jia_isu_uuid = $c->req->parameters->{'jia_isu_uuid'};
+    my $jia_isu_uuid = $c->args->{'jia_isu_uuid'};
     my $datetime = $c->req->parameters->{'datetime'};
 
     if (!$datetime) {
@@ -591,7 +591,7 @@ sub calculate_graph_data_point($isu_conditions) {
 # ISUのコンディションを取得
 sub get_isu_conditions($self, $c) {
     my $jia_user_id = $self->get_user_id_from_session($c);
-    my $jia_isu_uuid = $c->req->parameters->{'jia_isu_uuid'};
+    my $jia_isu_uuid = $c->args->{'jia_isu_uuid'};
     if (!$jia_isu_uuid) {
         $c->halt_text(HTTP_BAD_REQUEST, "missing: jia_isu_uuid");
     }
@@ -756,7 +756,7 @@ sub post_isu_condition($self, $c) {
         $c->halt_no_content(HTTP_SERVICE_UNAVAILABLE);
     }
 
-    my $jia_isu_uuid = $c->req->parameters->{'jia_isu_uuid'};
+    my $jia_isu_uuid = $c->args->{'jia_isu_uuid'};
     if (!$jia_isu_uuid) {
         $c->halt_text(HTTP_BAD_REQUEST, "missing: jia_isu_uuid");
     }
