@@ -218,7 +218,7 @@ func verifyIsuConditions(res *http.Response,
 		defer targetIsu.CondMutex.RUnlock()
 
 		conditions := targetIsu.Conditions
-		iterTmp := conditions.LowerBound(filter, request.EndTime, targetIsuUUID)
+		iterTmp := conditions.LowerBound(filter, request.EndTime)
 		baseIter := &iterTmp
 
 		//backendDataは新しい順にソートされているはずなので、先頭からチェック
@@ -353,7 +353,7 @@ func verifyPrepareIsuConditions(res *http.Response,
 		targetIsu.CondMutex.RLock()
 		defer targetIsu.CondMutex.RUnlock()
 
-		iterTmp := targetIsu.Conditions.LowerBound(filter, request.EndTime, targetIsuUUID)
+		iterTmp := targetIsu.Conditions.LowerBound(filter, request.EndTime)
 		baseIter := &iterTmp
 
 		//backendDataは新しい順にソートされているはずなので、先頭からチェック
@@ -584,7 +584,7 @@ func verifyGraph(
 			// 特定の ISU における expected な conditions を新しい順に取得するイテレータを生成
 			conditions := targetIsu.Conditions
 			filter := model.ConditionLevelInfo | model.ConditionLevelWarning | model.ConditionLevelCritical
-			baseIter := conditions.LowerBound(filter, graphOne.EndAt, targetIsu.JIAIsuUUID)
+			baseIter := conditions.LowerBound(filter, graphOne.EndAt)
 
 			var lastSort model.IsuConditionCursor
 			// graphOne.ConditionTimestamps を逆順 (timestamp が新しい順) に loop
@@ -704,41 +704,37 @@ func (s *Scenario) verifyTrend(
 					defer isu.CondMutex.RUnlock()
 
 					// condition を最新順に取得するイテレータを生成
-					// TODO LowerBound(condition.Timestamp) で出来るようにする
 					filter := model.ConditionLevelInfo | model.ConditionLevelWarning | model.ConditionLevelCritical
 					conditions := isu.Conditions
-					baseIter := conditions.End(filter)
+					baseIter := conditions.UpperBound(filter, condition.Timestamp)
 
 					// condition.timestamp と condition.condition の値を検証
-					for {
-						expected := baseIter.Prev()
+					expected := baseIter.Prev()
+					if expected == nil || expected.TimestampUnix != condition.Timestamp {
+						return errorMismatch(res, "POSTに成功していない時刻のデータが返されました")
+					}
+					if !expected.ConditionLevel.Equal(conditionLevel) {
+						return errorMismatch(res, "コンディションレベルが正しくありません")
+					}
+					// 同じ isu の condition が複数返されてないことの検証
+					if _, exist := isuIDSet[condition.IsuID]; exist {
+						return errorMismatch(res, "同じ ISU のコンディションが複数登録されています")
+					}
+					isuIDSet[condition.IsuID] = struct{}{}
 
-						if expected == nil || expected.TimestampUnix < condition.Timestamp {
-							return errorMismatch(res, "POSTに成功していない時刻のデータが返されました")
+					// 該当 condition が新規のものである場合はキャッシュを更新
+					if !viewer.ConditionAlreadyVerified(condition.IsuID, condition.Timestamp) {
+						// 該当 condition が以前のものよりも昔の timestamp で無いことの検証
+						if !viewer.ConditionIsUpdated(condition.IsuID, condition.Timestamp) {
+							return errorMismatch(res, "以前の取得結果よりも古いタイムスタンプのコンディションが返されています")
 						}
-						if expected.TimestampUnix == condition.Timestamp && expected.ConditionLevel.Equal(conditionLevel) {
-							// 同じ isu の condition が複数返されてないことの検証
-							if _, exist := isuIDSet[condition.IsuID]; exist {
-								return errorMismatch(res, "同じ ISU のコンディションが複数登録されています")
-							}
-							isuIDSet[condition.IsuID] = struct{}{}
-
-							// 該当 condition が新規のものである場合はキャッシュを更新
-							if !viewer.ConditionAlreadyVerified(condition.IsuID, condition.Timestamp) {
-								// 該当 condition が以前のものよりも昔の timestamp で無いことの検証
-								if !viewer.ConditionIsUpdated(condition.IsuID, condition.Timestamp) {
-									return errorMismatch(res, "以前の取得結果よりも古いタイムスタンプのコンディションが返されています")
-								}
-								viewer.SetVerifiedCondition(condition.IsuID, condition.Timestamp)
-								// 一秒前(仮想時間で16時間40分以上前)よりあとのものならカウンタをインクリメント
-								if condition.Timestamp > s.ToVirtualTime(requestTime.Add(-2*time.Second)).Unix() {
-									newConditionNum += 1
-								}
-							}
-
-							break
+						viewer.SetVerifiedCondition(condition.IsuID, condition.Timestamp)
+						// 一秒前(仮想時間で16時間40分以上前)よりあとのものならカウンタをインクリメント
+						if condition.Timestamp > s.ToVirtualTime(requestTime.Add(-2*time.Second)).Unix() {
+							newConditionNum += 1
 						}
 					}
+
 					return nil
 				}(); err != nil {
 					return 0, err
@@ -801,7 +797,7 @@ func verifyPrepareGraph(res *http.Response, targetUser *model.User, targetIsuUUI
 
 			// 特定の ISU における expected な conditions を新しい順に取得するイテレータを生成
 			filter := model.ConditionLevelInfo | model.ConditionLevelWarning | model.ConditionLevelCritical
-			baseIter := targetIsu.Conditions.LowerBound(filter, graphOne.EndAt, targetIsu.JIAIsuUUID)
+			baseIter := targetIsu.Conditions.LowerBound(filter, graphOne.EndAt)
 
 			var lastSort model.IsuConditionCursor
 			// graphOne.ConditionTimestamps を逆順 (timestamp が新しい順) に loop
