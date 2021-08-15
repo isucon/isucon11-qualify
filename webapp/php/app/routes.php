@@ -205,13 +205,13 @@ final class GraphResponse implements JsonSerializable
     public function __construct(
         public int $startAt,
         public int $endAt,
-        public GraphDataPoint $data,
+        public ?GraphDataPoint $data,
         public array $conditionTimestamps,
     ) {
     }
 
     /**
-     * @return array{start_at: int, end_at: int, data: GraphDataPoint, condition_timestamps: array<int>}
+     * @return array{start_at: int, end_at: int, data: ?GraphDataPoint, condition_timestamps: array<int>}
      */
     public function jsonSerialize(): array
     {
@@ -1047,7 +1047,7 @@ final class Handler
             return $response->withStatus(StatusCodeInterface::STATUS_BAD_REQUEST)
                 ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
         }
-        $date = new DateTimeImmutable(date('Y-m-d', $datetimeInt), new DateTimeZone('Asia/Tokyo'));
+        $date = new DateTimeImmutable(date('Y-m-d H:00:00', $datetimeInt), new DateTimeZone('Asia/Tokyo'));
 
         $this->dbh->beginTransaction();
 
@@ -1096,8 +1096,8 @@ final class Handler
         $conditionsInThisHour = [];
         /** @var array<int> $timestampsInThisHour */
         $timestampsInThisHour = [];
-        /** @var ?DateTimeInterface $startTimeInThisHour */
-        $startTimeInThisHour = null;
+        /** @var DateTimeInterface $startTimeInThisHour */
+        $startTimeInThisHour = new DateTimeImmutable(date(DateTimeInterface::RFC3339, 0), new DateTimeZone('Asia/Tokyo'));
 
         try {
             $stmt = $this->dbh->prepare(
@@ -1109,7 +1109,7 @@ final class Handler
             while ($row = $stmt->fetch()) {
                 $condition = IsuCondition::fromDbRow($row);
 
-                $truncatedConditionTime = $condition->timestamp->setTime(0, 0);
+                $truncatedConditionTime = new DateTimeImmutable($condition->timestamp->format('Y-m-d H:00:00'), new DateTimeZone('Asia/Tokyo'));
                 if ($truncatedConditionTime != $startTimeInThisHour) {
                     if (count($conditionsInThisHour) > 0) {
                         [$data, $err] = $this->calculateGraphDataPoint($conditionsInThisHour);
@@ -1141,7 +1141,6 @@ final class Handler
 
         if (count($conditionsInThisHour) > 0) {
             [$data, $err] = $this->calculateGraphDataPoint($conditionsInThisHour);
-
             if (!empty($err)) {
                 return [[], $err];
             }
@@ -1178,6 +1177,8 @@ final class Handler
         $thisTime = $graphDate;
 
         while ($thisTime < $graphDate->modify('+24 hours')) {
+            /** @var ?GraphDataPoint $data */
+            $data = null;
             if ($index < count($filteredDataPoints)) {
                 $dataWithInfo = $filteredDataPoints[$index];
 
@@ -1195,6 +1196,8 @@ final class Handler
                 conditionTimestamps: $timestamps ?? [],
             );
             $responseList[] = $resp;
+
+            $thisTime = $thisTime->modify('+1 hour');
         }
 
         return [$responseList, ''];
@@ -1245,12 +1248,13 @@ final class Handler
         }
 
         $isuConditionsLength = count($isuConditions);
+
         $score = (int)($rawScore / $isuConditionsLength);
 
-        $sittingPercentage = $sittingCount * 100 / $isuConditionsLength;
-        $isBrokenPercentage = $conditionsCount['is_broken'] * 100 / $isuConditionsLength;
-        $isOverweightPercentage = $conditionsCount['is_overweight'] * 100 / $isuConditionsLength;
-        $isDirtyPercentage = $conditionsCount['is_dirty'] * 100 / $isuConditionsLength;
+        $sittingPercentage = (int)($sittingCount * 100 / $isuConditionsLength);
+        $isBrokenPercentage = (int)($conditionsCount['is_broken'] * 100 / $isuConditionsLength);
+        $isOverweightPercentage = (int)($conditionsCount['is_overweight'] * 100 / $isuConditionsLength);
+        $isDirtyPercentage = (int)($conditionsCount['is_dirty'] * 100 / $isuConditionsLength);
 
         $dataPoint = new GraphDataPoint(
             score: $score,
