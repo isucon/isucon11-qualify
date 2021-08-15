@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 use Fig\Http\Message\StatusCodeInterface;
 use Firebase\JWT\JWT;
+use GuzzleHttp\ClientInterface as HttpClient;
+use Psr\Http\Client\ClientExceptionInterface as HttpClientException;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
+use Psr\Http\Message\UploadedFileInterface;
 use Psr\Log\LoggerInterface;
 use Slim\App;
 use SlimSession\Helper as SessionHelper;
@@ -53,6 +56,32 @@ final class Isu implements JsonSerializable
             'name' => $this->name,
             'character' => $this->character,
         ];
+    }
+}
+
+final class IsuFromJia
+{
+    public function __construct(
+        public ?string $character,
+    ) {
+    }
+
+    /**
+     * @throws UnexpectedValueException
+     */
+    public static function fromJson(string $json): self
+    {
+        try {
+            $data = json_decode($json, true, flags: JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            throw new UnexpectedValueException();
+        }
+
+        if (!isset($data['character'])) {
+            throw new UnexpectedValueException();
+        }
+
+        return new self($data['character'] ?? null);
     }
 }
 
@@ -382,6 +411,26 @@ final class GraphDataPointWithInfo
     }
 }
 
+final class JiaServiceRequest implements JsonSerializable
+{
+    public function __construct(
+        public string $targetBaseUrl,
+        public string $isuUuid,
+    ) {
+    }
+
+    /**
+     * @return array{target_base_url: string, isu_uuid: string}
+     */
+    public function jsonSerialize(): array
+    {
+        return [
+            'target_base_url' => $this->targetBaseUrl,
+            'isu_uuid' => $this->isuUuid,
+        ];
+    }
+}
+
 return function (App $app) {
     $app->options('/{routes:.*}', function (Request $request, Response $response) {
         // CORS Pre-Flight OPTIONS Request Handler
@@ -430,6 +479,7 @@ final class Handler
         private PDO $dbh,
         private SessionHelper $session,
         private LoggerInterface $logger,
+        private HttpClient $httpClient,
     ) {
     }
 
@@ -457,7 +507,19 @@ final class Handler
 
     private function getJiaServiceUrl(): string
     {
-        throw new Exception('not implemented');
+        $stmt = $this->dbh->prepare('SELECT * FROM `isu_association_config` WHERE `name` = ?');
+        if (!$stmt->execute(['jia_service_url'])) {
+            $this->logger->warning($this->dbh->errorInfo()[2]);
+
+            return self::DEFAULT_JIA_SERVICE_URL;
+        }
+
+        $rows = $stmt->fetchAll();
+        if (count($rows) === 0) {
+            return self::DEFAULT_JIA_SERVICE_URL;
+        }
+
+        return $rows[0]['url'];
     }
 
     // POST /initialize
@@ -715,7 +777,159 @@ final class Handler
     // ISUを登録
     public function postIsu(Request $request, Response $response): Response
     {
-        throw new Exception('not implemented');
+        [$jiaUserId, $errStatusCode, $err] = $this->getUserIdFromSession();
+
+        if (!empty($err)) {
+            $newResponse = $response->withStatus($errStatusCode);
+            if ($errStatusCode === StatusCodeInterface::STATUS_UNAUTHORIZED) {
+                $newResponse->getBody()->write('you are not signed in');
+
+                return $newResponse->withHeader('Content-Type', 'text/plain; charset=UTF-8');
+            }
+
+            $this->logger->error($err);
+
+            return $newResponse;
+        }
+
+        $useDefaultImage = false;
+
+        $params = (array)$request->getParsedBody();
+        $jiaIsuUuid = $params['jia_isu_uuid'];
+        $isuName = $params['isu_name'];
+
+        $uploadedFiles = $request->getUploadedFiles();
+        if (isset($uploadedFiles['image'])) {
+            /** @var UploadedFileInterface $imageFile */
+            $imageFile = $uploadedFiles['image'];
+
+            if ($imageFile->getError() !== UPLOAD_ERR_OK) {
+                $response->getBody()->write('bad format: icon');
+
+                return $response->withStatus(StatusCodeInterface::STATUS_BAD_REQUEST)
+                    ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
+            }
+        } else {
+            $useDefaultImage = true;
+        }
+
+        if ($useDefaultImage) {
+            $image = file_get_contents(self::DEFAULT_ICON_FILE_PATH);
+            if ($image === false) {
+                $this->logger->error('failed to read file: ' . self::JIA_JWT_SIGNING_KEY_PATH);
+
+                return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+            }
+        } else {
+            try {
+                $image = $imageFile->getStream()->getContents();
+            } catch (RuntimeException $e) {
+                $this->logger->error($e);
+
+                return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+            }
+        }
+
+        if (!$this->dbh->beginTransaction()) {
+            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+
+            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+        }
+
+        $stmt = $this->dbh->prepare('INSERT INTO `isu`' .
+                               '	(`jia_isu_uuid`, `name`, `image`, `jia_user_id`) VALUES (?, ?, ?, ?)');
+        try {
+            $stmt->execute([$jiaIsuUuid, $isuName, $image, $jiaUserId]);
+        } catch (PDOException $e) {
+            $errorInfo = $e->errorInfo;
+            $this->dbh->rollBack();
+
+            if ($errorInfo[1] === self::MYSQL_ERR_NUM_DUPLICATE_ENTRY) {
+                $response->getBody()->write('duplicated: isu');
+
+                return $response->withStatus(StatusCodeInterface::STATUS_CONFLICT)
+                    ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
+            }
+
+            $this->logger->error('db error: ' . $errorInfo[2]);
+
+            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+        }
+
+        $targetUrl = $this->getJiaServiceUrl() . '/api/activate';
+        $postIsuConditionTargetBaseUrl = getenv('POST_ISUCONDITION_TARGET_BASE_URL');
+        if (!$postIsuConditionTargetBaseUrl) {
+            $this->dbh->rollBack();
+            $this->logger->critical('missing: POST_ISUCONDITION_TARGET_BASE_URL');
+
+            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+        }
+
+        $body = new JiaServiceRequest($postIsuConditionTargetBaseUrl, $jiaIsuUuid);
+        try {
+            $res = $this->httpClient->request('POST', $targetUrl, ['json' => $body]);
+        } catch (HttpClientException $e) {
+            $this->dbh->rollBack();
+            $this->logger->error('failed to request to JIAService: ' . $e->getMessage());
+
+            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+        }
+
+        $resBody = $res->getBody();
+        $statusCode = $res->getStatusCode();
+        if ($statusCode !== StatusCodeInterface::STATUS_ACCEPTED) {
+            $this->dbh->rollBack();
+            $this->logger->error(sprintf('JIAService returned error: status code %d, message: %s', $statusCode, (string)$resBody));
+
+            $response->getBody()->write('JIAService returned error');
+
+            return $response->withStatus($statusCode)
+                ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
+        }
+
+        try {
+            $isuFromJia = IsuFromJia::fromJson((string)$resBody);
+        } catch (UnexpectedValueException) {
+            $this->dbh->rollBack();
+            $this->logger->error('failed to json_encode');
+
+            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+        }
+
+        $stmt = $this->dbh->prepare('UPDATE `isu` SET `character` = ? WHERE  `jia_isu_uuid` = ?');
+        if (!$stmt->execute([$isuFromJia->character, $jiaIsuUuid])) {
+            $this->dbh->rollBack();
+            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+
+            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+        }
+
+        $stmt = $this->dbh->prepare('SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?');
+        if (!$stmt->execute([$jiaUserId, $jiaIsuUuid])) {
+            $this->dbh->rollBack();
+            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+
+            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+        }
+
+        $rows = $stmt->fetchAll();
+        if (count($rows) === 0) {
+            $this->dbh->rollBack();
+            $this->logger->error('db error: failed to insert isu');
+
+            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+        }
+
+        $isu = Isu::fromDbRow($rows[0]);
+
+        if (!$this->dbh->commit()) {
+            $this->dbh->rollBack();
+            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+
+            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+        }
+
+        return $this->jsonResponse($response, $isu, StatusCodeInterface::STATUS_CREATED);
     }
 
     // GET /api/isu/:jia_isu_uuid
@@ -1349,17 +1563,19 @@ final class Handler
         return $response->withHeader('Content-Type', $mimeType . '; charset=UTF-8');
     }
 
-    private function jsonResponse(Response $response, JsonSerializable|array $data): Response
+    /**
+     * @throws UnexpectedValueException
+     */
+    private function jsonResponse(Response $response, JsonSerializable|array $data, int $statusCode = StatusCodeInterface::STATUS_OK): Response
     {
         $responseBody = json_encode($data);
         if ($responseBody === false) {
-            $this->logger->critical('failed to json_encode');
-
-            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+            throw new UnexpectedValueException('failed to json_encode');
         }
 
         $response->getBody()->write($responseBody);
 
-        return $response->withHeader('Content-Type', 'application/json');
+        return $response->withStatus($statusCode)
+            ->withHeader('Content-Type', 'application/json; charset=UTF-8');
     }
 }

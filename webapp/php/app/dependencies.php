@@ -5,6 +5,8 @@ declare(strict_types=1);
 use App\Application\Middleware\AccessLog as AccessLogMiddleware;
 use App\Application\Settings\SettingsInterface;
 use DI\ContainerBuilder;
+use GuzzleHttp\Client as HttpClient;
+use GuzzleHttp\ClientInterface as HttpClientInterface;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
 use Monolog\Processor\UidProcessor;
@@ -22,6 +24,9 @@ return function (ContainerBuilder $containerBuilder) {
             $logger->pushHandler($handler);
 
             return new AccessLogMiddleware($logger);
+        },
+        HttpClientInterface::class => function (ContainerInterface $c): HttpClientInterface {
+            return new HttpClient();
         },
         LoggerInterface::class => function (ContainerInterface $c): LoggerInterface {
             $settings = $c->get(SettingsInterface::class);
