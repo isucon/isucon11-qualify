@@ -214,22 +214,36 @@ func (s *Scenario) NewIsuWithCustomImg(ctx context.Context, step *isucandar.Benc
 		isu.SetImage(req.Img)
 	}
 
+	res := &http.Response{}
+	isuResponse := &service.Isu{}
 	if retry {
-		res := postIsuInfinityRetry(ctx, owner.Agent, req, step)
+		isuResponse, res = postIsuInfinityRetry(ctx, owner.Agent, req, step)
 		// res == nil => ctx.Done
 		if res == nil {
 			return nil
 		}
 	} else {
-		_, _, err := postIsuAction(ctx, owner.Agent, req)
+		isuResponse, res, err = postIsuAction(ctx, owner.Agent, req)
 		if err != nil {
 			addErrorWithContext(ctx, step, err)
 			return nil
 		}
 	}
+	isuIdUpdated := false
+	if res != nil && res.StatusCode == http.StatusConflict {
+		// pass
+	} else {
+		// POST isu のレスポンスより ID を取得して isu モデルに代入する
+		isu.ID = isuResponse.ID
+		isuIdUpdated = true
+		err = verifyIsu(res, isu, isuResponse)
+		if err != nil {
+			step.AddError(err)
+		}
+	}
 
-	var res *http.Response
-	var isuResponse *service.Isu
+	res = &http.Response{}
+	isuResponse = &service.Isu{}
 	if retry {
 		isuResponse, res = getIsuInfinityRetry(ctx, owner.Agent, req.JIAIsuUUID, step)
 		// isuResponse == nil => ctx.Done
@@ -244,7 +258,10 @@ func (s *Scenario) NewIsuWithCustomImg(ctx context.Context, step *isucandar.Benc
 		}
 	}
 	// GET isu のレスポンスより ID を取得して isu モデルに代入する
-	isu.ID = isuResponse.ID
+	if !isuIdUpdated {
+		isu.ID = isuResponse.ID
+		isuIdUpdated = true
+	}
 	err = verifyIsu(res, isu, isuResponse)
 	if err != nil {
 		step.AddError(err)
