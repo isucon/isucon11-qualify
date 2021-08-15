@@ -319,9 +319,9 @@ final class TrendResponse implements JsonSerializable
 {
     /**
      * @param string $character
-     * @param TrendCondition[] $info
-     * @param TrendCondition[] $warning
-     * @param TrendCondition[] $critical
+     * @param array<TrendCondition> $info
+     * @param array<TrendCondition> $warning
+     * @param array<TrendCondition> $critical
      */
     public function __construct(
         public string $character,
@@ -376,7 +376,7 @@ final class PostIsuConditionRequest
     }
 
     /**
-     * @return self[]
+     * @return array<self>
      * @throws UnexpectedValueException
      */
     public static function listFromJson(string $json): array
@@ -387,7 +387,7 @@ final class PostIsuConditionRequest
             throw new UnexpectedValueException();
         }
 
-        /** @var self[] $list */
+        /** @var array<self> $list */
         $list = [];
         foreach ($data as $condition) {
             if (
@@ -706,7 +706,7 @@ final class Handler
             return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
         }
 
-        /** @var Isu[] $isuList */
+        /** @var array<Isu> $isuList */
         $isuList = [];
         foreach ($rows as $row) {
             $isuList[] = Isu::fromDbRow($row);
@@ -1071,15 +1071,15 @@ final class Handler
 
     // グラフのデータ点を一日分生成
     /**
-     * @return array{0: GraphResponse[], 1: string}
+     * @return array{0: array<GraphResponse>, 1: string}
      */
     private function generateIsuGraphResponse(string $jiaIsuUuid, DateTimeImmutable $graphDate): array
     {
-        /** @var GraphDataPointWithInfo[] $dataPoints */
+        /** @var array<GraphDataPointWithInfo> $dataPoints */
         $dataPoints = [];
-        /** @var IsuCondition[] $conditionsInThisHour */
+        /** @var array<IsuCondition> $conditionsInThisHour */
         $conditionsInThisHour = [];
-        /** @var int[] $timestampsInThisHour */
+        /** @var array<int> $timestampsInThisHour */
         $timestampsInThisHour = [];
         /** @var ?DateTimeInterface $startTimeInThisHour */
         $startTimeInThisHour = null;
@@ -1151,13 +1151,13 @@ final class Handler
             }
         }
 
-        /** @var GraphDataPointWithInfo[] $filteredDataPoints */
+        /** @var array<GraphDataPointWithInfo> $filteredDataPoints */
         $filteredDataPoints = [];
         if ($startIndex < $endNextIndex) {
             $filteredDataPoints = array_slice($dataPoints, $startIndex, $endNextIndex - $startIndex);
         }
 
-        /** @var GraphResponse[] $responseList */
+        /** @var array<GraphResponse> $responseList */
         $responseList = [];
         $index = 0;
         $thisTime = $graphDate;
@@ -1187,7 +1187,7 @@ final class Handler
 
     // 複数のISUのコンディションからグラフの一つのデータ点を計算
     /**
-     * @param IsuCondition[] $isuConditions
+     * @param array<IsuCondition> $isuConditions
      * @return array{0: GraphDataPoint, 1: string}
      */
     private function calculateGraphDataPoint(array $isuConditions): array
@@ -1394,13 +1394,13 @@ final class Handler
             return [[], $err];
         }
 
-        /** @var IsuCondition[] $conditions */
+        /** @var array<IsuCondition> $conditions */
         $conditions = [];
         foreach ($rows as $row) {
             $conditions[] = IsuCondition::fromDbRow($row);
         }
 
-        /** @var GetIsuConditionResponse[] $conditionsResponse */
+        /** @var array<GetIsuConditionResponse> $conditionsResponse */
         $conditionsResponse = [];
         foreach ($conditions as $c) {
             try {
@@ -1464,13 +1464,13 @@ final class Handler
             return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
         }
 
-        /** @var Isu[] $characterList */
+        /** @var array<Isu> $characterList */
         $characterList = [];
         foreach ($rows as $row) {
             $characterList[] = Isu::fromDbRow($row);
         }
 
-        /** @var TrendResponse[] $res */
+        /** @var array<TrendResponse> $res */
         $res = [];
         foreach ($characterList as $character) {
             try {
@@ -1483,17 +1483,17 @@ final class Handler
                 return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
             }
 
-            /** @var Isu[] $isuList */
+            /** @var array<Isu> $isuList */
             $isuList = [];
             foreach ($rows as $row) {
                 $isuList[] = Isu::fromDbRow($row);
             }
 
-            /** @var TrendCondition[] $characterInfoIsuConditions */
+            /** @var array<TrendCondition> $characterInfoIsuConditions */
             $characterInfoIsuConditions = [];
-            /** @var TrendCondition[] $characterWarningIsuConditions */
+            /** @var array<TrendCondition> $characterWarningIsuConditions */
             $characterWarningIsuConditions = [];
-            /** @var TrendCondition[] $characterCriticalIsuConditions */
+            /** @var array<TrendCondition> $characterCriticalIsuConditions */
             $characterCriticalIsuConditions = [];
 
             foreach ($isuList as $isu) {
@@ -1507,7 +1507,7 @@ final class Handler
                     return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
                 }
 
-                /** @var IsuCondition[] $conditions */
+                /** @var array<IsuCondition> $conditions */
                 $conditions = [];
                 foreach ($rows as $row) {
                     $conditions[] = IsuCondition::fromDbRow($row);
@@ -1582,7 +1582,7 @@ final class Handler
         }
 
         try {
-            /** @var PostIsuConditionRequest[] $req */
+            /** @var array<PostIsuConditionRequest> $req */
             $req = PostIsuConditionRequest::listFromJson((string)$request->getBody());
         } catch (UnexpectedValueException) {
             $response->getBody()->write('bad request body');
