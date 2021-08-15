@@ -73,15 +73,15 @@ return function (App $app) {
     $app->post('/api/auth', Handler::class . ':postAuthentication');
     $app->post('/api/signout', Handler::class . ':postSignout');
     $app->get('/api/user/me', Handler::class . ':getMe');
-    $app->get('/api/isu', Handler::class . 'getIsuList');
-    $app->post('/api/isu', Handler::class . 'postIsu');
-    $app->get('/api/isu/{jia_isu_uuid}', Handler::class . 'getIsuId');
-    $app->get('/api/isu/{jia_isu_uuid}/icon', Handler::class . 'getIsuIcon');
-    $app->get('/api/isu/{jia_isu_uuid}/graph', Handler::class . 'getIsuGraph');
-    $app->get('/api/condition/{jia_isu_uuid}', Handler::class . 'getIsuConditions');
-    $app->get('/api/trend', Handler::class . 'getTrend');
+    $app->get('/api/isu', Handler::class . ':getIsuList');
+    $app->post('/api/isu', Handler::class . ':postIsu');
+    $app->get('/api/isu/{jia_isu_uuid}', Handler::class . ':getIsuId');
+    $app->get('/api/isu/{jia_isu_uuid}/icon', Handler::class . ':getIsuIcon');
+    $app->get('/api/isu/{jia_isu_uuid}/graph', Handler::class . ':getIsuGraph');
+    $app->get('/api/condition/{jia_isu_uuid}', Handler::class . ':getIsuConditions');
+    $app->get('/api/trend', Handler::class . ':getTrend');
 
-    $app->post('/api/condition/{jia_isu_uuid}', Handler::class . 'postIsuCondition');
+    $app->post('/api/condition/{jia_isu_uuid}', Handler::class . ':postIsuCondition');
 
     $app->get('/', Handler::class . ':getIndex');
     $app->get('/isu/{jia_isu_uuid}', Handler::class . ':getIndex');
