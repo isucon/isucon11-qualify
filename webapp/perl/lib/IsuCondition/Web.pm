@@ -11,7 +11,7 @@ use DBIx::Sunny;
 use File::Slurp qw(read_file);
 use HTTP::Status qw(:constants);
 use Log::Minimal;
-use JSON::MaybeXS;
+use JSON::MaybeXS qw(encode_json);
 use Cpanel::JSON::XS::Type;
 use Crypt::JWT qw(decode_jwt);
 use Furl;
@@ -312,44 +312,34 @@ sub post_isu($self, $c) {
         $image = read_file(DEFAULT_ICON_FILE_PATH, binmode => ':raw');
     }
     else {
-        $image = read_file($file, binmode => ':raw');
+        $image = read_file($file->path, binmode => ':raw');
     }
 
     my $dbh = $self->dbh;
     my $txn = $dbh->txn_scope;
     my $isu;
     try {
-        $dbh->query("INSERT INTO `isu`"+
-        "    (`jia_isu_uuid`, `name`, `image`, `jia_user_id`) VALUES (?, ?, ?, ?)",
+        $dbh->query("INSERT INTO `isu` (`jia_isu_uuid`, `name`, `image`, `jia_user_id`) VALUES (?, ?, ?, ?)",
         $jia_isu_uuid, $isu_name, $image, $jia_user_id);
 
-        my $target_url = $self->get_jia_service_url() + "/api/activate";
+        my $target_url = $self->get_jia_service_url() . "/api/activate";
         my $body = {
             target_base_url => POST_ISUCONDITION_TARGET_BASE_URL,
             isu_uuid => $jia_isu_uuid,
         };
 
-        # FIXME
-        my $furl = Furl->new;;
-        my $res = $furl->post(
-            $target_url,
-            $body, # as json payload
-
-            # reqJIA.Header.Set("Content-Type", "application/json")
+        my $furl = Furl->new;
+        my $res = $furl->post($target_url,
+            [ "Content-Type" => "application/json" ],
+            encode_json($body),
         );
 
-        if (!$res->is_success) {
-            warnf("failed to request to JIAService: %s", $res); # TODO
-            $self->halt_no_content(HTTP_INTERNAL_SERVER_ERROR);
-        }
-
         if ($res->status != HTTP_ACCEPTED) {
-            warnf("JIAService returned error: status code %s, message: %s", $res->status, $res->body);
-            return $c->halt_text($res->status, "JIAService returned error");
+            warnf("JIAService returned error: status code %s, message: %s", $res->status, $res->message);
+            $c->halt_text($res->status, "JIAService returned error");
         }
 
         my $isu_from_jia = $res->decoded_content;
-
         $self->dbh->query("UPDATE `isu` SET `character` = ? WHERE  `jia_isu_uuid` = ?", $isu_from_jia->{character}, $jia_isu_uuid);
 
         $isu = $self->dbh->select_row(
@@ -360,6 +350,9 @@ sub post_isu($self, $c) {
     }
     catch ($e) {
         $txn->rollback;
+        if ($e isa Kossy::Exception) {
+            die $e; # rethrow
+        }
         warnf("db error: %s", $e);
         $c->halt_no_content(HTTP_INTERNAL_SERVER_ERROR);
     }
