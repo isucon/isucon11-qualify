@@ -632,7 +632,7 @@ app.get(
         return res.status(400).type("text").send("bad format: datetime");
       }
       const date = new Date(datetime * 1000);
-      date.setHours(0, 0, 0, 0);
+      date.setMinutes(0, 0, 0);
 
       await db.beginTransaction();
 
@@ -684,7 +684,7 @@ async function generateIsuGraphResponse(
   );
   for (const condition of rows) {
     const truncatedConditionTime = new Date(
-      condition.timestamp.setHours(0, 0, 0, 0)
+      condition.timestamp.setHours(0, 0, 0)
     );
     if (truncatedConditionTime !== startTimeInThisHour) {
       if (conditionsInThisHour.length > 0) {
