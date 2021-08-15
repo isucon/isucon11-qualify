@@ -841,8 +841,12 @@ sub is_valid_condition_format($condition_str) {
 };
 
 sub get_index($self, $c) {
-    my $file = FRONTEND_CONTENTS_PATH + "/index.html";
-    return $c->render($file);
+    my $file = FRONTEND_CONTENTS_PATH . "/index.html";
+    my $html = read_file($file);
+    $c->res->status(HTTP_OK);
+    $c->res->content_type('text/html; charset=UTF-8');
+    $c->res->body($html);
+    $c->res;
 };
 
 filter 'allow_json_request' => sub {

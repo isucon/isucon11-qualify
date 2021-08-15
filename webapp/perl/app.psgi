@@ -16,6 +16,6 @@ builder {
         secret      => 'tagomoris';
     enable 'Static',
         path => qr!^/assets/!,
-        root => $root_dir . '/public/';
+        root => $root_dir . '/../public/';
     $app;
 };
