@@ -473,7 +473,7 @@ def generate_isu_graph_response(jia_isu_uuid: str, graph_date: datetime) -> list
     for row in rows:
         condition = IsuCondition(**row)
         truncated_condition_time = truncate_datetime(condition.timestamp, timedelta(hours=1))
-        if truncate_datetime != start_time_in_this_hour:
+        if truncated_condition_time != start_time_in_this_hour:
             if len(conditions_in_this_hour) > 0:
                 data_points.append(
                     GraphDataPointWithInfo(
