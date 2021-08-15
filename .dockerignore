@@ -1,2 +1,4 @@
 webapp/frontend/node_modules
 webapp/frontend/dist
+webapp/nodejs/node_modules
+webapp/nodejs/build
