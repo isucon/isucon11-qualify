@@ -3,25 +3,37 @@ use v5.34;
 use warnings;
 use utf8;
 
-use experimental qw(isa try signatures);
+use experimental qw(try signatures);
 
 use Kossy;
 
 use DBIx::Sunny;
 use File::Slurp qw(read_file);
-use HTTP::Status qw/:constants/;
+use HTTP::Status qw(:constants);
 use Log::Minimal;
 use JSON::MaybeXS;
 use Cpanel::JSON::XS::Type;
+use Crypt::JWT qw(decode_jwt);
 
-local $Log::Minimal::LOG_LEVEL = "DEBUG";
+use constant {
+    CONDITION_LIMIT              => 20,
+    FRONTEND_CONTENTS_PATH       => "../public",
+    JIA_JWT_SIGNING_KEY_PATH     => "../ec256-public.pem",
+    DEFAULT_ICON_FILE_PATH       => "../NoImage.jpg",
+    DEFAULT_JIA_SERVICE_URL      => "http://localhost:5000",
+    MYSQL_ERRNUM_DUPLICATE_ENTRY => 1062,
+};
 
-my $MYSQL_CONNECTION_DATA = {
-    host     => $ENV{MYSQL_HOST}   # '127.0.0.1',
-    port     => $ENV{MYSQL_PORT}   # '3306',
-    user     => $ENV{MYSQL_USER}   # 'isucon',
-    dbname   => $ENV{MYSQL_DBNAME} # 'isucondition',
-    password => $ENV{MYSQL_PASS}   # 'isucon',
+use constant {
+    CONDITION_LEVEL_INFO     => 'info',
+    CONDITION_LEVEL_WARNING  => 'warning',
+    CONDITION_LEVEL_CRITICAL => 'critical',
+};
+
+use constant {
+    SCORE_CONDITION_LEVEL_INFO     => 3,
+    SCORE_CONDITION_LEVEL_WARNING  => 2,
+    SCORE_CONDITION_LEVEL_CRITICAL => 1,
 };
 
 
@@ -94,10 +106,30 @@ use constant TrendResponse => {
 };
 
 
+sub MYSQL_CONNECTION_ENV() {
+    return {
+        host     => $ENV{MYSQL_HOST}   || '127.0.0.1',
+        port     => $ENV{MYSQL_PORT}   || '3306',
+        user     => $ENV{MYSQL_USER}   || 'isucon',
+        dbname   => $ENV{MYSQL_DBNAME} || 'isucondition',
+        password => $ENV{MYSQL_PASS}   || 'isucon',
+    };
+};
 
-sub get_user_id_from_session($c) {
+sub JIA_JWT_SIGNING_KEY() {
+    Crypt::PK::ECC->new(JIA_JWT_SIGNING_KEY_PATH);
+}
+
+sub POST_ISUCONDITION_TARGET_BASE_URL() {
+    my $url = $ENV{POST_ISUCONDITION_TARGET_BASE_URL};
+    if (!$url) {
+        critf("missing: POST_ISUCONDITION_TARGET_BASE_URL");
+    }
+    return $url;
+}
+
+sub get_user_id_from_session($self, $c) {
     my $jia_user_id = $c->req->session->get('jia_user_id');
-
     if (!$jia_user_id) {
         $c->halt_no_content(HTTP_UNAUTHORIZED, "you are not signed in");
     }
@@ -110,10 +142,10 @@ sub get_user_id_from_session($c) {
     return $jia_user_id;
 }
 
-sub get_jia_service_url($dbh) {
-    my $config = $dbh->select_row("SELECT * FROM `isu_association_config` WHERE `name` = ?", "jia_service_url");
+sub get_jia_service_url($self) {
+    my $config = $self->dbh->select_row("SELECT * FROM `isu_association_config` WHERE `name` = ?", "jia_service_url");
     if (!$config) {
-        return $DEFAULT_JIA_SERVICE_URL;
+        return DEFAULT_JIA_SERVICE_URL;
     }
     return $config->{url};
 }
@@ -145,37 +177,19 @@ post '/initialize' => [qw/allow_json_request/] => sub ($self, $c) {
 # POST /api/auth
 # サインアップ・サインイン
 post '/api/auth' => sub ($self, $c) {
-    my $req_jwt;
-    # TODO
-    #reqJwt := strings.TrimPrefix(c.Request().Header.Get("Authorization"), "Bearer ")
-
-    my $jwt;
-    try {
-        my $token = $jwt->parse($req_jwt);
+    my $auth = $c->req->header('Authorization');
+    if (!$auth) {
+        $c->halt_no_content(HTTP_FORBIDDEN);
     }
-    catch ($e) {
-    }
-    # TODO
-    #token, err := jwt.Parse(reqJwt, func(token *jwt.Token) (interface{}, error) {
-	#	if _, ok := token.Method.(*jwt.SigningMethodECDSA); !ok {
-	#		return nil, jwt.NewValidationError(fmt.Sprintf("unexpected signing method: %v", token.Header["alg"]), jwt.ValidationErrorSignatureInvalid)
-	#	}
-	#	return jiaJWTSigningKey, nil
-	#})
-    #}
-    #catch ($e) {
-    #    #if (case *jwt.ValidationError:) {
-    #    if (0) {
-    #        return $c->render_text(HTTP_FORBIDDEN);
-    #    }
-    #    else {
-    #        warnf($e);
-    #        return $c->halt_no_content(HTTP_INTERNAL_SERVER_ERROR);
-    #    }
-    #}
-    #warnf("invalid JWT payload")
 
-    my $jia_user_id;
+    my $req_jwt = $auth =~ s/^Bearer //r;
+
+    my ($jwt_header, $payload) = decode_jwt(token => $req_jwt, key => JIA_JWT_SIGNING_KEY);
+
+    my $jia_user_id = $payload->{'jia_user_id'};
+    if (!$jia_user_id) {
+        $c->halt_text(HTTP_BAD_REQUEST, 'invalid JWT payload');
+    }
 
     $self->query("INSERT IGNORE INTO user (`jia_user_id`) VALUES (?)", $jia_user_id);
 
@@ -187,7 +201,7 @@ post '/api/auth' => sub ($self, $c) {
 # POST /api/signout
 # サインアウト
 post '/api/signout' => sub ($self, $c) {
-    my $jia_user_id = get_user_id_from_session($c);
+    my $jia_user_id = $self->get_user_id_from_session($c);
     $c->req->session->clear();
 
     return $c->halt_no_content(HTTP_OK);
@@ -196,7 +210,7 @@ post '/api/signout' => sub ($self, $c) {
 # GET /api/user/me
 # サインインしている自分自身の情報を取得
 get '/api/user/me' => sub ($self, $c) {
-    my $jia_user_id = get_user_id_from_session($c);
+    my $jia_user_id = $self->get_user_id_from_session($c);
 
     return $c->render_json({
         jia_user_id => $jia_user_id,
@@ -206,18 +220,18 @@ get '/api/user/me' => sub ($self, $c) {
 # GET /api/isu
 # ISUの一覧を取得
 get '/api/isu' => sub ($self, $c) {
-    my $jia_user_id = get_user_id_from_session($c);
+    my $jia_user_id = $self->get_user_id_from_session($c);
 
     my $isu_list = $self->dbh->select_all(
-		"SELECT * FROM `isu` WHERE `jia_user_id` = ? ORDER BY `id` DESC",
-		$jia_user_id
+        "SELECT * FROM `isu` WHERE `jia_user_id` = ? ORDER BY `id` DESC",
+        $jia_user_id
     );
 
     my $response_list = [];
     for my $isu ($isu_list->@*) {
         my $found_last_condition = !!1;
         my $last_condition = $self->dbh->select_row(
-		    "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` DESC LIMIT 1",
+            "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` DESC LIMIT 1",
             $isu->{jia_isu_uuid}
         );
         if (!$last_condition) {
@@ -226,21 +240,21 @@ get '/api/isu' => sub ($self, $c) {
 
         my $formatted_condition;
         if ($found_last_condition) {
-			my ($condition_level, $e) = calculate_condition_level($last_condition->{condition});
+            my ($condition_level, $e) = calculate_condition_level($last_condition->{condition});
             if ($e) {
                 warnf($e);
                 return $c->halt_no_content(HTTP_INTERNAL_SERVER_ERROR);
-			}
+            }
 
-			$formatted_condition = {
-				jia_isu_uuid =>      $last_condition->{jia_isu_uuid},
-				isu_name =>         $isu->{name},
-				timestamp =>       $last_condition->{timestamp}, # TODO unix timestamp
-				is_sitting =>       $last_condition->{is_sitting},
-				condition =>       $last_condition->{condition},
-				condition_level =>  $condition_level,
-				message =>         $last_condition->{message},
-			}
+            $formatted_condition = {
+                jia_isu_uuid =>      $last_condition->{jia_isu_uuid},
+                isu_name =>         $isu->{name},
+                timestamp =>       $last_condition->{timestamp}, # TODO unix timestamp
+                is_sitting =>       $last_condition->{is_sitting},
+                condition =>       $last_condition->{condition},
+                condition_level =>  $condition_level,
+                message =>         $last_condition->{message},
+            }
         }
 
         my $res = {
@@ -259,7 +273,7 @@ get '/api/isu' => sub ($self, $c) {
 # POST /api/isu
 # ISUを登録
 post '/api/isu' => sub ($self, $c) {
-    my $jia_user_id = get_user_id_from_session($c);
+    my $jia_user_id = $self->get_user_id_from_session($c);
 
     my $use_default_image = !!0;
 
@@ -273,7 +287,7 @@ post '/api/isu' => sub ($self, $c) {
 
     my $image;
     if ($use_default_image) {
-        $image = read_file($DEFAULT_ICON_PATH, binmode => ':raw');
+        $image = read_file(DEFAULT_ICON_FILE_PATH, binmode => ':raw');
     }
     else {
         $image = read_file($file, binmode => ':raw');
@@ -281,14 +295,15 @@ post '/api/isu' => sub ($self, $c) {
 
     my $dbh = $self->dbh;
     my $txn = $dbh->txn_scope;
+    my $isu;
     try {
         $dbh->query("INSERT INTO `isu`"+
-		"	(`jia_isu_uuid`, `name`, `image`, `jia_user_id`) VALUES (?, ?, ?, ?)",
-		$jia_isu_uuid, $isu_name, $image, $jia_user_id)
+        "    (`jia_isu_uuid`, `name`, `image`, `jia_user_id`) VALUES (?, ?, ?, ?)",
+        $jia_isu_uuid, $isu_name, $image, $jia_user_id);
 
-        my $target_url = get_jia_service_url($dbh) + "/api/activate";
+        my $target_url = $self->get_jia_service_url() + "/api/activate";
         my $body = {
-            target_base_url => $POST_ISUCONDITION_TARGET_BASE_URL,
+            target_base_url => POST_ISUCONDITION_TARGET_BASE_URL,
             isu_uuid => $jia_isu_uuid,
         };
 
@@ -307,7 +322,7 @@ post '/api/isu' => sub ($self, $c) {
         }
 
         if ($res->status != HTTP_ACCEPTED) {
-            warnf("JIAService returned error: status code %s, message: %s", $res->status, $res->body)
+            warnf("JIAService returned error: status code %s, message: %s", $res->status, $res->body);
             return $c->halt_text($res->status, "JIAService returned error");
         }
 
@@ -315,7 +330,7 @@ post '/api/isu' => sub ($self, $c) {
 
         $self->dbh->query("UPDATE `isu` SET `character` = ? WHERE  `jia_isu_uuid` = ?", $isu_from_jia->{character}, $jia_isu_uuid);
 
-        my $isu = $self->dbh->select_row(
+        $isu = $self->dbh->select_row(
             "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
             $jia_user_id, $jia_isu_uuid);
 
@@ -328,18 +343,18 @@ post '/api/isu' => sub ($self, $c) {
     }
 
     return $c->render_json(HTTP_CREATED, $isu, Isu);
-}
+};
 
 # GET /api/isu/:jia_isu_uuid
 # ISUの情報を取得
 get '/api/isu/{jia_isu_uuid}' => sub ($self, $c) {
-    my $jia_user_id = get_user_id_from_session($c);
+    my $jia_user_id = $self->get_user_id_from_session($c);
 
-	my $jia_isu_uuid = $c->req->parameters->{'jia_isu_uuid'};
+    my $jia_isu_uuid = $c->req->parameters->{'jia_isu_uuid'};
 
     my $isu = $self->dbh->select_row(
         "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
-		$jia_user_id, $jia_isu_uuid);
+        $jia_user_id, $jia_isu_uuid);
 
     if (!$isu) {
         $c->halt_text(HTTP_NOT_FOUND, "not found: isu");
@@ -348,47 +363,46 @@ get '/api/isu/{jia_isu_uuid}' => sub ($self, $c) {
     return $c->render_json(HTTP_OK, $isu, Isu);
 };
 
-# GET
+# GET /api/isu/:jia_isu_uuid/icon
 # ISUのアイコンを取得
 get '/api/isu/:jia_isu_uuid/icon' => sub ($self, $c) {
-    my $jia_user_id = get_user_id_from_session($c);
+    my $jia_user_id = $self->get_user_id_from_session($c);
 
-	my $jia_isu_uuid = $c->req->parameters->{'jia_isu_uuid'};
+    my $jia_isu_uuid = $c->req->parameters->{'jia_isu_uuid'};
 
     my $image = $self->dbh->select_one(
         "SELECT `image` FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
-		$jia_user_id, $jia_isu_uuid);
+        $jia_user_id, $jia_isu_uuid);
 
-    if (!$isu) {
+    if (!$image) {
         $c->halt_text(HTTP_NOT_FOUND, "not found: isu");
     }
 
-    # TODO
+    # FIXME
     # return c.Blob(http.StatusOK, "", image)
     $c->res->status(HTTP_OK);
     $c->res->body($image);
     return $c->res;
-}
+};
 
 # GET /api/isu/:jia_isu_uuid/graph
 # ISUのコンディショングラフ描画のための情報を取得
 get '/api/isu/{jia_isu_uuid}/graph' => sub ($self, $c) {
-    my $jia_user_id = get_user_id_from_session($c);
+    my $jia_user_id = $self->get_user_id_from_session($c);
 
-	my $jia_isu_uuid = $c->req->parameters->{'jia_isu_uuid'};
+    my $jia_isu_uuid = $c->req->parameters->{'jia_isu_uuid'};
     my $datetime = $c->req->parameters->{'datetime'};
 
-    # TODO
-    #	jiaIsuUUID := c.Param("jia_isu_uuid")
-    #	datetimeStr := c.QueryParam("datetime")
-    #	if datetimeStr == "" {
-    #		return c.String(http.StatusBadRequest, "missing: datetime")
-    #	}
-    #	datetimeInt64, err := strconv.ParseInt(datetimeStr, 10, 64)
-    #	if err != nil {
-    #		return c.String(http.StatusBadRequest, "bad format: datetime")
-    #	}
-    #	date := time.Unix(datetimeInt64, 0).Truncate(time.Hour)
+    if (!$datetime) {
+        $c->halt_text(HTTP_BAD_REQUEST, "missing: datetime");
+    }
+    # FIXME
+    my $date = $datetime;
+    #    datetimeInt64, err = strconv.ParseInt(datetimeStr, 10, 64)
+    #    if err != nil {
+    #        return c.String(http.StatusBadRequest, "bad format: datetime")
+    #    }
+    #    date = time.Unix(datetimeInt64, 0).Truncate(time.Hour)
 
     my $count = $self->select_one(
         "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
@@ -398,179 +412,166 @@ get '/api/isu/{jia_isu_uuid}/graph' => sub ($self, $c) {
         return $c->halt_text(HTTP_NOT_FOUND, "not found: isu")
     }
 
-	my $res = generateIsuGraphResponse(tx, $jia_isu_uuid, $date);
-
+    my $res = $self->generate_isu_graph_response($jia_isu_uuid, $date);
     return $c->render_json($res, json_type_arrayof(GraphResponse));
-}
+};
 
 # グラフのデータ点を一日分生成
-sub generateIsuGraphResponse(tx *sqlx.Tx, jiaIsuUUID string, graphDate time.Time) ([]GraphResponse, error) {
-	dataPoints := []GraphDataPointWithInfo{}
-	conditionsInThisHour := []IsuCondition{}
-	timestampsInThisHour := []int64{}
-	var startTimeInThisHour time.Time
-	var condition IsuCondition
+sub generate_isu_graph_response($self, $jia_isu_uuid, $graph_date) {
+    my $data_points = [];
+    my $conditions_in_this_hour = [];
+    my $timestamps_in_this_hour = [];
+    my $start_time_in_this_hour;
+    my $condition;
 
-	rows, err := tx.Queryx("SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` ASC", jiaIsuUUID)
-	if err != nil {
-		return nil, fmt.Errorf("db error: %v", err)
-	}
+    my $rows = $self->dbh->select_all(
+        "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` ASC", $jia_isu_uuid);
 
-	for rows.Next() {
-		err = rows.StructScan(&condition)
-		if err != nil {
-			return nil, err
-		}
+    for my $condition ($rows->@*) {
+        my $truncated_condition_time = $condition->{timestamp}; # FIXME truncate hour
 
-		truncatedConditionTime := condition.Timestamp.Truncate(time.Hour)
-		if truncatedConditionTime != startTimeInThisHour {
-			if len(conditionsInThisHour) > 0 {
-				data, err := calculateGraphDataPoint(conditionsInThisHour)
-				if err != nil {
-					return nil, err
-				}
+        if ($truncated_condition_time != $start_time_in_this_hour) {
+            if ($conditions_in_this_hour->@* > 0) {
+                my $data = calculate_graph_data_point($conditions_in_this_hour);
 
-				dataPoints = append(dataPoints,
-					GraphDataPointWithInfo{
-						JIAIsuUUID:          jiaIsuUUID,
-						StartAt:             startTimeInThisHour,
-						Data:                data,
-						ConditionTimestamps: timestampsInThisHour})
-			}
+                push $data_points->@* => {
+                    jia_isu_uuid => $jia_isu_uuid,
+                    start_at => $start_time_in_this_hour,
+                    data => $data,
+                    condition_timestamps => $timestamps_in_this_hour,
+                };
+            }
 
-			startTimeInThisHour = truncatedConditionTime
-			conditionsInThisHour = []IsuCondition{}
-			timestampsInThisHour = []int64{}
-		}
-		conditionsInThisHour = append(conditionsInThisHour, condition)
-		timestampsInThisHour = append(timestampsInThisHour, condition.Timestamp.Unix())
-	}
+            $start_time_in_this_hour = $truncated_condition_time
+        }
+        push $conditions_in_this_hour->@*, $condition;
+        push $timestamps_in_this_hour->@*, $condition->{timestamp};
+    }
 
-	if len(conditionsInThisHour) > 0 {
-		data, err := calculateGraphDataPoint(conditionsInThisHour)
-		if err != nil {
-			return nil, err
-		}
+    if ($conditions_in_this_hour->@* > 0) {
+        my $data = calculate_graph_data_point($conditions_in_this_hour);
+        push $data_points->@* => {
+            jia_isu_uuid => $jia_isu_uuid,
+            start_at => $start_time_in_this_hour,
+            data => $data,
+            condition_timestamps => $timestamps_in_this_hour,
+        };
+    }
 
-		dataPoints = append(dataPoints,
-			GraphDataPointWithInfo{
-				JIAIsuUUID:          jiaIsuUUID,
-				StartAt:             startTimeInThisHour,
-				Data:                data,
-				ConditionTimestamps: timestampsInThisHour})
-	}
+    my $end_time = $graph_date;
+    # FIXME
+    # = graphDate.Add(time.Hour * 24)
+    my $start_index = $data_points->@*;
+    my $end_next_index = $data_points->@*;
+    for (my $i = 0; $i < $data_points->@*; $i++) {
+        my $graph = $data_points->[$i];
+        if ($start_index == $data_points->@* && $graph->{start_at} >= $graph_date) {
+            $start_index = $i;
+        }
+        if ($end_next_index == $data_points->@* and $graph->{start_at} <= $end_time) {
+            $end_next_index = $i;
+        }
+    }
 
-	endTime := graphDate.Add(time.Hour * 24)
-	startIndex := 0
-	endNextIndex := len(dataPoints)
-	for i, graph := range dataPoints {
-		if startIndex == 0 && !graph.StartAt.Before(graphDate) {
-			startIndex = i
-		}
-		if endNextIndex == len(dataPoints) && graph.StartAt.After(endTime) {
-			endNextIndex = i
-		}
-	}
+    my $filtered_data_points;
+    if ($start_index < $end_next_index) {
+        $filtered_data_points = [ $data_points->@[$start_index .. $end_next_index - 1] ];
+    }
 
-	filteredDataPoints := []GraphDataPointWithInfo{}
-	if startIndex < endNextIndex {
-		filteredDataPoints = dataPoints[startIndex:endNextIndex]
-	}
+    my $response_list = [];
+    my $index = 0;
+    my $this_time = $graph_date;
 
-	responseList := []GraphResponse{}
-	index := 0
-	thisTime := graphDate
+    while ($this_time < $graph_date + 24) { # FIXME
+        my $data;
+        my $timestamps = [];
 
-	for thisTime.Before(graphDate.Add(time.Hour * 24)) {
-		var data *GraphDataPoint
-		timestamps := []int64{}
+        if ($index < $filtered_data_points->@*) {
+            my $data_with_info = $filtered_data_points->[$index];
 
-		if index < len(filteredDataPoints) {
-			dataWithInfo := filteredDataPoints[index]
+            if ($data_with_info->{start_at} == $this_time) {
+                $data = $data_with_info->{data};
+                $timestamps = $data_with_info->{condition_timestamps};
+                $index++;
+            }
+        }
 
-			if dataWithInfo.StartAt.Equal(thisTime) {
-				data = &dataWithInfo.Data
-				timestamps = dataWithInfo.ConditionTimestamps
-				index++
-			}
-		}
+        push $response_list->@* => {
+            start_at => $this_time,
+            end_at => $this_time, # FIXME + add 1 hour
+            data => $data,
+            condition_timestamps => $timestamps,
+        };
 
-		resp := GraphResponse{
-			StartAt:             thisTime.Unix(),
-			EndAt:               thisTime.Add(time.Hour).Unix(),
-			Data:                data,
-			ConditionTimestamps: timestamps,
-		}
-		responseList = append(responseList, resp)
+        $this_time = $this_time + 1; # FIXME add 1 hour
+    }
 
-		thisTime = thisTime.Add(time.Hour)
-	}
-
-	return responseList, nil
+    return $response_list;
 }
 
 # 複数のISUのコンディションからグラフの一つのデータ点を計算
-sub calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, error) {
-	conditionsCount := map[string]int{"is_broken": 0, "is_dirty": 0, "is_overweight": 0}
-	rawScore := 0
-	for _, condition := range isuConditions {
-		badConditionsCount := 0
+sub calculate_graph_data_point($isu_conditions) {
+    my $conditions_count = { is_broken => 0, is_dirty => 0, is_overweight => 0 };
 
-		if !isValidConditionFormat(condition.Condition) {
-			return GraphDataPoint{}, fmt.Errorf("invalid condition format")
-		}
+    my $raw_score = 0;
+    for my $condition ($isu_conditions->@*) {
+        my $bad_conditions_count = 0;
 
-		for _, condStr := range strings.Split(condition.Condition, ",") {
-			keyValue := strings.Split(condStr, "=")
+        if (!is_valid_condition_format($condition->{condition})) {
+            critf("invalid condition format");
+        }
 
-			conditionName := keyValue[0]
-			if keyValue[1] == "true" {
-				conditionsCount[conditionName] += 1
-				badConditionsCount++
-			}
-		}
+        for my $cond_str (split $condition->{condition}, ",") {
+            my ($condition_name, $value) = split $cond_str, "=";
+            if ($value == "true") {
+                $conditions_count->{$condition_name} += 1;
+                $bad_conditions_count++;
+            }
 
-		if badConditionsCount >= 3 {
-			rawScore += scoreConditionLevelCritical
-		} else if badConditionsCount >= 1 {
-			rawScore += scoreConditionLevelWarning
-		} else {
-			rawScore += scoreConditionLevelInfo
-		}
-	}
+        }
 
-	sittingCount := 0
-	for _, condition := range isuConditions {
-		if condition.IsSitting {
-			sittingCount++
-		}
-	}
+        if ($bad_conditions_count >= 3) {
+            $raw_score += SCORE_CONDITION_LEVEL_CRITICAL;
+        }
+        elsif ($bad_conditions_count >= 1) {
+            $raw_score += SCORE_CONDITION_LEVEL_WARNING;
+        } else {
+            $raw_score += SCORE_CONDITION_LEVEL_INFO;
+        }
+    }
 
-	isuConditionsLength := len(isuConditions)
+    my $sitting_count = 0;
+    for my $condition ($isu_conditions->@*) {
+        if ($condition->{is_sitting}) {
+            $sitting_count++;
+        }
+    }
 
-	score := rawScore / isuConditionsLength
+    my $isu_conditions_length = $isu_conditions->@*;
 
-	sittingPercentage := sittingCount * 100 / isuConditionsLength
-	isBrokenPercentage := conditionsCount["is_broken"] * 100 / isuConditionsLength
-	isOverweightPercentage := conditionsCount["is_overweight"] * 100 / isuConditionsLength
-	isDirtyPercentage := conditionsCount["is_dirty"] * 100 / isuConditionsLength
+    my $score = $raw_score / $isu_conditions_length;
 
-	dataPoint := GraphDataPoint{
-		Score: score,
-		Percentage: ConditionsPercentage{
-			Sitting:      sittingPercentage,
-			IsBroken:     isBrokenPercentage,
-			IsOverweight: isOverweightPercentage,
-			IsDirty:      isDirtyPercentage,
-		},
-	}
-	return dataPoint, nil
+    my $sitting_percentage = $sitting_count * 100 / $isu_conditions_length;
+    my $is_broken_percentage = $conditions_count->{"is_broken"} * 100 / $isu_conditions_length;
+    my $is_overweight_percentage = $conditions_count->{"is_overweight"} * 100 / $isu_conditions_length;
+    my $is_dirty_percentage = $conditions_count->{"is_dirty"} * 100 / $isu_conditions_length;
+
+    my $data_point = {
+        score => $score,
+        percentage => {
+            sitting => $sitting_percentage,
+            is_broken => $is_broken_percentage,
+            is_overweight => $is_overweight_percentage,
+            is_dirty => $is_dirty_percentage,
+        },
+    };
+    return $data_point;
 }
 
 # GET /api/condition/:jia_isu_uuid
 # ISUのコンディションを取得
-get '/api/condition/:jia_isu_uuid' => sub {
-    my $jia_user_id = get_user_id_from_session($c);
+get '/api/condition/:jia_isu_uuid' => sub ($self, $c) {
+    my $jia_user_id = $self->get_user_id_from_session($c);
     my $jia_isu_uuid = $c->req->parameters->{'jia_isu_uuid'};
     if (!$jia_isu_uuid) {
         $c->halt_text(HTTP_BAD_REQUEST, "missing: jia_isu_uuid");
@@ -578,7 +579,7 @@ get '/api/condition/:jia_isu_uuid' => sub {
 
     my $end_time = $c->req->parameters->{'end_time'};
     if (!$end_time) { #TODO
-        #endTimeInt64, err := strconv.ParseInt(c.QueryParam("end_time"), 10, 64)
+        #$end_timeInt64, err = strconv.ParseInt(c.QueryParam("end_time"), 10, 64)
         $c->halt_text(HTTP_BAD_REQUEST, "bad format: end_time");
     }
 
@@ -590,135 +591,120 @@ get '/api/condition/:jia_isu_uuid' => sub {
     for my $level (split $condition_level_csv, ",") {
         $condition_level->{$level} = {};
     }
-    # TODO
-    #conditionLevel := map[string]interface{}{}
-	#for _, level := range strings.Split(conditionLevelCSV, ",") {
-	#	conditionLevel[level] = struct{}{}
-	#}
 
     my $start_time = $c->req->parameters->{'start_time'};
     if (!$start_time) { #TODO
-        #startTimeInt64, err := strconv.ParseInt(c.QueryParam("start_time"), 10, 64)
+        #$start_timeInt64, err = strconv.ParseInt(c.QueryParam("start_time"), 10, 64)
         $c->halt_text(HTTP_BAD_REQUEST, "bad format: start_time");
     }
 
-
     my $isu_name = $self->dbh->select_one(
-		"SELECT name FROM `isu` WHERE `jia_isu_uuid` = ? AND `jia_user_id` = ?",
-		$jia_isu_uuid, $jia_user_id);
+        "SELECT name FROM `isu` WHERE `jia_isu_uuid` = ? AND `jia_user_id` = ?",
+        $jia_isu_uuid, $jia_user_id);
 
     if (!$isu_name) {
         $c->halt_text(HTTP_NOT_FOUND, "not found: isu");
     }
 
-	my $conditions_response = get_isu_conditions_from_db(db, jiaIsuUUID, endTime, conditionLevel, startTime, conditionLimit, isuName);
-    return $c->render_json($conditions_response);
+    my $conditions_response = $self->get_isu_conditions_from_db($jia_isu_uuid, $end_time, $condition_level, $start_time, CONDITION_LIMIT, $isu_name);
+    return $c->render_json($conditions_response, json_type_arrayof(GetIsuConditionResponse));
 };
 
 # ISUのコンディションをDBから取得
-sub getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, endTime time.Time, conditionLevel map[string]interface{}, startTime time.Time,
-	limit int, isuName string) ([]*GetIsuConditionResponse, error) {
+sub get_isu_conditions_from_db($self, $jia_isu_uuid, $end_time, $condition_level, $start_time, $limit, $isu_name) {
+    my $conditions;
+    if ($start_time == 0) {
+        $conditions = $self->dbh->select_all(
+            "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ?"+
+                "    AND `timestamp` < ?"+
+                "    ORDER BY `timestamp` DESC",
+            $jia_isu_uuid, $end_time,
+        )
+    } else {
+        $conditions = $self->dbh->select_all(
+            "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ?"+
+                "    AND `timestamp` < ?"+
+                "    AND ? <= `timestamp`"+
+                "    ORDER BY `timestamp` DESC",
+            $jia_isu_uuid, $end_time, $start_time,
+        )
+    }
 
-	conditions := []IsuCondition{}
-	var err error
+    my $conditions_response = [];
+    for my $c ($conditions->@*) {
+        my ($c_level, $e) = calculate_condition_level($c->{condition});
+        if ($e) {
+            next;
+        }
 
-	if startTime.IsZero() {
-		err = db.Select(&conditions,
-			"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ?"+
-				"	AND `timestamp` < ?"+
-				"	ORDER BY `timestamp` DESC",
-			jiaIsuUUID, endTime,
-		)
-	} else {
-		err = db.Select(&conditions,
-			"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ?"+
-				"	AND `timestamp` < ?"+
-				"	AND ? <= `timestamp`"+
-				"	ORDER BY `timestamp` DESC",
-			jiaIsuUUID, endTime, startTime,
-		)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("db error: %v", err)
-	}
+        if ($condition_level->{$c_level}) {
+            push $conditions_response->@*, {
+                jia_isu_uuid => $c->{jia_isu_uuid},
+                isu_name => $isu_name,
+                timestamp =>  $c->{timestamp},
+                is_sitting => $c->{is_sitting},
+                condition =>  $c->{condition},
+                ConditionLevel => $c_level,
+                message => $c->{message},
+            };
+        }
+    }
 
-	conditionsResponse := []*GetIsuConditionResponse{}
-	for _, c := range conditions {
-		cLevel, err := calculateConditionLevel(c.Condition)
-		if err != nil {
-			continue
-		}
-
-		if _, ok := conditionLevel[cLevel]; ok {
-			data := GetIsuConditionResponse{
-				JIAIsuUUID:     c.JIAIsuUUID,
-				IsuName:        isuName,
-				Timestamp:      c.Timestamp.Unix(),
-				IsSitting:      c.IsSitting,
-				Condition:      c.Condition,
-				ConditionLevel: cLevel,
-				Message:        c.Message,
-			}
-			conditionsResponse = append(conditionsResponse, &data)
-		}
-	}
-
-	if len(conditionsResponse) > limit {
-		conditionsResponse = conditionsResponse[:limit]
-	}
-
-	return conditionsResponse, nil
+    if ($conditions_response->@* > $limit) {
+        splice $conditions_response->@*, 0, $limit;
+    }
+    return $conditions_response;
 }
 
 # ISUのコンディションの文字列からコンディションレベルを計算
-sub calculateConditionLevel(condition string) (string, error) {
-	var conditionLevel string
+sub calculate_condition_level($self, $condition) {
+    my $warn_count = () = $condition =~ m!=true!g;
 
-	warnCount := strings.Count(condition, "=true")
-	switch warnCount {
-	case 0:
-		conditionLevel = conditionLevelInfo
-	case 1, 2:
-		conditionLevel = conditionLevelWarning
-	case 3:
-		conditionLevel = conditionLevelCritical
-	default:
-		return "", fmt.Errorf("unexpected warn count")
-	}
-
-	return conditionLevel, nil
+    my $condition_level;
+    if ($warn_count == 0) {
+        $condition_level = CONDITION_LEVEL_INFO;
+    }
+    elsif($warn_count == 1 || $warn_count == 2) {
+        $condition_level = CONDITION_LEVEL_WARNING;
+    }
+    elsif ($warn_count == 3) {
+        $condition_level = CONDITION_LEVEL_CRITICAL;
+    }
+    else {
+        return (undef, "unexpected warn_count");
+    }
+    return ($condition_level, undef);
 }
 
 # GET /api/trend
 # ISUの性格毎の最新のコンディション情報
 get '/api/trend' => sub ($self, $c) {
 
-	characterList := []Isu{}
     my $character_list = $self->select_all(
-	    "SELECT `character` FROM `isu` GROUP BY `character`")
+        "SELECT `character` FROM `isu` GROUP BY `character`");
 
     my $trend_response = [];
     for my $character ($character_list->@*) {
         my $isu_list = $self->dbh->select_all(
-			"SELECT * FROM `isu` WHERE `character` = ?",
-			$character->{character},
+            "SELECT * FROM `isu` WHERE `character` = ?",
+            $character->{character},
         );
 
         my $character_isu_conditions = {};
 
         for my $isu ($isu_list->@*) {
             my $conditions = $self->dbh->select_all(
-				"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY timestamp DESC",
-				$isu->{jia_isu_uuid},
-			)
+                "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY timestamp DESC",
+                $isu->{jia_isu_uuid},
+            );
 
             if ($conditions->@* > 0) {
                 my $isu_last_condition = $conditions->[0];
-				my $condition_level = calculateConditionLevel($isu_last_condition->{condition});
+                my $condition_level = calculateConditionLevel($isu_last_condition->{condition});
                 my $trend_condition = {
                     id => $isu->{id},
                     timestamp => $isu->{timestamp},
-                }
+                };
                 push $character_isu_conditions->{$condition_level}->@* => $trend_condition;
             }
         }
@@ -738,39 +724,29 @@ get '/api/trend' => sub ($self, $c) {
     }
 
     return $c->render_json($trend_response, json_type_arrayof(TrendResponse));
-}
+};
 
 # POST /api/condition/:jia_isu_uuid
 # ISUからのコンディションを受け取る
 post '/api/condition/:jia_isu_uuid' => [qw/allow_json_request/] => sub ($self, $c) {
-	# TODO: 一定割合リクエストを落としてしのぐようにしたが、本来は全量さばけるようにすべき
-	my $drop_probability = 0.9;
-	if (rand <= $drop_probability) {
-		warnf("drop post isu condition request")
+    # TODO: 一定割合リクエストを落としてしのぐようにしたが、本来は全量さばけるようにすべき
+    my $drop_probability = 0.9;
+    if (rand() <= $drop_probability) {
+        warnf("drop post isu condition request");
         $c->halt_no_content(HTTP_SERVICE_UNAVAILABLE);
-	}
+    }
 
     my $jia_isu_uuid = $c->req->parameters->{'jia_isu_uuid'};
     if (!$jia_isu_uuid) {
         $c->halt_text(HTTP_BAD_REQUEST, "missing: jia_isu_uuid");
     }
 
-    # TODO
-    #req := []PostIsuConditionRequest{}
-	#err := c.Bind(&req)
-	#if err != nil {
-	#	return c.String(http.StatusBadRequest, "bad request body")
-	#} else if len(req) == 0 {
-	#	return c.String(http.StatusBadRequest, "bad request body")
-	#}
-
-	tx, err := db.Beginx()
-	if err != nil {
-		warnf("db error: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	defer tx.Rollback()
-
+    my $req = {
+        is_sitting => $c->req->parameters->{'is_sitting'},
+        condition  => $c->req->parameters->{'condition'},
+        message    => $c->req->parameters->{'message'},
+        timestamp  => $c->req->parameters->{'timestamp'},
+    };
 
     my $dbh = $self->dbh;
     my $txn = $dbh->txn_scope;
@@ -779,72 +755,73 @@ post '/api/condition/:jia_isu_uuid' => [qw/allow_json_request/] => sub ($self, $
         if ($count == 0) {
             $c->halt_text(HTTP_NOT_FOUND, "not found: isu");
         }
-        # TODO
-        #	for _, cond := range req {
-        #		timestamp := time.Unix(cond.Timestamp, 0)
-        #
-        #		if !isValidConditionFormat(cond.Condition) {
-        #			return c.String(http.StatusBadRequest, "bad request body")
-        #		}
-        #
-        #		_, err = tx.Exec(
-        #			"INSERT INTO `isu_condition`"+
-        #				"	(`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`)"+
-        #				"	VALUES (?, ?, ?, ?, ?)",
-        #			jiaIsuUUID, timestamp, cond.IsSitting, cond.Condition, cond.Message)
-        #		if err != nil {
-        #			warnf("db error: %v", err)
-        #			return c.NoContent(http.StatusInternalServerError)
-        #		}
+
+        for my $cond (keys $req->%*) {
+            my $timestamp = $cond->{timestamp}; # FIXME time.Unix(cond.Timestamp, 0)
+
+            if (!is_valid_condition_format($cond->{condition})) {
+                $c->halt_text(HTTP_BAD_REQUEST, "bad request body");
+            }
+
+            $dbh->query(
+                "INSERT INTO `isu_condition`" .
+                "    (`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`)".
+                "    VALUES (?, ?, ?, ?, ?)",
+                $jia_isu_uuid, $timestamp, $cond->{is_sitting}, $cond->{condition}, $cond->{message}
+            );
+        };
     }
     catch($e) {
         $txn->rollback;
-		warnf("db error: %s", $e);
+        warnf("db error: %s", $e);
         $c->halt_no_content(HTTP_INTERNAL_SERVER_ERROR);
     }
 
     return $c->halt_no_content(HTTP_CREATED);
-}
+};
 
 # ISUのコンディションの文字列がcsv形式になっているか検証
 sub is_valid_condition_format($condition_str) {
 
-	keys := []string{"is_dirty=", "is_overweight=", "is_broken="}
-	const valueTrue = "true"
-	const valueFalse = "false"
+    my $keys = ["is_dirty=", "is_overweight=", "is_broken="];
+    my $value_true = "true";
+    my $value_false = "false";
 
-	idxCondStr := 0
+    my $idx_cond_str = 0;
 
-	for idxKeys, key := range keys {
-		if !strings.HasPrefix(conditionStr[idxCondStr:], key) {
-			return false
-		}
-		idxCondStr += len(key)
+    for (my $idx_keys = 0; $idx_keys < $keys->@*; $idx_keys++) {
+        my $key = $keys->[$idx_keys];
 
-		if strings.HasPrefix(conditionStr[idxCondStr:], valueTrue) {
-			idxCondStr += len(valueTrue)
-		} else if strings.HasPrefix(conditionStr[idxCondStr:], valueFalse) {
-			idxCondStr += len(valueFalse)
-		} else {
-			return false
-		}
+        if (substr($condition_str, $idx_cond_str) !~ m!^$key!) {
+            return !!0;
+        }
+        $idx_cond_str += length $key;
 
-		if idxKeys < (len(keys) - 1) {
-			if conditionStr[idxCondStr] != ',' {
-				return false
-			}
-			idxCondStr++
-		}
-	}
+        if (substr($condition_str, $idx_cond_str) =~ m!^$value_true!) {
+            $idx_cond_str += length $value_true;
+        }
+        elsif (substr($condition_str, $idx_cond_str) =~ m!^$value_false!) {
+            $idx_cond_str += length $value_false;
+        }
+        else {
+            return !!0;
+        }
 
-	return (idxCondStr == len(conditionStr))
-}
+        if ($idx_keys < $keys->@* - 1) {
+            if (substr($condition_str, $idx_cond_str, 1) != ",") {
+                return !!0;
+            }
+            $idx_cond_str++;
+        }
+    }
+
+    return $idx_cond_str == length $condition_str;
+};
 
 get "/" => sub ($self, $c) {
-    my $file = $FRONTEND_CONTENTS_PATH + "/index.html";
-    # FIXME
-    return $c->xxxx($file);
-}
+    my $file = FRONTEND_CONTENTS_PATH + "/index.html";
+    return $c->render($file);
+};
 
 filter 'allow_json_request' => sub {
     my $app = shift;
@@ -858,7 +835,7 @@ filter 'allow_json_request' => sub {
 sub dbh {
     my $self = shift;
     $self->{_dbh} ||= do {
-        my ($host, $port, $user, $dbname, $password) = $MYSQL_CONNECTION_DATA->@{qw/host port user dbname password/};
+        my ($host, $port, $user, $dbname, $password) = MYSQL_CONNECTION_ENV->@{qw/host port user dbname password/};
         my $dsn = "dbi:mysql:database=$dbname;host=$host;port=$port";
         DBIx::Sunny->connect($dsn, $user, $password, {
             mysql_enable_utf8mb4 => 1,
@@ -874,7 +851,7 @@ sub dbh {
     };
 }
 
-# XXX hack Kossy::Connection
+# XXX hack Kossy
 {
 
     my $orig = \&Kossy::Exception::response;
