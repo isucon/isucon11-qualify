@@ -50,7 +50,8 @@ const Register = () => {
                 <Button
                   label="登録"
                   onClick={submit}
-                  className="px-4 py-1 h-8 text-white-primary font-bold bg-button rounded-2xl"
+                  customClass="px-4 py-1 h-8 text-white-primary font-bold bg-button rounded-2xl"
+                  disabled={!id || !name}
                 />
               </div>
             </div>

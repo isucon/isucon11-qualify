@@ -15,7 +15,7 @@ const Auth = () => {
         <div className="mt-16 w-full border-b border-outline" />
         <Button
           label="JIAのアカウントでログイン"
-          className="mt-10 px-5 py-2 h-12 text-white-primary font-bold bg-button rounded-3xl"
+          customClass="mt-10 px-5 py-2 h-12 text-white-primary font-bold bg-button rounded-3xl"
           onClick={click}
         />
       </div>
