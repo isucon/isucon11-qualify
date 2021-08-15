@@ -674,7 +674,41 @@ final class Handler
     // ISUの情報を取得
     public function getIsuID(Request $request, Response $response, array $args): Response
     {
-        throw new Exception('not implemented');
+        [$jiaUserId, $errStatusCode, $err] = $this->getUserIdFromSession();
+
+        if (!empty($err)) {
+            $newResponse = $response->withStatus($errStatusCode);
+            if ($errStatusCode === StatusCodeInterface::STATUS_UNAUTHORIZED) {
+                $newResponse->getBody()->write('you are not signed in');
+
+                return $newResponse->withHeader('Content-Type', 'text/plain; charset=UTF-8');
+            }
+
+            $this->logger->error($err);
+
+            return $newResponse;
+        }
+
+        $jiaIsuUuid = $args['jia_isu_uuid'];
+
+        $stmt = $this->dbh->prepare('SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?');
+        if (!$stmt->execute([$jiaUserId, $jiaIsuUuid])) {
+            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+
+            return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
+        }
+
+        $rows = $stmt->fetchAll();
+        if (count($rows) === 0) {
+            $response->getBody()->write('not found: isu');
+
+            return $response->withStatus(StatusCodeInterface::STATUS_NOT_FOUND)
+                ->withHeader('Content-Type', 'text/plain; charset=utf-8');
+        }
+
+        $res = Isu::fromDbRow($rows[0]);
+
+        return $this->jsonResponse($response, $res);
     }
 
     // GET /api/isu/:jia_isu_uuid/icon
