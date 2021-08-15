@@ -110,7 +110,7 @@ Host isucon-server3
 ### 重要事項
 
 - **競技に利用できる計算機資源は主催者が公開した上記の所定手順で起動された EC2 インスタンスのみです。**
-  - テンプレートで作成されたリソースに対して、変更（インスタンスタイプの変更など）を行うことは禁止行為にあたり失格となります。
+  - テンプレートで作成されたリソースに対して、変更（AMIやインスタンスタイプの変更など）を行うことは禁止行為にあたり失格となります。
   - 特例として外部のメトリクス計測サービスの使用のみ許可をしますが、スコアを向上させるいかなる効果も持つものであってはいけません。
 - **競技終了後は、ベンチマーク走行成績の追試を行いますので、Discord サーバー および http://isucon.net/ にて主催者からお知らせをするまで、サーバーの操作はしないでください。**
   - 競技終了後の作業は禁止行為にあたり失格となります。
@@ -165,6 +165,13 @@ Web ブラウザで以下の URL にアクセスすることで， ISUCONDITION 
 
 ```shell
 $ ssh -L localhost:5000:isucondition-1.t.isucon.dev:5000 isucon-server1
+```
+
+負荷走行後の ISUCONDITION はベンチマーカーが設定した JIA のエンドポイントが設定されているため、上記の設定を行っていても ISUCONDITIONから `500 Internal Server Error` が返されるエンドポイントがあります。
+負荷走行後に JIA API Mock を利用する際は、下記のように `POST /initialize` で JIA API Moc のエンドポイントを設定してください。
+
+```
+curl -sf -H 'content-type: application/json' https://<Elastic IP アドレス 1,2,3>/initialize -d '{"jia_service_url": "http://localhost:5000"}'
 ```
 
 ### 2.2 ISUCONDITION へのログイン
