@@ -49,7 +49,7 @@ interface IsuCondition extends RowDataPacket {
   created_at: Date;
 }
 
-interface InitializeReponse {
+interface InitializeResponse {
   language: string;
 }
 
@@ -233,7 +233,7 @@ app.post(
       db.release();
     }
 
-    const initializeResponse: InitializeReponse = { language: "nodejs" };
+    const initializeResponse: InitializeResponse = { language: "nodejs" };
     return res.status(200).json(initializeResponse);
   }
 );
@@ -635,7 +635,7 @@ app.get(
         await db.rollback();
         return res.status(404).type("text").send("not found: isu");
       }
-      const [getIsuGraphresponse, e] = await generateIsuGraphResponse(
+      const [getIsuGraphResponse, e] = await generateIsuGraphResponse(
         db,
         jiaIsuUUID,
         date
@@ -648,7 +648,7 @@ app.get(
 
       await db.commit();
 
-      return res.status(200).json(getIsuGraphresponse);
+      return res.status(200).json(getIsuGraphResponse);
     } catch (err) {
       console.error(`db error: ${err}`);
       await db.rollback();
