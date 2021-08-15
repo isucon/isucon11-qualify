@@ -1,3 +1,5 @@
 webapp/frontend/node_modules
 webapp/frontend/dist
 webapp/php/vendor
+# Rust
+webapp/rust/target
