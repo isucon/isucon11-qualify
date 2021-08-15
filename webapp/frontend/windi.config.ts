@@ -14,7 +14,6 @@ export default defineConfig({
       backgroundColor: {
         primary: colors.light[500],
         secondary: colors.light[50],
-        input: colors.light[900],
         button: colors.blueGray[900],
         'accent-primary': mainColor,
         'status-info': colors.green[300],
@@ -33,6 +32,7 @@ export default defineConfig({
         'status-critical': colors.red[900]
       },
       borderColor: {
+        primary: colors.trueGray[300],
         'accent-primary': mainColor
       },
       gridTemplateColumns: {
