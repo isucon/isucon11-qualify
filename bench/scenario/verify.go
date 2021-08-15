@@ -242,7 +242,7 @@ func verifyIsuConditions(res *http.Response,
 
 				// GET /api/isu/:id/graph で見た ConditionDelayTime秒以上後に、その condition がないとき
 				if expected.ReadTime+ConditionDelayTime < requestTimeUnix {
-					return errorMismatch(res, "GET /api/isu/:jia_isu_uuid/graph で確認された condition がありません")
+					return errorMismatch(res, "GET /api/condition/:jia_isu_uuid か GET /api/isu/:jia_isu_uuid/graph で確認された condition がありません")
 				}
 			}
 
@@ -302,7 +302,7 @@ func verifyIsuConditions(res *http.Response,
 
 				// GET /api/isu/:id/graph で見た ConditionDelayTime秒以上後に、その condition がないとき
 				if expected.ReadTime+ConditionDelayTime < requestTimeUnix {
-					return errorMismatch(res, "GET /api/isu/:jia_isu_uuid/graph で確認された condition がありません")
+					return errorMismatch(res, "GET /api/condition/:jia_isu_uuid か GET /api/isu/:jia_isu_uuid/graph で確認された condition がありません")
 				}
 			}
 		}
@@ -653,7 +653,7 @@ func verifyGraph(
 
 					// GET /api/condition/:id で見た ConditionDelayTime秒以上後に、その condition がないとき
 					if expected.ReadTime+ConditionDelayTime < requestTimeUnix {
-						return errorMismatch(res, "GET /api/condition/:jia_isu_uuid で確認された condition がありません")
+						return errorMismatch(res, "GET /api/condition/:jia_isu_uuid か GET /api/isu/:jia_isu_uuid/graph で確認された condition がありません")
 					}
 				}
 			}
@@ -674,7 +674,7 @@ func verifyGraph(
 
 					// GET /api/condition/:id で見た ConditionDelayTime秒以上後に、その condition がないとき
 					if expected.ReadTime+ConditionDelayTime < requestTimeUnix {
-						return errorMismatch(res, "GET /api/condition/:jia_isu_uuid で確認された condition がありません")
+						return errorMismatch(res, "GET /api/condition/:jia_isu_uuid か GET /api/isu/:jia_isu_uuid/graph で確認された condition がありません")
 					}
 				}
 			}
