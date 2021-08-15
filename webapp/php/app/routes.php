@@ -281,11 +281,10 @@ final class Handler
         try {
             $initializeRequest = InitializeRequest::fromJson((string)$request->getBody());
         } catch (UnexpectedValueException) {
-            $newResponse = $response->withStatus(StatusCodeInterface::STATUS_FORBIDDEN)
-                ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
-            $newResponse->getBody()->write('bad request body');
+            $response->getBody()->write('bad request body');
 
-            return $newResponse;
+            return $response->withStatus(StatusCodeInterface::STATUS_FORBIDDEN)
+                ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
         }
 
         $stderr = fopen('php://stderr', 'w');
@@ -323,11 +322,10 @@ final class Handler
     {
         $authorizationHeader = $request->getHeader('Authorization');
         if (count($authorizationHeader) < 1) {
-            $newResponse = $response->withStatus(StatusCodeInterface::STATUS_FORBIDDEN)
-                ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
-            $newResponse->getBody()->write('forbidden');
+            $response->getBody()->write('forbidden');
 
-            return $newResponse;
+            return $response->withStatus(StatusCodeInterface::STATUS_FORBIDDEN)
+                ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
         }
         $reqJwt = mb_substr($authorizationHeader[0], mb_strlen('Bearer '));
 
@@ -341,11 +339,10 @@ final class Handler
         try {
             $token = JWT::decode($reqJwt, $jiaJwtSigningKey, ['ES256', 'ES384', 'ES512']);
         } catch (UnexpectedValueException) {
-            $newResponse = $response->withStatus(StatusCodeInterface::STATUS_FORBIDDEN)
-                ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
-            $newResponse->getBody()->write('forbidden');
+            $response->getBody()->write('forbidden');
 
-            return $newResponse;
+            return $response->withStatus(StatusCodeInterface::STATUS_FORBIDDEN)
+                ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
         } catch (Exception $e) {
             $this->logger->error($e);
 
@@ -354,11 +351,10 @@ final class Handler
 
         $jiaUserIdVar = $token->jia_user_id;
         if (empty($jiaUserIdVar)) {
-            $newResponse = $response->withStatus(StatusCodeInterface::STATUS_BAD_REQUEST)
-                ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
-            $newResponse->getBody()->write('invalid JWT payload');
+            $response->getBody()->write('invalid JWT payload');
 
-            return $newResponse;
+            return $response->withStatus(StatusCodeInterface::STATUS_BAD_REQUEST)
+                ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
         }
         $jiaUserId = (string)$jiaUserIdVar;
 
@@ -383,10 +379,9 @@ final class Handler
         if (!empty($err)) {
             $newResponse = $response->withStatus($errStatusCode);
             if ($errStatusCode === StatusCodeInterface::STATUS_UNAUTHORIZED) {
-                $newResponse->withHeader('Content-Type', 'text/plain; charset=UTF-8');
                 $newResponse->getBody()->write('you are not signed in');
 
-                return $newResponse;
+                return $newResponse->withHeader('Content-Type', 'text/plain; charset=UTF-8');
             }
 
             $this->logger->error($err);
@@ -408,10 +403,9 @@ final class Handler
         if (!empty($err)) {
             $newResponse = $response->withStatus($errStatusCode);
             if ($errStatusCode === StatusCodeInterface::STATUS_UNAUTHORIZED) {
-                $newResponse->withHeader('Content-Type', 'text/plain; charset=UTF-8');
                 $newResponse->getBody()->write('you are not signed in');
 
-                return $newResponse;
+                return $newResponse->withHeader('Content-Type', 'text/plain; charset=UTF-8');
             }
 
             $this->logger->error($err);
@@ -431,10 +425,9 @@ final class Handler
         if (!empty($err)) {
             $newResponse = $response->withStatus($errStatusCode);
             if ($errStatusCode === StatusCodeInterface::STATUS_UNAUTHORIZED) {
-                $newResponse->withHeader('Content-Type', 'text/plain; charset=UTF-8');
                 $newResponse->getBody()->write('you are not signed in');
 
-                return $newResponse;
+                return $newResponse->withHeader('Content-Type', 'text/plain; charset=UTF-8');
             }
 
             $this->logger->error($err);
@@ -557,7 +550,7 @@ final class Handler
             if ($errStatusCode === StatusCodeInterface::STATUS_UNAUTHORIZED) {
                 $newResponse->getBody()->write('you are not signed in');
 
-                return $newResponse->withHeader('Content-Type', 'text/plain; charset=UTF-8');;
+                return $newResponse->withHeader('Content-Type', 'text/plain; charset=UTF-8');
             }
 
             $this->logger->error($err);
@@ -675,10 +668,9 @@ final class Handler
             default => 'text/html',
         };
 
-        $newResponse = $response->withHeader('Content-Type', $mimeType . '; charset=UTF-8');
-        $newResponse->getBody()->write(file_get_contents($filePath));
+        $response->getBody()->write(file_get_contents($filePath));
 
-        return $newResponse;
+        return $response->withHeader('Content-Type', $mimeType . '; charset=UTF-8');
     }
 
     private function jsonResponse(Response $response, JsonSerializable|array $data): Response
