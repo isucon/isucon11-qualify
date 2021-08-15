@@ -930,7 +930,7 @@ func postIsuInfinityRetry(ctx context.Context, a *agent.Agent, req service.PostI
 			addErrorWithContext(ctx, step, err)
 			continue
 		}
-		return isu, nil
+		return isu, res
 	}
 }
 
