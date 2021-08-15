@@ -200,9 +200,6 @@ final class GetMeResponse implements JsonSerializable
 final class GraphResponse implements JsonSerializable
 {
     /**
-     * @param int $startAt
-     * @param int $endAt
-     * @param GraphDataPoint $data
      * @param array<int> $conditionTimestamps
      */
     public function __construct(
@@ -318,7 +315,6 @@ final class GetIsuConditionResponse implements JsonSerializable
 final class TrendResponse implements JsonSerializable
 {
     /**
-     * @param string $character
      * @param array<TrendCondition> $info
      * @param array<TrendCondition> $warning
      * @param array<TrendCondition> $critical
@@ -527,8 +523,10 @@ final class Handler
         return $rows[0]['url'];
     }
 
-    // POST /initialize
-    // サービスを初期化
+    /**
+     * POST /initialize
+     * サービスを初期化
+     */
     public function postInitialize(Request $request, Response $response): Response
     {
         try {
@@ -571,8 +569,10 @@ final class Handler
         return $this->jsonResponse($response, new InitializeResponse(language: 'php'));
     }
 
-    // POST /api/auth
-    // サインアップ・サインイン
+    /**
+     * POST /api/auth
+     * サインアップ・サインイン
+     */
     public function postAuthentication(Request $request, Response $response): Response
     {
         $authorizationHeader = $request->getHeader('Authorization');
@@ -628,8 +628,10 @@ final class Handler
         return $response;
     }
 
-    // POST /api/signout
-    // サインアウト
+    /**
+     * POST /api/signout
+     * サインアウト
+     */
     public function postSignout(Request $request, Response $response): Response
     {
         [$_, $errStatusCode, $err] = $this->getUserIdFromSession();
@@ -652,8 +654,10 @@ final class Handler
         return $response;
     }
 
-    // GET /api/user/me
-    // サインインしている自分自身の情報を取得
+    /**
+     * GET /api/user/me
+     * サインインしている自分自身の情報を取得
+     */
     public function getMe(Request $request, Response $response): Response
     {
         [$jiaUserId, $errStatusCode, $err] = $this->getUserIdFromSession();
@@ -674,8 +678,10 @@ final class Handler
         return $this->jsonResponse($response, new GetMeResponse(jiaUserId: $jiaUserId));
     }
 
-    // GET /api/isu
-    // ISUの一覧を取得
+    /**
+     * GET /api/isu
+     * ISUの一覧を取得
+     */
     public function getIsuList(Request $request, Response $response): Response
     {
         [$jiaUserId, $errStatusCode, $err] = $this->getUserIdFromSession();
@@ -764,8 +770,10 @@ final class Handler
         return $this->jsonResponse($response, $responseList);
     }
 
-    // POST /api/isu
-    // ISUを登録
+    /**
+     * POST /api/isu
+     * ISUを登録
+     */
     public function postIsu(Request $request, Response $response): Response
     {
         [$jiaUserId, $errStatusCode, $err] = $this->getUserIdFromSession();
@@ -910,8 +918,10 @@ final class Handler
         return $this->jsonResponse($response, $isu, StatusCodeInterface::STATUS_CREATED);
     }
 
-    // GET /api/isu/:jia_isu_uuid
-    // ISUの情報を取得
+    /**
+     * GET /api/isu/:jia_isu_uuid
+     * ISUの情報を取得
+     */
     public function getIsuID(Request $request, Response $response, array $args): Response
     {
         [$jiaUserId, $errStatusCode, $err] = $this->getUserIdFromSession();
@@ -953,8 +963,10 @@ final class Handler
         return $this->jsonResponse($response, $res);
     }
 
-    // GET /api/isu/:jia_isu_uuid/icon
-    // ISUのアイコンを取得
+    /**
+     * GET /api/isu/:jia_isu_uuid/icon
+     * ISUのアイコンを取得
+     */
     public function getIsuIcon(Request $request, Response $response, array $args): Response
     {
         [$jiaUserId, $errStatusCode, $err] = $this->getUserIdFromSession();
@@ -998,8 +1010,10 @@ final class Handler
         return $response->withHeader('Content-Type', $mimeType);
     }
 
-    // GET /api/isu/:jia_isu_uuid/graph
-    // ISUのコンディショングラフ描画のための情報を取得
+    /**
+     * GET /api/isu/:jia_isu_uuid/graph
+     * ISUのコンディショングラフ描画のための情報を取得
+     */
     public function getIsuGraph(Request $request, Response $response, array $args): Response
     {
         [$jiaUserId, $errStatusCode, $err] = $this->getUserIdFromSession();
@@ -1069,8 +1083,9 @@ final class Handler
         return $this->jsonResponse($response, $res);
     }
 
-    // グラフのデータ点を一日分生成
     /**
+     * グラフのデータ点を一日分生成
+     *
      * @return array{0: array<GraphResponse>, 1: string}
      */
     private function generateIsuGraphResponse(string $jiaIsuUuid, DateTimeImmutable $graphDate): array
@@ -1185,8 +1200,9 @@ final class Handler
         return [$responseList, ''];
     }
 
-    // 複数のISUのコンディションからグラフの一つのデータ点を計算
     /**
+     * 複数のISUのコンディションからグラフの一つのデータ点を計算
+     *
      * @param array<IsuCondition> $isuConditions
      * @return array{0: GraphDataPoint, 1: string}
      */
@@ -1249,8 +1265,10 @@ final class Handler
         return [$dataPoint, ''];
     }
 
-    // GET /api/condition/:jia_isu_uuid
-    // ISUのコンディションを取得
+    /**
+     * GET /api/condition/:jia_isu_uuid
+     * ISUのコンディションを取得
+     */
     public function getIsuConditions(Request $request, Response $response, array $args): Response
     {
         [$jiaUserId, $errStatusCode, $err] = $this->getUserIdFromSession();
@@ -1350,8 +1368,9 @@ final class Handler
         return $this->jsonResponse($response, $conditionsResponse);
     }
 
-    // ISUのコンディションをDBから取得
     /**
+     * ISUのコンディションをDBから取得
+     *
      * @return array{0: array<GetIsuConditionResponse>, 1: string}
      */
     private function getIsuConditionsFromDb(
@@ -1432,8 +1451,9 @@ final class Handler
         return [$conditionsResponse, ''];
     }
 
-    // ISUのコンディションの文字列からコンディションレベルを計算
     /**
+     * ISUのコンディションの文字列からコンディションレベルを計算
+     *
      * @throws UnexpectedValueException
      */
     private function calculateConditionLevel(string $condition): string
@@ -1451,8 +1471,10 @@ final class Handler
         }
     }
 
-    // GET /api/trend
-    // ISUの性格毎の最新のコンディション情報
+    /**
+     * GET /api/trend
+     * ISUの性格毎の最新のコンディション情報
+     */
     public function getTrend(Request $request, Response $response): Response
     {
         try {
@@ -1560,8 +1582,10 @@ final class Handler
         return $this->jsonResponse($response, $res);
     }
 
-    // POST /api/condition/:jia_isu_uuid
-    // ISUからのコンディションを受け取る
+    /**
+     * POST /api/condition/:jia_isu_uuid
+     * ISUからのコンディションを受け取る
+     */
     public function postIsuCondition(Request $request, Response $response, array $args): Response
     {
         // TODO: 一定割合リクエストを落としてしのぐようにしたが、本来は全量さばけるようにすべき
@@ -1655,7 +1679,9 @@ final class Handler
         return $response->withStatus(StatusCodeInterface::STATUS_CREATED);
     }
 
-    // ISUのコンディションの文字列がcsv形式になっているか検証
+    /**
+     * ISUのコンディションの文字列がcsv形式になっているか検証
+     */
     private function isValidConditionFormat(string $conditionStr): bool
     {
         $keys = ["is_dirty=", "is_overweight=", "is_broken="];
