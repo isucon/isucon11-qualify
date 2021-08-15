@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Redirect, Switch, useParams } from 'react-router-dom'
-import SubHeader from '/@/components/Isu/SubHeader'
-import NowLoading from '/@/components/UI/NowLoading'
 import apis, { Isu } from '/@/lib/apis'
 import GuardedRoute from '/@/router/GuardedRoute'
+import SubHeader from '/@/components/Isu/SubHeader'
+import Card from '/@/components/UI/Card'
 import IsuCondition from './IsuCondition'
 import IsuDetail from './IsuDetail'
 import IsuGraph from './IsuGraph'
+import NowLoading from '/@/components/UI/NowLoading'
 
 const IsuRoot = () => {
   const [isu, setIsu] = useState<Isu | null>(null)
@@ -36,8 +37,10 @@ const IsuRoot = () => {
   return (
     <div>
       <SubHeader isu={isu} />
-      <div className="p-10">
-        <DefineRoutes isu={isu} />
+      <div className="flex flex-col gap-10 items-center p-10">
+        <Card>
+          <DefineRoutes isu={isu} />
+        </Card>
       </div>
     </div>
   )

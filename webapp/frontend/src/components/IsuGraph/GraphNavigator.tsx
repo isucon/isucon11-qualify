@@ -5,17 +5,17 @@ import DateInput from './DateInput'
 interface Props {
   next: () => Promise<void>
   prev: () => void
+  specify: (day: string) => Promise<void>
   day: string
-  fetchGraphs: (payload: { day: string }) => Promise<void>
 }
 
-const ConditionNavigator = ({ next, prev, day, fetchGraphs }: Props) => {
+const ConditionNavigator = ({ next, prev, specify, day }: Props) => {
   return (
     <div className="flex gap-8">
       <Button label="Prev" onClick={prev}>
         <IoIosArrowBack size={24} />
       </Button>
-      <DateInput day={day} fetchGraphs={fetchGraphs} />
+      <DateInput day={day} setDay={specify} />
       <Button label="Next" onClick={next}>
         <IoIosArrowForward size={24} />
       </Button>
