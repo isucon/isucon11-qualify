@@ -22,8 +22,7 @@ build: $(EXE) ## Build bench. if build release binary, exec `make RELEASE=1`
 
 .PHONY: replace-bench
 replace-bench: ## Build bench as ELF and move to ../provisioning/ansible-replace-bench
-	export GOOS=linux
-	@make -B $(EXE) GOOS=linux
+	@make -B $(EXE) GOOS=linux RELEASE=1
 	mv $(EXE) ../provisioning/ansible-replace-bench/
 
 .PHONY: clean
@@ -44,4 +43,4 @@ $(EXE): Makefile go.mod $(GOFILES) $(ASSETS)
 
 .PHONY: $(ASSETS)
 $(ASSETS): $(PUBLIC_FILES)
-	go generate ./gen/assets.go
+	GOOS="" go generate ./gen/assets.go

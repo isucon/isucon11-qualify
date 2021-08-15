@@ -1,9 +1,9 @@
 Host *
   User isucon-admin
+  IdentityFile <privkey-path>
 Host 192.168.*
   User isucon-admin
   ControlMaster auto
   ControlPath ~/.ssh/%C
   ControlPersist 60s
-  IdentityFile <privkey-path>
   ProxyJump <jump-server-addr>

@@ -1,0 +1,82 @@
+name: CI for Rust
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - bench/**/*
+      - webapp/rust/**/*
+      - development/backend-rust/**/*
+      - development/docker-compose-ci.yml
+      - .github/workflows/rust.yml
+  pull_request:
+    paths:
+      - bench/**/*
+      - webapp/rust/**/*
+      - development/backend-rust/**/*
+      - development/docker-compose-ci.yml
+      - .github/workflows/rust.yml
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: self-hosted
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          components: rustfmt, clippy
+      - name: Run cargo fmt
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --manifest-path webapp/rust/Cargo.toml -- --check
+      - name: Run cargo clippy
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --manifest-path webapp/rust/Cargo.toml
+
+  test:
+    name: Test
+    runs-on: self-hosted
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: development
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-1
+
+      - name: Install some utils
+        env:
+          AWS_CLI_VERSION: 2.2.16
+        run: |
+          curl -sL https://awscli.amazonaws.com/awscli-exe-linux-x86_64-${AWS_CLI_VERSION}.zip -o /tmp/awscliv2.zip \
+            && unzip -o /tmp/awscliv2.zip -d /tmp/ \
+            && /tmp/aws/install --update -i $HOME/work/_tool/isucon11-qualify/aws-cli -b $HOME/work/_tool/isucon11-qualify
+
+
+      - name: Download init-data.sql
+        working-directory: .
+        run: |
+          ${HOME}/work/_tool/isucon11-qualify/aws s3 cp s3://isucon11-qualify-dev/initial-data.sql webapp/sql/1_InitData.sql
+          ${HOME}/work/_tool/isucon11-qualify/aws s3 cp s3://isucon11-qualify-dev/initialize.json bench/data/initialize.json
+
+      - name: Test Rust App
+        run: |
+          # イメージを self-hosted runner のローカルからコピー
+          rm -r ../bench/images && cp -a /opt/isucon11-qualify/images ../bench/images
+          make test-rust
+
+      - name: Clean up
+        if: failure() || true
+        run: target=rust docker-compose -f docker-compose-ci.yml down

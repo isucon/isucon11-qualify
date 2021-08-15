@@ -1,2 +1,5 @@
 webapp/frontend/node_modules
 webapp/frontend/dist
+
+# Rust
+webapp/rust/target

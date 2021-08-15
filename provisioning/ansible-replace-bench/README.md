@@ -22,12 +22,12 @@ python generate_hosts.py > hosts
 ```diff
   Host *
     User isucon-admin
++   IdentityFile <秘密鍵のPATH>
   Host 192.168.*
     User isucon-admin
     ControlMaster auto
     ControlPath ~/.ssh/%C
     ControlPersist 60s
-+   IdentityFile <秘密鍵のPATH>
 +   ProxyJump <jumpサーバのアドレス>
 ```
 

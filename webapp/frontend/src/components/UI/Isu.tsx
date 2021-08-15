@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Isu as IIsu } from '../../lib/apis'
+import { Isu as IIsu } from '/@/lib/apis'
 
 interface Props {
   isu: IIsu

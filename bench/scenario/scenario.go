@@ -3,14 +3,15 @@ package scenario
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/isucon/isucandar"
 	"github.com/isucon/isucandar/agent"
-	"github.com/isucon/isucandar/failure"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
 	"github.com/isucon/isucon11-qualify/bench/random"
@@ -22,8 +23,6 @@ import (
 // および、全ステップで使うシナリオ関数
 
 type Scenario struct {
-	// TODO: シナリオ実行に必要なフィールドを書く
-
 	BaseURL                  string        // ベンチ対象 Web アプリの URL
 	UseTLS                   bool          // ベンチ対象 Web アプリが HTTPS で動いているかどうか (本番時ture/CI時false)
 	NoLoad                   bool          // Load(ベンチ負荷)を強要しない
@@ -47,6 +46,9 @@ type Scenario struct {
 	mapIPAddrToFqdn map[string]string
 	mapFqdnToIPAddr map[string]string
 
+	//prepare check用のユーザー
+	noIsuUser *model.User
+
 	//内部状態
 	normalUsersMtx sync.Mutex
 	normalUsers    []*model.User
@@ -65,8 +67,6 @@ var (
 
 func NewScenario(jiaServiceURL *url.URL, loadTimeout time.Duration) (*Scenario, error) {
 	return &Scenario{
-		// TODO: シナリオを初期化する
-		//realTimeStart: time.Now()
 		LoadTimeout:       loadTimeout,
 		virtualTimeStart:  random.BaseTime, //初期データ生成時のベースタイムと合わせるために当パッケージの値を利用
 		virtualTimeMulti:  30000,           //5分=300秒に一回 => 1秒に100回
@@ -145,11 +145,10 @@ func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a
 	//backendにpostする
 	go func() {
 		// 登録済みユーザーは trend に興味がないからリクエストを待たない
-		if _, err := browserGetLandingPageIgnoreAction(ctx, a); err != nil {
+		if err := browserGetLandingPageIgnoreAction(ctx, a); err != nil {
 			addErrorWithContext(ctx, step, err)
 		}
 	}()
-	//TODO: 確率で失敗してリトライする
 	_, errs := authAction(ctx, a, user.UserID)
 	for _, err := range errs {
 		addErrorWithContext(ctx, step, err)
@@ -175,9 +174,27 @@ func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a
 	return user
 }
 
+var newIsuCountForImageMissing int32 = -1 //画像をnilにするかどうかの判定用変数(他用途で使用しないこと)
+
 //新しい登録済みISUの生成
 //失敗したらnilを返す
-func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, owner *model.User, addToUser bool, img []byte, retry bool) *model.Isu {
+func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, owner *model.User, addToUser bool, retry bool) *model.Isu {
+	var image []byte = nil
+	//20回に1回はnilでPOST
+	if atomic.AddInt32(&newIsuCountForImageMissing, 1)%20 != 0 {
+		//画像付きでPOST
+		var err error
+		image, err = random.Image()
+		if err != nil {
+			logger.AdminLogger.Panic(err)
+		}
+	}
+	return s.NewIsuWithCustomImg(ctx, step, owner, addToUser, image, retry)
+}
+
+//新しい登録済みISUの生成
+//失敗したらnilを返す
+func (s *Scenario) NewIsuWithCustomImg(ctx context.Context, step *isucandar.BenchmarkStep, owner *model.User, addToUser bool, img []byte, retry bool) *model.Isu {
 	isu, streamsForPoster, err := model.NewRandomIsuRaw(owner)
 	if err != nil {
 		logger.AdminLogger.Panic(err)
@@ -188,7 +205,6 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 	RegisterToJiaAPI(isu, streamsForPoster)
 
 	//backendにpostする
-	//TODO: 確率で失敗してリトライする
 	req := service.PostIsuRequest{
 		JIAIsuUUID: isu.JIAIsuUUID,
 		IsuName:    isu.Name,
@@ -198,22 +214,36 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 		isu.SetImage(req.Img)
 	}
 
+	res := &http.Response{}
+	isuResponse := &service.Isu{}
 	if retry {
-		res := postIsuInfinityRetry(ctx, owner.Agent, req, step)
+		isuResponse, res = postIsuInfinityRetry(ctx, owner.Agent, req, step)
 		// res == nil => ctx.Done
 		if res == nil {
 			return nil
 		}
 	} else {
-		_, _, err := postIsuAction(ctx, owner.Agent, req)
+		isuResponse, res, err = postIsuAction(ctx, owner.Agent, req)
 		if err != nil {
 			addErrorWithContext(ctx, step, err)
 			return nil
 		}
 	}
+	isuIdUpdated := false
+	if res != nil && res.StatusCode == http.StatusConflict {
+		// pass
+	} else {
+		// POST isu のレスポンスより ID を取得して isu モデルに代入する
+		isu.ID = isuResponse.ID
+		isuIdUpdated = true
+		err = verifyIsu(res, isu, isuResponse)
+		if err != nil {
+			step.AddError(err)
+		}
+	}
 
-	var res *http.Response
-	var isuResponse *service.Isu
+	res = &http.Response{}
+	isuResponse = &service.Isu{}
 	if retry {
 		isuResponse, res = getIsuInfinityRetry(ctx, owner.Agent, req.JIAIsuUUID, step)
 		// isuResponse == nil => ctx.Done
@@ -227,21 +257,29 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 			return nil
 		}
 	}
-	// TODO: これは validate でやるべきなきがする
-	if isuResponse.JIAIsuUUID != isu.JIAIsuUUID ||
-		isuResponse.Name != isu.Name ||
-		isuResponse.Character != isu.Character {
-		step.AddError(errorMismatch(res, "レスポンスBodyが正しくありません"))
+	// GET isu のレスポンスより ID を取得して isu モデルに代入する
+	if !isuIdUpdated {
+		isu.ID = isuResponse.ID
+		isuIdUpdated = true
+	}
+	err = verifyIsu(res, isu, isuResponse)
+	if err != nil {
+		step.AddError(err)
 	}
 
-	// POST isu のレスポンスより ID を取得して isu モデルに代入する
-	isu.ID = isuResponse.ID
+	//Icon取得
+	icon, res, err := getIsuIconAction(ctx, owner.Agent, isu.JIAIsuUUID)
+	if err != nil {
+		step.AddError(err)
+	} else {
+		err = verifyIsuIcon(isu, icon, res.StatusCode)
+		if err != nil {
+			step.AddError(err)
+		}
+	}
 
 	// isu.ID から model.TrendCondition を取得できるようにする (GET /trend 用)
 	s.UpdateIsuFromID(isu)
-
-	// poster に isu model の初期化終了を伝える
-	isu.StreamsForScenario.StateChan <- model.IsuStateChangeNone
 
 	//並列に生成する場合は後でgetにより正しい順番を得て、その順序でaddする。企業ユーザーは並列にaddしないと回らない
 	//その場合はaddToUser==falseになる
@@ -258,9 +296,7 @@ func (s *Scenario) NewIsu(ctx context.Context, step *isucandar.BenchmarkStep, ow
 func addErrorWithContext(ctx context.Context, step *isucandar.BenchmarkStep, err error) {
 	select {
 	case <-ctx.Done():
-		if !failure.IsCode(err, ErrHTTP) {
-			step.AddError(err)
-		}
+		return
 	default:
 		step.AddError(err)
 	}
@@ -301,4 +337,22 @@ func (s *Scenario) GetIsuFromID(id int) (*model.Isu, bool) {
 	defer s.isuFromIDMutex.RUnlock()
 	isu, ok := s.isuFromID[id]
 	return isu, ok
+}
+
+func (s *Scenario) GetRandomActivatedIsu(randEngine *rand.Rand) *model.Isu {
+	targetCount := randEngine.Intn(len(s.isuFromID))
+	var isu *model.Isu
+
+	s.isuFromIDMutex.RLock()
+	defer s.isuFromIDMutex.RUnlock()
+	for _, isuP := range s.isuFromID {
+		if !isuP.IsNoPoster() {
+			isu = isuP
+		}
+		if targetCount <= 0 && isu != nil {
+			return isu
+		}
+		targetCount--
+	}
+	return isu
 }

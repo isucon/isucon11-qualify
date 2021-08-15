@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react'
 import AutosizeInput from 'react-input-autosize'
-import Button from '../UI/Button'
-import Input from '../UI/Input'
 
 interface Props {
   day: string

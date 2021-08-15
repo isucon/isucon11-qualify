@@ -1,0 +1,9 @@
+---
+- name: "roles/contestant/tasks/isucondition-nodejs: Build Web Application Node"
+  become_user: isucon
+  args:
+    chdir: /home/isucon/webapp/nodejs
+  environment:
+    PATH: "/home/isucon/local/node/bin:{{ ansible_env.PATH }}"
+  shell: |
+    npm ci

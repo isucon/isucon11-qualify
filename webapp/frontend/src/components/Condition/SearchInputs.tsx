@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import Button from '../UI/Button'
-import Input from '../UI/Input'
+import ButtonSub from '/@/components/UI/ButtonSub'
+import Input from '/@/components/UI/Input'
 import TimeInputs from './TimeInputs'
 
 interface Props {
@@ -14,7 +14,7 @@ const SearchInputs = ({ query, times, search }: Props) => {
   const [tmpTimes, setTmpTimes] = useState(times)
 
   return (
-    <div className="flex flex-wrap gap-6 items-center">
+    <div className="flex flex-wrap gap-6 items-end">
       <Input
         label="検索条件"
         value={tmpQuery}
@@ -22,9 +22,10 @@ const SearchInputs = ({ query, times, search }: Props) => {
         classname="flex-1"
       />
       <TimeInputs times={tmpTimes} setTimes={setTmpTimes} />
-      <Button
+      <ButtonSub
         label="検索"
         onClick={() => search({ times: tmpTimes, query: tmpQuery })}
+        disabled={!tmpQuery}
       />
     </div>
   )

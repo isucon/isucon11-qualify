@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"runtime"
 	"runtime/pprof"
 	"sort"
 	"strings"
@@ -21,6 +22,7 @@ import (
 	"github.com/isucon/isucandar/agent"
 	"github.com/isucon/isucandar/failure"
 	"github.com/isucon/isucandar/score"
+	"github.com/pkg/profile"
 
 	// TODO: isucon11-portal に差し替え
 	"github.com/isucon/isucon10-portal/bench-tool.go/benchrun"
@@ -32,7 +34,7 @@ import (
 
 const (
 	// FAIL になるエラー回数
-	FAIL_ERROR_COUNT int64 = 100 //TODO:ちゃんと決める
+	FAIL_ERROR_COUNT int64 = 100
 	//load context
 	LOAD_TIMEOUT time.Duration = 60 * time.Second
 )
@@ -50,6 +52,7 @@ var (
 	targetAddress       string
 	targetableAddresses []string
 	profileFile         string
+	memProfileDir       string
 	jiaServiceURL       *url.URL
 	useTLS              bool
 	exitStatusOnFail    bool
@@ -91,6 +94,7 @@ func init() {
 	// TODO: 環境変数名を portal チームから共有されたものに差し替える
 	flag.StringVar(&targetableAddressesStr, "targetable-addresses", getEnv("ISUXBENCH_TARGETABLE_ADDRESSES", ""), `ex: "192.168.0.1 192.168.0.2 192.168.0.3" (space separated, limit 3)`)
 	flag.StringVar(&profileFile, "profile", "", "ex: cpu.out")
+	flag.StringVar(&memProfileDir, "mem-profile", "", "path of output heap profile at max memStats.sys allocated. ex: memprof")
 	flag.BoolVar(&exitStatusOnFail, "exit-status", false, "set exit status non-zero when a benchmark result is failing")
 	flag.BoolVar(&useTLS, "tls", false, "true if target server is a tls")
 	flag.BoolVar(&noLoad, "no-load", false, "exit on finished prepare")
@@ -99,7 +103,7 @@ func init() {
 
 	var jiaServiceURLStr, timeoutDuration, initializeTimeoutDuration string
 	flag.StringVar(&jiaServiceURLStr, "jia-service-url", getEnv("JIA_SERVICE_URL", "http://apitest:5000"), "jia service url")
-	flag.StringVar(&timeoutDuration, "timeout", "5s", "request timeout duration")
+	flag.StringVar(&timeoutDuration, "timeout", "1s", "request timeout duration")
 	flag.StringVar(&initializeTimeoutDuration, "initialize-timeout", "20s", "request timeout duration of POST /initialize")
 
 	flag.Parse()
@@ -132,6 +136,34 @@ func init() {
 	}
 }
 
+type PromTags []string
+
+func (p PromTags) writePromFile() {
+	if len(promOut) == 0 {
+		return
+	}
+
+	promOutNew := fmt.Sprintf("%s.new", promOut)
+	err := ioutil.WriteFile(promOutNew, []byte(strings.Join(p, "")), 0644)
+	if err != nil {
+		logger.AdminLogger.Printf("Failed to write prom file: %s", err)
+		return
+	}
+}
+
+func (p PromTags) commit() {
+	if len(promOut) == 0 {
+		return
+	}
+
+	promOutNew := fmt.Sprintf("%s.new", promOut)
+	err := os.Rename(promOutNew, promOut)
+	if err != nil {
+		logger.AdminLogger.Printf("Failed to write prom file: %s", err)
+		return
+	}
+}
+
 func checkError(err error) (critical bool, timeout bool, deduction bool) {
 	return scenario.CheckError(err)
 }
@@ -156,7 +188,10 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 		Count int64
 	}
 	tagCountPair := make([]TagCountPair, 0)
-	for tag, count := range result.Score.Breakdown() {
+	promTags := PromTags{}
+	scoreTable := result.Score.Breakdown()
+	scenario.SetScoreTags(scoreTable)
+	for tag, count := range scoreTable {
 		tagCountPair = append(tagCountPair, TagCountPair{Tag: tag, Count: count})
 	}
 	sort.Slice(tagCountPair, func(i, j int) bool {
@@ -168,6 +203,7 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 		} else {
 			logger.AdminLogger.Printf("SCORE: %s: %d", p.Tag, p.Count)
 		}
+		promTags = append(promTags, fmt.Sprintf("xsuconbench_score_breakdown{name=\"%s\"} %d\n", strings.TrimRight(string(p.Tag), " "), p.Count))
 	}
 
 	for _, err := range errors {
@@ -177,7 +213,7 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 		case isCritical:
 			passed = false
 			reason = "Critical error"
-			logger.AdminLogger.Printf("Critical error because: %+v\n", err) //TODO: Contestantでも良いかも
+			logger.AdminLogger.Printf("Critical error because: %+v\n", err)
 		case isTimeout:
 			timeoutCount++
 		case isDeduction:
@@ -188,7 +224,7 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 			}
 		}
 	}
-	deductionTotal := deduction + timeoutCount/10 //TODO:
+	deductionTotal := deduction + timeoutCount/10
 
 	if passed && deduction > FAIL_ERROR_COUNT {
 		passed = false
@@ -207,6 +243,14 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 
 	logger.ContestantLogger.Printf("score: %d(%d - %d) : %s", score, scoreRaw, deductionTotal, reason)
 	logger.ContestantLogger.Printf("deduction: %d / timeout: %d", deduction, timeoutCount)
+
+	promTags = append(promTags,
+		fmt.Sprintf("xsuconbench_score_total{} %d\n", score),
+		fmt.Sprintf("xsuconbench_score_raw{} %d\n", scoreRaw),
+		fmt.Sprintf("xsuconbench_score_deduction{} %d\n", deductionTotal),
+		fmt.Sprintf("xsuconbench_score_error_count{name=\"deduction\"} %d\n", deduction),
+		fmt.Sprintf("xsuconbench_score_error_count{name=\"timeout\"} %d\n", timeoutCount),
+	)
 
 	err := reporter.Report(&isuxportalResources.BenchmarkResult{
 		SurveyResponse: &isuxportalResources.SurveyResponse{
@@ -227,26 +271,18 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 		panic(err)
 	}
 
+	if passed {
+		promTags = append(promTags, "xsuconbench_passed{} 1\n")
+	} else {
+		promTags = append(promTags, "xsuconbench_passed{} 0\n")
+	}
+
+	promTags.writePromFile()
+	if finish {
+		promTags.commit()
+	}
+
 	return passed
-}
-
-func writePromFile(promTags []string) {
-	if len(promOut) == 0 {
-		return
-	}
-
-	promOutNew := fmt.Sprintf("%s.new", promOut)
-	err := ioutil.WriteFile(promOutNew, []byte(strings.Join(promTags, "")), 0644)
-	if err != nil {
-		logger.AdminLogger.Printf("Failed to write prom file: %s", err)
-		return
-	}
-	err = os.Rename(promOutNew, promOut)
-	if err != nil {
-		logger.AdminLogger.Printf("Failed to write prom file: %s", err)
-		return
-	}
-
 }
 
 func main() {
@@ -263,6 +299,24 @@ func main() {
 		}
 		pprof.StartCPUProfile(fs)
 		defer pprof.StopCPUProfile()
+	}
+
+	if memProfileDir != "" {
+		var maxMemStats runtime.MemStats
+		go func() {
+			for {
+				time.Sleep(5 * time.Second)
+
+				var ms runtime.MemStats
+				runtime.ReadMemStats(&ms)
+				logger.AdminLogger.Printf("system: %d Kb, heap: %d Kb", ms.Sys/1024, ms.HeapAlloc/1024)
+
+				if ms.Sys > maxMemStats.Sys {
+					profile.Start(profile.MemProfile, profile.ProfilePath(memProfileDir)).Stop()
+					maxMemStats = ms
+				}
+			}
+		}()
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -360,9 +414,6 @@ func main() {
 			return nil
 		default:
 		}
-
-		// 初期実装だと fail してしまうため下駄をはかせる
-		step.AddScore(scenario.ScoreStartBenchmark)
 
 		for {
 			// 途中経過を3秒毎に送信

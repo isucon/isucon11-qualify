@@ -1,5 +1,5 @@
 import { IoIosArrowBack, IoIosArrowForward } from 'react-icons/io'
-import IconButton from '../UI/IconButton'
+import Button from '/@/components/UI/Button'
 import DateInput from './DateInput'
 
 interface Props {
@@ -12,13 +12,13 @@ interface Props {
 const ConditionNavigator = ({ next, prev, day, fetchGraphs }: Props) => {
   return (
     <div className="flex gap-8">
-      <IconButton onClick={prev}>
+      <Button label="Prev" onClick={prev}>
         <IoIosArrowBack size={24} />
-      </IconButton>
+      </Button>
       <DateInput day={day} fetchGraphs={fetchGraphs} />
-      <IconButton onClick={next}>
+      <Button label="Next" onClick={next}>
         <IoIosArrowForward size={24} />
-      </IconButton>
+      </Button>
     </div>
   )
 }

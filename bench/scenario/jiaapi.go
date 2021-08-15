@@ -67,7 +67,6 @@ func (s *Scenario) JiaAPIService(ctx context.Context) {
 	}
 	go func() {
 		defer logger.AdminLogger.Println("--- ISU協会サービス END")
-		defer s.loadWaitGroup.Done()
 		err := e.Start(bindPort)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			panic(fmt.Errorf("ISU協会サービスが異常終了しました: %v", err))
@@ -95,7 +94,6 @@ func (s *Scenario) postActivate(c echo.Context) error {
 	if err != nil {
 		return c.String(http.StatusBadRequest, "Bad URL")
 	}
-	//TODO: URLの検証
 
 	//poster Goroutineの起動
 	var isu *model.Isu
