@@ -10,7 +10,6 @@ export interface IsuCondition {
 }
 
 interface GraphData {
-  loading: boolean
   transitionData: number[]
   sittingData: number[]
   timeCategories: string[]
@@ -20,7 +19,6 @@ interface GraphData {
 
 const useGraph = (getGraphs: (req: GraphRequest) => Promise<Graph[]>) => {
   const [result, updateResult] = useState<GraphData>({
-    loading: true,
     transitionData: [],
     sittingData: [],
     timeCategories: [],
@@ -31,15 +29,10 @@ const useGraph = (getGraphs: (req: GraphRequest) => Promise<Graph[]>) => {
 
   useEffect(() => {
     const fetchGraphs = async () => {
-      updateResult(state => ({
-        ...state,
-        loading: true
-      }))
       const graphs = await getGraphs({ date: date })
       const graphData = genGraphData(graphs)
       updateResult(state => ({
         ...state,
-        loading: false,
         transitionData: graphData.transitionData,
         sittingData: graphData.sittingData,
         timeCategories: graphData.timeCategories,
