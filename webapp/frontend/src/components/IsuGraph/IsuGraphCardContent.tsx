@@ -1,11 +1,9 @@
 import apis, { Isu, GraphRequest } from '/@/lib/apis'
 import { useCallback } from 'react'
-import NowLoading from '/@/components/UI/NowLoading'
 import TransitionGraph from './TransitionGraph'
 import SittingGraph from './SittingGraph'
 import useGraph from './use/graph'
 import GraphNavigator from './GraphNavigator'
-import { useState } from 'react'
 import NowLoadingOverlay from '/@/components/UI/NowLoadingOverlay'
 
 interface Props {
@@ -13,12 +11,9 @@ interface Props {
 }
 
 const IsuGraphCardContent = ({ isu }: Props) => {
-  const [isLoading, setIsLoading] = useState(false)
   const getGraphs = useCallback(
     async (params: GraphRequest) => {
-      setIsLoading(true)
       const res = await apis.getIsuGraphs(isu.jia_isu_uuid, params)
-      setIsLoading(false)
       return res
     },
     [isu.jia_isu_uuid]
@@ -36,8 +31,6 @@ const IsuGraphCardContent = ({ isu }: Props) => {
     next
   } = useGraph(getGraphs)
 
-  if (loading) return <NowLoading />
-
   return (
     <div className="flex flex-col gap-12">
       <div className="flex justify-center w-full">
@@ -51,14 +44,13 @@ const IsuGraphCardContent = ({ isu }: Props) => {
             tooltipData={conditions}
           />
         </div>
-
         <div className="absolute top-0 w-full">
           <SittingGraph
             sittingData={sittingData}
             timeCategories={timeCategories}
           />
         </div>
-        {isLoading ? <NowLoadingOverlay /> : null}
+        {loading ? <NowLoadingOverlay /> : null}
       </div>
     </div>
   )
