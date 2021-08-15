@@ -195,7 +195,7 @@ sub post_initialize($self, $c) {
     return $c->res_json({
         language => "perl",
     }, InitializeResponse);
-};
+}
 
 # POST /api/auth
 # サインアップ・サインイン
@@ -219,7 +219,7 @@ sub post_authentication($self, $c) {
     $c->session->set(jia_user_id => $jia_user_id);
 
     return $c->halt_no_content(HTTP_OK);
-};
+}
 
 # POST /api/signout
 # サインアウト
@@ -228,7 +228,7 @@ sub post_signout($self, $c) {
     $c->session->expire();
 
     return $c->halt_no_content(HTTP_OK);
-};
+}
 
 # GET /api/user/me
 # サインインしている自分自身の情報を取得
@@ -238,7 +238,7 @@ sub get_me($self, $c) {
     return $c->render_json({
         jia_user_id => $jia_user_id,
     }, GetMeResponse);
-};
+}
 
 # GET /api/isu
 # ISUの一覧を取得
@@ -291,7 +291,7 @@ sub get_isu_list($self, $c) {
     }
 
     return $c->render_json($response_list, json_type_arrayof(GetIsuListResponse));
-};
+}
 
 # POST /api/isu
 # ISUを登録
@@ -366,7 +366,7 @@ sub post_isu($self, $c) {
     }
 
     return $c->render_json(HTTP_CREATED, $isu, Isu);
-};
+}
 
 # GET /api/isu/:jia_isu_uuid
 # ISUの情報を取得
@@ -384,7 +384,7 @@ sub get_isu_id($self, $c) {
     }
 
     return $c->render_json(HTTP_OK, $isu, Isu);
-};
+}
 
 # GET /api/isu/:jia_isu_uuid/icon
 # ISUのアイコンを取得
@@ -406,7 +406,7 @@ sub get_isu_icon($self, $c) {
     $c->res->status(HTTP_OK);
     $c->res->body($image);
     return $c->res;
-};
+}
 
 # GET /api/isu/:jia_isu_uuid/graph
 # ISUのコンディショングラフ描画のための情報を取得
@@ -437,7 +437,7 @@ sub get_isu_graph($self, $c) {
 
     my $res = $self->generate_isu_graph_response($jia_isu_uuid, $date);
     return $c->render_json($res, json_type_arrayof(GraphResponse));
-};
+}
 
 # グラフのデータ点を一日分生成
 sub generate_isu_graph_response($self, $jia_isu_uuid, $graph_date) {
@@ -631,7 +631,7 @@ sub get_isu_conditions($self, $c) {
 
     my $conditions_response = $self->get_isu_conditions_from_db($jia_isu_uuid, $end_time, $condition_level, $start_time, CONDITION_LIMIT, $isu_name);
     return $c->render_json($conditions_response, json_type_arrayof(GetIsuConditionResponse));
-};
+}
 
 # ISUのコンディションをDBから取得
 sub get_isu_conditions_from_db($self, $jia_isu_uuid, $end_time, $condition_level, $start_time, $limit, $isu_name) {
@@ -748,7 +748,7 @@ sub get_trend($self, $c) {
     }
 
     return $c->render_json($trend_response, json_type_arrayof(TrendResponse));
-};
+}
 
 # POST /api/condition/:jia_isu_uuid
 # ISUからのコンディションを受け取る
@@ -802,7 +802,7 @@ sub post_isu_condition($self, $c) {
     }
 
     return $c->halt_no_content(HTTP_CREATED);
-};
+}
 
 # ISUのコンディションの文字列がcsv形式になっているか検証
 sub is_valid_condition_format($condition_str) {
@@ -840,7 +840,7 @@ sub is_valid_condition_format($condition_str) {
     }
 
     return $idx_cond_str == length $condition_str;
-};
+}
 
 sub get_index($self, $c) {
     my $file = FRONTEND_CONTENTS_PATH . "/index.html";
@@ -849,7 +849,7 @@ sub get_index($self, $c) {
     $c->res->content_type('text/html; charset=UTF-8');
     $c->res->body($html);
     $c->res;
-};
+}
 
 filter 'allow_json_request' => sub {
     my $app = shift;
