@@ -182,7 +182,7 @@ func verifyIsuList(res *http.Response, expectedReverse []*model.Isu, isuList []*
 //mustExistUntil: この値以下のtimestampを持つものは全て反映されているべき。副作用: IsuCondition の ReadTime を更新する。
 func verifyIsuConditions(res *http.Response,
 	targetUser *model.User, targetIsuUUID string, request *service.GetIsuConditionRequest,
-	backendData []*service.GetIsuConditionResponse,
+	backendData service.GetIsuConditionResponseArray,
 	mustExistTimestamps [service.ConditionLimit]int64,
 	requestTimeUnix int64) error {
 
@@ -354,7 +354,7 @@ func verifyIsuConditions(res *http.Response,
 
 func verifyPrepareIsuConditions(res *http.Response,
 	targetUser *model.User, targetIsuUUID string, request *service.GetIsuConditionRequest,
-	backendData []*service.GetIsuConditionResponse) error {
+	backendData service.GetIsuConditionResponseArray) error {
 
 	//limitを超えているかチェック
 	if service.ConditionLimit < len(backendData) {
