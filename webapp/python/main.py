@@ -239,7 +239,7 @@ def post_initialize():
     finally:
         cnx.close()
 
-    return {"Language": "python"}
+    return {"language": "python"}
 
 
 @app.route("/api/auth", methods=["POST"])
