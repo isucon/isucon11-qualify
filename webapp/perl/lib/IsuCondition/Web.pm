@@ -214,7 +214,7 @@ sub post_authentication($self, $c) {
         my $payload = decode_jwt(token => $req_jwt, key => JIA_JWT_SIGNING_KEY, accepted_alg => 'ES256');
 
         my $jia_user_id = $payload->{'jia_user_id'};
-        if (!$jia_user_id　|| ref($jia_user_id) {
+        if (!$jia_user_id || ref($jia_user_id)) {
             $c->halt_text(HTTP_BAD_REQUEST, 'invalid JWT payload');
         }
 
