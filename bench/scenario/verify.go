@@ -644,7 +644,7 @@ func (s *Scenario) verifyTrend(
 	// レスポンスの要素にある ISU の性格を格納するための set
 	var characterSet model.IsuCharacterSet
 	// レスポンスの要素にある ISU の ID を格納するための set
-	isuIDSet := make(map[int]struct{}, 8192)
+	isuIDSet := make(map[int]struct{}, 512)
 	// 新規 conditions の数を格納するための変数
 	var newConditionNum int
 
