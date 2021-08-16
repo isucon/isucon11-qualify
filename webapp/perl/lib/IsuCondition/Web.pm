@@ -427,7 +427,7 @@ sub get_isu_graph($self, $c) {
     }
     my $date = tm_from_unix($datetime)->strftime('%Y-%m-%d %H:00:00');
 
-    my $count = $self->select_one(
+    my $count = $self->dbh->select_one(
         "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
         $jia_user_id, $jia_isu_uuid);
 
@@ -481,24 +481,24 @@ sub generate_isu_graph_response($self, $jia_isu_uuid, $graph_date) {
         };
     }
 
-    my $tm_graph_date = tm_from_mysql_datetime($graph_date);
-    my $tm_end_time = $tm_graph_date->plus_hours(24);
-
-    my $start_index = $data_points->@*;
+    my $tm_graph_date  = tm_from_mysql_datetime($graph_date);
+    my $tm_end_time    = $tm_graph_date->plus_hours(24);
+    my $start_index    = $data_points->@*;
     my $end_next_index = $data_points->@*;
+
     for (my $i = 0; $i < $data_points->@*; $i++) {
         my $graph       = $data_points->[$i];
         my $tm_start_at = tm_from_mysql_datetime($graph->{start_at});
 
-        if ($start_index == $data_points->@* && $tm_start_at >= $tm_graph_date) {
+        if ($start_index == $data_points->@* && !($tm_start_at < $tm_graph_date)) {
             $start_index = $i;
         }
-        if ($end_next_index == $data_points->@* and $tm_start_at <= $tm_end_time) {
+        if ($end_next_index == $data_points->@* and $tm_start_at > $tm_end_time) {
             $end_next_index = $i;
         }
     }
 
-    my $filtered_data_points;
+    my $filtered_data_points = [];
     if ($start_index < $end_next_index) {
         $filtered_data_points = [ $data_points->@[$start_index .. $end_next_index - 1] ];
     }
@@ -508,13 +508,20 @@ sub generate_isu_graph_response($self, $jia_isu_uuid, $graph_date) {
     my $tm_this_time = $tm_graph_date;
 
     while ($tm_this_time < $tm_graph_date->plus_hours(24)) {
-        my $data;
+        my $data = {
+            score => 0,
+            percentage => {
+                sitting       => 0,
+                is_broken     => 0,
+                is_dirty      => 0,
+                is_overweight => 0,
+            }
+        };
         my $timestamps = [];
         my $this_time = mysql_datetime($tm_this_time);
 
         if ($index < $filtered_data_points->@*) {
             my $data_with_info = $filtered_data_points->[$index];
-
             if ($data_with_info->{start_at} eq $this_time) {
                 $data       = $data_with_info->{data};
                 $timestamps = $data_with_info->{condition_timestamps};
@@ -547,13 +554,12 @@ sub calculate_graph_data_point($isu_conditions) {
             critf("invalid condition format");
         }
 
-        for my $cond_str (split $condition->{condition}, ",") {
-            my ($condition_name, $value) = split $cond_str, "=";
-            if ($value == "true") {
+        for my $cond_str (split /,/, $condition->{condition}) {
+            my ($condition_name, $value) = split /=/, $cond_str;
+            if ($value eq "true") {
                 $conditions_count->{$condition_name} += 1;
                 $bad_conditions_count++;
             }
-
         }
 
         if ($bad_conditions_count >= 3) {
@@ -614,7 +620,7 @@ sub get_isu_conditions($self, $c) {
         $c->halt_text(HTTP_BAD_REQUEST, "missing: condition_level");
     }
     my $condition_level = {};
-    for my $level (split $condition_level_csv, ",") {
+    for my $level (split /,/, $condition_level_csv) {
         $condition_level->{$level} = {};
     }
 
@@ -675,13 +681,13 @@ sub get_isu_conditions_from_db($self, $jia_isu_uuid, $end_time, $condition_level
 
         if ($condition_level->{$c_level}) {
             push $conditions_response->@*, {
-                jia_isu_uuid   => $c->{jia_isu_uuid},
-                isu_name       => $isu_name,
-                timestamp      => $c->{timestamp},
-                is_sitting     => $c->{is_sitting},
-                condition      => $c->{condition},
-                ConditionLevel => $c_level,
-                message        => $c->{message},
+                jia_isu_uuid    => $c->{jia_isu_uuid},
+                isu_name        => $isu_name,
+                timestamp       => unix_from_mysql_datetime($c->{timestamp}),
+                is_sitting      => $c->{is_sitting},
+                condition       => $c->{condition},
+                condition_level => $c_level,
+                message         => $c->{message},
             };
         }
     }
