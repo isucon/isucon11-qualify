@@ -707,7 +707,8 @@ func BrowserAccess(ctx context.Context, user AgentWithStaticCache, rpath string,
 		return []error{failure.NewError(ErrHTTP, err)}
 	}
 	// index.html の hash 検証
-	if err := errorAssetChecksum(res, user, "/index.html"); err != nil {
+	err = errorAssetChecksum(res, user, "/index.html")
+	if err != nil {
 		return []error{err}
 	}
 

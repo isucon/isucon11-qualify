@@ -1,6 +1,8 @@
 package model
 
 import (
+	"sync"
+
 	"github.com/isucon/isucandar/agent"
 )
 
@@ -14,7 +16,8 @@ type Viewer struct {
 	// key: isuID, value: timestamp
 	verifiedConditionsInTrend map[int]int64
 
-	// asset名がキー、そのhashが値。1 goroutine からしか参照されない
+	// asset名がキー、そのhashが値。1 goroutine からしか参照されないが -race で怒られたので mutex をとっておく
+	staticCacheMx    sync.Mutex
 	StaticCachedHash map[string][16]byte
 }
 
@@ -24,6 +27,7 @@ func NewViewer(agent *agent.Agent) Viewer {
 		ViewedUpdatedCount:        0,
 		Agent:                     agent,
 		verifiedConditionsInTrend: make(map[int]int64, 8192),
+		staticCacheMx:             sync.Mutex{},
 		StaticCachedHash:          make(map[string][16]byte),
 	}
 }
@@ -54,10 +58,16 @@ func (v *Viewer) GetAgent() *agent.Agent {
 }
 
 func (v *Viewer) SetStaticCache(path string, hash [16]byte) {
+	v.staticCacheMx.Lock()
+	defer v.staticCacheMx.Unlock()
+
 	v.StaticCachedHash[path] = hash
 }
 
 func (v *Viewer) GetStaticCache(path string) ([16]byte, bool) {
+	v.staticCacheMx.Lock()
+	defer v.staticCacheMx.Unlock()
+
 	hash, exist := v.StaticCachedHash[path]
 	return hash, exist
 }

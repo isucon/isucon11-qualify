@@ -45,6 +45,7 @@ func NewRandomUserRaw(userType UserType, isIsuconUser bool) (*User, error) {
 		IsuListByID:             map[string]*Isu{},
 		PostIsuFinish:           0,
 		Agent:                   nil,
+		staticCacheMx:           sync.Mutex{},
 		StaticCachedHash:        make(map[string][16]byte),
 	}, nil
 }
