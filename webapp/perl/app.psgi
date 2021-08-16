@@ -11,7 +11,7 @@ my $app = IsuCondition::Web->psgi($root_dir);
 builder {
     enable 'ReverseProxy';
     enable 'Session::Cookie',
-        session_key => $ENV{SESSION_KEY} // 'isucondition',
+        session_key => $ENV{SESSION_KEY} // 'isucondition_perl',
         expires     => 3600,
         secret      => 'tagomoris';
     enable 'Static',
