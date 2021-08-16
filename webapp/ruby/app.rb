@@ -608,7 +608,7 @@ module Isucondition
       drop_probability = 0.9
       if rand <= drop_probability
         request.env['rack.logger'].warn 'drop post isu condition request'
-        halt_error 503, ''
+        halt_error 202, ''
       end
 
       jia_isu_uuid = params[:jia_isu_uuid]
@@ -639,7 +639,7 @@ module Isucondition
         end
       end
 
-      status 201
+      status 202
       ''
     end
 
