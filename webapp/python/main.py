@@ -155,7 +155,7 @@ class CustomJSONEncoder(JSONEncoder):
 
 
 app = Flask(__name__, static_folder=f"{FRONTEND_CONTENTS_PATH}/assets", static_url_path="/assets")
-app.session_cookie_name = "isucondition"
+app.session_cookie_name = "isucondition_python"
 app.secret_key = getenv("SESSION_KEY", "isucondition")
 app.json_encoder = CustomJSONEncoder
 app.send_file_max_age_default = timedelta(0)
