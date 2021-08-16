@@ -946,7 +946,7 @@ async function getIsuConditions(
           [jiaIsuUUID, endTime, startTime]
         );
 
-  const conditionsResponse: GetIsuConditionResponse[] = [];
+  let conditionsResponse: GetIsuConditionResponse[] = [];
   conditions.forEach((condition) => {
     const [cLevel, err] = calculateConditionLevel(condition.condition);
     if (err) {
@@ -966,7 +966,7 @@ async function getIsuConditions(
   });
 
   if (conditionsResponse.length > limit) {
-    conditionsResponse.splice(limit);
+    conditionsResponse = conditionsResponse.slice(0, limit);
   }
 
   return conditionsResponse;
