@@ -7,13 +7,14 @@ interface Props {
 
 const IsuDetail = ({ isu }: Props) => {
   return (
-    <div className="flex flex-wrap gap-16 justify-center">
+    <div className="flex flex-wrap gap-16">
       <IsuImage isu={isu} customClass="h-64 w-64" />
-      <div className="flex flex-col min-h-full">
-        <div className="text-xl font-bold">{isu.name}</div>
-        <div className="flex flex-1 mt-4 pl-8">
-          <div className="mr-4">せいかく</div>
-          <div className="flex-1">{isu.character}</div>
+      <div className="flex flex-col flex-grow">
+        <div className="mb-4 text-xl font-bold">{isu.name}</div>
+        <div className="grid-cols-[max-content,max-content,max-content] grid gap-2">
+          <div>せいかく</div>
+          <div>---</div>
+          <div>{isu.character}</div>
         </div>
       </div>
     </div>
