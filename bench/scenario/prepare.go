@@ -197,12 +197,13 @@ func (s *Scenario) loadErrorCheck(ctx context.Context, step *isucandar.Benchmark
 		loginUserAgent.ClearCookie()
 		loginUserAgent.CacheStore.Clear()
 
-		tmpAgt := loginUser.Agent
-		loginUser.Agent = loginUserAgent
-
-		authInfinityRetry(ctx, loginUser, loginUser.UserID, step)
-
-		loginUser.Agent = tmpAgt
+		_, errs := authActionOnlyApi(ctx, loginUserAgent, loginUser.UserID)
+		if len(errs) != 0 {
+			for _, err := range errs {
+				addErrorWithContext(ctx, step, err)
+			}
+			continue
+		}
 
 		select {
 		case <-ctx.Done():
@@ -617,22 +618,17 @@ func (s *Scenario) prepareCheckAuth(ctx context.Context, isuconUser *model.User,
 		return
 	}
 
-	tmpAgt := isuconUser.Agent
-
-	isuconUser.Agent = agt
 	userID := isuconUser.UserID
-	_, errs := authAction(ctx, isuconUser, userID)
+	_, errs := authActionOnlyApi(ctx, agt, userID)
 	for _, err := range errs {
 		step.AddError(err)
 	}
 	agt.ClearCookie()
 	//二回目のログイン
-	_, errs = authAction(ctx, isuconUser, userID)
+	_, errs = authActionOnlyApi(ctx, agt, userID)
 	for _, err := range errs {
 		step.AddError(err)
 	}
-
-	isuconUser.Agent = tmpAgt
 
 	return
 }
