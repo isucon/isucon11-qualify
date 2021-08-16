@@ -809,7 +809,7 @@ func getAssets(ctx context.Context, user AgentWithStaticCache, resIndex *http.Re
 	case HomePage, IsuDetailPage, IsuConditionPage, IsuGraphPage, RegisterPage:
 		requireAssets = []string{faviconSvg, indexCss, vendorJs, indexJs /*logoWhite,*/}
 	case TrendPage:
-		requireAssets = []string{faviconSvg, indexCss, vendorJs, indexJs /*logoOrange, logoWhite,*/, vendorJs}
+		requireAssets = []string{faviconSvg, indexCss, vendorJs, indexJs /*logoOrange, logoWhite,*/}
 	default:
 		logger.AdminLogger.Panicf("意図していないpage(%d)のResourceCheckを行っています。(path: %s)", page, resIndex.Request.URL.Path)
 	}
