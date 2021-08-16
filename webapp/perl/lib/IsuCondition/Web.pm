@@ -140,12 +140,12 @@ sub POST_ISUCONDITION_TARGET_BASE_URL() {
 sub get_user_id_from_session($self, $c) {
     my $jia_user_id = $c->session->get('jia_user_id');
     if (!$jia_user_id) {
-        $c->halt_no_content(HTTP_UNAUTHORIZED, "you are not signed in");
+        $c->halt_text(HTTP_UNAUTHORIZED, "you are not signed in");
     }
 
     my $count = $self->dbh->select_one("SELECT COUNT(*) FROM `user` WHERE `jia_user_id` = ?", $jia_user_id);
     if ($count == 0) {
-        $c->halt_no_content(HTTP_UNAUTHORIZED, "you are not signed in");
+        $c->halt_text(HTTP_UNAUTHORIZED, "you are not signed in");
     }
 
     return $jia_user_id;
@@ -208,14 +208,15 @@ sub post_initialize($self, $c) {
 # POST /api/auth
 # サインアップ・サインイン
 sub post_authentication($self, $c) {
-    my $auth = $c->req->header('Authorization');
-    if (!$auth) {
-        $c->halt_no_content(HTTP_FORBIDDEN);
+    my $req_jwt = $c->req->header('Authorization') =~ s/^Bearer //r;
+
+    my $payload;
+    try {
+        $payload = decode_jwt(token => $req_jwt, key => JIA_JWT_SIGNING_KEY, accepted_alg => 'ES256');
     }
-
-    my $req_jwt = $auth =~ s/^Bearer //r;
-
-    my $payload = decode_jwt(token => $req_jwt, key => JIA_JWT_SIGNING_KEY);
+    catch ($e) {
+        $c->halt_text(HTTP_FORBIDDEN, "forbidden");
+    }
 
     my $jia_user_id = $payload->{'jia_user_id'};
     if (!$jia_user_id) {
