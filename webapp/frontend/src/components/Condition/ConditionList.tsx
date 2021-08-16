@@ -7,7 +7,7 @@ interface Props {
 
 const ConditionList = ({ conditions }: Props) => {
   return (
-    <div className="border-primary flex flex-col items-center w-full border-b border-t">
+    <div className="border-primary min-h-64 flex flex-col items-center w-full border-b border-t">
       {conditions.map((condition, i) => (
         <ConditionDetail key={i} condition={condition} />
       ))}

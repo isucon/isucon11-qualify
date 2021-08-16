@@ -9,7 +9,7 @@ const NowLoading = ({ top }: Props) => {
     <div
       className={
         'bg-opacity-40 absolute top-0 flex justify-center w-full h-full bg-white ' +
-        (top ? 'pt-24' : 'items-center')
+        (top ? 'pt-12' : 'items-center')
       }
     >
       <span>
