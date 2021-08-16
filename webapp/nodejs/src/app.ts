@@ -1112,7 +1112,7 @@ app.post(
     const dropProbability = 0.9;
     if (Math.random() < dropProbability) {
       console.warn("drop post isu condition request");
-      return res.status(503).send();
+      return res.status(202).send();
     }
 
     const db = await pool.getConnection();
@@ -1153,7 +1153,7 @@ app.post(
 
       await db.commit();
 
-      return res.status(201).send();
+      return res.status(202).send();
     } catch (err) {
       console.error(`db error: ${err}`);
       await db.rollback();
