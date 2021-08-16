@@ -10,7 +10,7 @@ const App = () => {
     <div className="text-primary flex flex-col min-h-full">
       <BrowserRouter>
         <PageHeader></PageHeader>
-        <div className="bg-primary flex-1">
+        <div className="bg-primary relative flex-grow">
           <Switch>
             <GuardedRoute path="/" exact>
               <Home />

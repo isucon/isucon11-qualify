@@ -1,5 +1,5 @@
+import IsuImage from '/@/components/UI/IsuImage'
 import { Isu } from '/@/lib/apis'
-import IsuIcon from '/@/components/IsuDetail/IsuIcon'
 
 interface Props {
   isu: Isu
@@ -8,7 +8,7 @@ interface Props {
 const IsuDetail = ({ isu }: Props) => {
   return (
     <div className="flex flex-wrap gap-16 justify-center">
-      <IsuIcon isu={isu} />
+      <IsuImage isu={isu} customClass="h-64 w-64" />
       <div className="flex flex-col min-h-full">
         <div className="text-xl font-bold">{isu.name}</div>
         <div className="flex flex-1 mt-4 pl-8">

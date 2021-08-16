@@ -36,7 +36,7 @@ export default defineConfig({
         'accent-primary': mainColor
       },
       gridTemplateColumns: {
-        isus: 'repeat(auto-fill,minmax(10rem,1fr))',
+        list: 'repeat(auto-fill, minmax(12rem,1fr))',
         trend: '10rem 1fr'
       },
       keyframes: {
