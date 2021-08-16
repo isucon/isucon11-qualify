@@ -101,19 +101,6 @@ func authAction(ctx context.Context, user *model.User, userID string) (*service.
 	//データの検証
 	//NoContentなので無し
 
-	//Cookie検証
-	found := false
-	for _, c := range res.Cookies() {
-		if c.Name == "isucondition" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		err = errorBadResponse(res, "cookieがありません")
-		errors = append(errors, err)
-	}
-
 	return authResponse, errors
 }
 
