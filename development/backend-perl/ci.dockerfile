@@ -14,9 +14,13 @@ RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSI
     && tar -C /usr/local/bin -xzvf dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
     && rm dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz
 
-COPY webapp/perl/cpanfile .
+COPY webapp/perl/cpanfile* .
 
 RUN cpm install -g --show-build-log-on-failure
 
 COPY webapp/perl .
 COPY webapp/public /webapp/public
+
+ENTRYPOINT ["dockerize", "-wait=tcp://mysql-backend:3306", "-timeout=60s"]
+
+CMD ["plackup", "-p", "3000", "-Ilib", "app.psgi"]
