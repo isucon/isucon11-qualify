@@ -6,7 +6,7 @@ import path from "path";
 import axios from "axios";
 import session from "cookie-session";
 import express from "express";
-import jwt, { JsonWebTokenError } from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 import morgan from "morgan";
 import multer, { MulterError } from "multer";
 import mysql, { RowDataPacket } from "mysql2/promise";
