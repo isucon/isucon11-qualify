@@ -674,21 +674,21 @@ func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string,
 	isu, res, err := getIsuIdAction(ctx, a, id)
 	if err != nil {
 		errors = append(errors, err)
+		return nil, errors
 	}
 	if isu != nil {
-		icon, res, err := getIsuIconAction(ctx, a, id)
+		icon, resIcon, err := getIsuIconAction(ctx, a, id)
 		if err != nil {
 			isu.Icon = nil
 			errors = append(errors, err)
 		} else {
 			isu.Icon = icon
-			isu.IconStatusCode = res.StatusCode
+			isu.IconStatusCode = resIcon.StatusCode
 		}
 
-		return isu, errors
+		errors = append(errors, validateIsu(res, isu)...)
 	}
-	errors = append(errors, validateIsu(res, isu)...)
-	return nil, errors
+	return isu, errors
 }
 
 func browserGetIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req service.GetIsuConditionRequest,
