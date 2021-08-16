@@ -327,6 +327,7 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 					step.AddError(err)
 					return
 				}
+				// TODO: 初期データに間違いがないかチェックする
 				isu.JIAIsuUUID = jiaIsuUUID
 				err = verifyIsu(res, isu, resIsu)
 				if err != nil {
