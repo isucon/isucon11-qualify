@@ -210,22 +210,28 @@ sub post_initialize($self, $c) {
 sub post_authentication($self, $c) {
     my $req_jwt = $c->req->header('Authorization') =~ s/^Bearer //r;
 
-    my $payload;
     try {
-        $payload = decode_jwt(token => $req_jwt, key => JIA_JWT_SIGNING_KEY, accepted_alg => 'ES256');
+        my $payload = decode_jwt(token => $req_jwt, key => JIA_JWT_SIGNING_KEY, accepted_alg => 'ES256');
+
+        my $jia_user_id = $payload->{'jia_user_id'};
+        if (!$jia_user_id　|| ref($jia_user_id) {
+            $c->halt_text(HTTP_BAD_REQUEST, 'invalid JWT payload');
+        }
+
+        $self->dbh->query("INSERT IGNORE INTO user (`jia_user_id`) VALUES (?)", $jia_user_id);
+
+        $c->session->set(jia_user_id => $jia_user_id);
     }
     catch ($e) {
+        if ($e isa Kossy::Exception) {
+            die $e; # rethrow
+        }
+        elsif ($e =~ /DBD::mysql::st execute failed:/) {
+            warnf("db error: %s", $e);
+            $c->halt_no_content(HTTP_INTERNAL_SERVER_ERROR);
+        }
         $c->halt_text(HTTP_FORBIDDEN, "forbidden");
     }
-
-    my $jia_user_id = $payload->{'jia_user_id'};
-    if (!$jia_user_id) {
-        $c->halt_text(HTTP_BAD_REQUEST, 'invalid JWT payload');
-    }
-
-    $self->dbh->query("INSERT IGNORE INTO user (`jia_user_id`) VALUES (?)", $jia_user_id);
-
-    $c->session->set(jia_user_id => $jia_user_id);
     $c->halt_no_content(HTTP_OK);
 }
 
