@@ -7,7 +7,7 @@ use futures::StreamExt as _;
 use futures::TryStreamExt as _;
 use std::collections::{HashMap, HashSet};
 
-const SESSION_NAME: &str = "isucondition";
+const SESSION_NAME: &str = "isucondition_rust";
 const CONDITION_LIMIT: usize = 20;
 const FRONTEND_CONTENTS_PATH: &str = "../public";
 const JIA_JWT_SIGNING_KEY_PATH: &str = "../ec256-public.pem";
