@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import ButtonSub from './ButtonSub'
+import Button from '/@/components/UI/Button'
 
 interface Props {
   putIsuIcon: (file: File) => void
@@ -33,7 +33,13 @@ const IconInput = ({ putIsuIcon }: Props) => {
   const { startSelect, destroy } = useImageSelect(putIsuIcon)
   useEffect(() => destroy)
 
-  return <ButtonSub label="画像をアップロード" onClick={startSelect} />
+  return (
+    <Button
+      customClass="px-3 py-1 h-8 leading-4 border rounded"
+      label="画像をアップロード"
+      onClick={startSelect}
+    />
+  )
 }
 
 export default IconInput
