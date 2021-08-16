@@ -675,8 +675,8 @@ async function generateIsuGraphResponse(
   graphDate: Date
 ): Promise<[GraphResponse[], Error?]> {
   const dataPoints: GraphDataPointWithInfo[] = [];
-  const conditionsInThisHour = [];
-  const timestampsInThisHour = [];
+  let conditionsInThisHour = [];
+  let timestampsInThisHour = [];
   let startTimeInThisHour = new Date(0);
 
   const [rows] = await db.query<IsuCondition[]>(
@@ -701,8 +701,8 @@ async function generateIsuGraphResponse(
         });
       }
       startTimeInThisHour = truncatedConditionTime;
-      conditionsInThisHour.splice(0);
-      timestampsInThisHour.splice(0);
+      conditionsInThisHour = [];
+      timestampsInThisHour = [];
     }
     conditionsInThisHour.push(condition);
     timestampsInThisHour.push(condition.timestamp.getTime() / 1000);
@@ -721,7 +721,7 @@ async function generateIsuGraphResponse(
     });
   }
 
-  const endTime = new Date(graphDate.getTime() + 24 * 60 * 60 * 1000);
+  const endTime = new Date(graphDate.getTime() + 24 * 3600 * 1000);
   let startIndex = dataPoints.length;
   let endNextIndex = dataPoints.length;
   dataPoints.forEach((graph, i) => {
@@ -758,12 +758,12 @@ async function generateIsuGraphResponse(
 
     responseList.push({
       start_at: thisTime.getTime() / 1000,
-      end_at: thisTime.getTime() / 1000 + 60 * 60,
+      end_at: thisTime.getTime() / 1000 + 3600,
       data,
       condition_timestamps: timestamps,
     });
 
-    thisTime = new Date(thisTime.getTime() + 60 * 60 * 1000);
+    thisTime = new Date(thisTime.getTime() + 3600 * 1000);
   }
 
   return [responseList, undefined];
