@@ -3,6 +3,7 @@ import { getConditionTime } from '/@/lib/date'
 import Tip from '/@/components/UI/Tip'
 import ConditionIcons from './ConditionIcons'
 import IsuStatusIcon from './IsuStatusIcon'
+import ReactTooltip from 'react-tooltip'
 
 interface Props {
   condition: Condition
@@ -25,6 +26,7 @@ const ConditionItem = ({ condition }: Props) => {
           {condition.message}
         </div>
 
+        <ReactTooltip />
         <ConditionIcons conditionCSV={condition.condition} />
 
         {condition.is_sitting ? <Tip variant="sitting" /> : <div />}

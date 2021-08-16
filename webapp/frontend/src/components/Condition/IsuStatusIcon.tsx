@@ -30,10 +30,23 @@ const ConditionIcon = ({ condition_level, size }: Props) => {
         return 'text-red-500'
     }
   }
+  const description = () => {
+    switch (condition_level) {
+      case 'info':
+        return 'Info'
+      case 'warning':
+        return 'Warning'
+      case 'critical':
+        return 'Critical'
+    }
+  }
 
-  // TODO: tooltip
   return (
-    <div className={'flex items-center bg-white z-1 pt-2 pb-2 ' + color()}>
+    <div
+      data-tip={description()}
+      data-place="left"
+      className={'flex items-center bg-white pt-2 z-1 pb-2 ' + color()}
+    >
       {icon()}
     </div>
   )

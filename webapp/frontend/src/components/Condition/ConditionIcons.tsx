@@ -16,7 +16,7 @@ const ConditionIcons = ({ conditionCSV }: Props) => {
   })
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex gap-3 items-center">
       {statusPairs.map(pair => (
         <ConditionIcon key={pair[0]} name={pair[0]} status={pair[1]} />
       ))}

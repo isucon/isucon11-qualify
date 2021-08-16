@@ -1,7 +1,6 @@
 import { FaWeightHanging } from 'react-icons/fa'
 import { BsWrench } from 'react-icons/bs'
 import { AiOutlineClear } from 'react-icons/ai'
-
 interface Props {
   name: string
   status: boolean
@@ -18,8 +17,19 @@ const ConditionIcon = ({ name, status }: Props) => {
         return <BsWrench size={20} />
     }
   }
+
   return (
-    <div className={'flex items-center text-primary ' + (status || ' opacity-30')}>{icon()}</div>
+    <div>
+      <div
+        data-tip={name}
+        data-place="top"
+        className={
+          'flex items-center text-primary ' + (status || ' opacity-30')
+        }
+      >
+        {icon()}
+      </div>
+    </div>
   )
 }
 
