@@ -107,6 +107,12 @@ use constant TrendResponse => {
     critical  => json_type_arrayof(TrendCondition),
 };
 
+use constant PostIsuConditionRequest => {
+    is_sitting => JSON_TYPE_BOOL,
+    condition  => JSON_TYPE_STRING,
+    message    => JSON_TYPE_STRING,
+    timestamp  => JSON_TYPE_INT,
+};
 
 sub MYSQL_CONNECTION_ENV() {
     return {
@@ -302,7 +308,7 @@ sub post_isu($self, $c) {
 
     my $use_default_image = !!0;
 
-    my $jia_isu_uuid = $c->args->{'jia_isu_uuid'};
+    my $jia_isu_uuid = $c->req->parameters->{'jia_isu_uuid'};
     my $isu_name = $c->req->parameters->{'isu_name'};
 
     my $file = $c->req->uploads->{'image'};
@@ -761,12 +767,7 @@ sub post_isu_condition($self, $c) {
         $c->halt_text(HTTP_BAD_REQUEST, "missing: jia_isu_uuid");
     }
 
-    my $req = {
-        is_sitting => $c->req->parameters->{'is_sitting'},
-        condition  => $c->req->parameters->{'condition'},
-        message    => $c->req->parameters->{'message'},
-        timestamp  => $c->req->parameters->{'timestamp'},
-    };
+    my $req = decode_json($c->req->content, json_type_arrayof(PostIsuConditionRequest));
 
     my $dbh = $self->dbh;
     my $txn = $dbh->txn_scope;
@@ -776,8 +777,8 @@ sub post_isu_condition($self, $c) {
             $c->halt_text(HTTP_NOT_FOUND, "not found: isu");
         }
 
-        for my $cond (keys $req->%*) {
-            my $timestamp = $cond->{timestamp}; # FIXME time.Unix(cond.Timestamp, 0)
+        for my $cond ($req->@*) {
+            my $timestamp = mysql_datetime_from_unix($cond->{timestamp});
 
             if (!is_valid_condition_format($cond->{condition})) {
                 $c->halt_text(HTTP_BAD_REQUEST, "bad request body");
@@ -790,6 +791,8 @@ sub post_isu_condition($self, $c) {
                 $jia_isu_uuid, $timestamp, $cond->{is_sitting}, $cond->{condition}, $cond->{message}
             );
         };
+
+        $txn->commit;
     }
     catch($e) {
         $txn->rollback;
@@ -828,7 +831,7 @@ sub is_valid_condition_format($condition_str) {
         }
 
         if ($idx_keys < $keys->@* - 1) {
-            if (substr($condition_str, $idx_cond_str, 1) != ",") {
+            if (substr($condition_str, $idx_cond_str, 1) ne ",") {
                 return !!0;
             }
             $idx_cond_str++;
@@ -880,6 +883,13 @@ sub unix_from_mysql_datetime {
     my $tm = Time::Moment->from_string($str.'+09', lenient => 1);
     return $tm->epoch;
 }
+
+sub mysql_datetime_from_unix {
+    my $epoch = shift;
+    my $tm = Time::Moment->from_epoch($epoch);
+    return $tm->strftime("%Y-%m-%d %H:%M:%S");
+}
+
 
 # XXX hack Kossy
 {
