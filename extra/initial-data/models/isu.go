@@ -58,6 +58,24 @@ func NewIsuWithCreatedAt(user User, createdAt time.Time) Isu {
 	}
 }
 
+func NewIsuWithCharacterId(user User, characterID int) Isu {
+	u, _ := uuid.NewRandom()
+	createdAt := random.TimeAfterArg(user.CreatedAt)
+
+	image := defaultImage()
+	character := random.CharacterData[characterID%len(random.CharacterData)]
+
+	return Isu{
+		user,
+		u.String(),
+		random.IsuName(),
+		image,
+		character,
+		characterID,
+		createdAt,
+		createdAt,
+	}
+}
 func defaultImage() []byte {
 	bytes, err := ioutil.ReadFile(defaultImagePath)
 	if err != nil {
