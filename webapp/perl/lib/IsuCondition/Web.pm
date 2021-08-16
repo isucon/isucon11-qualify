@@ -406,8 +406,6 @@ sub get_isu_icon($self, $c) {
         $c->halt_text(HTTP_NOT_FOUND, "not found: isu");
     }
 
-    # FIXME
-    # return c.Blob(http.StatusOK, "", image)
     $c->res->status(HTTP_OK);
     $c->res->body($image);
     return $c->res;
