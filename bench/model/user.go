@@ -1,9 +1,7 @@
 package model
 
 import (
-	"bytes"
 	"crypto/md5"
-	"io"
 	"net/http"
 	"sync"
 
@@ -93,10 +91,7 @@ func (u *User) GetStaticCache(path string, req *http.Request) ([16]byte, bool) {
 	if u.Agent.CacheStore != nil && req != nil {
 		cache := u.Agent.CacheStore.Get(req)
 		if cache != nil {
-			body, err := io.ReadAll(bytes.NewReader(cache.Body()))
-			if err == nil {
-				u.StaticCachedHash[path] = md5.Sum(body)
-			}
+			u.StaticCachedHash[path] = md5.Sum(cache.Body())
 		}
 	}
 
