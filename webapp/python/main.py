@@ -16,7 +16,6 @@ from werkzeug.exceptions import (
     Unauthorized,
     NotFound,
     InternalServerError,
-    ServiceUnavailable,
 )
 import mysql.connector
 from sqlalchemy.pool import QueuePool
@@ -733,8 +732,7 @@ def post_isu_condition(jia_isu_uuid):
     drop_probability = 0.9
     if random() <= drop_probability:
         app.logger.warning("drop post isu condition request")
-        raise ServiceUnavailable
-
+        return "", 202
     try:
         req = [PostIsuConditionRequest(**row) for row in request.json]
     except:
@@ -778,7 +776,7 @@ def post_isu_condition(jia_isu_uuid):
     finally:
         cnx.close()
 
-    return "", 201
+    return "", 202
 
 
 def get_index(**kwargs):
