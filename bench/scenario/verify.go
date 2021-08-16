@@ -246,6 +246,10 @@ func verifyIsuConditions(res *http.Response,
 					return errorMismatch(res, "POSTに成功していない時刻のデータが返されました")
 				}
 
+				if request.StartTime != nil && c.Timestamp < *request.StartTime {
+					return errorMismatch(res, "start_time に指定された時間より前のデータが返されました")
+				}
+
 				// GET /api/isu/:id/graph で見た ConditionDelayTime秒以上後に、その condition がないとき
 				if expected.ReadTime+ConditionDelayTime < requestTimeUnix {
 					return errorMismatch(res, "GET /api/condition/:jia_isu_uuid か GET /api/isu/:jia_isu_uuid/graph で確認された condition がありません")

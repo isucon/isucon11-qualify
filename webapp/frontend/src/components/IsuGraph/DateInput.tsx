@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import AutosizeInput from 'react-input-autosize'
 
 interface Props {
   day: string
@@ -14,18 +13,17 @@ const DateInput = ({ day, setDay }: Props) => {
   }, [day, setTmpDay])
 
   return (
-    <div className="flex gap-8 w-full">
-      <AutosizeInput
-        value={tmpDay}
-        onChange={e => setTmpDay(e.target.value)}
-        onKeyPress={e => {
-          if (e.key === 'Enter') {
-            e.preventDefault()
-            setDay(tmpDay)
-          }
-        }}
-      />
-    </div>
+    <input
+      className="border-primary focus:border-primary w-30 px-2 py-1 h-8 text-center border border-solid rounded focus:outline-none shadow-none"
+      value={tmpDay}
+      onChange={e => setTmpDay(e.target.value)}
+      onKeyPress={e => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          setDay(tmpDay)
+        }
+      }}
+    />
   )
 }
 

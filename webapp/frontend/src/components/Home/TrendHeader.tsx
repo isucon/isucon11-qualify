@@ -2,7 +2,7 @@ import Tip from '/@/components/UI/Tip'
 
 const TrendHeadeer = () => {
   return (
-    <div className="grid grid-cols-trend p-2">
+    <div className="grid-cols-trend grid p-2">
       <div className="flex justify-center">
         <div>せいかく</div>
       </div>

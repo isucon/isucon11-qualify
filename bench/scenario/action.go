@@ -674,21 +674,21 @@ func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string,
 	isu, res, err := getIsuIdAction(ctx, a, id)
 	if err != nil {
 		errors = append(errors, err)
+		return nil, errors
 	}
 	if isu != nil {
-		icon, res, err := getIsuIconAction(ctx, a, id)
+		icon, resIcon, err := getIsuIconAction(ctx, a, id)
 		if err != nil {
 			isu.Icon = nil
 			errors = append(errors, err)
 		} else {
 			isu.Icon = icon
-			isu.IconStatusCode = res.StatusCode
+			isu.IconStatusCode = resIcon.StatusCode
 		}
 
-		return isu, errors
+		errors = append(errors, validateIsu(res, isu)...)
 	}
-	errors = append(errors, validateIsu(res, isu)...)
-	return nil, errors
+	return isu, errors
 }
 
 func browserGetIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req service.GetIsuConditionRequest,
@@ -766,6 +766,23 @@ func AgentStaticDo(ctx context.Context, user AgentWithStaticCache, req *http.Req
 	return res, nil
 }
 
+type AgentWithStaticCache interface {
+	SetStaticCache(path string, hash [16]byte)
+	GetStaticCache(path string, req *http.Request) ([16]byte, bool)
+
+	GetAgent() *agent.Agent
+}
+
+// User.StaticCachedHash を使って静的ファイルのキャッシュを更新する
+func AgentStaticDo(ctx context.Context, user AgentWithStaticCache, req *http.Request, cachePath string) (*http.Response, error) {
+	res, err := user.GetAgent().Do(ctx, req)
+	if err != nil {
+		return res, err
+	}
+
+	return res, nil
+}
+
 func getAssets(ctx context.Context, user AgentWithStaticCache, resIndex *http.Response, page PageType) []error {
 	errs := []error{}
 
@@ -781,7 +798,7 @@ func getAssets(ctx context.Context, user AgentWithStaticCache, resIndex *http.Re
 	case HomePage, IsuDetailPage, IsuConditionPage, IsuGraphPage, RegisterPage:
 		requireAssets = []string{faviconSvg, indexCss, vendorJs, indexJs /*logoWhite,*/}
 	case TrendPage:
-		requireAssets = []string{faviconSvg, indexCss, vendorJs, indexJs /*logoOrange, logoWhite,*/, vendorJs}
+		requireAssets = []string{faviconSvg, indexCss, vendorJs, indexJs /*logoOrange, logoWhite,*/}
 	default:
 		logger.AdminLogger.Panicf("意図していないpage(%d)のResourceCheckを行っています。(path: %s)", page, resIndex.Request.URL.Path)
 	}

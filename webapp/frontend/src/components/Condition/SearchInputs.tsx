@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import ButtonSub from '/@/components/UI/ButtonSub'
+import Button from '/@/components/UI/Button'
 import Input from '/@/components/UI/Input'
 import TimeInputs from './TimeInputs'
 import { ConditionRequest } from '/@/lib/apis'
@@ -24,7 +24,7 @@ const SearchInputs = ({ query, search }: Props) => {
         label="検索条件"
         value={tmpConditionLevel}
         setValue={setTmpConditionLevel}
-        classname="flex-1"
+        customClass="flex-1"
       />
       <TimeInputs
         start_time={tmpStartTime}
@@ -32,8 +32,10 @@ const SearchInputs = ({ query, search }: Props) => {
         setStartTime={setTmpStartTime}
         setEndTime={setTmpEndTime}
       />
-      <ButtonSub
+      <Button
+        customClass="px-3 py-1 h-8 leading-4 border border-primary rounded"
         label="検索"
+        disabled={!tmpConditionLevel}
         onClick={() => {
           if (
             !tmpConditionLevel
@@ -45,6 +47,7 @@ const SearchInputs = ({ query, search }: Props) => {
             alert(
               '検索条件には critical,warning,info のいずれか一つ以上をカンマ区切りで入力してください'
             )
+            return
           }
           const start_time = new Date(tmpStartTime)
           if (tmpStartTime && isNaN(start_time.getTime())) {
