@@ -690,7 +690,7 @@ func BrowserAccessIndexHtml(ctx context.Context, user AgentWithStaticCache, rpat
 		return []error{failure.NewError(ErrHTTP, err)}
 	}
 	// index.html の hash 検証
-	if err := errorAssetChecksum(res, user, "/index.html"); err != nil {
+	if err := errorAssetChecksum(req, res, user, "/index.html"); err != nil {
 		return []error{err}
 	}
 
@@ -707,7 +707,7 @@ func BrowserAccess(ctx context.Context, user AgentWithStaticCache, rpath string,
 		return []error{failure.NewError(ErrHTTP, err)}
 	}
 	// index.html の hash 検証
-	err = errorAssetChecksum(res, user, "/index.html")
+	err = errorAssetChecksum(req, res, user, "/index.html")
 	if err != nil {
 		return []error{err}
 	}
@@ -742,7 +742,7 @@ func AgentDo(a *agent.Agent, ctx context.Context, req *http.Request) (*http.Resp
 
 type AgentWithStaticCache interface {
 	SetStaticCache(path string, hash [16]byte)
-	GetStaticCache(path string) ([16]byte, bool)
+	GetStaticCache(path string, req *http.Request) ([16]byte, bool)
 
 	GetAgent() *agent.Agent
 }
@@ -770,9 +770,9 @@ func getAssets(ctx context.Context, user AgentWithStaticCache, resIndex *http.Re
 	var requireAssets []string
 	switch page {
 	case HomePage, IsuDetailPage, IsuConditionPage, IsuGraphPage, RegisterPage:
-		requireAssets = []string{faviconSvg, indexCss, indexJs /*logoWhite,*/, vendorJs}
+		requireAssets = []string{faviconSvg, indexCss, vendorJs, indexJs /*logoWhite,*/}
 	case TrendPage:
-		requireAssets = []string{faviconSvg, indexCss, indexJs /*logoOrange, logoWhite,*/, vendorJs}
+		requireAssets = []string{faviconSvg, indexCss, vendorJs, indexJs /*logoOrange, logoWhite,*/, vendorJs}
 	default:
 		logger.AdminLogger.Panicf("意図していないpage(%d)のResourceCheckを行っています。(path: %s)", page, resIndex.Request.URL.Path)
 	}
@@ -795,7 +795,7 @@ func getAssets(ctx context.Context, user AgentWithStaticCache, resIndex *http.Re
 				errsMx.Unlock()
 				return
 			}
-			err = errorAssetChecksum(res, user, path)
+			err = errorAssetChecksum(req, res, user, path)
 			if err != nil {
 				errsMx.Lock()
 				errs = append(errs, err)

@@ -1,6 +1,7 @@
 package model
 
 import (
+	"net/http"
 	"sync"
 
 	"github.com/isucon/isucandar/agent"
@@ -68,7 +69,7 @@ func (v *Viewer) SetStaticCache(path string, hash [16]byte) {
 	v.StaticCachedHash[path] = hash
 }
 
-func (v *Viewer) GetStaticCache(path string) ([16]byte, bool) {
+func (v *Viewer) GetStaticCache(path string, _ *http.Request) ([16]byte, bool) {
 	v.staticCacheMx.Lock()
 	defer v.staticCacheMx.Unlock()
 
