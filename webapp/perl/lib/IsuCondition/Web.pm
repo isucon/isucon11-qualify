@@ -16,6 +16,7 @@ use Cpanel::JSON::XS::Type;
 use Crypt::JWT qw(decode_jwt);
 use Furl;
 use Time::Moment;
+use Scalar::Util qw(looks_like_number);
 
 use constant {
     CONDITION_LIMIT              => 20,
@@ -604,10 +605,10 @@ sub get_isu_conditions($self, $c) {
     }
 
     my $end_time = $c->req->parameters->{'end_time'};
-    if (!$end_time) { #TODO
-        #$end_timeInt64, err = strconv.ParseInt(c.QueryParam("end_time"), 10, 64)
+    if (!looks_like_number($end_time)) {
         $c->halt_text(HTTP_BAD_REQUEST, "bad format: end_time");
     }
+    $end_time = mysql_datetime_from_unix($end_time);
 
     my $condition_level_csv = $c->req->parameters->{'condition_level'};
     if (!$condition_level_csv) {
@@ -619,9 +620,11 @@ sub get_isu_conditions($self, $c) {
     }
 
     my $start_time = $c->req->parameters->{'start_time'};
-    if (!$start_time) { #TODO
-        #$start_timeInt64, err = strconv.ParseInt(c.QueryParam("start_time"), 10, 64)
-        $c->halt_text(HTTP_BAD_REQUEST, "bad format: start_time");
+    if ($start_time) {
+        if (!looks_like_number($start_time)) {
+            $c->halt_text(HTTP_BAD_REQUEST, "bad format: start_time");
+        }
+        $start_time = mysql_datetime_from_unix($start_time);
     }
 
     my $isu_name = $self->dbh->select_one(
@@ -632,25 +635,33 @@ sub get_isu_conditions($self, $c) {
         $c->halt_text(HTTP_NOT_FOUND, "not found: isu");
     }
 
-    my $conditions_response = $self->get_isu_conditions_from_db($jia_isu_uuid, $end_time, $condition_level, $start_time, CONDITION_LIMIT, $isu_name);
+    my $conditions_response = $self->get_isu_conditions_from_db(
+        $jia_isu_uuid,
+        $end_time,
+        $condition_level,
+        $start_time,
+        CONDITION_LIMIT,
+        $isu_name,
+    );
+
     return $c->render_json($conditions_response, json_type_arrayof(GetIsuConditionResponse));
 }
 
 # ISUのコンディションをDBから取得
 sub get_isu_conditions_from_db($self, $jia_isu_uuid, $end_time, $condition_level, $start_time, $limit, $isu_name) {
     my $conditions;
-    if ($start_time == 0) {
+    if (!$start_time) {
         $conditions = $self->dbh->select_all(
-            "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ?"+
-                "    AND `timestamp` < ?"+
+            "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ?".
+                "    AND `timestamp` < ?".
                 "    ORDER BY `timestamp` DESC",
             $jia_isu_uuid, $end_time,
         )
     } else {
         $conditions = $self->dbh->select_all(
-            "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ?"+
-                "    AND `timestamp` < ?"+
-                "    AND ? <= `timestamp`"+
+            "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ?".
+                "    AND `timestamp` < ?".
+                "    AND ? <= `timestamp`".
                 "    ORDER BY `timestamp` DESC",
             $jia_isu_uuid, $end_time, $start_time,
         )
@@ -665,13 +676,13 @@ sub get_isu_conditions_from_db($self, $jia_isu_uuid, $end_time, $condition_level
 
         if ($condition_level->{$c_level}) {
             push $conditions_response->@*, {
-                jia_isu_uuid => $c->{jia_isu_uuid},
-                isu_name => $isu_name,
-                timestamp =>  $c->{timestamp},
-                is_sitting => $c->{is_sitting},
-                condition =>  $c->{condition},
+                jia_isu_uuid   => $c->{jia_isu_uuid},
+                isu_name       => $isu_name,
+                timestamp      => $c->{timestamp},
+                is_sitting     => $c->{is_sitting},
+                condition      => $c->{condition},
                 ConditionLevel => $c_level,
-                message => $c->{message},
+                message        => $c->{message},
             };
         }
     }
