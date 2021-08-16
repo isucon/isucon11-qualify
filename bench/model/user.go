@@ -1,6 +1,12 @@
 package model
 
 import (
+	"bytes"
+	"crypto/md5"
+	"io"
+	"net/http"
+	"sync"
+
 	"github.com/isucon/isucandar/agent"
 	"github.com/isucon/isucon11-qualify/bench/random"
 )
@@ -23,6 +29,10 @@ type User struct {
 	PostIsuFinish           int32
 
 	Agent *agent.Agent
+
+	// asset名がキー、そのhashが値
+	staticCacheMx    sync.Mutex
+	StaticCachedHash map[string][16]byte
 }
 
 func NewRandomUserRaw(userType UserType, isIsuconUser bool) (*User, error) {
@@ -39,6 +49,8 @@ func NewRandomUserRaw(userType UserType, isIsuconUser bool) (*User, error) {
 		IsuListByID:             map[string]*Isu{},
 		PostIsuFinish:           0,
 		Agent:                   nil,
+		staticCacheMx:           sync.Mutex{},
+		StaticCachedHash:        make(map[string][16]byte),
 	}, nil
 }
 
@@ -52,4 +64,42 @@ func (user *User) CloseAllIsuStateChan() {
 	for _, isu := range user.IsuListByID {
 		close(isu.StreamsForScenario.StateChan)
 	}
+}
+
+func (u *User) GetAgent() *agent.Agent {
+	return u.Agent
+}
+
+func (u *User) SetStaticCache(path string, hash [16]byte) {
+	u.staticCacheMx.Lock()
+	defer u.staticCacheMx.Unlock()
+
+	if u.StaticCachedHash == nil {
+		u.StaticCachedHash = map[string][16]byte{}
+	}
+
+	u.StaticCachedHash[path] = hash
+}
+
+func (u *User) GetStaticCache(path string, req *http.Request) ([16]byte, bool) {
+	u.staticCacheMx.Lock()
+	defer u.staticCacheMx.Unlock()
+
+	if u.StaticCachedHash == nil {
+		u.StaticCachedHash = map[string][16]byte{}
+	}
+
+	// NewUser内で投げっぱなしにしているリクエストと、他のところのリクエストの解決順で、304なのにキャッシュがない可能性があるため
+	if u.Agent.CacheStore != nil && req != nil {
+		cache := u.Agent.CacheStore.Get(req)
+		if cache != nil {
+			body, err := io.ReadAll(bytes.NewReader(cache.Body()))
+			if err == nil {
+				u.StaticCachedHash[path] = md5.Sum(body)
+			}
+		}
+	}
+
+	hash, exist := u.StaticCachedHash[path]
+	return hash, exist
 }

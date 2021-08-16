@@ -12,6 +12,7 @@ const calcAllConditionLength = (trend: Trend) => {
 const TrendList = () => {
   const [trends, setTrends] = useState<TrendResponse>([])
   const [maxConditionCount, setMaxConditionCount] = useState(0)
+
   useEffect(() => {
     const update = async () => {
       const newTrends = await apis.getTrend()
@@ -32,10 +33,8 @@ const TrendList = () => {
     update()
   }, [])
 
-  if (trends.length === 0) return <NowLoading />
-
   return (
-    <div>
+    <div className="relative">
       <h2 className="mb-6 text-xl font-bold">みんなのISU</h2>
       <TrendHeadeer />
       {trends.map(trend => (
@@ -45,6 +44,7 @@ const TrendList = () => {
           maxConditionCount={maxConditionCount}
         />
       ))}
+      {trends.length === 0 ? <NowLoading /> : null}
     </div>
   )
 }

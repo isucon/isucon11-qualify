@@ -5,3 +5,4 @@ target/
 output/
 packer_cache/
 files/tls-*.pem
+isucon11-portal.key
