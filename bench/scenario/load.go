@@ -309,10 +309,12 @@ func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep
 		}
 
 		requestTime := time.Now()
-		trend, res, err := browserGetLandingPageAction(ctx, viewer.Agent)
-		if err != nil {
+		trend, res, errs := browserGetLandingPageAction(ctx, &viewer)
+		if len(errs) != 0 {
 			viewer.ErrorCount += 1
-			addErrorWithContext(ctx, step, err)
+			for _, err := range errs {
+				addErrorWithContext(ctx, step, err)
+			}
 			continue
 		}
 		updatedCount, err := s.verifyTrend(ctx, res, viewer, trend, requestTime)
@@ -892,17 +894,19 @@ func signoutScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *m
 	// signout したらトップページに飛ぶ(MEMO: 初期状態だと trend おもすぎて backend をころしてしまうかも)
 	go func() {
 		// 登録済みユーザーは trend に興味はないので verify はせず投げっぱなし
-		if err := browserGetLandingPageIgnoreAction(ctx, user.Agent); err != nil {
-			addErrorWithContext(ctx, step, err)
+		if errs := browserGetLandingPageIgnoreAction(ctx, user); errs != nil {
+			for _, err := range errs {
+				addErrorWithContext(ctx, step, err)
+			}
 			// return するとこのあとのログイン必須なシナリオが回らないから return はしない
 		}
 	}()
 
-	authInfinityRetry(ctx, user.Agent, user.UserID, step)
+	authInfinityRetry(ctx, user, user.UserID, step)
 }
 
 // signoutScenario 以外からは呼ばない(シナリオループの最後である必要がある)
-func authInfinityRetry(ctx context.Context, a *agent.Agent, userID string, step *isucandar.BenchmarkStep) {
+func authInfinityRetry(ctx context.Context, user *model.User, userID string, step *isucandar.BenchmarkStep) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -910,14 +914,14 @@ func authInfinityRetry(ctx context.Context, a *agent.Agent, userID string, step 
 			return
 		default:
 		}
-		_, errs := authAction(ctx, a, userID)
+		_, errs := authAction(ctx, user, userID)
 		if len(errs) > 0 {
 			for _, err := range errs {
 				addErrorWithContext(ctx, step, err)
 			}
 			continue
 		}
-		me, hres, err := getMeAction(ctx, a)
+		me, hres, err := getMeAction(ctx, user.GetAgent())
 		if err != nil {
 			addErrorWithContext(ctx, step, err)
 			continue
