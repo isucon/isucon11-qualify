@@ -43,7 +43,7 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 	step.Result().Score.Set(ScoreTodayGraphNormal, 40)
 	step.Result().Score.Set(ScoreTodayGraphBad, 24)
 	step.Result().Score.Set(ScoreTodayGraphWorst, 4)
-	step.Result().Score.Set(ScoreReadInfoCondition, 40)
+	step.Result().Score.Set(ScoreReadInfoCondition, 50)
 	step.Result().Score.Set(ScoreReadWarningCondition, 20)
 	step.Result().Score.Set(ScoreReadCriticalCondition, 10)
 
@@ -327,6 +327,8 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 					step.AddError(err)
 					return
 				}
+
+				// TODO: 初期データに間違いがないかチェックする
 				isu.JIAIsuUUID = jiaIsuUUID
 				err = verifyIsu(res, isu, resIsu)
 				if err != nil {

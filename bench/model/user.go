@@ -1,7 +1,7 @@
 package model
 
 import (
-	"crypto/md5"
+	"crypto/md5
 	"net/http"
 	"sync"
 

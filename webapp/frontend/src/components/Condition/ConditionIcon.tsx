@@ -1,36 +1,36 @@
 import { FaWeightHanging } from 'react-icons/fa'
-import { MdBrokenImage } from 'react-icons/md'
-import { GiSplash } from 'react-icons/gi'
-
+import { BsWrench } from 'react-icons/bs'
+import { AiOutlineClear } from 'react-icons/ai'
 interface Props {
   name: string
   status: boolean
 }
 
 const ConditionIcon = ({ name, status }: Props) => {
-  const iconSize = 20
-  const icon = (() => {
+  const icon = () => {
     switch (name) {
       case 'is_dirty':
-        return <GiSplash size={iconSize} />
+        return <AiOutlineClear size={24} />
       case 'is_overweight':
-        return <FaWeightHanging size={iconSize} />
+        return <FaWeightHanging size={18} />
       case 'is_broken':
-        return <MdBrokenImage size={iconSize} />
+        return <BsWrench size={20} />
     }
-  })()
+  }
 
-  const color = (() => {
-    switch (status) {
-      case true:
-        return 'text-primary'
-      case false:
-        return 'text-teritary'
-    }
-  })()
-
-  const className = `${color}`
-  return <div className={className}>{icon}</div>
+  return (
+    <div>
+      <div
+        data-tip={name}
+        data-place="top"
+        className={
+          'flex items-center text-primary ' + (status || ' opacity-30')
+        }
+      >
+        {icon()}
+      </div>
+    </div>
+  )
 }
 
 export default ConditionIcon
