@@ -273,7 +273,7 @@ sub get_isu_list($self, $c) {
             my ($condition_level, $e) = calculate_condition_level($last_condition->{condition});
             if ($e) {
                 warnf($e);
-                return $c->halt_no_content(HTTP_INTERNAL_SERVER_ERROR);
+                $c->halt_no_content(HTTP_INTERNAL_SERVER_ERROR);
             }
 
             $formatted_condition = {
@@ -297,7 +297,7 @@ sub get_isu_list($self, $c) {
         push $response_list->@* => $res;
     }
 
-    # TODO
+    # FIXME
     #return $c->render_json($response_list, json_type_arrayof(GetIsuListResponse));
     return $c->render_json($response_list);
 }
@@ -419,17 +419,13 @@ sub get_isu_graph($self, $c) {
 
     my $jia_isu_uuid = $c->args->{'jia_isu_uuid'};
     my $datetime = $c->req->parameters->{'datetime'};
-
     if (!$datetime) {
         $c->halt_text(HTTP_BAD_REQUEST, "missing: datetime");
     }
-    # FIXME
-    my $date = $datetime;
-    #    datetimeInt64, err = strconv.ParseInt(datetimeStr, 10, 64)
-    #    if err != nil {
-    #        return c.String(http.StatusBadRequest, "bad format: datetime")
-    #    }
-    #    date = time.Unix(datetimeInt64, 0).Truncate(time.Hour)
+    if (!looks_like_number($datetime)) {
+        $c->halt_text(HTTP_BAD_REQUEST, "bad format: datetime");
+    }
+    my $date = tm_from_unix($datetime)->strftime('%Y-%m-%d %H:00:00');
 
     my $count = $self->select_one(
         "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
@@ -448,23 +444,23 @@ sub generate_isu_graph_response($self, $jia_isu_uuid, $graph_date) {
     my $data_points = [];
     my $conditions_in_this_hour = [];
     my $timestamps_in_this_hour = [];
-    my $start_time_in_this_hour;
-    my $condition;
+    my $start_time_in_this_hour = '';
+    my $condition = {};
 
     my $rows = $self->dbh->select_all(
         "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` ASC", $jia_isu_uuid);
 
     for my $condition ($rows->@*) {
-        my $truncated_condition_time = $condition->{timestamp}; # FIXME truncate hour
+        my $truncated_condition_time = tm_from_mysql_datetime($condition->{timestamp})->strftime('%Y-%m-%d %H:00:00');
 
-        if ($truncated_condition_time != $start_time_in_this_hour) {
+        if ($truncated_condition_time ne $start_time_in_this_hour) {
             if ($conditions_in_this_hour->@* > 0) {
                 my $data = calculate_graph_data_point($conditions_in_this_hour);
 
                 push $data_points->@* => {
-                    jia_isu_uuid => $jia_isu_uuid,
-                    start_at => $start_time_in_this_hour,
-                    data => $data,
+                    jia_isu_uuid         => $jia_isu_uuid,
+                    start_at             => $start_time_in_this_hour,
+                    data                 => $data,
                     condition_timestamps => $timestamps_in_this_hour,
                 };
             }
@@ -472,30 +468,32 @@ sub generate_isu_graph_response($self, $jia_isu_uuid, $graph_date) {
             $start_time_in_this_hour = $truncated_condition_time
         }
         push $conditions_in_this_hour->@*, $condition;
-        push $timestamps_in_this_hour->@*, $condition->{timestamp};
+        push $timestamps_in_this_hour->@*, unix_from_mysql_datetime($condition->{timestamp});
     }
 
     if ($conditions_in_this_hour->@* > 0) {
         my $data = calculate_graph_data_point($conditions_in_this_hour);
         push $data_points->@* => {
-            jia_isu_uuid => $jia_isu_uuid,
-            start_at => $start_time_in_this_hour,
-            data => $data,
+            jia_isu_uuid         => $jia_isu_uuid,
+            start_at             => $start_time_in_this_hour,
+            data                 => $data,
             condition_timestamps => $timestamps_in_this_hour,
         };
     }
 
-    my $end_time = $graph_date;
-    # FIXME
-    # = graphDate.Add(time.Hour * 24)
+    my $tm_graph_date = tm_from_mysql_datetime($graph_date);
+    my $tm_end_time = $tm_graph_date->plus_hours(24);
+
     my $start_index = $data_points->@*;
     my $end_next_index = $data_points->@*;
     for (my $i = 0; $i < $data_points->@*; $i++) {
-        my $graph = $data_points->[$i];
-        if ($start_index == $data_points->@* && $graph->{start_at} >= $graph_date) {
+        my $graph       = $data_points->[$i];
+        my $tm_start_at = tm_from_mysql_datetime($graph->{start_at});
+
+        if ($start_index == $data_points->@* && $tm_start_at >= $tm_graph_date) {
             $start_index = $i;
         }
-        if ($end_next_index == $data_points->@* and $graph->{start_at} <= $end_time) {
+        if ($end_next_index == $data_points->@* and $tm_start_at <= $tm_end_time) {
             $end_next_index = $i;
         }
     }
@@ -507,30 +505,31 @@ sub generate_isu_graph_response($self, $jia_isu_uuid, $graph_date) {
 
     my $response_list = [];
     my $index = 0;
-    my $this_time = $graph_date;
+    my $tm_this_time = $tm_graph_date;
 
-    while ($this_time < $graph_date + 24) { # FIXME
+    while ($tm_this_time < $tm_graph_date->plus_hours(24)) {
         my $data;
         my $timestamps = [];
+        my $this_time = mysql_datetime($tm_this_time);
 
         if ($index < $filtered_data_points->@*) {
             my $data_with_info = $filtered_data_points->[$index];
 
-            if ($data_with_info->{start_at} == $this_time) {
-                $data = $data_with_info->{data};
+            if ($data_with_info->{start_at} eq $this_time) {
+                $data       = $data_with_info->{data};
                 $timestamps = $data_with_info->{condition_timestamps};
                 $index++;
             }
         }
 
         push $response_list->@* => {
-            start_at => $this_time,
-            end_at => $this_time, # FIXME + add 1 hour
-            data => $data,
+            start_at             => unix($tm_this_time),
+            end_at               => unix($tm_this_time->plus_hours(1)),
+            data                 => $data,
             condition_timestamps => $timestamps,
         };
 
-        $this_time = $this_time + 1; # FIXME add 1 hour
+        $tm_this_time = $tm_this_time->plus_hours(1);
     }
 
     return $response_list;
@@ -578,18 +577,18 @@ sub calculate_graph_data_point($isu_conditions) {
 
     my $score = $raw_score / $isu_conditions_length;
 
-    my $sitting_percentage = $sitting_count * 100 / $isu_conditions_length;
-    my $is_broken_percentage = $conditions_count->{"is_broken"} * 100 / $isu_conditions_length;
+    my $sitting_percentage       = $sitting_count * 100 / $isu_conditions_length;
+    my $is_broken_percentage     = $conditions_count->{"is_broken"} * 100 / $isu_conditions_length;
     my $is_overweight_percentage = $conditions_count->{"is_overweight"} * 100 / $isu_conditions_length;
-    my $is_dirty_percentage = $conditions_count->{"is_dirty"} * 100 / $isu_conditions_length;
+    my $is_dirty_percentage      = $conditions_count->{"is_dirty"} * 100 / $isu_conditions_length;
 
     my $data_point = {
         score => $score,
         percentage => {
-            sitting => $sitting_percentage,
-            is_broken => $is_broken_percentage,
+            sitting       => $sitting_percentage,
+            is_broken     => $is_broken_percentage,
             is_overweight => $is_overweight_percentage,
-            is_dirty => $is_dirty_percentage,
+            is_dirty      => $is_dirty_percentage,
         },
     };
     return $data_point;
@@ -716,9 +715,7 @@ sub calculate_condition_level($condition) {
 # GET /api/trend
 # ISUの性格毎の最新のコンディション情報
 sub get_trend($self, $c) {
-    $c->halt(503); # FIXME
-
-    my $character_list = $self->select_all(
+    my $character_list = $self->dbh->select_all(
         "SELECT `character` FROM `isu` GROUP BY `character`");
 
     my $trend_response = [];
@@ -738,10 +735,14 @@ sub get_trend($self, $c) {
 
             if ($conditions->@* > 0) {
                 my $isu_last_condition = $conditions->[0];
-                my $condition_level = calculateConditionLevel($isu_last_condition->{condition});
+                my ($condition_level, $e) = calculate_condition_level($isu_last_condition->{condition});
+                if ($e) {
+                    warnf($e);
+                    $c->halt_no_content(HTTP_INTERNAL_SERVER_ERROR);
+                }
                 my $trend_condition = {
-                    id => $isu->{id},
-                    timestamp => $isu->{timestamp},
+                    isu_id    => $isu->{id},
+                    timestamp => unix_from_mysql_datetime($isu_last_condition->{timestamp}),
                 };
                 push $character_isu_conditions->{$condition_level}->@* => $trend_condition;
             }
@@ -755,9 +756,9 @@ sub get_trend($self, $c) {
 
         push $trend_response->@* => {
             character => $character->{character},
-            info      => $character_isu_conditions->{info},
-            warning   => $character_isu_conditions->{warning},
-            critical  => $character_isu_conditions->{critical},
+            info      => $character_isu_conditions->{info}     // [],
+            warning   => $character_isu_conditions->{warning}  // [],
+            critical  => $character_isu_conditions->{critical} // [],
         };
     }
 
@@ -892,16 +893,36 @@ sub dbh {
 
 sub unix_from_mysql_datetime {
     my $str = shift;
-    my $tm = Time::Moment->from_string($str.'+09', lenient => 1);
-    return $tm->epoch;
+    my $tm = tm_from_mysql_datetime($str);
+    return unix($tm);
 }
 
 sub mysql_datetime_from_unix {
     my $epoch = shift;
-    my $tm = Time::Moment->from_epoch($epoch);
+    my $tm = tm_from_unix($epoch);
+    return mysql_datetime($tm)
+}
+
+sub unix {
+    my $tm = shift;
+    return $tm->epoch + $tm->offset * 60;
+}
+
+sub mysql_datetime {
+    my $tm = shift;
     return $tm->strftime("%Y-%m-%d %H:%M:%S");
 }
 
+sub tm_from_mysql_datetime {
+    my $str = shift;
+    my $zone = '+09'; # XXX: Asia/Tokyo 固定
+    return Time::Moment->from_string($str.$zone, lenient => 1);
+}
+
+sub tm_from_unix {
+    my $epoch = shift;
+    return Time::Moment->from_epoch($epoch);
+}
 
 # XXX hack Kossy
 {
