@@ -8,7 +8,7 @@ EnvironmentFile=/home/isucon/env.sh
 
 User=isucon
 Group=isucon
-ExecStart=/home/isucon/local/python/bin/python app.py
+ExecStart=/home/isucon/local/python/bin/python main.py
 
 Restart   = always
 Type      = simple

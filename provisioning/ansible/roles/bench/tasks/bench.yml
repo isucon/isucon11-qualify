@@ -1,17 +1,15 @@
 ---
-- name: "roles/bench/tasks/bench: Run assets gen"
-  environment:
-    PATH: "/home/isucon/local/go/bin:{{ ansible_env.PATH }}"
-  shell: go generate /tmp/isucon11-qualify/bench/gen/assets.go
-
-- name: "roles/bench/tasks/bench: Deploy isucon11-qualify bench"
+- name: "roles/bench/tasks/bench: Deploy isucon11-qualify bench & source data (webapp/frontend)"
   become_user: isucon
   copy:
     remote_src: yes
-    src: /tmp/isucon11-qualify/bench
+    src: "{{ item }}"
     dest: /home/isucon/
     owner: isucon
     group: isucon
+  with_items:
+    - /tmp/isucon11-qualify/bench
+    - /tmp/isucon11-qualify/webapp
 
 - name: "roles/bench/tasks/bench: Deploy initial-data for bench"
   become_user: isucon
@@ -28,4 +26,4 @@
   environment:
     PATH: "/home/isucon/local/go/bin:{{ ansible_env.PATH }}"
   shell: |
-    go build -o bench .
+    make build
