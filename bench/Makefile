@@ -1,8 +1,7 @@
 COMMIT=$(shell cat /etc/REVISION 2>/dev/null || git rev-parse --short HEAD)
-DIRTY=$(shell git diff --quiet || echo '+dirty')
 
 GOPRIVATE="github.com/isucon"
-GOLDFLAGS=-X main.COMMIT=$(COMMIT)$(DIRTY)
+GOLDFLAGS=-X main.COMMIT=$(COMMIT)
 # race detector
 GO_BUILD_RACE:=-race
 ifdef RELEASE
