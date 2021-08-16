@@ -1162,7 +1162,7 @@ func postIsuCondition(c echo.Context) error {
 	dropProbability := 0.9
 	if rand.Float64() <= dropProbability {
 		c.Logger().Warnf("drop post isu condition request")
-		return c.NoContent(http.StatusServiceUnavailable)
+		return c.NoContent(http.StatusAccepted)
 	}
 
 	jiaIsuUUID := c.Param("jia_isu_uuid")
@@ -1220,7 +1220,7 @@ func postIsuCondition(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	return c.NoContent(http.StatusCreated)
+	return c.NoContent(http.StatusAccepted)
 }
 
 // ISUのコンディションの文字列がcsv形式になっているか検証
