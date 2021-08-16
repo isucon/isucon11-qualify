@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect } from 'react'
+import { useCallback, useState } from 'react'
 import apis, { ConditionRequest, Isu } from '/@/lib/apis'
 import ConditionNavigator from '/@/components/Condition/ConditionNavigator'
 import ConditionList from '/@/components/Condition/ConditionList'
