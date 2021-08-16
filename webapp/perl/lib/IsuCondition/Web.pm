@@ -753,7 +753,7 @@ sub post_isu_condition($self, $c) {
     my $drop_probability = 0.9;
     if (rand() <= $drop_probability) {
         warnf("drop post isu condition request");
-        $c->halt_no_content(HTTP_SERVICE_UNAVAILABLE);
+        $c->halt_no_content(HTTP_ACCEPTED);
     }
 
     my $jia_isu_uuid = $c->args->{'jia_isu_uuid'};
@@ -797,7 +797,7 @@ sub post_isu_condition($self, $c) {
         $c->halt_no_content(HTTP_INTERNAL_SERVER_ERROR);
     }
 
-    return $c->halt_no_content(HTTP_CREATED);
+    return $c->halt_no_content(HTTP_ACCEPTED);
 }
 
 # ISUのコンディションの文字列がcsv形式になっているか検証
