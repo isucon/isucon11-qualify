@@ -156,41 +156,15 @@ SSH ログインのユーザ名は `isucon` です。
 
 ### 2. アプリケーションの動作確認
 
-Web ブラウザで以下の URL にアクセスすることで， ISUCONDITION のトップページを閲覧できます。
+#### 2.1 ブラウザからの ISUCONDITION の動作確認
 
-- `https://<Elastic IP アドレス 1,2,3>:5000/`
+初期状態ではサーバーの Elastic IP アドレスに、Web ブラウザから HTTPS で `GET /` へアクセスするとアプリケーションが表示されます。
+サーバーの Elastic IP アドレスにアクセスすると TLS 証明書の検証エラーが表示されますが、このエラーを回避するにはサーバーの Elastic IP アドレスが `54.150.88.xx` だった場合、Mac や Linux であれば `/etc/hosts` に以下の行を追加する必要があります。
 
-なお、ブラウザから ISUCONDITION のすべての機能の動作確認をするには、ブラウザからサーバー内部の JIA API Mock (Japan ISU Association のサービスを模した開発用モック) へアクセスできるようにするため、ポートフォワーディングの設定が必要です．
-詳細は `ブラウザからの ISUCONDITION の動作確認` の節を確認してください．
-
-### 3. 負荷走行 (ベンチマーク)
-
-** ToDo **
-- ポータルサイトのページ名を確認し修正
-- 可能であれば参加者を「選手」もしくは「予選参加者」に修正
-
-負荷走行はポータルサイト上からリクエストします。
-ポータルサイトの [競技参加者向けページ](https://portal.isucon.net/contestant) にアクセスし、 "Job Enqueue Form" から負荷走行対象のサーバーを選択、"Enqueue" をクリックすることで負荷走行のリクエストが行われ、順次開始されます。
-
-なお、負荷走行が待機中 (PENDING) もしくは実行中 (RUNNING) の間は追加の Enqueue を行うことはできません。
-
-負荷走行を行うと JIA API Mock のエンドポイントがベンチマーカーによって変更されるため、負荷走行後にブラウザから ISU の登録など JIA と連携した操作時にエラーが出ます。
-エラーの解消には JIA API Mock のエンドポイントの再設定が必要となります。詳細については "JIA API Mock" の項をご確認ください。
-
-## ブラウザからの ISUCONDITION の動作確認
-
-### 1 ポートフォワーディング
-
-ブラウザから ISUCONDITION の動作確認をするには、ブラウザからサーバー上の 5000番ポートで待ち受けている JIA API Mock へアクセスできるようにするため、ポートフォワーディングが必要です。
-
-以下に[SSH におけるローカルポートフォワーディング](https://help.ubuntu.com/community/SSH/OpenSSH/PortForwarding#Local_Port_Forwarding) を実行するコマンドを例示します。
-これは「リモートホスト `isucon-server1` に SSH 接続をした上で」「ローカルの `localhost:5000` への TCP 接続を」「リモートホストを通して `isucondition-1.t.isucon.dev` へ転送する」というコマンドです。
-
-```shell
-$ ssh -L localhost:5000:isucondition-1.t.isucon.dev:5000 isucon-server1
+例:
 ```
-
-### 2 ISUCONDITION へのログイン
+54.150.88.xx isucondition.t.isucon.dev
+```
 
 ログインには Japan ISU Association（以下 JIA）のアカウントが必要です。
 下記の 4 ユーザが登録されているので、動作確認にご利用ください。
@@ -202,16 +176,9 @@ $ ssh -L localhost:5000:isucondition-1.t.isucon.dev:5000 isucon-server1
 | isucon2    | isucon2    | 初期ユーザ |
 | isucon3    | isucon3    | 初期ユーザ |
 
-MEMO: 本番ではHTTPSで接続できるようにするので `/etc/hosts` 周りの話を追記する
 
-### 3 ISU の登録
-
-ISU の登録はログイン後に以下の URL で行うことができます。
-以下の URL には ISUCONDITION の「ISU の登録」ボタンからも遷移できます
-
-- `https://<Elastic IP アドレス 1,2,3>/register`
-
-アプリケーションの動作確認用に以下の JIA ISU ID が登録に使うことができます。
+ISU の登録には JIA が管理する JIA ISU ID が必要となります。
+アプリケーションの動作確認には以下の JIA ISU ID を利用することができます。
 
 | JIA ISU ID                           |
 |--------------------------------------|
@@ -226,51 +193,56 @@ ISU の登録はログイン後に以下の URL で行うことができます�
 | 57d600ef-15b4-43bc-ab79-6399fab5c497 |
 | aa0844e6-812d-41d2-908a-eeb82a50b627 |
 
-ISU を登録すると、 JIA API Mock から設定した URL に対してコンディションの送信が開始されます。
+ISU を登録すると、 JIA API Mock  (Japan ISU Association のサービスを模した開発用モック)から設定した URL に対してコンディションの送信が開始されます。
 
-## コンソールからの ISUCONDITION の動作確認
+#### 2.2 コンソールからの ISUCONDITION の動作確認
 
-トークンの取得と cookie の設定を行うことで、コンソールからも ISUCONDITION の動作確認が可能です。
+JIA からトークンを取得し、ISUCONDITION へ取得したトークンを使いログインを行い、cookie の設定を行うことで、コンソールからも ISUCONDITION の動作確認が可能です。
 以下、コンソールからの動作確認方法の一例を示します。
 
-### 1. JIA API からの トークンの取得
+##### JIA API からの トークンの取得
 
 ```
-$ TOKEN=`curl -sf -H 'content-type: application/json' http://localhost:5000/api/auth -d '{"user": "isucon", "password": "isucon"}'`
+$ TOKEN=`curl -sf -H 'content-type: application/json' http://<Elastic IP アドレス>:5000/api/auth -d '{"user": "isucon", "password": "isucon"}'`
 ```
 
-JIA API に送信する `user` と `password` には、 `2.2 ISUCONDITION のログイン` に記載されているものを用いてください。
+JIA API に送信する `user` と `password` には、 "2.1 ブラウザからの ISUCONDITION の動作確認" に記載されているものを用いてください。
 JIA API から発行されるトークンの有効期限は、発行から30分となります。
 
-### 2. トークンを使った cookie の設定
+#####  トークンを使った cookie の設定
 
 ```
-$ curl -c cookie.txt -vf -XPOST -H "authorization: Bearer ${TOKEN}" http://localhost:3000/api/auth
+$ curl -c cookie.txt -vf -XPOST -H "authorization: Bearer ${TOKEN}" https://<Elastic IP アドレス>/api/auth
 ```
 
 一例として、cookie を使い `GET /api/isu` にアクセスします。
 
 ```
-$ curl -b cookie.txt http://localhost:3000/api/isu
+$ curl -b cookie.txt https://<Elastic IP アドレス>/api/isu
 ```
 
-### 3. ISU からのコンディションを受け取る `POST /api/condition/:jia_isu_uuid` の検証
+##### ISU からのコンディションを受け取る `POST /api/condition/:jia_isu_uuid` の検証
 
 ISU からのコンディションを受け取る `POST /api/condition/:jia_isu_uuid` は、 
-アクティベートを行った ISU であれば、以下のようにコンソールでコンディションを送信することが可能です。
-JIA ISU ID は、"2.3 ISU の登録" に記載されているものをもちいてください。 
+アクティベートを行った ISU であれば、以下のようにコンソールからもコンディションを受け取ることが可能です。
+JIA ISU ID は、"2.1 ブラウザからの ISUCONDITION の動作確認" に記載されているものを利用してください。 
 
 ```
 $ export JIA_ISU_UUID=0694e4d7-dfce-4aec-b7ca-887ac42cfb8f
-$ curl -XPOST -H 'content-type: application/json' http://localhost:3000/api/condition/${JIA_ISU_UUID} \
+$ curl -XPOST -H 'content-type: application/json' https://<Elastic IP アドレス>/api/condition/${JIA_ISU_UUID} \
 -d '[{"is_sitting": true, "condition": "is_dirty=true,is_overweight=true,is_broken=true","message":"test","timestamp": 1628492991}]'
 ```
 
-## JIA API Mock
+### 3. 負荷走行 (ベンチマーク)
 
-JIA API Mock は、開発用に用いられる JIA API のモックです。
-JIA API Mock は、サーバーの 5000 番で待ち受けています。
+負荷走行はポータルサイト上からリクエストします。
+ポータルサイトの [ISUCON11 Contestant](https://portal.isucon.net/contestant) にアクセスし、 "Job Enqueue Form" から負荷走行対象のサーバーを選択、"Enqueue" をクリックすることで負荷走行のリクエストが行われ、順次開始されます。
 
+なお、負荷走行が待機中 (PENDING) もしくは実行中 (RUNNING) の間は追加の Enqueue を行うことはできません。
+
+### JIA API Mock　について
+
+JIA API Mock は、ISUCONDITION の開発用に用いられる JIA の API モックとして、サーバーのポート 5000 番で待ち受けます。
 JIA API Mock は以下のエンドポイントと、 ISU からのコンディション送信を模擬したリクエストを送る機能を持っています。
 
 - `GET /` - ブラウザから JIA へのログイン動作を確認するための画面を表示
@@ -279,7 +251,7 @@ JIA API Mock は以下のエンドポイントと、 ISU からのコンディ�
 - 登録した ISU から ISUCONDITION へ向けたコンディションの送信
 
 - JIA のログインページ
-  - `https://<Elastic IP アドレス 1,2,3>:5000/`
+  - `http://<Elastic IP アドレス>:5000/`
 
 JIA API のエンドポイント仕様は [ISUCONDITION アプリケーションマニュアル](./isucondition.md)を参照してください。
 
@@ -297,6 +269,29 @@ $ sudo systemctl [stop|restart] jiaapi-mock.service
 ```
 curl -sf -H 'content-type: application/json' https://<Elastic IP アドレス 1,2,3>/initialize -d '{"jia_service_url": "http://localhost:5000"}'
 ```
+
+#### JIA API Mock の URL 設定
+
+負荷走行後の ISUCONDITION はベンチマーカーが設定した JIA のエンドポイントが設定されているため、上記の設定を行っていても ISUCONDITIONから `500 Internal Server Error` が返されるエンドポイントがあります。
+負荷走行後に JIA API Mock を利用する際は、下記のように `POST /initialize` で JIA API Moc のエンドポイントを設定してください。
+
+```
+curl -sf -H 'content-type: application/json' https://<Elastic IP アドレス>/initialize -d '{"jia_service_url": "http://<Elastic IP アドレス>:5000"}'
+```
+
+#### JIA API Mock を用いたローカルでの開発方法
+
+ローカル環境で開発している ISUCONDITION に対して JIA API Mock を利用した検証を行うためには、サーバー上の 5000 番ポートで待ち受けている JIA API Mock へアクセスできるようにするため、ポートフォワーディングが必要です。
+
+以下に[SSH におけるローカルポートフォワーディング](https://help.ubuntu.com/community/SSH/OpenSSH/PortForwarding#Local_Port_Forwarding) を実行するコマンドを例示します。
+これは「リモートホスト `isucon-server1` に SSH 接続をした上で」「ローカルの `localhost:5000` への TCP 接続を」「リモートホストを通して `isucondition-1.t.isucon.dev` へ転送する」というコマンドです。
+
+```shell
+$ ssh -L localhost:5000:isucondition-1.t.isucon.dev:5000 isucon-server1
+```
+
+上記のローカルポートフォワーディングの設定を行った場合、ログインや ISU の登録（アクティベート）の機能は利用可能となりますが、登録した ISU からローカル環境で開発している ISUCONDITION へ向けたコンディションの送信はできません。"ISU からのコンディションを受け取る `POST /api/condition/:jia_isu_uuid` の検証" を参考に、コンソールから ISU のコンディション送信を行った検証を行ってください。
+
 
 ### データベースの初期化方法
 
@@ -331,6 +326,22 @@ sudo systemctl disable --now isucondition.go.service
 
 sudo systemctl enable --now isucondition.ruby.service
 ```
+
+### `/etc/hosts` ならびに `isucondition-[1-3].t.isucon.dev` ドメインについて
+
+サーバーには初期状態で、割り当てられている 3 台のサーバーの IP アドレスが事前に `/etc/hosts` へ登録されています。これらのホスト名は自由に利用して構いません (これを利用しなくても構いません)
+
+例:
+
+```
+192.168.0.11 isucondition-1.t.isucon.dev
+192.168.0.12 isucondition-2.t.isucon.dev
+192.168.0.13 isucondition-3.t.isucon.dev
+```
+
+`*.t.isucon.dev` の FQDN に関しては `127.0.0.1` (IPv6 は `::1`) の DNS レコードが登録されています。また、サーバーに配置されている TLS 証明書は subject name が `*.t.isucon.dev` であるため、この名前であれば TLS 証明書の検証が通る状態で HTTPS 接続等を行うことができるようになっています。
+
+ベンチマーカーには `192.168.0.11`,`192.168.0.12`,`192.168.0.13` ではなく Elastic IP アドレスを利用した `/etc/hosts` エントリが登録されています。負荷走行の際は、ベンチマーカーより負荷走行の対象となるサーバーに対応する `isucondition-1` ~ `isucondition-3.t.isucon.dev` のホスト名を利用した HTTPS 接続が行われます。その際、TLS 証明書検証が通る必要がある旨、留意してください。
 
 ### 時計について
 
