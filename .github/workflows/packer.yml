@@ -107,11 +107,13 @@ jobs:
       - run: npm run build
         working-directory: webapp/frontend
 
-      # *.t.isucon.dev の証明書を配置
-      - name: Save TLS Certificate
+      # *.t.isucon.dev の証明書と isucon11-portal アクセス用秘密鍵の配置
+      - name: Save Secrets
         run: |
           echo "${{ secrets.TLS_CERT }}" > files/tls-cert.pem
           echo "${{ secrets.TLS_KEY }}" > files/tls-key.pem
+          echo "${{ secrets.ISUCON11_PORTAL_KEY }}" > isucon11-portal.key
+          chmod 0600 isucon11-portal.key
 
       # packer に渡すファイルを生成
       - run: make clean
