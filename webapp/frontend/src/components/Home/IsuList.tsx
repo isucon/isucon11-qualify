@@ -5,13 +5,11 @@ import IsuImage from '/@/components/UI/IsuImage'
 import Tip from '/@/components/UI/Tip'
 import { Link } from 'react-router-dom'
 
-const LIMIT = 4
-
 const IsuList = () => {
   const [isus, setIsus] = useState<GetIsuListResponse[]>([])
   useEffect(() => {
     const fetchIsus = async () => {
-      setIsus(await apis.getIsus({ limit: LIMIT }))
+      setIsus(await apis.getIsus())
     }
     fetchIsus()
   }, [setIsus])
