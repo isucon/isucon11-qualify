@@ -1,5 +1,6 @@
 import { spawn } from "child_process";
-import fs from "fs";
+import { readFileSync } from "fs";
+import { readFile } from "fs/promises";
 import path from "path";
 
 import axios from "axios";
@@ -148,7 +149,7 @@ app.use(
     maxAge: 60 * 60 * 24 * 1000 * 30,
   })
 );
-app.set("cert", fs.readFileSync(jiaJWTSigningKeyPath));
+app.set("cert", readFileSync(jiaJWTSigningKeyPath));
 app.set("etag", false);
 
 async function getUserIdFromSession(
@@ -432,7 +433,7 @@ app.post(
 
         const image = req.file
           ? req.file.buffer
-          : fs.readFileSync(defaultIconFilePath);
+          : await readFile(defaultIconFilePath);
 
         await db.beginTransaction();
 
