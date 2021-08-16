@@ -10,6 +10,7 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"net/http"
 	"net/url"
@@ -473,10 +474,10 @@ func errorAssetChecksum(req *http.Request, res *http.Response, user AgentWithSta
 		if err != nil {
 			return err
 		}
-		user.SetStaticCache(path, md5.Sum(body))
+		user.SetStaticCache(path, crc32.ChecksumIEEE(body))
 	}
 
-	// md5でリソースの比較
+	// crc32でリソースの比較
 	expected := resourcesHash[path]
 	if expected == "" {
 		logger.AdminLogger.Panicf("意図していないpath(%s)のAssetResourceCheckを行っています。", path)
