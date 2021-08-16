@@ -268,10 +268,11 @@ JIA API Mock は以下のエンドポイントと、 ISU からのコンディ�
 JIA API のエンドポイント仕様は [ISUCONDITION アプリケーションマニュアル](./isucondition.md)を参照してください。
 
 JIA API Mock は ISU を登録（アクティベート）すると、指定された URL へのコンディションの送信を開始します。
-登録したISUからのコンディション送信を止める場合は、 JIA API Mock のサービスを以下のように再起動して下さい。
+登録したISUからのコンディション送信は JIA API Mock を停止/再起動するまで続きますので、負荷走行前には JIA API Mock を停止/再起動することをお勧めします。
+JIA API Mock のサービスを停止/再起動する場合は、 以下のコマンドを利用してください。
 
 ```shell
-$ sudo systemctl restart jiaapi-mock.service
+$ sudo systemctl [stop|restart] jiaapi-mock.service
 ```
 
 ### データベースの初期化方法
