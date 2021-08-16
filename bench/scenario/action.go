@@ -766,23 +766,6 @@ func AgentStaticDo(ctx context.Context, user AgentWithStaticCache, req *http.Req
 	return res, nil
 }
 
-type AgentWithStaticCache interface {
-	SetStaticCache(path string, hash [16]byte)
-	GetStaticCache(path string, req *http.Request) ([16]byte, bool)
-
-	GetAgent() *agent.Agent
-}
-
-// User.StaticCachedHash を使って静的ファイルのキャッシュを更新する
-func AgentStaticDo(ctx context.Context, user AgentWithStaticCache, req *http.Request, cachePath string) (*http.Response, error) {
-	res, err := user.GetAgent().Do(ctx, req)
-	if err != nil {
-		return res, err
-	}
-
-	return res, nil
-}
-
 func getAssets(ctx context.Context, user AgentWithStaticCache, resIndex *http.Response, page PageType) []error {
 	errs := []error{}
 
