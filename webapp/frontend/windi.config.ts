@@ -15,6 +15,7 @@ export default defineConfig({
         primary: colors.light[500],
         secondary: colors.light[50],
         button: colors.blueGray[900],
+        line: colors.trueGray[300],
         'accent-primary': mainColor,
         'status-info': colors.green[300],
         'status-warning': colors.yellow[300],

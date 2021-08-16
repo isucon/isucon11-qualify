@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom'
 
 const LIMIT = 4
 
-const Isus = () => {
+const IsuList = () => {
   const [isus, setIsus] = useState<GetIsuListResponse[]>([])
   useEffect(() => {
     const fetchIsus = async () => {
@@ -43,4 +43,4 @@ const Isus = () => {
   )
 }
 
-export default Isus
+export default IsuList
