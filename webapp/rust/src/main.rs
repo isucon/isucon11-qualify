@@ -1152,7 +1152,7 @@ async fn post_isu_condition(
     const DROP_PROBABILITY: f64 = 0.9;
     if rand::random::<f64>() <= DROP_PROBABILITY {
         log::warn!("drop post isu condition request");
-        return Err(actix_web::error::ErrorServiceUnavailable(""));
+        return Ok(HttpResponse::Accepted().finish());
     }
 
     if req.is_empty() {
@@ -1194,7 +1194,7 @@ async fn post_isu_condition(
 
     tx.commit().await.map_err(SqlxError)?;
 
-    Ok(HttpResponse::Created().finish())
+    Ok(HttpResponse::Accepted().finish())
 }
 
 // ISUのコンディションの文字列がcsv形式になっているか検証
