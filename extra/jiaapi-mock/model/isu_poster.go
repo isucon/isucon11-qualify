@@ -87,7 +87,7 @@ func (m *IsuConditionPoster) KeepPosting() {
 			}
 			defer resp.Body.Close()
 
-			if resp.StatusCode != 201 {
+			if resp.StatusCode != 201 && resp.StatusCode != 202 {
 				log.Errorf("failed to `POST %s` with status=`%s`", targetURL, resp.Status)
 				return // goto next loop
 			}
