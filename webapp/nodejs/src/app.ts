@@ -104,7 +104,7 @@ interface TrendCondition {
   timestamp: number;
 }
 
-const sessionName = "isucondition";
+const sessionName = "isucondition_nodejs";
 const conditionLimit = 20;
 const frontendContentsPath = "../public";
 const jiaJWTSigningKeyPath = "../ec256-public.pem";
