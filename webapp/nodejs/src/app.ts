@@ -684,10 +684,9 @@ async function generateIsuGraphResponse(
     [jiaIsuUUID]
   );
   for (const condition of rows) {
-    const truncatedConditionTime = new Date(
-      condition.timestamp.setHours(0, 0, 0)
-    );
-    if (truncatedConditionTime !== startTimeInThisHour) {
+    const truncatedConditionTime = new Date(condition.timestamp);
+    truncatedConditionTime.setMinutes(0, 0, 0);
+    if (truncatedConditionTime.getTime() !== startTimeInThisHour.getTime()) {
       if (conditionsInThisHour.length > 0) {
         const [data, err] = calculateGraphDataPoint(conditionsInThisHour);
         if (err) {
@@ -748,8 +747,7 @@ async function generateIsuGraphResponse(
 
     if (index < filteredDataPoints.length) {
       const dataWithInfo = filteredDataPoints[index];
-
-      if (dataWithInfo.startAt === thisTime) {
+      if (dataWithInfo.startAt.getTime() === thisTime.getTime()) {
         data = dataWithInfo.data;
         timestamps.push(...dataWithInfo.conditionTimeStamps);
         index++;
@@ -814,13 +812,18 @@ function calculateGraphDataPoint(
 
   const isuConditionLength = isuConditions.length;
   const score = rawScore / isuConditionLength;
-  const sittingPercentage = (sittingCount * 100) / isuConditionLength;
-  const isBrokenPercentage =
-    (conditionsCount["is_broken"] * 100) / isuConditionLength;
-  const isOverweightPercentage =
-    (conditionsCount["is_overweight"] * 100) / isuConditionLength;
-  const isDirtyPercentage =
-    (conditionsCount["is_dirty"] * 100) / isuConditionLength;
+  const sittingPercentage = Math.trunc(
+    (sittingCount * 100) / isuConditionLength
+  );
+  const isBrokenPercentage = Math.trunc(
+    (conditionsCount["is_broken"] * 100) / isuConditionLength
+  );
+  const isOverweightPercentage = Math.trunc(
+    (conditionsCount["is_overweight"] * 100) / isuConditionLength
+  );
+  const isDirtyPercentage = Math.trunc(
+    (conditionsCount["is_dirty"] * 100) / isuConditionLength
+  );
 
   const dataPoint: GraphDataPoint = {
     score,
