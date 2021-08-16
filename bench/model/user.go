@@ -1,6 +1,8 @@
 package model
 
 import (
+	"sync"
+
 	"github.com/isucon/isucandar/agent"
 	"github.com/isucon/isucon11-qualify/bench/random"
 )
@@ -23,6 +25,10 @@ type User struct {
 	PostIsuFinish           int32
 
 	Agent *agent.Agent
+
+	// asset名がキー、そのhashが値。1 goroutine からしか参照されないが prepare が怪しいので mutex をとっておく
+	staticCacheMx    sync.Mutex
+	StaticCachedHash map[string][16]byte
 }
 
 func NewRandomUserRaw(userType UserType, isIsuconUser bool) (*User, error) {
@@ -39,6 +45,7 @@ func NewRandomUserRaw(userType UserType, isIsuconUser bool) (*User, error) {
 		IsuListByID:             map[string]*Isu{},
 		PostIsuFinish:           0,
 		Agent:                   nil,
+		StaticCachedHash:        make(map[string][16]byte),
 	}, nil
 }
 
@@ -52,4 +59,21 @@ func (user *User) CloseAllIsuStateChan() {
 	for _, isu := range user.IsuListByID {
 		close(isu.StreamsForScenario.StateChan)
 	}
+}
+
+func (u *User) GetAgent() *agent.Agent {
+	return u.Agent
+}
+
+func (u *User) SetStaticCache(path string, hash [16]byte) {
+	u.staticCacheMx.Lock()
+	defer u.staticCacheMx.Unlock()
+	u.StaticCachedHash[path] = hash
+}
+
+func (u *User) GetStaticCache(path string) ([16]byte, bool) {
+	u.staticCacheMx.Lock()
+	defer u.staticCacheMx.Unlock()
+	hash, exist := u.StaticCachedHash[path]
+	return hash, exist
 }

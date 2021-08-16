@@ -75,7 +75,7 @@ func NewScenario(jiaServiceURL *url.URL, loadTimeout time.Duration) (*Scenario, 
 		prepareTimeout:    3 * time.Second,
 		mapIPAddrToFqdn:   make(map[string]string, 3),
 		mapFqdnToIPAddr:   make(map[string]string, 3),
-		normalUsers:       []*model.User{},
+		normalUsers:       make([]*model.User, 0),
 		isuFromID:         make(map[int]*model.Isu, 8192),
 	}, nil
 }
@@ -141,22 +141,24 @@ func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a
 		logger.AdminLogger.Panic(err)
 		return nil
 	}
+	user.Agent = a
 
 	//backendにpostする
 	go func() {
 		// 登録済みユーザーは trend に興味がないからリクエストを待たない
-		if err := browserGetLandingPageIgnoreAction(ctx, a); err != nil {
-			addErrorWithContext(ctx, step, err)
+		if errs := browserGetLandingPageIgnoreAction(ctx, user); len(errs) != 0 {
+			for _, err := range errs {
+				addErrorWithContext(ctx, step, err)
+			}
 		}
 	}()
-	_, errs := authAction(ctx, a, user.UserID)
+	_, errs := authAction(ctx, user, user.UserID)
 	for _, err := range errs {
 		addErrorWithContext(ctx, step, err)
 	}
 	if len(errs) > 0 {
 		return nil
 	}
-	user.Agent = a
 
 	// POST /api/auth をしたため GET /api/user/me を叩く
 	me, hres, err := getMeAction(ctx, user.Agent)
@@ -214,8 +216,8 @@ func (s *Scenario) NewIsuWithCustomImg(ctx context.Context, step *isucandar.Benc
 		isu.SetImage(req.Img)
 	}
 
-	res := &http.Response{}
-	isuResponse := &service.Isu{}
+	var res *http.Response
+	var isuResponse *service.Isu
 	if retry {
 		isuResponse, res = postIsuInfinityRetry(ctx, owner.Agent, req, step)
 		// res == nil => ctx.Done
@@ -242,8 +244,8 @@ func (s *Scenario) NewIsuWithCustomImg(ctx context.Context, step *isucandar.Benc
 		}
 	}
 
-	res = &http.Response{}
-	isuResponse = &service.Isu{}
+	// var res *http.Response
+	// var isuResponse *service.Isu
 	if retry {
 		isuResponse, res = getIsuInfinityRetry(ctx, owner.Agent, req.JIAIsuUUID, step)
 		// isuResponse == nil => ctx.Done
