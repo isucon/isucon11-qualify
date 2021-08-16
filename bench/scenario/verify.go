@@ -180,11 +180,12 @@ func verifyIsuList(res *http.Response, expectedReverse []*model.Isu, isuList []*
 	return newConditionUUIDs, errs
 }
 
-//mustExistUntil: この値以下のtimestampを持つものは全て反映されているべき
+//mustExistUntil: この値以下のtimestampを持つものは全て反映されているべき。副作用: IsuCondition の ReadTime を更新する。
 func verifyIsuConditions(res *http.Response,
 	targetUser *model.User, targetIsuUUID string, request *service.GetIsuConditionRequest,
 	backendData []*service.GetIsuConditionResponse,
-	mustExistTimestamps [service.ConditionLimit]int64) error {
+	mustExistTimestamps [service.ConditionLimit]int64,
+	requestTimeUnix int64) error {
 
 	//limitを超えているかチェック
 	if service.ConditionLimit < len(backendData) {
@@ -244,6 +245,11 @@ func verifyIsuConditions(res *http.Response,
 				if expected.TimestampUnix < c.Timestamp {
 					return errorMismatch(res, "POSTに成功していない時刻のデータが返されました")
 				}
+
+				// GET /api/isu/:id/graph で見た ConditionDelayTime秒以上後に、その condition がないとき
+				if expected.ReadTime+ConditionDelayTime < requestTimeUnix {
+					return errorMismatch(res, "GET /api/condition/:jia_isu_uuid か GET /api/isu/:jia_isu_uuid/graph で確認された condition がありません")
+				}
 			}
 
 			//等価チェック
@@ -280,6 +286,31 @@ func verifyIsuConditions(res *http.Response,
 				return errorMismatch(res, "データが正しくありません")
 			}
 			lastSort = nowSort
+
+			// GET /api/isu/:id/graph と連動してる読んだ時間を更新
+			if expected.ReadTime > requestTimeUnix {
+				expected.ReadTime = time.Now().Unix()
+			}
+		}
+
+		// backendData が空のときもチェックする
+		if len(backendData) == 0 {
+			var expected *model.IsuCondition
+			for {
+				expected = baseIter.Prev()
+				if expected == nil {
+					break // ok
+				}
+
+				if request.StartTime != nil && *request.StartTime > expected.TimestampUnix {
+					break // ok
+				}
+
+				// GET /api/isu/:id/graph で見た ConditionDelayTime秒以上後に、その condition がないとき
+				if expected.ReadTime+ConditionDelayTime < requestTimeUnix {
+					return errorMismatch(res, "GET /api/condition/:jia_isu_uuid か GET /api/isu/:jia_isu_uuid/graph で確認された condition がありません")
+				}
+			}
 		}
 		return nil
 	}(); err != nil {
@@ -543,10 +574,12 @@ func errorChecksum(base string, resource *agent.Resource, path string) error {
 	return nil
 }
 
+// 副作用: IsuCondition の ReadTime を更新する。
 func verifyGraph(
 	res *http.Response, targetUser *model.User, targetIsuUUID string,
 	getGraphReq *service.GetGraphRequest,
-	getGraphResp service.GraphResponse) error {
+	getGraphResp service.GraphResponse,
+	requestTimeUnix int64) error {
 
 	// graphResp の配列は必ず 24 つ (24時間分) である
 	if len(getGraphResp) != 24 {
@@ -614,7 +647,38 @@ func verifyGraph(
 					if expected.TimestampUnix == timestamp {
 						// graphOne.ConditionTimestamps[n] から condition を取得
 						conditionsBaseOfScore = append(conditionsBaseOfScore, expected)
+
+						// GET /api/condition/:id と連動してる読んだ時間を更新
+						if expected.ReadTime > requestTimeUnix {
+							expected.ReadTime = time.Now().Unix()
+						}
 						break //ok
+					}
+
+					// GET /api/condition/:id で見た ConditionDelayTime秒以上後に、その condition がないとき
+					if expected.ReadTime+ConditionDelayTime < requestTimeUnix {
+						return errorMismatch(res, "GET /api/condition/:jia_isu_uuid か GET /api/isu/:jia_isu_uuid/graph で確認された condition がありません")
+					}
+				}
+			}
+
+			// graphOne.ConditionTimestamps が空のときもチェックする
+			if len(graphOne.ConditionTimestamps) == 0 {
+				var expected *model.IsuCondition
+				for {
+					expected = baseIter.Prev()
+					if expected == nil {
+						break // ok
+					}
+
+					// 根拠 timestamps は StartAt <= timestamp < EndAt であるため
+					if expected.TimestampUnix < graphOne.StartAt {
+						break // ok
+					}
+
+					// GET /api/condition/:id で見た ConditionDelayTime秒以上後に、その condition がないとき
+					if expected.ReadTime+ConditionDelayTime < requestTimeUnix {
+						return errorMismatch(res, "GET /api/condition/:jia_isu_uuid か GET /api/isu/:jia_isu_uuid/graph で確認された condition がありません")
 					}
 				}
 			}

@@ -1,8 +1,17 @@
-const NowLoading = () => {
+interface Props {
+  top?: boolean
+}
+
+const NowLoading = ({ top }: Props) => {
   const base =
     'bg-accent-primary opacity-80 w-4 h-35 m-2 rounded-md inline-block'
   return (
-    <div className="h-100 flex items-center justify-center">
+    <div
+      className={
+        'bg-opacity-40 absolute top-0 flex justify-center w-full h-full bg-white ' +
+        (top ? 'pt-24' : 'items-center')
+      }
+    >
       <span>
         <span className={base + ' animate-loader0'} />
         <span className={base + ' animate-loader1'} />

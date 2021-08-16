@@ -245,10 +245,10 @@ interface ApiConditionRequest {
 }
 
 export interface ConditionRequest {
-  start_time?: Date
-  end_time: Date
   // critical,warning,info をカンマ区切りで取り扱う
   condition_level: string
+  start_time?: Date
+  end_time: Date
 }
 
 interface ApiGraphRequest {

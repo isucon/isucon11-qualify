@@ -446,11 +446,13 @@ func (s *Scenario) requestLastBadConditionScenario(ctx context.Context, step *is
 		EndTime:        nowVirtualTime.Unix(),
 		ConditionLevel: "warning,critical",
 	}
+
+	requestTimeUnix := time.Now().Unix()
 	// GET condition/{jia_isu_uuid} を取得してバリデーション
 	conditions, errs := browserGetIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
 		request,
 		func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
-			err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request, conditions, targetIsu.LastReadBadConditionTimestamps)
+			err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request, conditions, targetIsu.LastReadBadConditionTimestamps, requestTimeUnix)
 			if err != nil {
 				return []error{err}
 			}
@@ -525,11 +527,12 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 	// 今回のこの関数で取得した condition の配列
 	conditions := []*service.GetIsuConditionResponse{}
 
+	requestTimeUnix := time.Now().Unix()
 	// GET condition/{jia_isu_uuid} を取得してバリデーション
 	firstPageConditions, errs := browserGetIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID,
 		request,
 		func(res *http.Response, conditions []*service.GetIsuConditionResponse) []error {
-			err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request, conditions, targetIsu.LastReadConditionTimestamps)
+			err := verifyIsuConditions(res, user, targetIsu.JIAIsuUUID, &request, conditions, targetIsu.LastReadConditionTimestamps, requestTimeUnix)
 			if err != nil {
 				return []error{err}
 			}
@@ -572,11 +575,12 @@ func (s *Scenario) getIsuConditionUntilAlreadyRead(
 			conditions = conditions[:0]
 		}
 
+		requestTimeUnix = time.Now().Unix()
 		tmpConditions, hres, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
 		if err != nil {
 			return nil, newLastReadConditionTimestamps, []error{err}
 		}
-		err = verifyIsuConditions(hres, user, targetIsu.JIAIsuUUID, &request, tmpConditions, targetIsu.LastReadConditionTimestamps)
+		err = verifyIsuConditions(hres, user, targetIsu.JIAIsuUUID, &request, tmpConditions, targetIsu.LastReadConditionTimestamps, requestTimeUnix)
 		if err != nil {
 			return nil, newLastReadConditionTimestamps, []error{err}
 		}
@@ -697,12 +701,13 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 			EndTime:        (*nowViewingGraph)[checkHour].EndAt,
 			ConditionLevel: "info,warning,critical",
 		}
+		requestTimeUnix := time.Now().Unix()
 		conditions, hres, err := getIsuConditionAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
 		if err != nil {
 			addErrorWithContext(ctx, step, err)
 			return false
 		}
-		err = verifyIsuConditions(hres, user, targetIsu.JIAIsuUUID, &request, conditions, targetIsu.LastReadConditionTimestamps)
+		err = verifyIsuConditions(hres, user, targetIsu.JIAIsuUUID, &request, conditions, targetIsu.LastReadConditionTimestamps, requestTimeUnix)
 		if err != nil {
 			addErrorWithContext(ctx, step, err)
 			return false
@@ -801,12 +806,12 @@ func getIsuGraphUntilLastViewed(
 	graph := []*service.GraphResponse{}
 
 	todayRequest := service.GetGraphRequest{Date: virtualDay}
+	requestTimeUnix := time.Now().Unix()
 	todayGraph, hres, err := getIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, todayRequest)
 	if err != nil {
 		return nil, []error{err}
 	}
-
-	err = verifyGraph(hres, user, targetIsu.JIAIsuUUID, &todayRequest, todayGraph)
+	err = verifyGraph(hres, user, targetIsu.JIAIsuUUID, &todayRequest, todayGraph, requestTimeUnix)
 	if err != nil {
 		return nil, []error{err}
 	}
@@ -823,12 +828,13 @@ func getIsuGraphUntilLastViewed(
 		}
 
 		request := service.GetGraphRequest{Date: virtualDay}
+		requestTimeUnix = time.Now().Unix()
 
 		tmpGraph, hres, err := getIsuGraphAction(ctx, user.Agent, targetIsu.JIAIsuUUID, request)
 		if err != nil {
 			return nil, []error{err}
 		}
-		err = verifyGraph(hres, user, targetIsu.JIAIsuUUID, &request, tmpGraph)
+		err = verifyGraph(hres, user, targetIsu.JIAIsuUUID, &request, tmpGraph, requestTimeUnix)
 		if err != nil {
 			return nil, []error{err}
 		}
