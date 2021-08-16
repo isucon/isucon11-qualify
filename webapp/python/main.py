@@ -427,7 +427,9 @@ def get_isu_icon(jia_isu_uuid):
     if res is None:
         raise NotFound("not found: isu")
 
-    return make_response(res["image"], 200, {"Content-Type": "image/jpeg"})
+    res = make_response(res["image"], 200)
+    del res.headers["Content-Type"]
+    return res
 
 
 @app.route("/api/isu/<jia_isu_uuid>/graph", methods=["GET"])
