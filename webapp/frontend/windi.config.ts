@@ -12,7 +12,7 @@ export default defineConfig({
         main: mainColor
       },
       backgroundColor: {
-        primary: colors.light[500],
+        primary: colors.coolGray[100],
         secondary: colors.light[50],
         button: colors.blueGray[900],
         line: colors.trueGray[300],
