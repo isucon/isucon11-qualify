@@ -3,13 +3,13 @@ package scenario
 
 var (
 	resourcesHash = map[string]string{ 
-		"/assets/favicon.d0f5f504.svg": "3697a1b6c6d164ec4a5e4db6f7789f05",
-		"/assets/index.1d2d12fb.css": "85280abbd68c5a78d76c26f09a5df2ed",
-		"/assets/index.830c23b9.js": "468702153b6eab2ba66eac163f458800",
-		"/assets/logo_orange.974bf3e6.svg": "10e2dfa0ff27ec4325b781973c646737",
-		"/assets/logo_white.98008342.svg": "f81e35a6821af44ea5b3a77346bcf6ad",
-		"/assets/vendor.154f0ad5.js": "c642358addcc92b00260fd5a8b346377",
-		"/index.html": "8ae32f642044aa403a11a42ba37b9a83",
+		"/assets/favicon.d0f5f504.svg": "63f35b9a",
+		"/assets/index.1d2d12fb.css": "e93533a6",
+		"/assets/index.830c23b9.js": "e88a1f34",
+		"/assets/logo_orange.974bf3e6.svg": "6c250f83",
+		"/assets/logo_white.98008342.svg": "61d68fa0",
+		"/assets/vendor.154f0ad5.js": "30f23fbf",
+		"/index.html": "c9bbfdf0",
 	}
 	resourcesMap = map[string]string{ 
 		"/assets/favicon.svg": "/assets/favicon.d0f5f504.svg",
