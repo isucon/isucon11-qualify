@@ -275,7 +275,16 @@ sub get_isu_list($self, $c) {
             $found_last_condition = !!0;
         }
 
-        my $formatted_condition;
+        my $formatted_condition = {
+            jia_isu_uuid    => '',
+            isu_name        => '',
+            timestamp       => 0,
+            is_sitting      => !!0,
+            condition       => '',
+            condition_level => '',
+            message         => '',
+        };
+
         if ($found_last_condition) {
             my ($condition_level, $e) = calculate_condition_level($last_condition->{condition});
             if ($e) {
@@ -535,8 +544,8 @@ sub generate_isu_graph_response($self, $jia_isu_uuid, $graph_date) {
         }
 
         push $response_list->@* => {
-            start_at             => unix($tm_this_time),
-            end_at               => unix($tm_this_time->plus_hours(1)),
+            start_at             => $tm_this_time->epoch,
+            end_at               => $tm_this_time->plus_hours(1)->epoch,
             data                 => $data,
             condition_timestamps => $timestamps,
         };
@@ -905,18 +914,13 @@ sub dbh {
 sub unix_from_mysql_datetime {
     my $str = shift;
     my $tm = tm_from_mysql_datetime($str);
-    return unix($tm);
+    return $tm->epoch;
 }
 
 sub mysql_datetime_from_unix {
     my $epoch = shift;
     my $tm = tm_from_unix($epoch);
     return mysql_datetime($tm)
-}
-
-sub unix {
-    my $tm = shift;
-    return $tm->epoch + $tm->offset * 60;
 }
 
 sub mysql_datetime {
