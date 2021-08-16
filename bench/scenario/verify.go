@@ -474,11 +474,12 @@ func errorAssetChecksum(req *http.Request, res *http.Response, user AgentWithSta
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusNotModified {
 		// cache の更新
-		body, err := io.ReadAll(res.Body)
+		hasher := crc32.New(crc32.IEEETable)
+		_, err := io.Copy(hasher, res.Body)
 		if err != nil {
 			return err
 		}
-		user.SetStaticCache(path, crc32.ChecksumIEEE(body))
+		user.SetStaticCache(path, hasher.Sum32())
 	}
 
 	// crc32でリソースの比較
