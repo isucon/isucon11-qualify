@@ -362,6 +362,9 @@ sub post_isu($self, $c) {
         if ($e isa Kossy::Exception) {
             die $e; # rethrow
         }
+        elsif ($e =~ /DBD::mysql::st execute failed: Duplicate entry/) {
+            $c->halt_text(HTTP_CONFLICT, "duplicated: isu");
+        }
         warnf("db error: %s", $e);
         $c->halt_no_content(HTTP_INTERNAL_SERVER_ERROR);
     }
