@@ -61,12 +61,20 @@ func (v *Viewer) SetStaticCache(path string, hash [16]byte) {
 	v.staticCacheMx.Lock()
 	defer v.staticCacheMx.Unlock()
 
+	if v.StaticCachedHash == nil {
+		v.StaticCachedHash = map[string][16]byte{}
+	}
+
 	v.StaticCachedHash[path] = hash
 }
 
 func (v *Viewer) GetStaticCache(path string) ([16]byte, bool) {
 	v.staticCacheMx.Lock()
 	defer v.staticCacheMx.Unlock()
+
+	if v.StaticCachedHash == nil {
+		v.StaticCachedHash = map[string][16]byte{}
+	}
 
 	hash, exist := v.StaticCachedHash[path]
 	return hash, exist

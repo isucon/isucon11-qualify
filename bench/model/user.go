@@ -69,12 +69,22 @@ func (u *User) GetAgent() *agent.Agent {
 func (u *User) SetStaticCache(path string, hash [16]byte) {
 	u.staticCacheMx.Lock()
 	defer u.staticCacheMx.Unlock()
+
+	if u.StaticCachedHash == nil {
+		u.StaticCachedHash = map[string][16]byte{}
+	}
+
 	u.StaticCachedHash[path] = hash
 }
 
 func (u *User) GetStaticCache(path string) ([16]byte, bool) {
 	u.staticCacheMx.Lock()
 	defer u.staticCacheMx.Unlock()
+
+	if u.StaticCachedHash == nil {
+		u.StaticCachedHash = map[string][16]byte{}
+	}
+
 	hash, exist := u.StaticCachedHash[path]
 	return hash, exist
 }
