@@ -5,6 +5,7 @@ After=network.target mysql.service
 [Service]
 WorkingDirectory=/home/isucon/webapp/perl
 EnvironmentFile=/home/isucon/env.sh
+Environment=PLACK_ENV=development
 
 User=isucon
 Group=isucon

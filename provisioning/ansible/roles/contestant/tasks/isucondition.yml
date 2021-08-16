@@ -14,13 +14,8 @@
     src: "etc/hosts"
     dest: "/etc/hosts"
 
-- name: "roles/contestant/tasks/isucondition: Deploy env file"
-  become_user: isucon
-  copy:
-    src: "home/isucon/env.sh"
-    dest: "/home/isucon/env.sh"
-    owner: isucon
-    group: isucon
+- name: "roles/contestant/tasks/isucondition: Include generate_env.yml"
+  include: generate_env.yml
 
 - name: "roles/contestant/tasks/isucondition: Remove frontend source code"
   become_user: root

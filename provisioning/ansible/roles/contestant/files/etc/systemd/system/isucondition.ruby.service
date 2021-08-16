@@ -5,10 +5,12 @@ After=network.target mysql.service
 [Service]
 WorkingDirectory=/home/isucon/webapp/ruby
 EnvironmentFile=/home/isucon/env.sh
+Environment=RACK_ENV=production
 
 User=isucon
 Group=isucon
-ExecStart=/home/isucon/local/ruby/bin/bundle exec unicorn -c unicorn.conf.rb
+ExecStart=/home/isucon/local/ruby/bin/bundle exec puma -p 3000
+ExecStop=/bin/kill -s QUIT $MAINPID
 
 Restart   = always
 Type      = simple

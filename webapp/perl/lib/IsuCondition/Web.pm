@@ -208,20 +208,16 @@ sub post_initialize($self, $c) {
 # POST /api/auth
 # サインアップ・サインイン
 sub post_authentication($self, $c) {
-    my $auth = $c->req->header('Authorization');
-    if (!$auth) {
-        $c->halt_text(HTTP_FORBIDDEN, "forbidden");
-    }
-
-    my $req_jwt = $auth =~ s/^Bearer //r;
+    my $req_jwt = $c->req->header('Authorization') =~ s/^Bearer //r;
 
     try {
-        my $payload = decode_jwt(token => $req_jwt, key => JIA_JWT_SIGNING_KEY);
+        my $payload = decode_jwt(token => $req_jwt, key => JIA_JWT_SIGNING_KEY, accepted_alg => 'ES256');
 
         my $jia_user_id = $payload->{'jia_user_id'};
-        if (!$jia_user_id || ref($jia_user_id)) {
+        if (!$jia_user_id　|| ref($jia_user_id) {
             $c->halt_text(HTTP_BAD_REQUEST, 'invalid JWT payload');
         }
+
         $self->dbh->query("INSERT IGNORE INTO user (`jia_user_id`) VALUES (?)", $jia_user_id);
 
         $c->session->set(jia_user_id => $jia_user_id);
