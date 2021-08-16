@@ -154,9 +154,12 @@ Web ブラウザで以下の URL にアクセスすることで， ISUCONDITION 
 
 なお、負荷走行が待機中 (PENDING) もしくは実行中 (RUNNING) の間は追加の Enqueue を行うことはできません。
 
+負荷走行を行うと JIA API Mock のエンドポイントがベンチマーカーによって変更されるため、負荷走行後にブラウザから ISU の登録など JIA と連携した操作時にエラーが出ます。
+エラーの解消には JIA API Mock のエンドポイントの再設定が必要となります。詳細については "JIA API Mock" の項をご確認ください。
+
 ## ブラウザからの ISUCONDITION の動作確認
 
-### 2.1 ポートフォワーディング
+### 1 ポートフォワーディング
 
 ブラウザから ISUCONDITION の動作確認をするには、ブラウザからサーバー上の 5000番ポートで待ち受けている JIA API Mock へアクセスできるようにするため、ポートフォワーディングが必要です。
 
@@ -167,14 +170,7 @@ Web ブラウザで以下の URL にアクセスすることで， ISUCONDITION 
 $ ssh -L localhost:5000:isucondition-1.t.isucon.dev:5000 isucon-server1
 ```
 
-負荷走行後の ISUCONDITION はベンチマーカーが設定した JIA のエンドポイントが設定されているため、上記の設定を行っていても ISUCONDITIONから `500 Internal Server Error` が返されるエンドポイントがあります。
-負荷走行後に JIA API Mock を利用する際は、下記のように `POST /initialize` で JIA API Moc のエンドポイントを設定してください。
-
-```
-curl -sf -H 'content-type: application/json' https://<Elastic IP アドレス 1,2,3>/initialize -d '{"jia_service_url": "http://localhost:5000"}'
-```
-
-### 2.2 ISUCONDITION へのログイン
+### 2 ISUCONDITION へのログイン
 
 ログインには Japan ISU Association（以下 JIA）のアカウントが必要です。
 下記の 4 ユーザが登録されているので、動作確認にご利用ください。
@@ -188,7 +184,7 @@ curl -sf -H 'content-type: application/json' https://<Elastic IP アドレス 1,
 
 MEMO: 本番ではHTTPSで接続できるようにするので `/etc/hosts` 周りの話を追記する
 
-### 2.3 ISU の登録
+### 3 ISU の登録
 
 ISU の登録はログイン後に以下の URL で行うことができます。
 以下の URL には ISUCONDITION の「ISU の登録」ボタンからも遷移できます
@@ -268,10 +264,18 @@ JIA API Mock は以下のエンドポイントと、 ISU からのコンディ�
 JIA API のエンドポイント仕様は [ISUCONDITION アプリケーションマニュアル](./isucondition.md)を参照してください。
 
 JIA API Mock は ISU を登録（アクティベート）すると、指定された URL へのコンディションの送信を開始します。
-登録したISUからのコンディション送信を止める場合は、 JIA API Mock のサービスを以下のように再起動して下さい。
+登録したISUからのコンディション送信は JIA API Mock を停止/再起動するまで続きますので、負荷走行前には JIA API Mock を停止/再起動することをお勧めします。
+JIA API Mock のサービスを停止/再起動する場合は、 以下のコマンドを利用してください。
 
 ```shell
-$ sudo systemctl restart jiaapi-mock.service
+$ sudo systemctl [stop|restart] jiaapi-mock.service
+```
+
+負荷走行後の ISUCONDITION はベンチマーカーが設定した JIA のエンドポイントが設定されているため、ISUCONDITIONから `500 Internal Server Error` が返されるエンドポイントがあります。
+負荷走行後に JIA API Mock を利用する際は、下記のように `POST /initialize` で JIA API Mock のエンドポイントを設定してください。ただし `POST /initialize` は下記 "データベースの初期化方法" にも記載があるように、データベース内のデータを初期化することに留意してください。
+
+```
+curl -sf -H 'content-type: application/json' https://<Elastic IP アドレス 1,2,3>/initialize -d '{"jia_service_url": "http://localhost:5000"}'
 ```
 
 ### データベースの初期化方法
