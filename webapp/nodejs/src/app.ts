@@ -1057,9 +1057,9 @@ app.get("/api/trend", async (req, res) => {
         }
       }
 
-      characterInfoIsuConditions.sort((a, b) => a.timestamp - b.timestamp);
-      characterWarningIsuConditions.sort((a, b) => a.timestamp - b.timestamp);
-      characterCriticalIsuConditions.sort((a, b) => a.timestamp - b.timestamp);
+      characterInfoIsuConditions.sort((a, b) => b.timestamp - a.timestamp);
+      characterWarningIsuConditions.sort((a, b) => b.timestamp - a.timestamp);
+      characterCriticalIsuConditions.sort((a, b) => b.timestamp - a.timestamp);
       trendResponse.push({
         character: character.character,
         info: characterInfoIsuConditions,
