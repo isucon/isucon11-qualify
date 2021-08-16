@@ -297,9 +297,7 @@ sub get_isu_list($self, $c) {
         push $response_list->@* => $res;
     }
 
-    # FIXME
-    #return $c->render_json($response_list, json_type_arrayof(GetIsuListResponse));
-    return $c->render_json($response_list);
+    return $c->render_json($response_list, json_type_arrayof(GetIsuListResponse));
 }
 
 # POST /api/isu
