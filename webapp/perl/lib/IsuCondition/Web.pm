@@ -140,12 +140,12 @@ sub POST_ISUCONDITION_TARGET_BASE_URL() {
 sub get_user_id_from_session($self, $c) {
     my $jia_user_id = $c->session->get('jia_user_id');
     if (!$jia_user_id) {
-        $c->halt_no_content(HTTP_UNAUTHORIZED, "you are not signed in");
+        $c->halt_text(HTTP_UNAUTHORIZED, "you are not signed in");
     }
 
     my $count = $self->dbh->select_one("SELECT COUNT(*) FROM `user` WHERE `jia_user_id` = ?", $jia_user_id);
     if ($count == 0) {
-        $c->halt_no_content(HTTP_UNAUTHORIZED, "you are not signed in");
+        $c->halt_text(HTTP_UNAUTHORIZED, "you are not signed in");
     }
 
     return $jia_user_id;
@@ -210,21 +210,32 @@ sub post_initialize($self, $c) {
 sub post_authentication($self, $c) {
     my $auth = $c->req->header('Authorization');
     if (!$auth) {
-        $c->halt_no_content(HTTP_FORBIDDEN);
+        $c->halt_text(HTTP_FORBIDDEN, "forbidden");
     }
 
     my $req_jwt = $auth =~ s/^Bearer //r;
 
-    my $payload = decode_jwt(token => $req_jwt, key => JIA_JWT_SIGNING_KEY);
+    try {
+        my $payload = decode_jwt(token => $req_jwt, key => JIA_JWT_SIGNING_KEY);
 
-    my $jia_user_id = $payload->{'jia_user_id'};
-    if (!$jia_user_id) {
-        $c->halt_text(HTTP_BAD_REQUEST, 'invalid JWT payload');
+        my $jia_user_id = $payload->{'jia_user_id'};
+        if (!$jia_user_id || ref($jia_user_id)) {
+            $c->halt_text(HTTP_BAD_REQUEST, 'invalid JWT payload');
+        }
+        $self->dbh->query("INSERT IGNORE INTO user (`jia_user_id`) VALUES (?)", $jia_user_id);
+
+        $c->session->set(jia_user_id => $jia_user_id);
     }
-
-    $self->dbh->query("INSERT IGNORE INTO user (`jia_user_id`) VALUES (?)", $jia_user_id);
-
-    $c->session->set(jia_user_id => $jia_user_id);
+    catch ($e) {
+        if ($e isa Kossy::Exception) {
+            die $e; # rethrow
+        }
+        elsif ($e =~ /DBD::mysql::st execute failed:/) {
+            warnf("db error: %s", $e);
+            $c->halt_no_content(HTTP_INTERNAL_SERVER_ERROR);
+        }
+        $c->halt_text(HTTP_FORBIDDEN, "forbidden");
+    }
     $c->halt_no_content(HTTP_OK);
 }
 
