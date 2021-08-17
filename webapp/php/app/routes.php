@@ -592,7 +592,7 @@ final class Handler
         }
 
         try {
-            $token = JWT::decode($reqJwt, $jiaJwtSigningKey, ['ES256', 'ES384', 'ES512']);
+            $claims = JWT::decode($reqJwt, $jiaJwtSigningKey, ['ES256', 'ES384', 'ES512']);
         } catch (UnexpectedValueException) {
             $response->getBody()->write('forbidden');
 
@@ -604,14 +604,14 @@ final class Handler
             return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
         }
 
-        if (!property_exists($token, 'jia_user_id')) {
+        if (!property_exists($claims, 'jia_user_id')) {
             $response->getBody()->write('invalid JWT payload');
 
             return $response->withStatus(StatusCodeInterface::STATUS_BAD_REQUEST)
                 ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
         }
 
-        $jiaUserId = $token->jia_user_id;
+        $jiaUserId = $claims->jia_user_id;
 
         if (!is_string($jiaUserId)) {
             $response->getBody()->write('invalid JWT payload');
