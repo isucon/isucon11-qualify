@@ -671,7 +671,7 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 	// 最新の condition から、一度見た condition が帰ってくるまで condition のページングをする
 	nowVirtualTime := s.ToVirtualTime(time.Now())
 	// 割り算で切り捨てを発生させている(day単位にしている)
-	virtualToday := trancateTimestampToDate(nowVirtualTime.Unix())
+	virtualToday := trancateTimestampToDate(nowVirtualTime)
 	virtualToday -= OneDay
 
 	graphResponses, errs := getIsuGraphUntilLastViewed(ctx, user, targetIsu, virtualToday)
@@ -748,8 +748,8 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 }
 
 // unix timeのtimestampをその「日」に切り捨てる
-func trancateTimestampToDate(timestamp int64) int64 {
-	return (timestamp / OneDay) * OneDay
+func trancateTimestampToDate(now time.Time) int64 {
+	return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).Unix()
 }
 
 // 新しい LastCompletedGraphTime を得る。
