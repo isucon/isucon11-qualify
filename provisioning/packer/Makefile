@@ -20,8 +20,8 @@ files-generated/isucon11-portal.tar:
 	mkdir -p files-generated/
 	$(eval tmpdir=$(shell mktemp -d))
 	git -c core.sshCommand="ssh -i $(MAKEFILE_DIR)isucon11-portal.key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -F /dev/null" clone --depth=1 git@github.com:isucon/isucon11-portal.git -b main $(tmpdir)/isucon11-portal
-	cd $(tmpdir) && \
-		tar cvf $(MAKEFILE_DIR)files-generated/isucon11-portal.tar isucon11-portal && \
+	cd $(tmpdir)/isucon11-portal && \
+		tar cvf $(MAKEFILE_DIR)files-generated/isucon11-portal.tar . && \
 		cd -
 	rm -rf $(tmpdir)
 

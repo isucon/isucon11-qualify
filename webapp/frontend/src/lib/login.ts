@@ -2,6 +2,7 @@ import { CancelToken } from 'axios'
 import { useCallback, useState } from 'react'
 import { useDispatchContext, useStateContext } from '/@/context/state'
 import apis, { User } from './apis'
+import toast from 'react-hot-toast'
 
 const useLogin = () => {
   const state = useStateContext()
@@ -27,12 +28,13 @@ const useLogin = () => {
         try {
           const me = await apis.getUserMe({ cancelToken })
           setMe(me)
-        } catch {
+        } catch (e) {
           // cookieがついてないとき
           const url = new URL(location.href)
           const jwt = url.searchParams.get('jwt')
           if (!jwt) {
             setTryLogin(false)
+            toast.error(e.response.data)
             return
           }
           url.searchParams.delete('jwt')
@@ -41,7 +43,8 @@ const useLogin = () => {
           const me = await apis.getUserMe({ cancelToken })
           setMe(me)
         }
-      } catch {
+      } catch (e) {
+        toast.error(e.response.data)
         setTryLogin(false)
       }
     },

@@ -5,11 +5,13 @@ import Home from './pages/Home'
 import IsuRoot from './pages/IsuRoot'
 import Register from './pages/Register'
 import GuardedRoute from './router/GuardedRoute'
+import ReactTooltip from 'react-tooltip'
 
 const App = () => {
   return (
     <div className="text-primary flex flex-col min-h-full">
       <Toaster position="bottom-left" />
+      <ReactTooltip />
       <BrowserRouter>
         <PageHeader></PageHeader>
         <div className="bg-primary relative flex-grow">

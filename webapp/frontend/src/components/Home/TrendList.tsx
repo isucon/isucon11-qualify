@@ -4,6 +4,7 @@ import apis, { TrendResponse, Trend } from '/@/lib/apis'
 import NowLoading from '/@/components/UI/NowLoading'
 import TrendElement from './Trend'
 import TrendHeadeer from './TrendHeader'
+import ReactTooltip from 'react-tooltip'
 
 const calcAllConditionLength = (trend: Trend) => {
   return trend.info.length + trend.warning.length + trend.critical.length
@@ -32,6 +33,9 @@ const TrendList = () => {
     }
     update()
   }, [])
+  useEffect(() => {
+    ReactTooltip.rebuild()
+  })
 
   return (
     <div className="relative">

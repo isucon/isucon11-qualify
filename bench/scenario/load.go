@@ -71,7 +71,7 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	// 実際の負荷走行シナリオ
 
 	//通常ユーザー
-	s.AddNormalUser(ctx, step, 1)
+	s.AddNormalUser(ctx, step, 6)
 	s.AddIsuconUser(ctx, step)
 
 	//非ログインユーザーを増やす
@@ -309,7 +309,7 @@ func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep
 	scenarioLoopStopper := time.After(1 * time.Millisecond) //ループ頻度調整
 	for {
 		<-scenarioLoopStopper
-		scenarioLoopStopper = time.After(10 * time.Millisecond)
+		scenarioLoopStopper = time.After(100 * time.Millisecond)
 
 		select {
 		case <-ctx.Done():
@@ -685,6 +685,12 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 	// AddScoreはconditionのGETまで待つためここでタグを持っておく
 	scoreTags := []score.ScoreTag{}
 
+	// LastCompletedGraphTime を更新
+	newLastCompletedGraphTime := getNewLastCompletedGraphTime(graphResponses, virtualToday)
+	if targetIsu.LastCompletedGraphTime < newLastCompletedGraphTime {
+		targetIsu.LastCompletedGraphTime = newLastCompletedGraphTime
+	}
+
 	// scoreの計算
 	for behindDay, gr := range graphResponses {
 		minTimestampCount := int(^uint(0) >> 1)
@@ -697,8 +703,8 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 				minTimestampCount = len(g.ConditionTimestamps)
 			}
 		}
-		// 「今日のグラフじゃない」&「まだ見ていない完成しているグラフ」なら加点
-		if behindDay != 0 && targetIsu.LastCompletedGraphTime <= virtualToday-(int64(behindDay)*OneDay) {
+		// 「今日のグラフじゃない」＆「まだ見ていない完成しているグラフ」なら加点( graphResponses がまだ見ていないグラフの集合なのは保証されている)
+		if behindDay != 0 && targetIsu.LastCompletedGraphTime >= virtualToday-(int64(behindDay)*OneDay) {
 			// AddScoreはconditionのGETまで待つためここでタグを入れておく
 			scoreTags = append(scoreTags, getGraphScoreTag(minTimestampCount))
 		}
@@ -736,12 +742,6 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 	// graph の加点分を計算
 	for _, scoreTag := range scoreTags {
 		step.AddScore(scoreTag)
-	}
-
-	// LastCompletedGraphTime を更新
-	newLastCompletedGraphTime := getNewLastCompletedGraphTime(graphResponses, virtualToday)
-	if targetIsu.LastCompletedGraphTime < newLastCompletedGraphTime {
-		targetIsu.LastCompletedGraphTime = newLastCompletedGraphTime
 	}
 
 	return true
