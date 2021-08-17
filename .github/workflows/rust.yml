@@ -75,7 +75,8 @@ jobs:
         run: |
           # イメージを self-hosted runner のローカルからコピー
           rm -r ../bench/images && cp -a /opt/isucon11-qualify/images ../bench/images
-          make test-rust
+          target=rust docker-compose -f docker-compose-ci.yml -p isucon11q-ci up -d --build backend mysql-backend
+          target=rust docker-compose -f docker-compose-ci.yml -p isucon11q-ci up --build --exit-code-from apitest -- apitest
 
       - name: Clean up
         if: failure() || true
