@@ -10,12 +10,12 @@ my $root_dir = File::Basename::dirname(__FILE__);
 my $app = IsuCondition::Web->psgi($root_dir);
 builder {
     enable 'ReverseProxy';
-    enable 'Session::Cookie',
-        session_key => 'isucondition_perl',
-        expires     => 3600,
-        secret      => $ENV{SESSION_KEY} || 'isucondition',
     enable 'Static',
         path => qr!^/assets/!,
         root => $root_dir . '/../public/';
+    enable 'Session::Cookie',
+        session_key => 'isucondition_perl',
+        expires     => 3600,
+        secret      => $ENV{SESSION_KEY} || 'isucondition';
     $app;
 };
