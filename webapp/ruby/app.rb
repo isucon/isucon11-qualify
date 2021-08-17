@@ -289,7 +289,10 @@ module Isucondition
           req.body = { target_base_url: POST_ISU_CONDITION_TARGET_BASE_URL, isu_uuid: jia_isu_uuid }.to_json
           http.request(req)
         end
-        raise "JIAService returned error: status code #{res.code}, message #{res.body.inspect}" if res.code != '202'
+        if res.code != '202'
+          request.env['rack.logger'].warn "JIAService returned error: status code #{res.code}, message #{res.body.inspect}"
+          halt_error res.code.to_i, 'JIAService returned error'
+        end
         isu_from_jia = JSON.parse(res.body, symbolize_names: true)
 
         db.xquery('UPDATE `isu` SET `character` = ? WHERE  `jia_isu_uuid` = ?', isu_from_jia.fetch(:character), jia_isu_uuid)
