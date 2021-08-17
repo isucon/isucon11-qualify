@@ -582,7 +582,7 @@ final class Handler
             return $response->withStatus(StatusCodeInterface::STATUS_FORBIDDEN)
                 ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
         }
-        $reqJwt = mb_substr($authorizationHeader[0], mb_strlen('Bearer '));
+        $reqJwt = preg_replace('/\ABearer /', '', $authorizationHeader[0]);
 
         $jiaJwtSigningKey = file_get_contents(self::JIA_JWT_SIGNING_KEY_PATH);
         if ($jiaJwtSigningKey === false) {
