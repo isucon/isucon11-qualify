@@ -2,8 +2,8 @@
 package main
 
 import (
-	"crypto/md5"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"log"
 	"os"
@@ -28,11 +28,11 @@ func hash(path string) string {
 	}
 	defer blob.Close()
 
-	hash := md5.New()
-	if _, err := io.Copy(hash, blob); err != nil {
+	bytes, err := io.ReadAll(blob)
+	if err != nil {
 		log.Fatal(err)
 	}
-	return fmt.Sprintf("%x", hash.Sum(nil))
+	return fmt.Sprintf("%x", crc32.ChecksumIEEE(bytes))
 }
 
 func glob(v *Variable, prefix string) {

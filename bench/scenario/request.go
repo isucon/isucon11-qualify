@@ -137,6 +137,33 @@ func reqJSONResJSON(ctx context.Context, agent *agent.Agent, method string, rpat
 	return httpres, nil
 }
 
+func reqJSONResGojayArray(ctx context.Context, agent *agent.Agent, method string, rpath string, body io.Reader, res gojay.UnmarshalerJSONArray, allowedStatusCodes []int) (*http.Response, error) {
+	httpreq, err := agent.NewRequest(method, rpath, body)
+	if err != nil {
+		logger.AdminLogger.Panic(err)
+	}
+	httpreq.Header.Set("Content-Type", "application/json")
+
+	httpres, err := doRequest(ctx, agent, httpreq, allowedStatusCodes)
+	if err != nil {
+		return nil, err
+	}
+	defer httpres.Body.Close()
+
+	if !strings.HasPrefix(httpres.Header.Get("Content-Type"), "application/json") {
+		return nil, errorInvalidContentType(httpres, "application/json")
+	}
+
+	afterDec := gojay.NewDecoder(httpres.Body)
+	defer afterDec.Release()
+	err = afterDec.DecodeArray(res)
+	if err != nil {
+		return nil, err
+	}
+
+	return httpres, nil
+}
+
 func reqJSONResTrend(ctx context.Context, agent *agent.Agent, method string, rpath string, body io.Reader, allowedStatusCodes []int) (service.GetTrendResponse, *http.Response, error) {
 	httpreq, err := agent.NewRequest(method, rpath, body)
 	if err != nil {

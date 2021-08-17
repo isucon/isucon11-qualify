@@ -9,7 +9,7 @@ var (
 	// 初期データ生成時に BaseTime を利用するため、初期データは BaseTime より前の出来事が DB に INSERT された結果である
 	// ベンチマークシナリオ実行時に BaseTime を利用するため、ベンチマークシナリオは BaseTime 以降に起こる出来事である
 	jst      = time.FixedZone("Asia/Tokyo", 9*60*60)
-	BaseTime = time.Date(2021, 1, 1, 0, 0, 0, 0, jst) // 競技の日と被らないように
+	BaseTime = time.Date(2021, 8, 8, 0, 0, 0, 0, jst) // 競技の日と被るように
 )
 
 func Time() time.Time {

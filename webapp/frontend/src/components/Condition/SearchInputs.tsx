@@ -4,6 +4,7 @@ import Input from '/@/components/UI/Input'
 import TimeInputs from './TimeInputs'
 import { ConditionRequest } from '/@/lib/apis'
 import { getNowDate } from '/@/lib/date'
+import toast from 'react-hot-toast'
 
 interface Props {
   query: ConditionRequest
@@ -44,19 +45,19 @@ const SearchInputs = ({ query, search }: Props) => {
                 ['critical', 'warning', 'info'].includes(condition)
               )
           ) {
-            alert(
+            toast.error(
               '検索条件には critical,warning,info のいずれか一つ以上をカンマ区切りで入力してください'
             )
             return
           }
           const start_time = new Date(tmpStartTime)
           if (tmpStartTime && isNaN(start_time.getTime())) {
-            alert('時間指定（since〜）が不正です')
+            toast.error('時間指定（start_time〜）が不正です')
             return
           }
           const end_time = new Date(tmpEndTime)
           if (tmpEndTime && isNaN(end_time.getTime())) {
-            alert('時間指定（〜until）が不正です')
+            toast.error('時間指定（〜end_time）が不正です')
             return
           }
           search({

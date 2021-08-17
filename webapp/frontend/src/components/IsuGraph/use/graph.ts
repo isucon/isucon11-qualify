@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
+import toast from 'react-hot-toast'
 import { useHistory, useLocation } from 'react-router-dom'
 import { GraphRequest, Graph } from '/@/lib/apis'
 import { dateToTimestamp, getNextDate, getPrevDate } from '/@/lib/date'
 
 export interface IsuCondition {
-  score: string
+  score: number
+  count: number
   is_dirty: string
   is_overweight: string
   is_broken: string
@@ -35,7 +37,6 @@ const useGraph = (
 
   useEffect(() => {
     const fetchGraphs = async () => {
-      history.push(location.pathname + '?datetime=' + dateToTimestamp(date))
       const graphs = await getGraphs({ date: date })
       const graphData = genGraphData(graphs)
       updateResult(state => ({
@@ -53,19 +54,25 @@ const useGraph = (
   const specify = async (day: string) => {
     const date = new Date(day)
     if (isNaN(date.getTime())) {
-      alert('日時の指定が不正です')
+      toast.error('日時の指定が不正です')
       return
     }
+    replaceHistory()
     updateDate(date)
   }
 
   const prev = async () => {
+    replaceHistory()
     updateDate(getPrevDate(date))
   }
 
   const next = async () => {
+    replaceHistory()
     updateDate(getNextDate(date))
   }
+
+  const replaceHistory = () =>
+    history.replace(location.pathname + '?datetime=' + dateToTimestamp(date))
 
   return { ...result, specify, prev, next }
 }
@@ -81,7 +88,8 @@ const genGraphData = (graphs: Graph[]) => {
       transitionData.push(graph.data.score)
       sittingData.push(graph.data.percentage.sitting)
       tooltipData.push({
-        score: graph.data.score.toString(),
+        score: graph.data.score,
+        count: graph.condition_timestamps.length,
         is_dirty: `${graph.data.percentage.is_dirty}%`,
         is_overweight: `${graph.data.percentage.is_overweight}%`,
         is_broken: `${graph.data.percentage.is_broken}%`
@@ -90,7 +98,8 @@ const genGraphData = (graphs: Graph[]) => {
       transitionData.push(0)
       sittingData.push(0)
       tooltipData.push({
-        score: '-',
+        score: 0,
+        count: 0,
         is_dirty: '-',
         is_overweight: '-',
         is_broken: '-'
