@@ -53,7 +53,7 @@ services:
       dockerfile: development/apitest/dev.dockerfile
     environment:
       ISUXBENCH_TARGET: backend:3000
-      ISUXBENCH_TARGETABLE_ADDRESSES: backend
+      ISUXBENCH_ALL_ADDRESSES: backend
     working_dir:  /bench_dir
     entrypoint: bash
     tty: true
