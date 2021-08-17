@@ -344,10 +344,6 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 					step.AddError(err)
 					return
 				}
-				if err := verifyStatusCode(res, http.StatusOK); err != nil {
-					step.AddError(err)
-					return
-				}
 				expected := isu.ImageHash
 				actual := md5.Sum(imgByte)
 				if expected != actual {
@@ -393,10 +389,6 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 					step.AddError(err)
 					return
 				}
-				if err := verifyStatusCode(res, http.StatusOK); err != nil {
-					step.AddError(err)
-					return
-				}
 				// graphの検証
 				if err := verifyPrepareGraph(res, randomUser, jiaIsuUUID, &req, graph); err != nil {
 					step.AddError(err)
@@ -408,10 +400,6 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 				req = service.GetGraphRequest{Date: yesterday}
 				graph, res, err = getIsuGraphAction(ctx, randomUser.Agent, jiaIsuUUID, req)
 				if err != nil {
-					step.AddError(err)
-					return
-				}
-				if err := verifyStatusCode(res, http.StatusOK); err != nil {
 					step.AddError(err)
 					return
 				}
@@ -752,10 +740,6 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 		step.AddError(err)
 		return
 	}
-	if err := verifyStatusCode(res, http.StatusOK); err != nil {
-		step.AddError(err)
-		return
-	}
 	data, err := ioutil.ReadFile("./images/default.jpg")
 	if err != nil {
 		logger.AdminLogger.Panicln(err)
@@ -797,10 +781,6 @@ func (s *Scenario) prepareCheckPostIsu(ctx context.Context, loginUser *model.Use
 
 	imgByte, res, err = getIsuIconAction(ctx, loginUser.Agent, isuWithImg.JIAIsuUUID)
 	if err != nil {
-		step.AddError(err)
-		return
-	}
-	if err := verifyStatusCode(res, http.StatusOK); err != nil {
 		step.AddError(err)
 		return
 	}

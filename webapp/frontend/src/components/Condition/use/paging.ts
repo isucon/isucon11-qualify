@@ -15,47 +15,41 @@ const usePagingCondition = (
   const [page, setPage] = useState(1)
   const [conditions, setConditions] = useState<Condition[]>([])
   // 1-indexed
-  const [cache, setCache] = useState<Condition[][]>([[]])
-
-  const history = useHistory()
-  const location = useLocation()
+  const [cache, setCache] = useState<
+    { query: ConditionRequest; conditions: Condition[] }[]
+  >([])
 
   useEffect(() => {
     const fetchCondtions = async () => {
-      const newLocation = `${location.pathname}?condition_level=${
-        query.condition_level
-      }${
-        !isNaN(query.end_time.getTime())
-          ? '&end_time=' + dateToTimestamp(query.end_time)
-          : ''
-      }${
-        query.start_time && !isNaN(query.start_time.getTime())
-          ? '&start_time=' + dateToTimestamp(query.start_time)
-          : ''
-      }`
-      history.push(newLocation)
       const conditions = await getConditions(query)
       setConditions(conditions)
     }
     fetchCondtions()
-  }, [getConditions, setConditions, query, location.pathname, history])
+  }, [getConditions, setConditions, query])
 
   const search = async (params: ConditionRequest) => {
+    replaceHistory(params)
     setQuery(params)
     setPage(1)
-    setCache([[], conditions])
+    setCache([
+      { query: params, conditions: [] }, // 埋める用
+      { query: params, conditions }
+    ])
   }
 
   const next = async () => {
-    setQuery(getNextRequestParams())
+    const newQuery = getNextRequestParams()
+    replaceHistory(newQuery)
+    setQuery(newQuery)
     setPage(page + 1)
     if (!cache[page]) {
-      cache[page] = conditions
+      cache[page] = { query, conditions }
       setCache(cache)
     }
   }
   const prev = async () => {
-    setConditions(cache[page - 1])
+    replaceHistory(cache[page - 1].query)
+    setConditions(cache[page - 1].conditions)
     setPage(page - 1)
   }
 
@@ -67,6 +61,24 @@ const usePagingCondition = (
       start_time,
       end_time
     }
+  }
+
+  const history = useHistory()
+  const location = useLocation()
+
+  const replaceHistory = (query: ConditionRequest) => {
+    const newLocation = `${location.pathname}?condition_level=${
+      query.condition_level
+    }${
+      !isNaN(query.end_time.getTime())
+        ? '&end_time=' + dateToTimestamp(query.end_time)
+        : ''
+    }${
+      query.start_time && !isNaN(query.start_time.getTime())
+        ? '&start_time=' + dateToTimestamp(query.start_time)
+        : ''
+    }`
+    history.replace(newLocation)
   }
 
   return { conditions, query, search, page, next, prev }
