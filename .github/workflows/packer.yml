@@ -98,15 +98,6 @@ jobs:
           curl -sL https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_linux_amd64.zip -o /tmp/packer.zip \
             && unzip -o /tmp/packer.zip -d $HOME/work/_tool/isucon11-qualify/
 
-      # フロント成果物を生成
-      - uses: actions/setup-node@v1
-        with:
-          node-version: 14.x
-      - run: npm ci
-        working-directory: webapp/frontend
-      - run: npm run build
-        working-directory: webapp/frontend
-
       # *.t.isucon.dev の証明書と isucon11-portal アクセス用秘密鍵の配置
       - name: Save Secrets
         run: |
