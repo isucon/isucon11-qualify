@@ -580,7 +580,7 @@ sub calculate_graph_data_point($isu_conditions) {
 
     my $isu_conditions_length = $isu_conditions->@*;
 
-    my $score = $raw_score / $isu_conditions_length;
+    my $score = $raw_score * 100 / 3 / $isu_conditions_length;
 
     my $sitting_percentage       = $sitting_count * 100 / $isu_conditions_length;
     my $is_broken_percentage     = $conditions_count->{"is_broken"} * 100 / $isu_conditions_length;
