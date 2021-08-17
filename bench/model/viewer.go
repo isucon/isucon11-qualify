@@ -1,7 +1,6 @@
 package model
 
 import (
-	"net/http"
 	"sync"
 
 	"github.com/isucon/isucandar/agent"

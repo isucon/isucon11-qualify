@@ -466,7 +466,7 @@ func joinURL(base *url.URL, target string) string {
 	return u
 }
 
-func errorAssetChecksum(req *http.Request, res *http.Response, user AgentWithStaticCache, path string) error {
+func errorAssetChecksum(res *http.Response, user AgentWithStaticCache, path string) error {
 	if err := verifyStatusCodes(res, []int{http.StatusOK, http.StatusNotModified}); err != nil {
 		return err
 	}
@@ -487,7 +487,7 @@ func errorAssetChecksum(req *http.Request, res *http.Response, user AgentWithSta
 	if expected == "" {
 		logger.AdminLogger.Panicf("意図していないpath(%s)のAssetResourceCheckを行っています。", path)
 	}
-	actualHash, exist := user.GetStaticCache(path, req)
+	actualHash, exist := user.GetStaticCache(path)
 	if !exist {
 		if res.StatusCode != http.StatusNotModified {
 			logger.AdminLogger.Panic("static cacheがありません")

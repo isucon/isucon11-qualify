@@ -1,8 +1,6 @@
 package model
 
 import (
-	"hash/crc32"
-	"net/http"
 	"sync"
 
 	"github.com/isucon/isucandar/agent"
@@ -79,20 +77,12 @@ func (u *User) SetStaticCache(path string, hash uint32) {
 	u.StaticCachedHash[path] = hash
 }
 
-func (u *User) GetStaticCache(path string, req *http.Request) (uint32, bool) {
+func (u *User) GetStaticCache(path string) (uint32, bool) {
 	u.staticCacheMx.Lock()
 	defer u.staticCacheMx.Unlock()
 
 	if u.StaticCachedHash == nil {
 		u.StaticCachedHash = map[string]uint32{}
-	}
-
-	// NewUser内で投げっぱなしにしているリクエストと、他のところのリクエストの解決順で、304なのにキャッシュがない可能性があるため
-	if u.Agent.CacheStore != nil && req != nil {
-		cache := u.Agent.CacheStore.Get(req)
-		if cache != nil {
-			u.StaticCachedHash[path] = crc32.ChecksumIEEE(cache.Body())
-		}
 	}
 
 	hash, exist := u.StaticCachedHash[path]
