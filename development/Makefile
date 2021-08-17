@@ -61,6 +61,10 @@ test-nodejs:
 test-perl:
 	target=perl make test
 
+.PHONY: test-ruby
+test-ruby:
+	target=ruby make test
+
 .PHONY: test
 test:
 	docker-compose -f docker-compose-ci.yml -p isucon11q-ci up -d --build backend mysql-backend
