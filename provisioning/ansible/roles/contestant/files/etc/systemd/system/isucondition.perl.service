@@ -1,6 +1,6 @@
 [Unit]
 Description=isucondition.perl
-After=network.target mysql.service
+After=network.target mysql.service cloud-config.service
 
 [Service]
 WorkingDirectory=/home/isucon/webapp/perl
