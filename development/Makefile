@@ -6,6 +6,10 @@ up-go:
 up-rust:
 	docker-compose -f docker-compose-dev.yml up --build -- backend-rust mysql-backend jiaapi-mock
 
+.PHONY: up-nodejs
+up-nodejs:
+	docker-compose -f docker-compose-dev.yml up --build -- backend-nodejs mysql-backend jiaapi-mock
+
 .PHONY: down-dev
 down-dev:
 	docker-compose -f docker-compose-dev.yml down
@@ -17,6 +21,10 @@ test-go:
 .PHONY: test-rust
 test-rust:
 	target=rust make test
+
+.PHONY: test-nodejs
+test-nodejs:
+	target=nodejs make test
 
 .PHONY: test
 test:
