@@ -74,7 +74,7 @@ use constant GraphDataPoint => {
 use constant GraphResponse => {
     start_at             => JSON_TYPE_INT,
     end_at               => JSON_TYPE_INT,
-    data                 => GraphDataPoint,
+    data                 => json_type_null_or_anyof(GraphDataPoint),
     condition_timestamps => json_type_arrayof(JSON_TYPE_INT),
 };
 
@@ -93,7 +93,7 @@ use constant GetIsuListResponse => {
     jia_isu_uuid         => JSON_TYPE_STRING,
     name                 => JSON_TYPE_STRING,
     character            => JSON_TYPE_STRING,
-    latest_isu_condition => GetIsuConditionResponse,
+    latest_isu_condition => json_type_null_or_anyof(GetIsuConditionResponse),
 };
 
 use constant TrendCondition => {
@@ -275,16 +275,7 @@ sub get_isu_list($self, $c) {
             $found_last_condition = !!0;
         }
 
-        my $formatted_condition = {
-            jia_isu_uuid    => '',
-            isu_name        => '',
-            timestamp       => 0,
-            is_sitting      => !!0,
-            condition       => '',
-            condition_level => '',
-            message         => '',
-        };
-
+        my $formatted_condition;
         if ($found_last_condition) {
             my ($condition_level, $e) = calculate_condition_level($last_condition->{condition});
             if ($e) {
@@ -522,15 +513,7 @@ sub generate_isu_graph_response($self, $jia_isu_uuid, $graph_date) {
     my $tm_this_time = $tm_graph_date;
 
     while ($tm_this_time < $tm_graph_date->plus_hours(24)) {
-        my $data = { # GraphDataPoint
-            score => 0,
-            percentage => {
-                sitting       => 0,
-                is_broken     => 0,
-                is_dirty      => 0,
-                is_overweight => 0,
-            }
-        };
+        my $data;
         my $timestamps = [];
         my $this_time = mysql_datetime($tm_this_time);
 
