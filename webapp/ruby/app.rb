@@ -264,12 +264,12 @@ module Isucondition
       halt_error 400, 'bad format: icon' if fh && (!fh.kind_of?(Hash) || !fh[:tempfile].is_a?(Tempfile))
 
       use_default_image = fh.nil?
-      image = use_default_image ? File.read(DEFAULT_ICON_FILE_PATH) : fh.read
+      image = use_default_image ? File.binread(DEFAULT_ICON_FILE_PATH) : fh.fetch(:tempfile).binmode.read
 
       isu = db_transaction do
         db.xquery(
-          "INSERT INTO `isu` (`jia_isu_uuid`, `name`, `image`, `jia_user_id`) VALUES (?, ?, ?, ?)",
-          jia_isu_uuid, isu_name, image, jia_user_id,
+          "INSERT INTO `isu` (`jia_isu_uuid`, `name`, `image`, `jia_user_id`) VALUES (?, ?, ?, ?)".b,
+          jia_isu_uuid.b, isu_name.b, image, jia_user_id.b,
         )
 
         target_url = URI.parse("#{jia_service_url}/api/activate")
