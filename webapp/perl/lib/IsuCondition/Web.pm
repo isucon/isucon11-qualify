@@ -921,7 +921,8 @@ sub tm_from_mysql_datetime {
 
 sub tm_from_unix {
     my $epoch = shift;
-    return Time::Moment->from_epoch($epoch);
+    my $offset = 9 * 60 * 60; # XXX : Asia/Tokyo固定
+    return Time::Moment->from_epoch($epoch + $offset);
 }
 
 # XXX hack Kossy
