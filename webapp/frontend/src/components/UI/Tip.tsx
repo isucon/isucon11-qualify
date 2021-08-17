@@ -1,9 +1,8 @@
 interface Props {
   variant: 'info' | 'warning' | 'sitting' | 'critical'
-  label?: string
 }
 
-const Tip = ({ variant, label }: Props) => {
+const Tip = ({ variant }: Props) => {
   const color = (() => {
     switch (variant) {
       case 'info':
@@ -17,7 +16,7 @@ const Tip = ({ variant, label }: Props) => {
     }
   })()
   const className = `h-6 rounded-2xl px-4 font-medium text-center ${color}`
-  return <div className={className}>{label ?? variant}</div>
+  return <div className={className}>{variant}</div>
 }
 
 export default Tip

@@ -96,22 +96,13 @@ func NewRandomIsuRaw(owner *User) (*Isu, *StreamsForPoster, error) {
 	return isu, streamsForPoster, nil
 }
 
-func NewIsuRawForInitData(isu *Isu, owner *User, jiaIsuUUID string) (*Isu, error) {
+func NewIsuRawForInitData(isu *Isu, owner *User, jiaIsuUUID string) {
 	//stateChan := make(chan IsuStateChange, 1)
 	//conditionChan := make(chan []IsuCondition, 10)
 
-	isu = &Isu{
-		ID:                 isu.ID,
-		Owner:              owner,
-		JIAIsuUUID:         jiaIsuUUID,
-		Name:               isu.Name,
-		ImageHash:          isu.ImageHash,
-		Character:          isu.Character,
-		Conditions:         isu.Conditions,
-		StreamsForScenario: nil,
-	}
-
-	return isu, nil
+	isu.Owner = owner
+	isu.JIAIsuUUID = jiaIsuUUID
+	isu.StreamsForScenario = nil
 }
 
 var defaultIconHash [md5.Size]byte
