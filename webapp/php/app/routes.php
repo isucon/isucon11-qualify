@@ -1179,6 +1179,9 @@ final class Handler
         while ($thisTime < $graphDate->modify('+24 hours')) {
             /** @var ?GraphDataPoint $data */
             $data = null;
+            /** @var array<int> $timestamps */
+            $timestamps = [];
+
             if ($index < count($filteredDataPoints)) {
                 $dataWithInfo = $filteredDataPoints[$index];
 
@@ -1193,7 +1196,7 @@ final class Handler
                 startAt: $thisTime->getTimestamp(),
                 endAt: $thisTime->modify('+1 hour')->getTimestamp(),
                 data: $data,
-                conditionTimestamps: $timestamps ?? [],
+                conditionTimestamps: $timestamps,
             );
             $responseList[] = $resp;
 
