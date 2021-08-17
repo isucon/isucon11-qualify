@@ -26,7 +26,7 @@ type User struct {
 
 	Agent *agent.Agent
 
-	// asset名がキー、そのhashが値
+	// asset名がキー、そのhashが値。1 goroutine からしか参照されないが prepare が怪しいので mutex をとっておく
 	staticCacheMx    sync.Mutex
 	StaticCachedHash map[string]uint32
 }

@@ -16,7 +16,7 @@ type Viewer struct {
 	// key: isuID, value: timestamp
 	verifiedConditionsInTrend map[int]int64
 
-	// asset名がキー、そのhashが値
+	// asset名がキー、そのhashが値。1 goroutine からしか参照されないが -race で怒られたので mutex をとっておく
 	staticCacheMx    sync.Mutex
 	StaticCachedHash map[string]uint32
 }
