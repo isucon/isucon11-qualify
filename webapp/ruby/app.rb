@@ -445,9 +445,9 @@ module Isucondition
     # 複数のISUのコンディションからグラフの一つのデータ点を計算
     def calculate_graph_data_point(isu_conditions)
       conditions_count = {
-        is_broken: 0,
-        is_dirty: 0,
-        is_overweight: 0,
+        'is_broken' => 0,
+        'is_dirty' => 0,
+        'is_overweight' => 0,
       }
       raw_score = 0
 
