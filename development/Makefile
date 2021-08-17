@@ -30,6 +30,10 @@ down-dev:
 test-go:
 	target=go make test
 
+.PHONY: test-php
+test-php:
+	target=php make test
+
 .PHONY: test-rust
 test-rust:
 	target=rust make test
