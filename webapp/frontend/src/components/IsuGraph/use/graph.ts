@@ -36,7 +36,6 @@ const useGraph = (
 
   useEffect(() => {
     const fetchGraphs = async () => {
-      history.push(location.pathname + '?datetime=' + dateToTimestamp(date))
       const graphs = await getGraphs({ date: date })
       const graphData = genGraphData(graphs)
       updateResult(state => ({
@@ -57,16 +56,22 @@ const useGraph = (
       toast.error('日時の指定が不正です')
       return
     }
+    replaceHistory()
     updateDate(date)
   }
 
   const prev = async () => {
+    replaceHistory()
     updateDate(getPrevDate(date))
   }
 
   const next = async () => {
+    replaceHistory()
     updateDate(getNextDate(date))
   }
+
+  const replaceHistory = () =>
+    history.replace(location.pathname + '?datetime=' + dateToTimestamp(date))
 
   return { ...result, specify, prev, next }
 }
