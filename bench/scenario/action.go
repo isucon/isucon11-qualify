@@ -16,6 +16,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
@@ -27,7 +28,6 @@ import (
 	"github.com/isucon/isucandar/agent"
 	"github.com/isucon/isucandar/failure"
 	"github.com/isucon/isucon11-qualify/bench/logger"
-	"github.com/isucon/isucon11-qualify/bench/model"
 	"github.com/isucon/isucon11-qualify/bench/random"
 	"github.com/isucon/isucon11-qualify/bench/service"
 )
@@ -61,7 +61,7 @@ func initializeAction(ctx context.Context, a *agent.Agent, req service.PostIniti
 
 // ==============================authAction==============================
 
-func authAction(ctx context.Context, user *model.User, userID string) (*service.AuthResponse, []error) {
+func authAction(ctx context.Context, a *agent.Agent, userID string) (*service.AuthResponse, []error) {
 	errors := []error{}
 
 	//JWT生成
@@ -71,18 +71,18 @@ func authAction(ctx context.Context, user *model.User, userID string) (*service.
 	}
 
 	// リダイレクト時のフロントアクセス
-	if errs := BrowserAccessIndexHtml(ctx, user, "/"); len(errs) != 0 {
-		errors = append(errors, errs...)
+	if err := BrowserAccessIndexHtml(ctx, a, "/"); err != nil {
+		errors = append(errors, err)
 		return nil, errors
 	}
 
 	//リクエスト
-	req, err := user.GetAgent().POST("/api/auth", nil)
+	req, err := a.POST("/api/auth", nil)
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 	}
 	req.Header.Set("Authorization", jwtOK)
-	res, err := AgentDo(user.GetAgent(), ctx, req)
+	res, err := AgentDo(a, ctx, req)
 	if err != nil {
 		err = failure.NewError(ErrHTTP, err)
 		errors = append(errors, err)
@@ -556,27 +556,27 @@ func getTrendAction(ctx context.Context, a *agent.Agent) (service.GetTrendRespon
 	return trend, res, nil
 }
 
-func browserGetLandingPageAction(ctx context.Context, user AgentWithStaticCache) (service.GetTrendResponse, *http.Response, []error) {
+func browserGetLandingPageAction(ctx context.Context, a *agent.Agent) (service.GetTrendResponse, *http.Response, error) {
 	// 静的ファイルのGET
-	if err := BrowserAccess(ctx, user, "/", TrendPage); err != nil {
+	if err := BrowserAccess(ctx, a, "/", TrendPage); err != nil {
 		return nil, nil, err
 	}
 
-	trend, res, err := getTrendAction(ctx, user.GetAgent())
+	trend, res, err := getTrendAction(ctx, a)
 	if err != nil {
-		return nil, nil, []error{err}
+		return nil, nil, err
 	}
 
 	return trend, res, nil
 }
 
-func browserGetLandingPageIgnoreAction(ctx context.Context, user AgentWithStaticCache) []error {
+func browserGetLandingPageIgnoreAction(ctx context.Context, a *agent.Agent) error {
 	// 静的ファイルのGET
-	if err := BrowserAccess(ctx, user, "/", TrendPage); err != nil {
+	if err := BrowserAccess(ctx, a, "/", TrendPage); err != nil {
 		return err
 	}
 
-	_, err := getTrendIgnoreAction(ctx, user.GetAgent())
+	_, err := getTrendIgnoreAction(ctx, a)
 	if err != nil {
 		// ここのエラーは気にしないので握りつぶす
 		return nil
@@ -667,41 +667,59 @@ func browserGetIsuConditionAction(ctx context.Context, a *agent.Agent, id string
 	return conditions, errors
 }
 
-func BrowserAccessIndexHtml(ctx context.Context, user AgentWithStaticCache, rpath string) []error {
-	req, err := user.GetAgent().GET(rpath)
+func BrowserAccessIndexHtml(ctx context.Context, a *agent.Agent, rpath string) error {
+	req, err := a.GET(rpath)
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 	}
-	res, err := AgentStaticDo(ctx, user, req, "/index.html")
+
+	res, err := AgentDo(a, ctx, req)
 	if err != nil {
-		return []error{failure.NewError(ErrHTTP, err)}
+		return failure.NewError(ErrHTTP, err)
 	}
-	// index.html の hash 検証
-	if err := errorAssetChecksum(res, user, "/index.html"); err != nil {
-		return []error{err}
+	defer res.Body.Close()
+
+	if err := verifyStatusCodes(res, []int{http.StatusOK, http.StatusNotModified}); err != nil {
+		return err
 	}
 
+	// index.htmlの検証
+	if err := errorHtmlChecksum(res, res.Body, "/index.html"); err != nil {
+		return err
+	}
 	return nil
 }
 
-func BrowserAccess(ctx context.Context, user AgentWithStaticCache, rpath string, page PageType) []error {
-	req, err := user.GetAgent().GET(rpath)
+func BrowserAccess(ctx context.Context, a *agent.Agent, rpath string, page PageType) error {
+	req, err := a.GET(rpath)
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 	}
-	res, err := AgentStaticDo(ctx, user, req, "/index.html")
+
+	res, err := AgentDo(a, ctx, req)
 	if err != nil {
-		return []error{failure.NewError(ErrHTTP, err)}
+		return failure.NewError(ErrHTTP, err)
 	}
-	// index.html の hash 検証
-	if err := errorAssetChecksum(res, user, "/index.html"); err != nil {
-		return []error{err}
+	defer res.Body.Close()
+
+	if err := verifyStatusCodes(res, []int{http.StatusOK, http.StatusNotModified}); err != nil {
+		return err
 	}
 
-	// index.html で取りに行っているはずの assets の取得
-	errs := getAssets(ctx, user, res, page)
-	if len(errs) != 0 {
-		return errs
+	// res.Bodyの内容をhtmlの検証にも使いたいのでコピー
+	buf := new(bytes.Buffer)
+	teeReader := io.TeeReader(res.Body, buf)
+
+	resources, err := AgentProcessHTML(a, ctx, res, ioutil.NopCloser(teeReader))
+	if err != nil {
+		return failure.NewError(ErrCritical, err)
+	}
+	// resourceの検証
+	errs := verifyResources(page, res, resources, buf)
+	for _, err := range errs {
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -710,70 +728,27 @@ func BrowserAccess(ctx context.Context, user AgentWithStaticCache, rpath string,
 func AgentDo(a *agent.Agent, ctx context.Context, req *http.Request) (*http.Response, error) {
 	return a.Do(ctx, req)
 }
-
-type AgentWithStaticCache interface {
-	SetStaticCache(path string, hash [16]byte)
-	GetStaticCache(path string) ([16]byte, bool)
-
-	GetAgent() *agent.Agent
-}
-
-// User.StaticCachedHash を使って静的ファイルのキャッシュを更新する
-func AgentStaticDo(ctx context.Context, user AgentWithStaticCache, req *http.Request, cachePath string) (*http.Response, error) {
-	res, err := user.GetAgent().Do(ctx, req)
+func AgentProcessHTML(a *agent.Agent, ctx context.Context, r *http.Response, body io.ReadCloser) (agent.Resources, error) {
+	resources, err := a.ProcessHTML(ctx, r, body)
 	if err != nil {
-		return res, err
+		return resources, err
 	}
 
-	return res, nil
-}
-
-func getAssets(ctx context.Context, user AgentWithStaticCache, resIndex *http.Response, page PageType) []error {
-	errs := []error{}
-
-	faviconSvg := resourcesMap["/assets/favicon.svg"]
-	indexCss := resourcesMap["/assets/index.css"]
-	indexJs := resourcesMap["/assets/index.js"]
-	logoOrange := resourcesMap["/assets/logo_orange.svg"]
-	logoWhite := resourcesMap["/assets/logo_white.svg"]
-	vendorJs := resourcesMap["/assets/vendor.js"]
-
-	var requireAssets []string
-	switch page {
-	case HomePage, IsuDetailPage, IsuConditionPage, IsuGraphPage, RegisterPage:
-		requireAssets = []string{faviconSvg, indexCss, vendorJs, indexJs, logoWhite}
-	case TrendPage:
-		requireAssets = []string{faviconSvg, indexCss, vendorJs, indexJs, logoOrange, logoWhite}
-	default:
-		logger.AdminLogger.Panicf("意図していないpage(%d)のResourceCheckを行っています。(path: %s)", page, resIndex.Request.URL.Path)
+	//304のときはbodyにcacheが入っているかどうか分からないので、確実にcacheを取得
+	if a.CacheStore != nil {
+		for _, resource := range resources {
+			if resource.Error != nil {
+				continue
+			}
+			if resource.Response.StatusCode != http.StatusNotModified {
+				continue
+			}
+			cache := a.CacheStore.Get(resource.Request)
+			if cache != nil {
+				resource.Response.Body.Close()
+				resource.Response.Body = ioutil.NopCloser(bytes.NewReader(cache.Body()))
+			}
+		}
 	}
-
-	wg := &sync.WaitGroup{}
-	errsMx := sync.Mutex{}
-	for _, asset := range requireAssets {
-		wg.Add(1)
-		go func(path string) {
-			defer wg.Done()
-			rpath := joinURL(resIndex.Request.URL, path)
-			req, err := user.GetAgent().GET(rpath)
-			if err != nil {
-				logger.AdminLogger.Panic(err)
-			}
-			res, err := AgentStaticDo(ctx, user, req, path)
-			if err != nil {
-				errsMx.Lock()
-				errs = append(errs, failure.NewError(ErrHTTP, err))
-				errsMx.Unlock()
-				return
-			}
-			err = errorAssetChecksum(res, user, path)
-			if err != nil {
-				errsMx.Lock()
-				errs = append(errs, err)
-				errsMx.Unlock()
-			}
-		}(asset)
-	}
-	wg.Wait()
-	return errs
+	return resources, nil
 }

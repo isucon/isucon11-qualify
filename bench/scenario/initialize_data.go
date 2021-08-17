@@ -26,9 +26,6 @@ func (s *Scenario) InitializeData(ctx context.Context) {
 
 	for i, _ := range users {
 		user := users[i]
-
-		//c
-		user.StaticCachedHash = map[string][16]byte{}
 		//var userConditions []model.IsuCondition
 
 		for key, _ := range user.IsuListByID {

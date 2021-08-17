@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/isucon/isucandar/agent"
 	"github.com/isucon/isucandar/failure"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 
@@ -466,35 +467,112 @@ func joinURL(base *url.URL, target string) string {
 	return u
 }
 
-func errorAssetChecksum(res *http.Response, user AgentWithStaticCache, path string) error {
+// TODO: vendor.****.jsで取得処理が記述されているlogo_white, logo_orangeも取得できてない。#448
+func verifyResources(page PageType, res *http.Response, resources agent.Resources, body io.Reader) []error {
+	base := res.Request.URL.String()
+
+	faviconSvg := resourcesMap["/assets/favicon.svg"]
+	indexCss := resourcesMap["/assets/index.css"]
+	indexJs := resourcesMap["/assets/index.js"]
+	//logoOrange := resourcesMap["/assets/logo_orange.svg"]
+	//logoWhite := resourcesMap["/assets/logo_white.svg"]
+	vendorJs := resourcesMap["/assets/vendor.js"]
+
+	var checks []error
+	switch page {
+	case HomePage, IsuDetailPage, IsuConditionPage, IsuGraphPage, RegisterPage:
+		checks = []error{
+			errorHtmlChecksum(res, body, "/index.html"),
+			errorChecksum(base, resources[joinURL(res.Request.URL, faviconSvg)], faviconSvg),
+			errorChecksum(base, resources[joinURL(res.Request.URL, indexCss)], indexCss),
+			errorChecksum(base, resources[joinURL(res.Request.URL, indexJs)], indexJs),
+			//errorChecksum(base, resources[joinURL(res.Request.URL, logoWhite)], logoWhite),
+			errorChecksum(base, resources[joinURL(res.Request.URL, vendorJs)], vendorJs),
+		}
+	case TrendPage:
+		checks = []error{
+			errorHtmlChecksum(res, body, "/index.html"),
+			errorChecksum(base, resources[joinURL(res.Request.URL, faviconSvg)], faviconSvg),
+			errorChecksum(base, resources[joinURL(res.Request.URL, indexCss)], indexCss),
+			errorChecksum(base, resources[joinURL(res.Request.URL, indexJs)], indexJs),
+			//errorChecksum(base, resources[joinURL(res.Request.URL, logoOrange)], logoOrange),
+			//errorChecksum(base, resources[joinURL(res.Request.URL, logoWhite)], logoWhite),
+			errorChecksum(base, resources[joinURL(res.Request.URL, vendorJs)], vendorJs),
+		}
+	default:
+		logger.AdminLogger.Panicf("意図していないpage(%d)のResourceCheckを行っています。(path: %s)", page, res.Request.URL.Path)
+	}
+	errs := []error{}
+	for _, err := range checks {
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	return errs
+}
+
+func errorHtmlChecksum(res *http.Response, body io.Reader, path string) error {
+	//前回の取得が成功している保証が無い為
+	// if res.StatusCode == 304 {
+	// 	return nil
+	// }
 	if err := verifyStatusCodes(res, []int{http.StatusOK, http.StatusNotModified}); err != nil {
 		return err
 	}
 
-	defer res.Body.Close()
-	if res.StatusCode != http.StatusNotModified {
-		// cache の更新
-		hasher := crc32.New(crc32.IEEETable)
-		_, err := io.Copy(hasher, res.Body)
-		if err != nil {
-			return err
+	// md5でリソースの比較
+	expected := resourcesHash[path]
+	if expected == "" {
+		logger.AdminLogger.Panicf("意図していないpath(%s)のHtmlResourceCheckを行っています。", path)
+	}
+	hash := md5.New()
+	if _, err := io.Copy(hash, body); err != nil {
+		logger.AdminLogger.Printf("resource checksum: %v", err)
+		return errorCheckSum("リソースの取得に失敗しました: %s", path)
+	}
+	actual := fmt.Sprintf("%x", hash.Sum(nil))
+	if expected != actual {
+		return errorCheckSum("期待するチェックサムと一致しません: %s", path)
+	}
+	return nil
+}
+
+func errorChecksum(base string, resource *agent.Resource, path string) error {
+	if resource == nil {
+		logger.AdminLogger.Printf("resource not found: %s on %s\n", path, base)
+		return errorCheckSum("期待するリソースが読み込まれませんでした: %s", path)
+	}
+
+	if resource.Error != nil {
+		if isTimeout(resource.Error) {
+			return resource.Error
 		}
-		user.SetStaticCache(path, hasher.Sum32())
+		return errorCheckSum("リソースの取得に失敗しました: %s: %v", path, resource.Error)
+	}
+
+	res := resource.Response
+	defer res.Body.Close()
+	//前回の取得が成功している保証が無い為
+	// if res.StatusCode == http.StatusNotModified {
+	// 	return nil
+	// }
+
+	if err := verifyStatusCodes(res, []int{http.StatusOK, http.StatusNotModified}); err != nil {
+		return err
 	}
 
 	// crc32でリソースの比較
 	expected := resourcesHash[path]
 	if expected == "" {
-		logger.AdminLogger.Panicf("意図していないpath(%s)のAssetResourceCheckを行っています。", path)
+		logger.AdminLogger.Panicf("意図していないpath(%s)のResourceCheckを行っています。", path)
 	}
-	actualHash, exist := user.GetStaticCache(path)
-	if !exist {
-		if res.StatusCode != http.StatusNotModified {
-			logger.AdminLogger.Panic("static cacheがありません")
-		}
-		return errorCheckSum("304 StatusNotModified を返却していますが cache がありません: %s", path)
+	hash := md5.New()
+	if _, err := io.Copy(hash, res.Body); err != nil {
+		logger.AdminLogger.Printf("resource checksum: %v", err)
+		return errorCheckSum("リソースの取得に失敗しました: %s", path)
 	}
-	actual := fmt.Sprintf("%x", actualHash)
+	actual := fmt.Sprintf("%x", hash.Sum(nil))
 	if expected != actual {
 		return errorCheckSum("期待するチェックサムと一致しません: %s", path)
 	}

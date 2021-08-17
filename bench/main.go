@@ -225,7 +225,6 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 			} else {
 				deduction++
 			}
-			logger.AdminLogger.Printf("Critical error because: %+v\n", err)
 		}
 	}
 	deductionTotal := deduction + timeoutCount/10
