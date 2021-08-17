@@ -34,7 +34,7 @@ import (
 
 const (
 	// FAIL になるエラー回数
-	FAIL_ERROR_COUNT int64 = 100 //TODO:ちゃんと決める
+	FAIL_ERROR_COUNT int64 = 100
 	//load context
 	LOAD_TIMEOUT time.Duration = 60 * time.Second
 )
@@ -213,7 +213,7 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 		case isCritical:
 			passed = false
 			reason = "Critical error"
-			logger.AdminLogger.Printf("Critical error because: %+v\n", err) //TODO: Contestantでも良いかも
+			logger.AdminLogger.Printf("Critical error because: %+v\n", err)
 		case isTimeout:
 			timeoutCount++
 		case isDeduction:
@@ -224,7 +224,7 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 			}
 		}
 	}
-	deductionTotal := deduction + timeoutCount/10 //TODO:
+	deductionTotal := deduction + timeoutCount/10
 
 	if passed && deduction > FAIL_ERROR_COUNT {
 		passed = false

@@ -2,7 +2,6 @@ package service
 
 import (
 	"crypto/ecdsa"
-	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -80,14 +79,14 @@ func GenerateTamperedJWT(userID1 string, userID2 string, issuedAt time.Time) (st
 		"exp":         issuedAt.Add(lifetime).Unix(),
 	})
 
-	jwt, err := token.SignedString(jwtSecretKey)
+	signed, err := token.SignedString(jwtSecretKey)
 	if err != nil {
 		return "", err
 	}
 	//claimを置換する
-	claims2Str := fmt.Sprintf(`{"jia_user_id":%s,"iat":%d,"exp":%d}`, userID2, issuedAt.Unix(), issuedAt.Add(lifetime).Unix())
-	claims2 := base64.StdEncoding.EncodeToString([]byte(claims2Str))
-	jwtSep := strings.Split(jwt, ".")
+	claims2Str := fmt.Sprintf(`{"jia_user_id":"%s","iat":%d,"exp":%d}`, userID2, issuedAt.Unix(), issuedAt.Add(lifetime).Unix())
+	claims2 := jwt.EncodeSegment([]byte(claims2Str))
+	jwtSep := strings.Split(signed, ".")
 	return jwtSep[0] + "." + claims2 + "." + jwtSep[2], nil
 }
 

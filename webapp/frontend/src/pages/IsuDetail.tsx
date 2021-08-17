@@ -1,6 +1,4 @@
-import MainInfo from '/@/components/IsuDetail/MainInfo'
-import Card from '/@/components/UI/Card'
-import NowLoading from '/@/components/UI/NowLoading'
+import IsuImage from '/@/components/UI/IsuImage'
 import { Isu } from '/@/lib/apis'
 
 interface Props {
@@ -8,13 +6,17 @@ interface Props {
 }
 
 const IsuDetail = ({ isu }: Props) => {
-  if (!isu) return <NowLoading />
-
   return (
-    <div className="flex flex-col gap-10 items-center">
-      <Card>
-        <MainInfo isu={isu} />
-      </Card>
+    <div className="flex flex-wrap gap-16">
+      <IsuImage isu={isu} customClass="h-64 w-64" />
+      <div className="flex flex-col flex-grow">
+        <div className="mb-4 text-xl font-bold">{isu.name}</div>
+        <div className="grid-cols-[max-content,max-content,max-content] grid gap-2">
+          <div>せいかく</div>
+          <div>---</div>
+          <div>{isu.character}</div>
+        </div>
+      </div>
     </div>
   )
 }

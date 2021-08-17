@@ -16,7 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/isucon/isucandar/agent"
 	"github.com/isucon/isucandar/failure"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 
@@ -85,22 +84,6 @@ func verifyNotSignedIn(res *http.Response, text string) error {
 	return verify4xxError(res, text, expected, http.StatusUnauthorized)
 }
 
-// TODO: 統一され次第消す
-func verifyNotSignedInTODO(res *http.Response, text string) error {
-	expected := "you are not sign in"
-	return verify4xxError(res, text, expected, http.StatusUnauthorized)
-}
-
-func verifyBadReqBody(res *http.Response, text string) error {
-	expected := "bad request body"
-	return verify4xxError(res, text, expected, http.StatusBadRequest)
-}
-
-func verifyIsuNotFound(res *http.Response, text string) error {
-	expected := "not found: isu"
-	return verify4xxError(res, text, expected, http.StatusNotFound)
-}
-
 //データ整合性チェック
 
 //Icon,LatestIsuConditionを除いたISUの整合性チェック
@@ -120,7 +103,7 @@ func verifyIsuIcon(expected *model.Isu, actual []byte, actualStatusCode int) err
 	if expected.ImageHash != md5.Sum(actual) {
 		return failure.NewError(ErrMismatch, errorFormatWithURI(
 			actualStatusCode, http.MethodGet, "/api/isu/"+expected.JIAIsuUUID+"/icon",
-			"椅子 (JIA_ISU_UUID=%s) のiconが異なります", expected.JIAIsuUUID,
+			"椅子のiconが異なります", //UUIDはpathでわかるので省略
 		))
 	}
 	return nil
@@ -141,9 +124,11 @@ func verifyIsuList(res *http.Response, expectedReverse []*model.Isu, isuList []*
 		//iconはエンドポイントが別なので、別枠で検証
 		if isu.Icon == nil {
 			//icon取得失敗(エラー追加済み)
-		} else if expected.ImageHash != md5.Sum(isu.Icon) {
-			//TODO: issue #1119 resが対応していない
-			errs = append(errs, errorMismatch(res, "%d番目の椅子 (JIA_ISU_UUID=%s) のiconが異なります", i+1, isu.JIAIsuUUID))
+		} else {
+			err := verifyIsuIcon(expected, isu.Icon, isu.IconStatusCode)
+			if err != nil {
+				errs = append(errs, err)
+			}
 		}
 
 		// isu の検証
@@ -194,11 +179,12 @@ func verifyIsuList(res *http.Response, expectedReverse []*model.Isu, isuList []*
 	return newConditionUUIDs, errs
 }
 
-//mustExistUntil: この値以下のtimestampを持つものは全て反映されているべき
+//mustExistUntil: この値以下のtimestampを持つものは全て反映されているべき。副作用: IsuCondition の ReadTime を更新する。
 func verifyIsuConditions(res *http.Response,
 	targetUser *model.User, targetIsuUUID string, request *service.GetIsuConditionRequest,
 	backendData []*service.GetIsuConditionResponse,
-	mustExistTimestamps [service.ConditionLimit]int64) error {
+	mustExistTimestamps [service.ConditionLimit]int64,
+	requestTimeUnix int64) error {
 
 	//limitを超えているかチェック
 	if service.ConditionLimit < len(backendData) {
@@ -232,7 +218,7 @@ func verifyIsuConditions(res *http.Response,
 		defer targetIsu.CondMutex.RUnlock()
 
 		conditions := targetIsu.Conditions
-		iterTmp := conditions.LowerBound(filter, request.EndTime, targetIsuUUID)
+		iterTmp := conditions.LowerBound(filter, request.EndTime)
 		baseIter := &iterTmp
 
 		//backendDataは新しい順にソートされているはずなので、先頭からチェック
@@ -257,6 +243,15 @@ func verifyIsuConditions(res *http.Response,
 
 				if expected.TimestampUnix < c.Timestamp {
 					return errorMismatch(res, "POSTに成功していない時刻のデータが返されました")
+				}
+
+				if request.StartTime != nil && c.Timestamp < *request.StartTime {
+					return errorMismatch(res, "start_time に指定された時間より前のデータが返されました")
+				}
+
+				// GET /api/isu/:id/graph で見た ConditionDelayTime秒以上後に、その condition がないとき
+				if expected.ReadTime+ConditionDelayTime < requestTimeUnix {
+					return errorMismatch(res, "GET /api/condition/:jia_isu_uuid か GET /api/isu/:jia_isu_uuid/graph で確認された condition がありません")
 				}
 			}
 
@@ -294,6 +289,31 @@ func verifyIsuConditions(res *http.Response,
 				return errorMismatch(res, "データが正しくありません")
 			}
 			lastSort = nowSort
+
+			// GET /api/isu/:id/graph と連動してる読んだ時間を更新
+			if expected.ReadTime > requestTimeUnix {
+				expected.ReadTime = time.Now().Unix()
+			}
+		}
+
+		// backendData が空のときもチェックする
+		if len(backendData) == 0 {
+			var expected *model.IsuCondition
+			for {
+				expected = baseIter.Prev()
+				if expected == nil {
+					break // ok
+				}
+
+				if request.StartTime != nil && *request.StartTime > expected.TimestampUnix {
+					break // ok
+				}
+
+				// GET /api/isu/:id/graph で見た ConditionDelayTime秒以上後に、その condition がないとき
+				if expected.ReadTime+ConditionDelayTime < requestTimeUnix {
+					return errorMismatch(res, "GET /api/condition/:jia_isu_uuid か GET /api/isu/:jia_isu_uuid/graph で確認された condition がありません")
+				}
+			}
 		}
 		return nil
 	}(); err != nil {
@@ -367,7 +387,7 @@ func verifyPrepareIsuConditions(res *http.Response,
 		targetIsu.CondMutex.RLock()
 		defer targetIsu.CondMutex.RUnlock()
 
-		iterTmp := targetIsu.Conditions.LowerBound(filter, request.EndTime, targetIsuUUID)
+		iterTmp := targetIsu.Conditions.LowerBound(filter, request.EndTime)
 		baseIter := &iterTmp
 
 		//backendDataは新しい順にソートされているはずなので、先頭からチェック
@@ -445,122 +465,43 @@ func joinURL(base *url.URL, target string) string {
 	return u
 }
 
-// TODO: vendor.****.jsで取得処理が記述されているlogo_white, logo_orangeも取得できてない
-func verifyResources(page PageType, res *http.Response, resources agent.Resources, body io.Reader) []error {
-	base := res.Request.URL.String()
-
-	faviconSvg := resourcesMap["/assets/favicon.svg"]
-	indexCss := resourcesMap["/assets/index.css"]
-	indexJs := resourcesMap["/assets/index.js"]
-	//logoOrange := resourcesMap["/assets/logo_orange.svg"]
-	//logoWhite := resourcesMap["/assets/logo_white.svg"]
-	vendorJs := resourcesMap["/assets/vendor.js"]
-
-	var checks []error
-	switch page {
-	case HomePage, IsuDetailPage, IsuConditionPage, IsuGraphPage, RegisterPage:
-		checks = []error{
-			errorHtmlChecksum(res, body, "/index.html"),
-			errorChecksum(base, resources[joinURL(res.Request.URL, faviconSvg)], faviconSvg),
-			errorChecksum(base, resources[joinURL(res.Request.URL, indexCss)], indexCss),
-			errorChecksum(base, resources[joinURL(res.Request.URL, indexJs)], indexJs),
-			//errorChecksum(base, resources[joinURL(res.Request.URL, logoWhite)], logoWhite),
-			errorChecksum(base, resources[joinURL(res.Request.URL, vendorJs)], vendorJs),
-		}
-	case TrendPage:
-		checks = []error{
-			errorHtmlChecksum(res, body, "/index.html"),
-			errorChecksum(base, resources[joinURL(res.Request.URL, faviconSvg)], faviconSvg),
-			errorChecksum(base, resources[joinURL(res.Request.URL, indexCss)], indexCss),
-			errorChecksum(base, resources[joinURL(res.Request.URL, indexJs)], indexJs),
-			//errorChecksum(base, resources[joinURL(res.Request.URL, logoOrange)], logoOrange),
-			//errorChecksum(base, resources[joinURL(res.Request.URL, logoWhite)], logoWhite),
-			errorChecksum(base, resources[joinURL(res.Request.URL, vendorJs)], vendorJs),
-		}
-	default:
-		logger.AdminLogger.Panicf("意図していないpage(%d)のResourceCheckを行っています。(path: %s)", page, res.Request.URL.Path)
-	}
-	errs := []error{}
-	for _, err := range checks {
-		if err != nil {
-			errs = append(errs, err)
-		}
-	}
-
-	return errs
-}
-
-func errorHtmlChecksum(res *http.Response, body io.Reader, path string) error {
-	//前回の取得が成功している保証が無い為
-	// if res.StatusCode == 304 {
-	// 	return nil
-	// }
+func errorAssetChecksum(req *http.Request, res *http.Response, user AgentWithStaticCache, path string) error {
 	if err := verifyStatusCodes(res, []int{http.StatusOK, http.StatusNotModified}); err != nil {
 		return err
 	}
 
-	// md5でリソースの比較
-	expected := resourcesHash[path]
-	if expected == "" {
-		logger.AdminLogger.Panicf("意図していないpath(%s)のHtmlResourceCheckを行っています。", path)
-	}
-	hash := md5.New()
-	if _, err := io.Copy(hash, body); err != nil {
-		logger.AdminLogger.Printf("resource checksum: %v", err)
-		return errorCheckSum("リソースの取得に失敗しました: %s", path)
-	}
-	actual := fmt.Sprintf("%x", hash.Sum(nil))
-	if expected != actual {
-		return errorCheckSum("期待するチェックサムと一致しません: %s", path)
-	}
-	return nil
-}
-
-func errorChecksum(base string, resource *agent.Resource, path string) error {
-	if resource == nil {
-		logger.AdminLogger.Printf("resource not found: %s on %s\n", path, base)
-		return errorCheckSum("期待するリソースが読み込まれませんでした: %s", path)
-	}
-
-	if resource.Error != nil {
-		if isTimeout(resource.Error) {
-			return resource.Error
-		}
-		return errorCheckSum("リソースの取得に失敗しました: %s: %v", path, resource.Error)
-	}
-
-	res := resource.Response
 	defer res.Body.Close()
-	//前回の取得が成功している保証が無い為
-	// if res.StatusCode == http.StatusNotModified {
-	// 	return nil
-	// }
-
-	if err := verifyStatusCodes(res, []int{http.StatusOK, http.StatusNotModified}); err != nil {
-		return err
+	if res.StatusCode != http.StatusNotModified {
+		// cache の更新
+		body, err := io.ReadAll(res.Body)
+		if err != nil {
+			return err
+		}
+		user.SetStaticCache(path, md5.Sum(body))
 	}
 
 	// md5でリソースの比較
 	expected := resourcesHash[path]
 	if expected == "" {
-		logger.AdminLogger.Panicf("意図していないpath(%s)のResourceCheckを行っています。", path)
+		logger.AdminLogger.Panicf("意図していないpath(%s)のAssetResourceCheckを行っています。", path)
 	}
-	hash := md5.New()
-	if _, err := io.Copy(hash, res.Body); err != nil {
-		logger.AdminLogger.Printf("resource checksum: %v", err)
-		return errorCheckSum("リソースの取得に失敗しました: %s", path)
+	actualHash, exist := user.GetStaticCache(path, req)
+	if !exist {
+		return errorCheckSum("304 StatusNotModified を返却していますが cache がありません: %s", path)
 	}
-	actual := fmt.Sprintf("%x", hash.Sum(nil))
+	actual := fmt.Sprintf("%x", actualHash)
 	if expected != actual {
 		return errorCheckSum("期待するチェックサムと一致しません: %s", path)
 	}
 	return nil
 }
 
+// 副作用: IsuCondition の ReadTime を更新する。
 func verifyGraph(
 	res *http.Response, targetUser *model.User, targetIsuUUID string,
 	getGraphReq *service.GetGraphRequest,
-	getGraphResp service.GraphResponse) error {
+	getGraphResp service.GraphResponse,
+	requestTimeUnix int64) error {
 
 	// graphResp の配列は必ず 24 つ (24時間分) である
 	if len(getGraphResp) != 24 {
@@ -598,7 +539,7 @@ func verifyGraph(
 			// 特定の ISU における expected な conditions を新しい順に取得するイテレータを生成
 			conditions := targetIsu.Conditions
 			filter := model.ConditionLevelInfo | model.ConditionLevelWarning | model.ConditionLevelCritical
-			baseIter := conditions.LowerBound(filter, graphOne.EndAt, targetIsu.JIAIsuUUID)
+			baseIter := conditions.LowerBound(filter, graphOne.EndAt)
 
 			var lastSort model.IsuConditionCursor
 			// graphOne.ConditionTimestamps を逆順 (timestamp が新しい順) に loop
@@ -628,7 +569,38 @@ func verifyGraph(
 					if expected.TimestampUnix == timestamp {
 						// graphOne.ConditionTimestamps[n] から condition を取得
 						conditionsBaseOfScore = append(conditionsBaseOfScore, expected)
+
+						// GET /api/condition/:id と連動してる読んだ時間を更新
+						if expected.ReadTime > requestTimeUnix {
+							expected.ReadTime = time.Now().Unix()
+						}
 						break //ok
+					}
+
+					// GET /api/condition/:id で見た ConditionDelayTime秒以上後に、その condition がないとき
+					if expected.ReadTime+ConditionDelayTime < requestTimeUnix {
+						return errorMismatch(res, "GET /api/condition/:jia_isu_uuid か GET /api/isu/:jia_isu_uuid/graph で確認された condition がありません")
+					}
+				}
+			}
+
+			// graphOne.ConditionTimestamps が空のときもチェックする
+			if len(graphOne.ConditionTimestamps) == 0 {
+				var expected *model.IsuCondition
+				for {
+					expected = baseIter.Prev()
+					if expected == nil {
+						break // ok
+					}
+
+					// 根拠 timestamps は StartAt <= timestamp < EndAt であるため
+					if expected.TimestampUnix < graphOne.StartAt {
+						break // ok
+					}
+
+					// GET /api/condition/:id で見た ConditionDelayTime秒以上後に、その condition がないとき
+					if expected.ReadTime+ConditionDelayTime < requestTimeUnix {
+						return errorMismatch(res, "GET /api/condition/:jia_isu_uuid か GET /api/isu/:jia_isu_uuid/graph で確認された condition がありません")
 					}
 				}
 			}
@@ -718,41 +690,37 @@ func (s *Scenario) verifyTrend(
 					defer isu.CondMutex.RUnlock()
 
 					// condition を最新順に取得するイテレータを生成
-					// TODO LowerBound(condition.Timestamp) で出来るようにする
 					filter := model.ConditionLevelInfo | model.ConditionLevelWarning | model.ConditionLevelCritical
 					conditions := isu.Conditions
-					baseIter := conditions.End(filter)
+					baseIter := conditions.UpperBound(filter, condition.Timestamp)
 
 					// condition.timestamp と condition.condition の値を検証
-					for {
-						expected := baseIter.Prev()
+					expected := baseIter.Prev()
+					if expected == nil || expected.TimestampUnix != condition.Timestamp {
+						return errorMismatch(res, "POSTに成功していない時刻のデータが返されました")
+					}
+					if !expected.ConditionLevel.Equal(conditionLevel) {
+						return errorMismatch(res, "コンディションレベルが正しくありません")
+					}
+					// 同じ isu の condition が複数返されてないことの検証
+					if _, exist := isuIDSet[condition.IsuID]; exist {
+						return errorMismatch(res, "同じ ISU のコンディションが複数登録されています")
+					}
+					isuIDSet[condition.IsuID] = struct{}{}
 
-						if expected == nil || expected.TimestampUnix < condition.Timestamp {
-							return errorMismatch(res, "POSTに成功していない時刻のデータが返されました")
+					// 該当 condition が新規のものである場合はキャッシュを更新
+					if !viewer.ConditionAlreadyVerified(condition.IsuID, condition.Timestamp) {
+						// 該当 condition が以前のものよりも昔の timestamp で無いことの検証
+						if !viewer.ConditionIsUpdated(condition.IsuID, condition.Timestamp) {
+							return errorMismatch(res, "以前の取得結果よりも古いタイムスタンプのコンディションが返されています")
 						}
-						if expected.TimestampUnix == condition.Timestamp && expected.ConditionLevel.Equal(conditionLevel) {
-							// 同じ isu の condition が複数返されてないことの検証
-							if _, exist := isuIDSet[condition.IsuID]; exist {
-								return errorMismatch(res, "同じ ISU のコンディションが複数登録されています")
-							}
-							isuIDSet[condition.IsuID] = struct{}{}
-
-							// 該当 condition が新規のものである場合はキャッシュを更新
-							if !viewer.ConditionAlreadyVerified(condition.IsuID, condition.Timestamp) {
-								// 該当 condition が以前のものよりも昔の timestamp で無いことの検証
-								if !viewer.ConditionIsUpdated(condition.IsuID, condition.Timestamp) {
-									return errorMismatch(res, "以前の取得結果よりも古いタイムスタンプのコンディションが返されています")
-								}
-								viewer.SetVerifiedCondition(condition.IsuID, condition.Timestamp)
-								// 一秒前(仮想時間で16時間40分以上前)よりあとのものならカウンタをインクリメント
-								if condition.Timestamp > s.ToVirtualTime(requestTime.Add(-2*time.Second)).Unix() {
-									newConditionNum += 1
-								}
-							}
-
-							break
+						viewer.SetVerifiedCondition(condition.IsuID, condition.Timestamp)
+						// 一秒前(仮想時間で16時間40分以上前)よりあとのものならカウンタをインクリメント
+						if condition.Timestamp > s.ToVirtualTime(requestTime.Add(-2*time.Second)).Unix() {
+							newConditionNum += 1
 						}
 					}
+
 					return nil
 				}(); err != nil {
 					return 0, err
@@ -815,7 +783,7 @@ func verifyPrepareGraph(res *http.Response, targetUser *model.User, targetIsuUUI
 
 			// 特定の ISU における expected な conditions を新しい順に取得するイテレータを生成
 			filter := model.ConditionLevelInfo | model.ConditionLevelWarning | model.ConditionLevelCritical
-			baseIter := targetIsu.Conditions.LowerBound(filter, graphOne.EndAt, targetIsu.JIAIsuUUID)
+			baseIter := targetIsu.Conditions.LowerBound(filter, graphOne.EndAt)
 
 			var lastSort model.IsuConditionCursor
 			// graphOne.ConditionTimestamps を逆順 (timestamp が新しい順) に loop

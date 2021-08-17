@@ -4,7 +4,7 @@ interface Props {
   label: string
   value: string
   setValue: (newValue: string) => void
-  classname?: string
+  customClass?: string
   inputProps?: InputProps
 }
 
@@ -17,15 +17,16 @@ const Input = ({
   label,
   value,
   setValue,
-  classname,
+  customClass,
   inputProps
 }: Props & InputProps) => {
   return (
-    <label className={'flex flex-col ' + classname}>
+    <label className={'flex flex-col ' + customClass}>
       {label}
       <input
+        type="text"
         {...inputProps}
-        className="px-2 py-1 bg-teritary border border-solid border-outline rounded"
+        className="border-primary focus:border-primary px-2 py-1 h-8 border-solid rounded focus:outline-none shadow-none"
         value={value}
         onChange={e => setValue(e.target.value)}
       ></input>

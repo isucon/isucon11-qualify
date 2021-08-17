@@ -94,7 +94,6 @@ func (s *Scenario) postActivate(c echo.Context) error {
 	if err != nil {
 		return c.String(http.StatusBadRequest, "Bad URL")
 	}
-	//TODO: URLの検証
 
 	//poster Goroutineの起動
 	var isu *model.Isu
