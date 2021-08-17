@@ -29,6 +29,8 @@ type IsuCondition struct {
 	IsBroken       bool           `json:"is_broken"`
 	ConditionLevel ConditionLevel `json:"condition_level"`
 	Message        string         `json:"message"`
+
+	ReadTime int64 `json:"-"` // GET /api/condition/:id や GET /api/isu/:id/graph で読まれた実際の時間(仮想時間ではない)
 }
 
 //left < right

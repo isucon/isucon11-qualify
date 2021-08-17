@@ -26,14 +26,13 @@ func (s *Scenario) InitializeData(ctx context.Context) {
 
 	for i, _ := range users {
 		user := users[i]
+
 		//var userConditions []model.IsuCondition
 
 		for key, _ := range user.IsuListByID {
 			// isu の初期化
-			isu, err := model.NewIsuRawForInitData(user.IsuListByID[key], &user, key)
-			if err != nil {
-				logger.AdminLogger.Panicln(fmt.Errorf("初期データから User インスタンスを作成するのに失敗しました: %v", err))
-			}
+			isu := user.IsuListByID[key]
+			model.NewIsuRawForInitData(isu, &user, key)
 			//PosterForInitData(ctx, streamsForPoster)
 
 			// isu.ID から model.TrendCondition を取得できるようにする (GET /trend 用)

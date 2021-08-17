@@ -1,6 +1,10 @@
+MAKEFILE_DIR:=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+
+.PHONY: default generate build build-contestant build-bench build-standalone clean clean-output
+
 default: generate
 
-files-generated:  files-generated/REVISION files-generated/isucon11-qualify.tar files-generated/initial-data.sql files-generated/initialize.json
+files-generated:  files-generated/REVISION files-generated/isucon11-qualify.tar files-generated/isucon11-portal.tar files-generated/initial-data.sql files-generated/initialize.json
 
 files-generated/REVISION:
 	mkdir -p files-generated/
@@ -11,6 +15,15 @@ files-generated/REVISION:
 files-generated/isucon11-qualify.tar: files-generated/REVISION
 	mkdir -p files-generated/
 	git -C "$(shell git rev-parse --show-toplevel)" archive "$(shell cat files-generated/REVISION)" > files-generated/isucon11-qualify.tar
+
+files-generated/isucon11-portal.tar:
+	mkdir -p files-generated/
+	$(eval tmpdir=$(shell mktemp -d))
+	git -c core.sshCommand="ssh -i $(MAKEFILE_DIR)isucon11-portal.key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -F /dev/null" clone --depth=1 git@github.com:isucon/isucon11-portal.git -b main $(tmpdir)/isucon11-portal
+	cd $(tmpdir)/isucon11-portal && \
+		tar cvf $(MAKEFILE_DIR)files-generated/isucon11-portal.tar . && \
+		cd -
+	rm -rf $(tmpdir)
 
 files-generated/initial-data.sql:
 	mkdir -p files-generated/

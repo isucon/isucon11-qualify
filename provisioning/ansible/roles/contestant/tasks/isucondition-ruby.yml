@@ -7,6 +7,5 @@
     PATH: "/home/isucon/local/ruby/bin:{{ ansible_env.PATH }}"
   shell: |
     bundle config set deployment true && \
-    bundle config set path /gems && \
-    bundle config set without 'development test' && \
+    bundle config set path .bundle && \
     bundle install -j4

@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useHistory } from 'react-router-dom'
 import Card from '/@/components/UI/Card'
-import UploadImageButton from '/@/components/UI/UploadImageButton'
+import UploadImageButton from '/@/components/Main/UploadImageButton'
 import Input from '/@/components/UI/Input'
 import apis, { PostIsuRequest } from '/@/lib/apis'
 import Button from '/@/components/UI/Button'
+import toast from 'react-hot-toast'
 
 const Register = () => {
   const [id, setId] = useState('')
@@ -27,7 +28,7 @@ const Register = () => {
       if (e.response.status === 409) {
         history.push(`/isu/${id}`)
       } else {
-        alert(e.response.data)
+        toast.error(e.response.data)
       }
     }
   }
@@ -39,18 +40,14 @@ const Register = () => {
           <div className="w-full">
             <h2 className="mb-8 text-xl font-bold">ISUを登録</h2>
             <div className="flex flex-col gap-4">
-              <Input label={'JIAのIsuID'} value={id} setValue={setId}></Input>
-              <Input
-                label={'ISUの名前'}
-                value={name}
-                setValue={setName}
-              ></Input>
+              <Input label="JIAのIsuID" value={id} setValue={setId} />
+              <Input label="ISUの名前" value={name} setValue={setName} />
               <div className="flex flex-col gap-8 items-center mt-6">
                 <UploadImageButton putIsuIcon={setFile} />
                 <Button
                   label="登録"
                   onClick={submit}
-                  customClass="px-4 py-1 h-8 text-white-primary font-bold bg-button rounded-2xl"
+                  customClass="px-4 py-1 h-8 text-white font-bold bg-button rounded-2xl"
                   disabled={!id || !name}
                 />
               </div>

@@ -7,3 +7,4 @@
     PATH: "/home/isucon/local/node/bin:{{ ansible_env.PATH }}"
   shell: |
     npm ci
+    npm run build

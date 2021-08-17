@@ -1,4 +1,5 @@
 import { BrowserRouter, Redirect, Route, Switch } from 'react-router-dom'
+import { Toaster } from 'react-hot-toast'
 import PageHeader from './components/PageHeader/PageHeader'
 import Home from './pages/Home'
 import IsuRoot from './pages/IsuRoot'
@@ -7,10 +8,11 @@ import GuardedRoute from './router/GuardedRoute'
 
 const App = () => {
   return (
-    <div className="flex flex-col min-h-full text-primary">
+    <div className="text-primary flex flex-col min-h-full">
+      <Toaster position="bottom-left" />
       <BrowserRouter>
         <PageHeader></PageHeader>
-        <div className="flex-1 bg-primary">
+        <div className="bg-primary relative flex-grow">
           <Switch>
             <GuardedRoute path="/" exact>
               <Home />
