@@ -283,6 +283,7 @@ sub get_isu_list($self, $c) {
                 $c->halt_no_content(HTTP_INTERNAL_SERVER_ERROR);
             }
 
+            # GetIsuConditionResponse
             $formatted_condition = {
                 jia_isu_uuid    => $last_condition->{jia_isu_uuid},
                 isu_name        => $isu->{name},
@@ -294,6 +295,7 @@ sub get_isu_list($self, $c) {
             }
         }
 
+        # GetIsuListResponse
         my $res = {
             id                   => $isu->{id},
             jia_isu_uuid         => $isu->{jia_isu_uuid},
@@ -672,7 +674,7 @@ sub get_isu_conditions_from_db($self, $jia_isu_uuid, $end_time, $condition_level
         )
     }
 
-    my $conditions_response = []; # GetIsuConditionResponse
+    my $conditions_response = [];
     for my $c ($conditions->@*) {
         my ($c_level, $e) = calculate_condition_level($c->{condition});
         if ($e) {
@@ -680,6 +682,8 @@ sub get_isu_conditions_from_db($self, $jia_isu_uuid, $end_time, $condition_level
         }
 
         if ($condition_level->{$c_level}) {
+
+            # GetIsuConditionResponse
             push $conditions_response->@*, {
                 jia_isu_uuid    => $c->{jia_isu_uuid},
                 isu_name        => $isu_name,
@@ -966,7 +970,7 @@ sub tm_from_unix {
     };
 
     # override
-    my $_JSON = JSON::MaybeXS->new()->allow_blessed(1)->convert_blessed(1)->ascii(1);
+    my $_JSON = JSON::MaybeXS->new()->allow_blessed(1)->convert_blessed(1)->ascii(0);
     *Kossy::Connection::render_json = sub {
         my ($c, $obj, $json_spec, $status) = @_;
 
