@@ -264,7 +264,7 @@ sub get_isu_list($self, $c) {
         $jia_user_id
     );
 
-    my $response_list = [];
+    my $response_list = []; # GetIsuListResponse
     for my $isu ($isu_list->@*) {
         my $found_last_condition = !!1;
         my $last_condition = $self->dbh->select_row(
@@ -517,12 +517,12 @@ sub generate_isu_graph_response($self, $jia_isu_uuid, $graph_date) {
         $filtered_data_points = [ $data_points->@[$start_index .. $end_next_index - 1] ];
     }
 
-    my $response_list = [];
+    my $response_list = []; # GraphResponse
     my $index = 0;
     my $tm_this_time = $tm_graph_date;
 
     while ($tm_this_time < $tm_graph_date->plus_hours(24)) {
-        my $data = {
+        my $data = { # GraphDataPoint
             score => 0,
             percentage => {
                 sitting       => 0,
@@ -602,7 +602,7 @@ sub calculate_graph_data_point($isu_conditions) {
     my $is_overweight_percentage = $conditions_count->{"is_overweight"} * 100 / $isu_conditions_length;
     my $is_dirty_percentage      = $conditions_count->{"is_dirty"} * 100 / $isu_conditions_length;
 
-    my $data_point = {
+    my $data_point = { # GraphDataPoint
         score => $score,
         percentage => {
             sitting       => $sitting_percentage,
@@ -686,7 +686,7 @@ sub get_isu_conditions_from_db($self, $jia_isu_uuid, $end_time, $condition_level
         )
     }
 
-    my $conditions_response = [];
+    my $conditions_response = []; # GetIsuConditionResponse
     for my $c ($conditions->@*) {
         my ($c_level, $e) = calculate_condition_level($c->{condition});
         if ($e) {
