@@ -1303,7 +1303,7 @@ final class Handler
 
         $params = $request->getQueryParams();
         if (!isset($params['end_time'])) {
-            $response->getBody()->write('missing: end_time');
+            $response->getBody()->write('bad format: end_time');
 
             return $response->withStatus(StatusCodeInterface::STATUS_BAD_REQUEST)
                 ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
