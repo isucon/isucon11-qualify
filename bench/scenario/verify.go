@@ -636,7 +636,7 @@ var conditionList = []string{"info", "warning", "critical"}
 
 func (s *Scenario) verifyTrend(
 	ctx context.Context, res *http.Response,
-	viewer model.Viewer,
+	viewer *model.Viewer,
 	trendResp service.GetTrendResponse,
 	requestTime time.Time,
 ) (int, error) {

@@ -313,7 +313,7 @@ func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep
 		}
 
 		requestTime := time.Now()
-		trend, res, errs := browserGetLandingPageAction(ctx, &viewer)
+		trend, res, errs := browserGetLandingPageAction(ctx, viewer)
 		if len(errs) != 0 {
 			viewer.ErrorCount += 1
 			for _, err := range errs {
@@ -384,7 +384,7 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 }
 
 //ユーザーとISUの作成
-func (s *Scenario) initViewer(ctx context.Context) model.Viewer {
+func (s *Scenario) initViewer(ctx context.Context) *model.Viewer {
 	//ユーザー作成
 	viewerAgent, err := s.NewAgent()
 	if err != nil {
@@ -397,7 +397,7 @@ func (s *Scenario) initViewer(ctx context.Context) model.Viewer {
 		s.viewers = append(s.viewers, &viewer)
 	}()
 
-	return viewer
+	return &viewer
 }
 
 // あるISUの新しいconditionを見に行くシナリオ。
