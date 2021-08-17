@@ -261,6 +261,8 @@ module Isucondition
       isu_name = params[:isu_name]
 
       fh = params[:image]
+      halt_error 400, 'bad format: icon' if fh && (!fh.kind_of?(Hash) || !fh[:tempfile].is_a?(Tempfile))
+
       use_default_image = fh.nil?
       image = use_default_image ? File.read(DEFAULT_ICON_FILE_PATH) : fh.read
 
