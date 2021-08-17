@@ -34,7 +34,12 @@ const SittingGraph = ({ sittingData, timeCategories }: Props) => {
             {
               from: 0,
               to: 20,
-              color: '#d1d1d1'
+              color: '#ffe6df'
+            },
+            {
+              from: 20,
+              to: 40,
+              color: '#ffb199'
             }
           ]
         }

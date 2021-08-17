@@ -1,6 +1,7 @@
 import Chart from 'react-apexcharts'
 import { ApexOptions } from 'apexcharts'
 import { IsuCondition } from './use/graph'
+import colors from 'windicss/colors'
 
 interface Props {
   transitionData: number[]
@@ -27,7 +28,7 @@ const TransitionGraph = ({
         lines: { show: false }
       }
     },
-    colors: ['#008FFB'],
+    colors: [colors.blue[500]],
     series: [
       {
         type: 'line',
@@ -43,6 +44,7 @@ const TransitionGraph = ({
     },
     yaxis: {
       min: 0,
+      max: 100,
       labels: {
         offsetX: -16
       }
