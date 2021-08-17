@@ -165,7 +165,7 @@ SSH ログインのユーザ名は `isucon` です。
 #### 2.1 ブラウザからの ISUCONDITION の動作確認
 
 初期状態ではサーバーの Elastic IP アドレスに、Web ブラウザから HTTPS で `GET /` へアクセスするとアプリケーションが表示されます。
-サーバーの Elastic IP アドレスにアクセスすると TLS 証明書の検証エラーが表示されますが、このエラーを回避するにはサーバーの Elastic IP アドレスが `54.150.88.xx` だった場合、Mac や Linux であれば `/etc/hosts` に以下の行を追加する必要があります。
+サーバーの Elastic IP アドレスにアクセスすると TLS 証明書の検証エラーが表示されますが、このエラーを回避するにはサーバーの Elastic IP アドレスが `54.150.88.xx` だった場合、Mac や Linux であれば `/etc/hosts` に Windows であれば `C:\Windows\System32\drivers\etc\hosts` に以下の行を追加する必要があります。
 
 例:
 ```
