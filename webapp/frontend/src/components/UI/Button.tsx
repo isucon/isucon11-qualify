@@ -2,7 +2,8 @@ import { DetailedHTMLProps, ButtonHTMLAttributes } from 'react'
 
 interface Props {
   label: string
-  classname?: string
+  children?: JSX.Element
+  customClass?: string
 }
 
 type ButtonProps = DetailedHTMLProps<
@@ -10,16 +11,21 @@ type ButtonProps = DetailedHTMLProps<
   HTMLButtonElement
 >
 
-const Button = ({ label, classname, ...buttonProps }: Props & ButtonProps) => {
+const Button = ({
+  label,
+  children,
+  customClass,
+  ...buttonProps
+}: Props & ButtonProps) => {
   return (
     <button
       className={
-        'px-3 py-1 h-8 leading-4 border border-outline rounded focus:outline-none ' +
-        classname
+        'flex items-center justify-center focus:outline-none disabled:opacity-40 disabled:cursor-default ' +
+        customClass
       }
       {...buttonProps}
     >
-      {label}
+      {children ? children : label}
     </button>
   )
 }

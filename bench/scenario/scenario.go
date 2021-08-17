@@ -23,8 +23,6 @@ import (
 // および、全ステップで使うシナリオ関数
 
 type Scenario struct {
-	// TODO: シナリオ実行に必要なフィールドを書く
-
 	BaseURL                  string        // ベンチ対象 Web アプリの URL
 	UseTLS                   bool          // ベンチ対象 Web アプリが HTTPS で動いているかどうか (本番時ture/CI時false)
 	NoLoad                   bool          // Load(ベンチ負荷)を強要しない
@@ -69,8 +67,6 @@ var (
 
 func NewScenario(jiaServiceURL *url.URL, loadTimeout time.Duration) (*Scenario, error) {
 	return &Scenario{
-		// TODO: シナリオを初期化する
-		//realTimeStart: time.Now()
 		LoadTimeout:       loadTimeout,
 		virtualTimeStart:  random.BaseTime, //初期データ生成時のベースタイムと合わせるために当パッケージの値を利用
 		virtualTimeMulti:  30000,           //5分=300秒に一回 => 1秒に100回
@@ -79,7 +75,7 @@ func NewScenario(jiaServiceURL *url.URL, loadTimeout time.Duration) (*Scenario, 
 		prepareTimeout:    3 * time.Second,
 		mapIPAddrToFqdn:   make(map[string]string, 3),
 		mapFqdnToIPAddr:   make(map[string]string, 3),
-		normalUsers:       []*model.User{},
+		normalUsers:       make([]*model.User, 0),
 		isuFromID:         make(map[int]*model.Isu, 8192),
 	}, nil
 }
@@ -145,23 +141,24 @@ func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a
 		logger.AdminLogger.Panic(err)
 		return nil
 	}
+	user.Agent = a
 
 	//backendにpostする
 	go func() {
 		// 登録済みユーザーは trend に興味がないからリクエストを待たない
-		if _, err := browserGetLandingPageIgnoreAction(ctx, a); err != nil {
-			addErrorWithContext(ctx, step, err)
+		if errs := browserGetLandingPageIgnoreAction(ctx, user); len(errs) != 0 {
+			for _, err := range errs {
+				addErrorWithContext(ctx, step, err)
+			}
 		}
 	}()
-	//TODO: 確率で失敗してリトライする
-	_, errs := authAction(ctx, a, user.UserID)
+	_, errs := authAction(ctx, user, user.UserID)
 	for _, err := range errs {
 		addErrorWithContext(ctx, step, err)
 	}
 	if len(errs) > 0 {
 		return nil
 	}
-	user.Agent = a
 
 	// POST /api/auth をしたため GET /api/user/me を叩く
 	me, hres, err := getMeAction(ctx, user.Agent)
@@ -210,7 +207,6 @@ func (s *Scenario) NewIsuWithCustomImg(ctx context.Context, step *isucandar.Benc
 	RegisterToJiaAPI(isu, streamsForPoster)
 
 	//backendにpostする
-	//TODO: 確率で失敗してリトライする
 	req := service.PostIsuRequest{
 		JIAIsuUUID: isu.JIAIsuUUID,
 		IsuName:    isu.Name,
@@ -220,22 +216,36 @@ func (s *Scenario) NewIsuWithCustomImg(ctx context.Context, step *isucandar.Benc
 		isu.SetImage(req.Img)
 	}
 
+	var res *http.Response
+	var isuResponse *service.Isu
 	if retry {
-		res := postIsuInfinityRetry(ctx, owner.Agent, req, step)
+		isuResponse, res = postIsuInfinityRetry(ctx, owner.Agent, req, step)
 		// res == nil => ctx.Done
 		if res == nil {
 			return nil
 		}
 	} else {
-		_, _, err := postIsuAction(ctx, owner.Agent, req)
+		isuResponse, res, err = postIsuAction(ctx, owner.Agent, req)
 		if err != nil {
 			addErrorWithContext(ctx, step, err)
 			return nil
 		}
 	}
+	isuIdUpdated := false
+	if res != nil && res.StatusCode == http.StatusConflict {
+		// pass
+	} else {
+		// POST isu のレスポンスより ID を取得して isu モデルに代入する
+		isu.ID = isuResponse.ID
+		isuIdUpdated = true
+		err = verifyIsu(res, isu, isuResponse)
+		if err != nil {
+			step.AddError(err)
+		}
+	}
 
-	var res *http.Response
-	var isuResponse *service.Isu
+	// var res *http.Response
+	// var isuResponse *service.Isu
 	if retry {
 		isuResponse, res = getIsuInfinityRetry(ctx, owner.Agent, req.JIAIsuUUID, step)
 		// isuResponse == nil => ctx.Done
@@ -250,7 +260,10 @@ func (s *Scenario) NewIsuWithCustomImg(ctx context.Context, step *isucandar.Benc
 		}
 	}
 	// GET isu のレスポンスより ID を取得して isu モデルに代入する
-	isu.ID = isuResponse.ID
+	if !isuIdUpdated {
+		isu.ID = isuResponse.ID
+		isuIdUpdated = true
+	}
 	err = verifyIsu(res, isu, isuResponse)
 	if err != nil {
 		step.AddError(err)

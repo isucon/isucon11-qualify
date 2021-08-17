@@ -1,6 +1,6 @@
 import { IoIosArrowBack, IoIosArrowForward } from 'react-icons/io'
 import { Condition, DEFAULT_CONDITION_LIMIT } from '/@/lib/apis'
-import IconButton from '/@/components/UI/IconButton'
+import Button from '/@/components/UI/Button'
 
 interface Props {
   conditions: Condition[]
@@ -14,14 +14,14 @@ const ConditionNavigator = ({ conditions, next, prev, page }: Props) => {
   const isPrevExist = page > 1
 
   return (
-    <div className="center flex gap-8">
-      <IconButton disabled={!isPrevExist} onClick={prev}>
+    <div className="flex gap-4">
+      <Button label="Prev" disabled={!isPrevExist} onClick={prev}>
         <IoIosArrowBack size={24} />
-      </IconButton>
+      </Button>
       <div className="align-middle text-xl">{page}</div>
-      <IconButton disabled={!isNextExist} onClick={next}>
+      <Button label="Next" disabled={!isNextExist} onClick={next}>
         <IoIosArrowForward size={24} />
-      </IconButton>
+      </Button>
     </div>
   )
 }

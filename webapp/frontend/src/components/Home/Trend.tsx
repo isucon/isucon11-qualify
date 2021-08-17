@@ -22,7 +22,7 @@ const getLatestStringTime = (trend: Trend) => {
 
 const TrendElement = ({ trend, maxConditionCount }: Props) => {
   return (
-    <div className="grid grid-cols-trend p-2">
+    <div className="grid-cols-trend grid p-2">
       <div className="flex flex-col">
         <div>{trend.character}</div>
         <div className="text-secondary">{getLatestStringTime(trend)}</div>

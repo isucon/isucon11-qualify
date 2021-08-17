@@ -22,11 +22,11 @@ class Apis {
     return data
   }
 
-  async getIsus(options?: { limit: number }, axiosConfig?: AxiosRequestConfig) {
-    const { data } = await axios.get<ApiGetIsuListResponse[]>(`/api/isu`, {
-      params: options,
-      ...axiosConfig
-    })
+  async getIsus(axiosConfig?: AxiosRequestConfig) {
+    const { data } = await axios.get<ApiGetIsuListResponse[]>(
+      `/api/isu`,
+      axiosConfig
+    )
     const res: GetIsuListResponse[] = []
     for (const v of data) {
       res.push({
@@ -245,10 +245,10 @@ interface ApiConditionRequest {
 }
 
 export interface ConditionRequest {
-  start_time?: Date
-  end_time: Date
   // critical,warning,info をカンマ区切りで取り扱う
   condition_level: string
+  start_time?: Date
+  end_time: Date
 }
 
 interface ApiGraphRequest {

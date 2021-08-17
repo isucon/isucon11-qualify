@@ -1,11 +1,11 @@
 import Chart from 'react-apexcharts'
 import { ApexOptions } from 'apexcharts'
-import { Tooltip } from './use/graph'
+import { IsuCondition } from './use/graph'
 
 interface Props {
   transitionData: number[]
   timeCategories: string[]
-  tooltipData: Tooltip[]
+  tooltipData: IsuCondition[]
 }
 
 const TransitionGraph = ({
@@ -32,10 +32,14 @@ const TransitionGraph = ({
       }
     ],
     xaxis: {
-      categories: timeCategories
+      categories: timeCategories,
+      offsetY: 8
     },
     yaxis: {
-      min: 0
+      min: 0,
+      labels: {
+        offsetX: -16
+      }
     },
     tooltip: {
       custom: ({ dataPointIndex }) => {
@@ -51,7 +55,7 @@ const TransitionGraph = ({
   )
 }
 
-const genTooltipCard = (tooltip: Tooltip) => {
+const genTooltipCard = (tooltip: IsuCondition) => {
   return `
   <div class="flex flex-col px-3 py-1 text-primary">
     <div class="flex flex-row">

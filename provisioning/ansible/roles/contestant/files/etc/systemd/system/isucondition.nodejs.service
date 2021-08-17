@@ -5,6 +5,8 @@ After=network.target mysql.service
 [Service]
 WorkingDirectory=/home/isucon/webapp/nodejs
 EnvironmentFile=/home/isucon/env.sh
+Environment=PATH=/home/isucon/local/node/bin:/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
+Environment=NODE_ENV=production
 
 User=isucon
 Group=isucon

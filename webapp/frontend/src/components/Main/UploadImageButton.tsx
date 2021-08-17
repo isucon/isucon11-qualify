@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import Button from '/@/components/UI/Button'
 
 interface Props {
   putIsuIcon: (file: File) => void
@@ -33,12 +34,11 @@ const IconInput = ({ putIsuIcon }: Props) => {
   useEffect(() => destroy)
 
   return (
-    <button
-      className="px-3 py-1 border border-outline rounded"
+    <Button
+      customClass="px-3 py-1 h-8 leading-4 border rounded"
+      label="画像をアップロード"
       onClick={startSelect}
-    >
-      画像をアップロード
-    </button>
+    />
   )
 }
 
