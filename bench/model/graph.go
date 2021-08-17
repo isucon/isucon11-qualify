@@ -75,19 +75,11 @@ func (g *Graph) calculate() {
 		}
 	}
 	rawScore = rawScore * 100 / 3
-	if len(g.conditions) == 0 {
-		g.score = 0
-		g.percentage.sitting = 0
-		g.percentage.isBroken = 0
-		g.percentage.isOverweight = 0
-		g.percentage.isDirty = 0
-	} else {
-		g.score = rawScore / len(g.conditions)
-		g.percentage.sitting = sittingCount * 100 / len(g.conditions)
-		g.percentage.isBroken = brokenCount * 100 / len(g.conditions)
-		g.percentage.isOverweight = overweightCount * 100 / len(g.conditions)
-		g.percentage.isDirty = dirtyCount * 100 / len(g.conditions)
-	}
+	g.score = rawScore / len(g.conditions)
+	g.percentage.sitting = sittingCount * 100 / len(g.conditions)
+	g.percentage.isBroken = brokenCount * 100 / len(g.conditions)
+	g.percentage.isOverweight = overweightCount * 100 / len(g.conditions)
+	g.percentage.isDirty = dirtyCount * 100 / len(g.conditions)
 }
 
 func (g Graph) Match(
