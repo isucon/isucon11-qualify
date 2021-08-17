@@ -917,7 +917,7 @@ func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, erro
 
 	isuConditionsLength := len(isuConditions)
 
-	score := rawScore / isuConditionsLength
+	score := rawScore * 100 / 3 / isuConditionsLength
 
 	sittingPercentage := sittingCount * 100 / isuConditionsLength
 	isBrokenPercentage := conditionsCount["is_broken"] * 100 / isuConditionsLength

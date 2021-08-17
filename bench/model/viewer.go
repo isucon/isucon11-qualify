@@ -27,7 +27,7 @@ func NewViewer(agent *agent.Agent) Viewer {
 		ErrorCount:                0,
 		ViewedUpdatedCount:        0,
 		Agent:                     agent,
-		verifiedConditionsInTrend: make(map[int]int64, 8192),
+		verifiedConditionsInTrend: make(map[int]int64, 700),
 		staticCacheMx:             sync.Mutex{},
 		StaticCachedHash:          make(map[string][16]byte),
 	}

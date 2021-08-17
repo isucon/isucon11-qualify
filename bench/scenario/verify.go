@@ -182,7 +182,7 @@ func verifyIsuList(res *http.Response, expectedReverse []*model.Isu, isuList []*
 //mustExistUntil: この値以下のtimestampを持つものは全て反映されているべき。副作用: IsuCondition の ReadTime を更新する。
 func verifyIsuConditions(res *http.Response,
 	targetUser *model.User, targetIsuUUID string, request *service.GetIsuConditionRequest,
-	backendData []*service.GetIsuConditionResponse,
+	backendData service.GetIsuConditionResponseArray,
 	mustExistTimestamps [service.ConditionLimit]int64,
 	requestTimeUnix int64) error {
 
@@ -354,7 +354,7 @@ func verifyIsuConditions(res *http.Response,
 
 func verifyPrepareIsuConditions(res *http.Response,
 	targetUser *model.User, targetIsuUUID string, request *service.GetIsuConditionRequest,
-	backendData []*service.GetIsuConditionResponse) error {
+	backendData service.GetIsuConditionResponseArray) error {
 
 	//limitを超えているかチェック
 	if service.ConditionLimit < len(backendData) {
@@ -636,7 +636,7 @@ var conditionList = []string{"info", "warning", "critical"}
 
 func (s *Scenario) verifyTrend(
 	ctx context.Context, res *http.Response,
-	viewer model.Viewer,
+	viewer *model.Viewer,
 	trendResp service.GetTrendResponse,
 	requestTime time.Time,
 ) (int, error) {
@@ -644,7 +644,7 @@ func (s *Scenario) verifyTrend(
 	// レスポンスの要素にある ISU の性格を格納するための set
 	var characterSet model.IsuCharacterSet
 	// レスポンスの要素にある ISU の ID を格納するための set
-	isuIDSet := make(map[int]struct{}, 8192)
+	isuIDSet := make(map[int]struct{}, 700)
 	// 新規 conditions の数を格納するための変数
 	var newConditionNum int
 

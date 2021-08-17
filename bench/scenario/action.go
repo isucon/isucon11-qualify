@@ -526,10 +526,10 @@ func postIsuConditionErrorAction(ctx context.Context, httpClient http.Client, ta
 	return string(resBody), res, nil
 }
 
-func getIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req service.GetIsuConditionRequest) ([]*service.GetIsuConditionResponse, *http.Response, error) {
+func getIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req service.GetIsuConditionRequest) (service.GetIsuConditionResponseArray, *http.Response, error) {
 	reqUrl := getIsuConditionRequestParams(fmt.Sprintf("/api/condition/%s", id), req)
-	conditions := []*service.GetIsuConditionResponse{}
-	res, err := reqJSONResJSON(ctx, a, http.MethodGet, reqUrl, nil, &conditions, []int{http.StatusOK})
+	conditions := service.GetIsuConditionResponseArray{}
+	res, err := reqJSONResGojayArray(ctx, a, http.MethodGet, reqUrl, nil, &conditions, []int{http.StatusOK})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -692,8 +692,8 @@ func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string,
 }
 
 func browserGetIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req service.GetIsuConditionRequest,
-	validateCondition func(*http.Response, []*service.GetIsuConditionResponse) []error,
-) ([]*service.GetIsuConditionResponse, []error) {
+	validateCondition func(*http.Response, service.GetIsuConditionResponseArray) []error,
+) (service.GetIsuConditionResponseArray, []error) {
 	errors := []error{}
 	conditions, hres, err := getIsuConditionAction(ctx, a, id, req)
 	if err != nil {
