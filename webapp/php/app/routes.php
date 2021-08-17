@@ -40,8 +40,8 @@ final class Isu implements JsonSerializable
             $dbRow['image'] ?? null,
             $dbRow['character'] ?? null,
             $dbRow['jia_user_id'] ?? null,
-            isset($dbRow['created_at']) ? new DateTimeImmutable($dbRow['created_at'], new DateTimeZone('Asia/Tokyo')) : null,
-            isset($dbRow['updated_at']) ? new DateTimeImmutable($dbRow['updated_at'], new DateTimeZone('Asia/Tokyo')) : null,
+            isset($dbRow['created_at']) ? new DateTimeImmutable($dbRow['created_at']) : null,
+            isset($dbRow['updated_at']) ? new DateTimeImmutable($dbRow['updated_at']) : null,
         );
     }
 
@@ -133,11 +133,11 @@ final class IsuCondition
         return new self(
             isset($dbRow['id']) ? (int)$dbRow['id'] : null,
             $dbRow['jia_isu_uuid'] ?? null,
-            isset($dbRow['timestamp']) ? new DateTimeImmutable($dbRow['timestamp'], new DateTimeZone('Asia/Tokyo')) : null,
+            isset($dbRow['timestamp']) ? new DateTimeImmutable($dbRow['timestamp']) : null,
             isset($dbRow['is_sitting']) ? (bool)$dbRow['is_sitting'] : null,
             $dbRow['condition'] ?? null,
             $dbRow['message'] ?? null,
-            isset($dbRow['created_at']) ? new DateTimeImmutable($dbRow['created_at'], new DateTimeZone('Asia/Tokyo')) : null,
+            isset($dbRow['created_at']) ? new DateTimeImmutable($dbRow['created_at']) : null,
         );
     }
 }
@@ -1051,7 +1051,7 @@ final class Handler
             return $response->withStatus(StatusCodeInterface::STATUS_BAD_REQUEST)
                 ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
         }
-        $date = new DateTimeImmutable(date('Y-m-d H:00:00', $datetimeInt), new DateTimeZone('Asia/Tokyo'));
+        $date = new DateTimeImmutable(date('Y-m-d H:00:00', $datetimeInt));
 
         $this->dbh->beginTransaction();
 
@@ -1101,7 +1101,7 @@ final class Handler
         /** @var array<int> $timestampsInThisHour */
         $timestampsInThisHour = [];
         /** @var DateTimeInterface $startTimeInThisHour */
-        $startTimeInThisHour = (new DateTimeImmutable(timezone: new DateTimeZone('Asia/Tokyo')))->setTimestamp(0);
+        $startTimeInThisHour = (new DateTimeImmutable())->setTimestamp(0);
 
         try {
             $stmt = $this->dbh->prepare(
@@ -1113,7 +1113,7 @@ final class Handler
             while ($row = $stmt->fetch()) {
                 $condition = IsuCondition::fromDbRow($row);
 
-                $truncatedConditionTime = new DateTimeImmutable($condition->timestamp->format('Y-m-d H:00:00'), new DateTimeZone('Asia/Tokyo'));
+                $truncatedConditionTime = new DateTimeImmutable($condition->timestamp->format('Y-m-d H:00:00'));
                 if ($truncatedConditionTime != $startTimeInThisHour) {
                     if (count($conditionsInThisHour) > 0) {
                         [$data, $err] = $this->calculateGraphDataPoint($conditionsInThisHour);
@@ -1320,7 +1320,7 @@ final class Handler
             return $response->withStatus(StatusCodeInterface::STATUS_BAD_REQUEST)
                 ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
         }
-        $endTime = (new DateTimeImmutable(timezone: new DateTimeZone('Asia/Tokyo')))->setTimestamp($endTimeInt);
+        $endTime = (new DateTimeImmutable())->setTimestamp($endTimeInt);
 
         if (!isset($params['condition_level'])) {
             $response->getBody()->write('missing: condition_level');
@@ -1342,7 +1342,7 @@ final class Handler
             return $response->withStatus(StatusCodeInterface::STATUS_BAD_REQUEST)
                 ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
         }
-        $startTime = (new DateTimeImmutable(timezone: new DateTimeZone('Asia/Tokyo')))->setTimestamp($startTimeInt);
+        $startTime = (new DateTimeImmutable())->setTimestamp($startTimeInt);
 
         try {
             $stmt = $this->dbh->prepare('SELECT name FROM `isu` WHERE `jia_isu_uuid` = ? AND `jia_user_id` = ?');
