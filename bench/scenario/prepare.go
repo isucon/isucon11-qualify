@@ -184,6 +184,18 @@ func (s *Scenario) loadErrorCheck(ctx context.Context, step *isucandar.Benchmark
 	}
 
 	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+		time.Sleep(500 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
 		var loginUser *model.User
 		//POSTが完了している(IsuListOrderByCreatedAtにwriteアクセスが来ない)userをランダムに取る
 		for {
@@ -192,6 +204,11 @@ func (s *Scenario) loadErrorCheck(ctx context.Context, step *isucandar.Benchmark
 			s.normalUsersMtx.Unlock()
 			if atomic.LoadInt32(&loginUser.PostIsuFinish) != 0 {
 				break
+			}
+			select {
+			case <-ctx.Done():
+				return
+			default:
 			}
 		}
 		loginUserAgent.ClearCookie()
@@ -205,14 +222,6 @@ func (s *Scenario) loadErrorCheck(ctx context.Context, step *isucandar.Benchmark
 			continue
 		}
 
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
-
-		time.Sleep(500 * time.Millisecond)
-
 		s.prepareCheckAuth(ctx, loginUser, step)
 		s.prepareIrregularCheckPostSignout(ctx, step)
 		s.prepareIrregularCheckGetMe(ctx, guestAgent, step)
@@ -221,12 +230,6 @@ func (s *Scenario) loadErrorCheck(ctx context.Context, step *isucandar.Benchmark
 		s.prepareIrregularCheckGetIsuIcon(ctx, getRandomIsu(loginUser).JIAIsuUUID, loginUserAgent, s.noIsuUser, guestAgent, step)
 		s.prepareIrregularCheckGetIsuGraph(ctx, getRandomIsu(loginUser).JIAIsuUUID, loginUserAgent, s.noIsuUser, guestAgent, step)
 		s.prepareIrregularCheckGetIsuConditions(ctx, getRandomIsu(loginUser), loginUserAgent, s.noIsuUser, guestAgent, step)
-
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
 	}
 }
 
