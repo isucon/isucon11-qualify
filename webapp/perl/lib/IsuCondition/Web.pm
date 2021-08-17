@@ -892,6 +892,9 @@ sub dbh {
                     # XXX $dbh->do('SET SESSION sql_mode="STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION"');
                     return;
                 },
+                'connect_cached.connected' => sub {
+                    shift->do('SET timezone = "Asia/Tokyo"');
+                }
             },
         });
     };
@@ -905,8 +908,7 @@ sub unix_from_mysql_datetime {
 
 sub mysql_datetime_from_unix {
     my $epoch = shift;
-    my $offset = 9 * 60 * 60;
-    my $tm = tm_from_unix($epoch + $offset);
+    my $tm = tm_from_unix($epoch);
     return mysql_datetime($tm)
 }
 
@@ -917,7 +919,7 @@ sub mysql_datetime {
 
 sub tm_from_mysql_datetime {
     my $str = shift;
-    return Time::Moment->from_string($str.'Z', lenient => 1);
+    return Time::Moment->from_string($str.'+9', lenient => 1);
 }
 
 sub tm_from_unix {
