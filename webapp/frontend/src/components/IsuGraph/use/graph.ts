@@ -5,7 +5,8 @@ import { GraphRequest, Graph } from '/@/lib/apis'
 import { dateToTimestamp, getNextDate, getPrevDate } from '/@/lib/date'
 
 export interface IsuCondition {
-  score: string
+  score: number
+  count: number
   is_dirty: string
   is_overweight: string
   is_broken: string
@@ -87,7 +88,8 @@ const genGraphData = (graphs: Graph[]) => {
       transitionData.push(graph.data.score)
       sittingData.push(graph.data.percentage.sitting)
       tooltipData.push({
-        score: graph.data.score.toString(),
+        score: graph.data.score,
+        count: graph.condition_timestamps.length,
         is_dirty: `${graph.data.percentage.is_dirty}%`,
         is_overweight: `${graph.data.percentage.is_overweight}%`,
         is_broken: `${graph.data.percentage.is_broken}%`
@@ -96,7 +98,8 @@ const genGraphData = (graphs: Graph[]) => {
       transitionData.push(0)
       sittingData.push(0)
       tooltipData.push({
-        score: '-',
+        score: 0,
+        count: 0,
         is_dirty: '-',
         is_overweight: '-',
         is_broken: '-'
