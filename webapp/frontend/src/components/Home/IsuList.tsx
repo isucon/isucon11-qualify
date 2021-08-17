@@ -16,7 +16,7 @@ const IsuList = () => {
 
   return (
     <div>
-      <h2 className="mb-6 text-2xl font-bold">あなたの ISU</h2>
+      <h2 className="mb-6 text-2xl font-bold">あなたのISU</h2>
       <div className="grid-cols-list grid gap-8 w-full">
         {isus.map(isu => (
           <Link
