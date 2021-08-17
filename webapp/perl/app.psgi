@@ -11,9 +11,9 @@ my $app = IsuCondition::Web->psgi($root_dir);
 builder {
     enable 'ReverseProxy';
     enable 'Session::Cookie',
-        session_key => $ENV{SESSION_KEY} // 'isucondition_perl',
+        session_key => 'isucondition_perl',
         expires     => 3600,
-        secret      => 'tagomoris';
+        secret      => $ENV{SESSION_KEY} || 'isucondition',
     enable 'Static',
         path => qr!^/assets/!,
         root => $root_dir . '/../public/';
