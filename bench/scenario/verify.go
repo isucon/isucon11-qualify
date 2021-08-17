@@ -487,6 +487,9 @@ func errorAssetChecksum(req *http.Request, res *http.Response, user AgentWithSta
 	}
 	actualHash, exist := user.GetStaticCache(path, req)
 	if !exist {
+		if res.StatusCode != http.StatusNotModified {
+			logger.AdminLogger.Panic("static cacheがありません")
+		}
 		return errorCheckSum("304 StatusNotModified を返却していますが cache がありません: %s", path)
 	}
 	actual := fmt.Sprintf("%x", actualHash)

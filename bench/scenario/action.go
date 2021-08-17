@@ -746,22 +746,7 @@ func BrowserAccess(ctx context.Context, user AgentWithStaticCache, rpath string,
 }
 
 func AgentDo(a *agent.Agent, ctx context.Context, req *http.Request) (*http.Response, error) {
-	res, err := a.Do(ctx, req)
-	if err != nil {
-		return res, err
-	}
-	if res.StatusCode != http.StatusNotModified {
-		return res, nil
-	}
-	//304のときはbodyにcacheが入っているかどうか分からないので、確実にcacheを取得
-	if a.CacheStore != nil {
-		cache := a.CacheStore.Get(req)
-		if cache != nil {
-			res.Body.Close()
-			res.Body = ioutil.NopCloser(bytes.NewReader(cache.Body()))
-		}
-	}
-	return res, nil
+	return a.Do(ctx, req)
 }
 
 type AgentWithStaticCache interface {
