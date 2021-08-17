@@ -1435,7 +1435,7 @@ final class Handler
         foreach ($conditions as $c) {
             try {
                 $cLevel = $this->calculateConditionLevel($c->condition);
-            } catch (UnexpectedValueException $e) {
+            } catch (UnexpectedValueException) {
                 continue;
             }
 
@@ -1641,7 +1641,7 @@ final class Handler
             $count = $stmt->fetch()[0];
         } catch (PDOException $e) {
             $this->dbh->rollBack();
-            $this->logger->error('db error: ' . $this->dbh->errorInfo()[2]);
+            $this->logger->error('db error: ' . $e->errorInfo[2]);
 
             return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
         }
