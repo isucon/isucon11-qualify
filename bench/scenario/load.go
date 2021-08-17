@@ -143,18 +143,18 @@ func (s *Scenario) userAdder(ctx context.Context, step *isucandar.BenchmarkStep)
 		}
 
 		if int32(timeoutCount) > TimeoutLimitPerUser*userLoopCountLocal {
-			logger.ContestantLogger.Println("タイムアウト数が上限に達したため、以降負荷レベルは上昇しません")
+			logger.ContestantLogger.Println("タイムアウト数が多いため、サービスの評判が悪くなりました。以降ユーザーは増加しません")
 			break
 		}
 
 		addStep := AddUserStep * userLoopCountLocal
 		addCount := atomic.LoadInt32(&viewUpdatedTrendCounter) / addStep
 		if addCount > 0 {
-			logger.ContestantLogger.Printf("現レベルの負荷へ応答ができているため、ユーザーを%d人追加します", AddUserCount*int(addCount))
+			logger.ContestantLogger.Printf("サービスの評判が良くなり、ユーザーが%d人増えました", AddUserCount*int(addCount))
 			s.AddNormalUser(ctx, step, AddUserCount*int(addCount))
 			atomic.AddInt32(&viewUpdatedTrendCounter, -addStep*addCount)
 		} else {
-			logger.ContestantLogger.Println("ユーザーは追加されませんでした")
+			logger.ContestantLogger.Println("ユーザーは増えませんでした")
 		}
 	}
 }
