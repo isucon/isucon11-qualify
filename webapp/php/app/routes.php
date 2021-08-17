@@ -1605,7 +1605,7 @@ final class Handler
         if ((rand() / getrandmax()) < $dropProbability) {
             $this->logger->warning('drop post isu condition request');
 
-            return $response->withStatus(StatusCodeInterface::STATUS_SERVICE_UNAVAILABLE);
+            return $response->withStatus(StatusCodeInterface::STATUS_ACCEPTED);
         }
 
         $jiaIsuUuid = $args['jia_isu_uuid'];
@@ -1687,7 +1687,7 @@ final class Handler
 
         $this->dbh->commit();
 
-        return $response->withStatus(StatusCodeInterface::STATUS_CREATED);
+        return $response->withStatus(StatusCodeInterface::STATUS_ACCEPTED);
     }
 
     /**
