@@ -905,7 +905,8 @@ sub unix_from_mysql_datetime {
 
 sub mysql_datetime_from_unix {
     my $epoch = shift;
-    my $tm = tm_from_unix($epoch);
+    my $offset = 9 * 60 * 60;
+    my $tm = tm_from_unix($epoch + $offset);
     return mysql_datetime($tm)
 }
 
@@ -916,14 +917,12 @@ sub mysql_datetime {
 
 sub tm_from_mysql_datetime {
     my $str = shift;
-    my $zone = '+09'; # XXX: Asia/Tokyo 固定
-    return Time::Moment->from_string($str.$zone, lenient => 1);
+    return Time::Moment->from_string($str.'Z', lenient => 1);
 }
 
 sub tm_from_unix {
     my $epoch = shift;
-    my $offset = 9 * 60 * 60; # XXX : Asia/Tokyo固定
-    return Time::Moment->from_epoch($epoch + $offset);
+    return Time::Moment->from_epoch($epoch);
 }
 
 # XXX hack Kossy
