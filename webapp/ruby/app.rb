@@ -458,8 +458,8 @@ module Isucondition
           raise "invalid condition format"
         end
 
-        condition.fetch(:condition).split(?,).each do |cond_str|
-          condition_name, value = cond_str.split(?=)
+        condition.fetch(:condition).split(',').each do |cond_str|
+          condition_name, value = cond_str.split('=')
           if value == 'true'
             conditions_count[condition_name] += 1
             bad_conditions_count += 1
@@ -512,7 +512,7 @@ module Isucondition
 
       condition_level_csv = params[:condition_level]
       halt_error 400, 'missing: condition_level' if !condition_level_csv || condition_level_csv.empty?
-      condition_level = Set.new(condition_level_csv.split(?,))
+      condition_level = Set.new(condition_level_csv.split(','))
 
       start_time_str = params[:start_time]
       start_time = Time.at(start_time_str && !start_time_str.empty? ? Integer(start_time_str) : 0) rescue halt_error(400, 'bad format: start_time')
