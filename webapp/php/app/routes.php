@@ -1256,7 +1256,7 @@ final class Handler
 
         $isuConditionsLength = count($isuConditions);
 
-        $score = (int)($rawScore / $isuConditionsLength);
+        $score = (int)($rawScore * 100 / 3 / $isuConditionsLength);
 
         $sittingPercentage = (int)($sittingCount * 100 / $isuConditionsLength);
         $isBrokenPercentage = (int)($conditionsCount['is_broken'] * 100 / $isuConditionsLength);
