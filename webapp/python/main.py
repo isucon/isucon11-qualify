@@ -574,7 +574,7 @@ def calculate_graph_data_point(isu_conditions: list[IsuCondition]) -> GraphDataP
     isu_conditions_length = len(isu_conditions)
 
     return GraphDataPoint(
-        score=int(raw_score / isu_conditions_length),
+        score=int(raw_score * 100 / 3 / isu_conditions_length),
         percentage=ConditionsPercentage(
             sitting=int(sitting_count * 100 / isu_conditions_length),
             is_broken=int(conditions_count["is_broken"] * 100 / isu_conditions_length),
