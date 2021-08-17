@@ -28,7 +28,7 @@ ISUCONDITION はこうした人々のニーズに応えるサービスとして�
     - **Warning**: "is_dirty"、"is_overweight"、"is_broken" 3 つの情報のうち 1〜2 つで問題が起きている状態。
     - **Critical**: "is_dirty"、"is_overweight"、"is_broken" 3 つ全てで問題が起きている状態。
 - **スコア**: コンディションから計算された1時間毎の点数。0 以上 100 以下の整数値をとります。
-- **グラフ**: 1 日の中でスコアが遷移した記録
+- **グラフ**: 24 時間分のISUの状態を可視化したもの
 - **トレンド**: ISUCONDITION に登録されている ISU たちの、性格ごとの最新の "Info", "Warning", "Critical" の割合を表示したもの。
 
 ## ISUCONDITIONの機能とユーザ、ISU、閲覧者について
