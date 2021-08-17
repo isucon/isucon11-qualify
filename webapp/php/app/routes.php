@@ -1759,7 +1759,7 @@ final class Handler
      */
     private function jsonResponse(Response $response, JsonSerializable|array $data, int $statusCode = StatusCodeInterface::STATUS_OK): Response
     {
-        $responseBody = json_encode($data);
+        $responseBody = json_encode($data, JSON_UNESCAPED_UNICODE);
         if ($responseBody === false) {
             throw new UnexpectedValueException('failed to json_encode');
         }
