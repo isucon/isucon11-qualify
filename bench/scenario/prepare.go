@@ -1240,6 +1240,7 @@ func (s *Scenario) prepareCheckPostIsuWithPrevCondition(ctx context.Context, log
 	baseIsu.ID = postResp.ID
 	err = verifyIsu(res, baseIsu, postResp)
 	if err != nil {
+		logger.AdminLogger.Println("11111")
 		addErrorWithContext(ctx, step, err)
 		return
 	}
@@ -1252,6 +1253,7 @@ func (s *Scenario) prepareCheckPostIsuWithPrevCondition(ctx context.Context, log
 	}
 	err = verifyIsu(res, baseIsu, isuResponse)
 	if err != nil {
+		logger.AdminLogger.Println("222222")
 		addErrorWithContext(ctx, step, err)
 		return
 	}
