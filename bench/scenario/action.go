@@ -526,10 +526,10 @@ func postIsuConditionErrorAction(ctx context.Context, httpClient http.Client, ta
 	return string(resBody), res, nil
 }
 
-func getIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req service.GetIsuConditionRequest) ([]*service.GetIsuConditionResponse, *http.Response, error) {
+func getIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req service.GetIsuConditionRequest) (service.GetIsuConditionResponseArray, *http.Response, error) {
 	reqUrl := getIsuConditionRequestParams(fmt.Sprintf("/api/condition/%s", id), req)
-	conditions := []*service.GetIsuConditionResponse{}
-	res, err := reqJSONResJSON(ctx, a, http.MethodGet, reqUrl, nil, &conditions, []int{http.StatusOK})
+	conditions := service.GetIsuConditionResponseArray{}
+	res, err := reqJSONResGojayArray(ctx, a, http.MethodGet, reqUrl, nil, &conditions, []int{http.StatusOK})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -692,8 +692,8 @@ func browserGetIsuDetailAction(ctx context.Context, a *agent.Agent, id string,
 }
 
 func browserGetIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req service.GetIsuConditionRequest,
-	validateCondition func(*http.Response, []*service.GetIsuConditionResponse) []error,
-) ([]*service.GetIsuConditionResponse, []error) {
+	validateCondition func(*http.Response, service.GetIsuConditionResponseArray) []error,
+) (service.GetIsuConditionResponseArray, []error) {
 	errors := []error{}
 	conditions, hres, err := getIsuConditionAction(ctx, a, id, req)
 	if err != nil {
@@ -746,27 +746,12 @@ func BrowserAccess(ctx context.Context, user AgentWithStaticCache, rpath string,
 }
 
 func AgentDo(a *agent.Agent, ctx context.Context, req *http.Request) (*http.Response, error) {
-	res, err := a.Do(ctx, req)
-	if err != nil {
-		return res, err
-	}
-	if res.StatusCode != http.StatusNotModified {
-		return res, nil
-	}
-	//304のときはbodyにcacheが入っているかどうか分からないので、確実にcacheを取得
-	if a.CacheStore != nil {
-		cache := a.CacheStore.Get(req)
-		if cache != nil {
-			res.Body.Close()
-			res.Body = ioutil.NopCloser(bytes.NewReader(cache.Body()))
-		}
-	}
-	return res, nil
+	return a.Do(ctx, req)
 }
 
 type AgentWithStaticCache interface {
-	SetStaticCache(path string, hash [16]byte)
-	GetStaticCache(path string, req *http.Request) ([16]byte, bool)
+	SetStaticCache(path string, hash uint32)
+	GetStaticCache(path string, req *http.Request) (uint32, bool)
 
 	GetAgent() *agent.Agent
 }

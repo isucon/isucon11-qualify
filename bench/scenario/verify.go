@@ -10,6 +10,7 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"net/http"
 	"net/url"
@@ -182,7 +183,7 @@ func verifyIsuList(res *http.Response, expectedReverse []*model.Isu, isuList []*
 //mustExistUntil: この値以下のtimestampを持つものは全て反映されているべき。副作用: IsuCondition の ReadTime を更新する。
 func verifyIsuConditions(res *http.Response,
 	targetUser *model.User, targetIsuUUID string, request *service.GetIsuConditionRequest,
-	backendData []*service.GetIsuConditionResponse,
+	backendData service.GetIsuConditionResponseArray,
 	mustExistTimestamps [service.ConditionLimit]int64,
 	requestTimeUnix int64) error {
 
@@ -354,7 +355,7 @@ func verifyIsuConditions(res *http.Response,
 
 func verifyPrepareIsuConditions(res *http.Response,
 	targetUser *model.User, targetIsuUUID string, request *service.GetIsuConditionRequest,
-	backendData []*service.GetIsuConditionResponse) error {
+	backendData service.GetIsuConditionResponseArray) error {
 
 	//limitを超えているかチェック
 	if service.ConditionLimit < len(backendData) {
@@ -473,20 +474,24 @@ func errorAssetChecksum(req *http.Request, res *http.Response, user AgentWithSta
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusNotModified {
 		// cache の更新
-		body, err := io.ReadAll(res.Body)
+		hasher := crc32.New(crc32.IEEETable)
+		_, err := io.Copy(hasher, res.Body)
 		if err != nil {
 			return err
 		}
-		user.SetStaticCache(path, md5.Sum(body))
+		user.SetStaticCache(path, hasher.Sum32())
 	}
 
-	// md5でリソースの比較
+	// crc32でリソースの比較
 	expected := resourcesHash[path]
 	if expected == "" {
 		logger.AdminLogger.Panicf("意図していないpath(%s)のAssetResourceCheckを行っています。", path)
 	}
 	actualHash, exist := user.GetStaticCache(path, req)
 	if !exist {
+		if res.StatusCode != http.StatusNotModified {
+			logger.AdminLogger.Panic("static cacheがありません")
+		}
 		return errorCheckSum("304 StatusNotModified を返却していますが cache がありません: %s", path)
 	}
 	actual := fmt.Sprintf("%x", actualHash)
@@ -636,7 +641,7 @@ var conditionList = []string{"info", "warning", "critical"}
 
 func (s *Scenario) verifyTrend(
 	ctx context.Context, res *http.Response,
-	viewer model.Viewer,
+	viewer *model.Viewer,
 	trendResp service.GetTrendResponse,
 	requestTime time.Time,
 ) (int, error) {
@@ -644,7 +649,7 @@ func (s *Scenario) verifyTrend(
 	// レスポンスの要素にある ISU の性格を格納するための set
 	var characterSet model.IsuCharacterSet
 	// レスポンスの要素にある ISU の ID を格納するための set
-	isuIDSet := make(map[int]struct{}, 8192)
+	isuIDSet := make(map[int]struct{}, 700)
 	// 新規 conditions の数を格納するための変数
 	var newConditionNum int
 

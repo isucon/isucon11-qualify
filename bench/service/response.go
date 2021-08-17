@@ -26,6 +26,8 @@ type Isu struct {
 	IconStatusCode int    //icon取得時のstatus code(200 or 304想定)
 }
 
+type GetIsuConditionResponseArray []GetIsuConditionResponse
+
 type GetIsuConditionResponse struct {
 	JIAIsuUUID     string `json:"jia_isu_uuid"`
 	IsuName        string `json:"isu_name"`
@@ -34,6 +36,38 @@ type GetIsuConditionResponse struct {
 	Condition      string `json:"condition"`
 	ConditionLevel string `json:"condition_level"`
 	Message        string `json:"message"`
+}
+
+func (c *GetIsuConditionResponse) UnmarshalJSONObject(dec *gojay.Decoder, key string) error {
+	switch key {
+	case "jia_isu_uuid":
+		return dec.String(&c.JIAIsuUUID)
+	case "isu_name":
+		return dec.String(&c.IsuName)
+	case "timestamp":
+		return dec.Int64(&c.Timestamp)
+	case "is_sitting":
+		return dec.Bool(&c.IsSitting)
+	case "condition":
+		return dec.String(&c.Condition)
+	case "condition_level":
+		return dec.String(&c.ConditionLevel)
+	case "message":
+		return dec.String(&c.Message)
+	}
+	return nil
+}
+func (c *GetIsuConditionResponse) NKeys() int {
+	return 7
+}
+
+func (c *GetIsuConditionResponseArray) UnmarshalJSONArray(dec *gojay.Decoder) error {
+	condition := &GetIsuConditionResponse{}
+	if err := dec.Object(condition); err != nil {
+		return err
+	}
+	*c = append(*c, *condition)
+	return nil
 }
 
 type GraphResponse []*GraphResponseOne

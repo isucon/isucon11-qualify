@@ -1,20 +1,15 @@
 ---
-
-- name: "roles/bench.supervisor/tasks/main: Clone isucon/isucon11-portal"
-  become: no
-  git:
-    #repo: git@github.com:isucon/isucon11-portal  # TODO: isucon11-portal リポジトリに鍵を登録して pull できるようにする
-    repo: https://github.com/isucon/isucon10-portal
-    dest: /tmp/isucon11-portal
-    recursive: no
-
-- name: "roles/bench.supervisor/tasks/main: Change Owner of isucon/isucon11-portal"
-  become_user: root
+- name: "roles/bench.supervisor/tasks/main: Create directory"
   file:
     path: /tmp/isucon11-portal
+    state: directory
+
+- name: "roles/bench.supervisor/tasks/main: Deploy isucon/isucon11-portal"
+  unarchive:
+    src: isucon11-portal.tar
+    dest: /tmp/isucon11-portal/
     owner: isucon
     group: isucon
-    recurse: true
 
 - name: "roles/bench.supervisor/tasks/main: Build isuxportal-supervisor"
   become_user: isucon

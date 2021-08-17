@@ -74,6 +74,7 @@ func (g *Graph) calculate() {
 			rawScore += scoreConditionLevelCritical
 		}
 	}
+	rawScore = rawScore * 100 / 3
 	if len(g.conditions) == 0 {
 		g.score = 0
 		g.percentage.sitting = 0
