@@ -470,7 +470,9 @@ sub generate_isu_graph_response($self, $jia_isu_uuid, $graph_date) {
                 };
             }
 
-            $start_time_in_this_hour = $truncated_condition_time
+            $start_time_in_this_hour = $truncated_condition_time;
+            $conditions_in_this_hour = [];
+            $timestamps_in_this_hour = [];
         }
         push $conditions_in_this_hour->@*, $condition;
         push $timestamps_in_this_hour->@*, unix_from_mysql_datetime($condition->{timestamp});
