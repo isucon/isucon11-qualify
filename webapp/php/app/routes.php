@@ -1101,7 +1101,7 @@ final class Handler
         /** @var array<int> $timestampsInThisHour */
         $timestampsInThisHour = [];
         /** @var DateTimeInterface $startTimeInThisHour */
-        $startTimeInThisHour = new DateTimeImmutable(date(DateTimeInterface::RFC3339, 0), new DateTimeZone('Asia/Tokyo'));
+        $startTimeInThisHour = (new DateTimeImmutable(timezone: new DateTimeZone('Asia/Tokyo')))->setTimestamp(0);
 
         try {
             $stmt = $this->dbh->prepare(
@@ -1320,7 +1320,7 @@ final class Handler
             return $response->withStatus(StatusCodeInterface::STATUS_BAD_REQUEST)
                 ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
         }
-        $endTime = new DateTimeImmutable(date(DateTimeInterface::RFC3339, $endTimeInt), new DateTimeZone('Asia/Tokyo'));
+        $endTime = (new DateTimeImmutable(timezone: new DateTimeZone('Asia/Tokyo')))->setTimestamp($endTimeInt);
 
         if (!isset($params['condition_level'])) {
             $response->getBody()->write('missing: condition_level');
@@ -1342,7 +1342,7 @@ final class Handler
             return $response->withStatus(StatusCodeInterface::STATUS_BAD_REQUEST)
                 ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
         }
-        $startTime = new DateTimeImmutable(date(DateTimeInterface::RFC3339, $startTimeInt), new DateTimeZone('Asia/Tokyo'));
+        $startTime = (new DateTimeImmutable(timezone: new DateTimeZone('Asia/Tokyo')))->setTimestamp($startTimeInt);
 
         try {
             $stmt = $this->dbh->prepare('SELECT name FROM `isu` WHERE `jia_isu_uuid` = ? AND `jia_user_id` = ?');
