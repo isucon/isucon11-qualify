@@ -513,12 +513,13 @@ func verifyResources(page PageType, res *http.Response, resources agent.Resource
 }
 
 func errorHtmlChecksum(res *http.Response, body io.Reader, path string) error {
-	//前回の取得が成功している保証が無い為
-	// if res.StatusCode == 304 {
-	// 	return nil
-	// }
 	if err := verifyStatusCodes(res, []int{http.StatusOK, http.StatusNotModified}); err != nil {
 		return err
+	}
+
+	// 前回のリクエストですでに検証されている ＆ もし304しか返していなくてもブラウザチェックで落とせるため
+	if res.StatusCode == http.StatusNotModified {
+		return nil
 	}
 
 	// md5でリソースの比較
@@ -526,14 +527,14 @@ func errorHtmlChecksum(res *http.Response, body io.Reader, path string) error {
 	if expected == "" {
 		logger.AdminLogger.Panicf("意図していないpath(%s)のHtmlResourceCheckを行っています。", path)
 	}
-	hash := md5.New()
+	hash := crc32.New(crc32.IEEETable)
 	if _, err := io.Copy(hash, body); err != nil {
 		logger.AdminLogger.Printf("resource checksum: %v", err)
 		return errorCheckSum("リソースの取得に失敗しました: %s", path)
 	}
-	actual := fmt.Sprintf("%x", hash.Sum(nil))
+	actual := fmt.Sprintf("%x", hash.Sum32())
 	if expected != actual {
-		return errorCheckSum("期待するチェックサムと一致しません: %s", path)
+		return errorCheckSum("期待するチェックサムと一致しません: %s. expected: %v, actual: %v", path, expected, actual)
 	}
 	return nil
 }
@@ -553,10 +554,10 @@ func errorChecksum(base string, resource *agent.Resource, path string) error {
 
 	res := resource.Response
 	defer res.Body.Close()
-	//前回の取得が成功している保証が無い為
-	// if res.StatusCode == http.StatusNotModified {
-	// 	return nil
-	// }
+	// 前回のリクエストですでに検証されている ＆ もし304しか返していなくてもブラウザチェックで落とせるため
+	if resource.Response.StatusCode == http.StatusNotModified {
+		return nil
+	}
 
 	if err := verifyStatusCodes(res, []int{http.StatusOK, http.StatusNotModified}); err != nil {
 		return err
@@ -567,14 +568,14 @@ func errorChecksum(base string, resource *agent.Resource, path string) error {
 	if expected == "" {
 		logger.AdminLogger.Panicf("意図していないpath(%s)のResourceCheckを行っています。", path)
 	}
-	hash := md5.New()
+	hash := crc32.New(crc32.IEEETable)
 	if _, err := io.Copy(hash, res.Body); err != nil {
 		logger.AdminLogger.Printf("resource checksum: %v", err)
 		return errorCheckSum("リソースの取得に失敗しました: %s", path)
 	}
-	actual := fmt.Sprintf("%x", hash.Sum(nil))
+	actual := fmt.Sprintf("%x", hash.Sum32())
 	if expected != actual {
-		return errorCheckSum("期待するチェックサムと一致しません: %s", path)
+		return errorCheckSum("期待するチェックサムと一致しません: %s. expected: %v, actual: %v", path, expected, actual)
 	}
 	return nil
 }
