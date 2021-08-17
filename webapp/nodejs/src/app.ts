@@ -811,7 +811,7 @@ function calculateGraphDataPoint(
   });
 
   const isuConditionLength = isuConditions.length;
-  const score = Math.trunc(rawScore / isuConditionLength);
+  const score = Math.trunc((rawScore * 100) / 3 / isuConditionLength);
   const sittingPercentage = Math.trunc(
     (sittingCount * 100) / isuConditionLength
   );
