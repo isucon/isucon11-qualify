@@ -267,10 +267,18 @@ module Isucondition
       image = use_default_image ? File.binread(DEFAULT_ICON_FILE_PATH) : fh.fetch(:tempfile).binmode.read
 
       isu = db_transaction do
-        db.xquery(
-          "INSERT INTO `isu` (`jia_isu_uuid`, `name`, `image`, `jia_user_id`) VALUES (?, ?, ?, ?)".b,
-          jia_isu_uuid.b, isu_name.b, image, jia_user_id.b,
-        )
+        begin
+          db.xquery(
+            "INSERT INTO `isu` (`jia_isu_uuid`, `name`, `image`, `jia_user_id`) VALUES (?, ?, ?, ?)".b,
+            jia_isu_uuid.b, isu_name.b, image, jia_user_id.b,
+          )
+        rescue Mysql2::Error => e
+          if e.error_number == MYSQL_ERR_NUM_DUPLICATE_ENTRY
+            halt_error 409, "duplicated: isu"
+          end
+
+          raise
+        end
 
         target_url = URI.parse("#{jia_service_url}/api/activate")
         http = Net::HTTP.new(target_url.host, target_url.port)
