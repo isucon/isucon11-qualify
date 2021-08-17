@@ -30,13 +30,6 @@ data "aws_route_table" "isucon11q" {
   }
 }
 
-data "aws_internet_gateway" "isucon11q" {
-  filter {
-    name   = "tag:Name"
-    values = ["isucon11q"]
-  }
-}
-
 data "aws_security_group" "isucon11q-bench" {
   filter {
     name   = "tag:Name"
@@ -107,7 +100,7 @@ resource "aws_instance" "bench" {
   instance_type          = "c5.large"
   key_name               = aws_key_pair.keypair.id
   subnet_id              = aws_subnet.isucon11q-zone-d.id
-  private_ip             = "192.168.3.${index(local.team_ids, each.key) + 2}"
+  private_ip             = "192.168.3.${index(local.team_ids, each.key) + 4}"
   vpc_security_group_ids = [data.aws_security_group.isucon11q-bench.id]
   root_block_device {
     volume_size = 20
@@ -117,12 +110,6 @@ resource "aws_instance" "bench" {
   user_data = data.template_cloudinit_config.config[each.key].rendered
   tags = {
     Name = format("bench-%s", each.value)
-  }
-}
-
-output "bench" {
-  value = {
-    for instance in aws_instance.bench:
-    instance.tags.Name => instance.public_ip
+    Kind = "bench"
   }
 }

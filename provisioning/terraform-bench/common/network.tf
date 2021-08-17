@@ -79,7 +79,6 @@ resource "aws_security_group_rule" "isucon11q-jump-ssh" {
   security_group_id = aws_security_group.isucon11q-jump.id
 }
 
-
 resource "aws_security_group_rule" "isucon11q-jump-egress" {
   type              = "egress"
   from_port         = 0
@@ -87,4 +86,23 @@ resource "aws_security_group_rule" "isucon11q-jump-egress" {
   protocol          = "-1"
   cidr_blocks       = ["0.0.0.0/0"]
   security_group_id = aws_security_group.isucon11q-jump.id
+}
+
+### security group for jia-login ###
+
+resource "aws_security_group" "isucon11q-jia-login" {
+  name   = "isucon11q-jia-login"
+  vpc_id = aws_vpc.isucon11q.id
+  tags = {
+    Name    = "isucon11q-jia-login"
+  }
+}
+
+resource "aws_security_group_rule" "isucon11q-jia-login-http" {
+  type              = "ingress"
+  from_port         = 80
+  to_port           = 80
+  protocol          = "tcp"
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.isucon11q-jia-login.id
 }

@@ -1,5 +1,5 @@
 Host *
-  User isucon-admin
+  User ubuntu
   IdentityFile <privkey-path>
 Host 192.168.*
   User isucon-admin
