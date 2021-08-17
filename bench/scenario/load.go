@@ -38,6 +38,8 @@ var (
 
 	// Viewer の制限
 	viewerLimiter chan struct{} = make(chan struct{})
+
+	userAdderIsDropped = make(chan struct{})
 )
 
 type ReadConditionCount struct {
@@ -119,7 +121,10 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 
 // UserLoop を増やすかどうか判定し、増やすなり減らす
 func (s *Scenario) userAdder(ctx context.Context, step *isucandar.BenchmarkStep) {
-	defer logger.AdminLogger.Println("--- userAdder END")
+	defer func() {
+		close(userAdderIsDropped)
+		logger.AdminLogger.Println("--- userAdder END")
+	}()
 	for {
 		select {
 		case <-time.After(5000 * time.Millisecond):
@@ -294,6 +299,8 @@ func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep
 	select {
 	case <-ctx.Done():
 		return
+	case <-userAdderIsDropped:
+		return
 	case <-viewerLimiter:
 	}
 
@@ -307,6 +314,8 @@ func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep
 		select {
 		case <-ctx.Done():
 			return
+		case <-userAdderIsDropped:
+			return //ユーザーが増えなくなったので脱落
 		default:
 		}
 
