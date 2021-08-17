@@ -1,6 +1,5 @@
 import Button from '/@/components/UI/Button'
 import Card from '/@/components/UI/Card'
-import logo_orange from '/@/assets/logo_orange.svg'
 
 const Auth = () => {
   const click = async () => {
@@ -10,7 +9,11 @@ const Auth = () => {
   return (
     <Card>
       <div className="flex flex-col items-center w-full">
-        <img src={logo_orange} alt="isucondition" className="my-2 max-w-sm" />
+        <img
+          src="/logo_orange.svg"
+          alt="isucondition"
+          className="my-2 max-w-sm"
+        />
         <div className="mt-4 text-lg">ISUとつくる新しい明日</div>
         <div className="mt-16 w-full border-b" />
         <Button

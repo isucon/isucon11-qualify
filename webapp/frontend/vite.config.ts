@@ -28,5 +28,6 @@ export default defineConfig({
   plugins: [reactRefresh(), WindiCSS()],
   esbuild: {
     jsxInject: `import React from 'react'`
-  }
+  },
+  publicDir: 'src/assets'
 })
