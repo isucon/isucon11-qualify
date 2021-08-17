@@ -67,8 +67,14 @@ test-ruby:
 
 .PHONY: test
 test:
-	docker-compose -f docker-compose-ci.yml -p isucon11q-ci up -d --build backend mysql-backend
-	docker-compose -f docker-compose-ci.yml -p isucon11q-ci up --build apitest
+	docker-compose -f docker-compose-ci.yml -p isucon11q-ci up -d mysql-backend
+	docker-compose -f docker-compose-ci.yml -p isucon11q-ci up --build --exit-code-from=apitest backend apitest
+	docker-compose -f docker-compose-ci.yml -p isucon11q-ci stop
+
+.PHONY: test-load
+test-load:
+	docker-compose -f docker-compose-ci.yml -p isucon11q-ci up -d mysql-backend
+	docker-compose -f docker-compose-ci.yml -p isucon11q-ci up --build --exit-code-from=loadtest backend loadtest
 	docker-compose -f docker-compose-ci.yml -p isucon11q-ci stop
 
 .PHONY: up-bench
