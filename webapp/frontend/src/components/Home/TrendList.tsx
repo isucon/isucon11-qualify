@@ -35,8 +35,10 @@ const TrendList = () => {
 
   return (
     <div className="relative">
-      <h2 className="mb-6 text-xl font-bold">みんなのISU</h2>
-      <TrendHeadeer />
+      <h2 className="mb-8 text-2xl font-bold">みんなのISU</h2>
+      <div className="mb-2">
+        <TrendHeadeer />
+      </div>
       {trends.map(trend => (
         <TrendElement
           key={trend.character}
