@@ -394,6 +394,7 @@ sub get_isu_id($self, $c) {
         $c->halt_text(HTTP_NOT_FOUND, "not found: isu");
     }
 
+    delete $isu->{image};
     return $c->render_json($isu, Isu);
 }
 
