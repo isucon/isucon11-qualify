@@ -632,6 +632,8 @@ module Isucondition
       rescue JSON::ParserError
         halt_error 400, 'bad request body'
       end
+      halt_error 400, 'bad request body' unless json_params.kind_of?(Array)
+      halt_error 400, 'bad request body' if json_params.empty?
 
       db_transaction do
         count = db.xquery('SELECT COUNT(*) AS `cnt` FROM `isu` WHERE `jia_isu_uuid` = ?', jia_isu_uuid).first
