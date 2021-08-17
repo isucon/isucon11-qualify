@@ -20,7 +20,6 @@ const Controls = () => {
   return (
     <div className="w-52 flex items-center justify-between ml-auto">
       <ControlLinkItem to="/register" label="ISUの登録" icon={<TiPlus />} />
-      {/* TODO: ISU一覧へのリンク */}
       <div className="border-l-1 pl-4 border-white">
         <ControlItem>
           <div
