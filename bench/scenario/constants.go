@@ -54,7 +54,7 @@ const (
 )
 
 // ユーザーがもってるISUの数の上限
-const IsuCountMax = 3
+const IsuCountMax = 9
 
 // 1ユーザーのループが何回回れば Viewer が増えるか
 const ViewerAddLoopStep = 1
