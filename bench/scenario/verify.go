@@ -616,7 +616,7 @@ func verifyGraph(
 
 		// conditionsBaseOfScore と graphOne.Data のどちらか一方が空のときはエラー
 		if (len(conditionsBaseOfScore) == 0 || graphOne.Data == nil) && !(len(conditionsBaseOfScore) == 0 && graphOne.Data == nil) {
-			return errorMismatch(res, "グラフの data と condition_timestamps のどちらか一方が null、あるいは空です。")
+			return errorMismatch(res, "グラフの data と condition_timestamps のどちらか一方のみが null、あるいは空です。")
 		}
 
 		// actual の data が空の場合 verify skip
@@ -829,11 +829,11 @@ func verifyPrepareGraph(res *http.Response, targetUser *model.User, targetIsuUUI
 
 		// conditionsBaseOfScore と graphOne.Data のどちらか一方が空のときはエラー
 		if (len(conditionsBaseOfScore) == 0 || graphOne.Data == nil) && !(len(conditionsBaseOfScore) == 0 && graphOne.Data == nil) {
-			return errorMismatch(res, "グラフの data と condition_timestamps のどちらか一方が null、あるいは空です。")
+			return errorMismatch(res, "グラフの data と condition_timestamps のどちらか一方のみが null、あるいは空です。")
 		}
 
 		// actual の data が空の場合 verify skip
-		if len(conditionsBaseOfScore) == 0 && graphOne.Data == nil {
+		if len(conditionsBaseOfScore) == 0 || graphOne.Data == nil {
 			continue
 		}
 
