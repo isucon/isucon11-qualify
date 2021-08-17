@@ -18,6 +18,8 @@ RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSI
 
 RUN ln -sf /usr/share/zoneinfo/Asia/Tokyo /etc/localtime
 
+COPY development/backend-php/php.ini /usr/local/etc/php/php.ini
+
 COPY webapp/php/ .
 COPY webapp/public /webapp/public
 
