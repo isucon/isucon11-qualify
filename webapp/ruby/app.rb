@@ -505,7 +505,7 @@ module Isucondition
       halt_error 401, 'you are not signed in' unless jia_user_id
 
       jia_isu_uuid = params[:jia_isu_uuid]
-      halt_error 400, 'warning: jia_isu_uuid' if !jia_isu_uuid || jia_isu_uuid.empty?
+      halt_error 400, 'missing: jia_isu_uuid' if !jia_isu_uuid || jia_isu_uuid.empty?
 
       end_time_integer = params[:end_time].yield_self { |_| Integer(_) } rescue halt_error(400, 'bad format: end_time')
       end_time = Time.at(end_time_integer)
