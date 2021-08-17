@@ -59,6 +59,7 @@ const IsuGraph = ({ isu }: Props) => {
             transitionData={transitionData}
             timeCategories={timeCategories}
             tooltipData={conditions}
+            day={day}
           />
         </div>
         <div className="absolute top-0 w-full">

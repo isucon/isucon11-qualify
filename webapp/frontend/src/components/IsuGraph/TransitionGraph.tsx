@@ -2,18 +2,24 @@ import Chart from 'react-apexcharts'
 import { ApexOptions } from 'apexcharts'
 import { IsuCondition } from './use/graph'
 import colors from 'windicss/colors'
+import { useHistory, useParams } from 'react-router-dom'
+import { dateToTimestamp } from '/@/lib/date'
 
 interface Props {
   transitionData: number[]
   timeCategories: string[]
   tooltipData: IsuCondition[]
+  day: string
 }
 
 const TransitionGraph = ({
   transitionData,
   timeCategories,
-  tooltipData: tooltopData
+  tooltipData: tooltopData,
+  day
 }: Props) => {
+  const history = useHistory()
+  const { id } = useParams<{ id: string }>()
   const option: ApexOptions = {
     chart: {
       toolbar: {
@@ -21,6 +27,26 @@ const TransitionGraph = ({
       },
       zoom: {
         enabled: false
+      },
+      events: {
+        click: (e, chart, config) => {
+          if (!config && typeof config.dataPointIndex !== 'number') {
+            return
+          }
+          const index = config.dataPointIndex
+          if (transitionData.length <= index) {
+            return
+          }
+          const date = new Date(day)
+          if (isNaN(date.getTime())) {
+            return
+          }
+          const startTime = dateToTimestamp(date)
+          const endTime = startTime + 60 * 60 * index
+          history.push(
+            `/isu/${id}/condition?end_time=${endTime}&start_time=${startTime}`
+          )
+        }
       }
     },
     grid: {
