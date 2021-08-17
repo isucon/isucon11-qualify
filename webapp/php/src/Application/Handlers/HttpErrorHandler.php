@@ -25,7 +25,6 @@ class HttpErrorHandler extends SlimErrorHandler
      */
     protected function respond(): Response
     {
-        error_log((string)$this->exception);
         $exception = $this->exception;
         $statusCode = 500;
         $error = new ActionError(
