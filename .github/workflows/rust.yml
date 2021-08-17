@@ -80,4 +80,4 @@ jobs:
 
       - name: Clean up
         if: failure() || true
-        run: target=rust docker-compose -f docker-compose-ci.yml down
+        run: target=rust docker-compose -f docker-compose-ci.yml -p isucon11q-ci down
