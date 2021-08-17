@@ -924,7 +924,7 @@ sub tm_from_mysql_datetime {
 
 sub tm_from_unix {
     my $epoch = shift;
-    return Time::Moment->from_epoch($epoch);
+    return Time::Moment->from_epoch($epoch)->with_offset_same_instant(9*60);
 }
 
 # XXX hack Kossy
