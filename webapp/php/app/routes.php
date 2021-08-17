@@ -1008,12 +1008,10 @@ final class Handler
             return $response->withStatus(StatusCodeInterface::STATUS_NOT_FOUND)
                     ->withHeader('Content-Type', 'text/plain; charset=utf-8');
         }
-        $image = $rows[0]['image'];
-        $mimeType = (new finfo(FILEINFO_MIME))->buffer($image);
 
-        $response->getBody()->write($image);
+        $response->getBody()->write($rows[0]['image']);
 
-        return $response->withHeader('Content-Type', $mimeType);
+        return $response;
     }
 
     /**
