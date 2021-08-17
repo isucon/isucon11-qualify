@@ -205,7 +205,7 @@ module Isucondition
       halt_error 401, 'you are not signed in' unless user_id_from_session
       session.destroy
 
-      status 201
+      status 200
       ''
     end
 
