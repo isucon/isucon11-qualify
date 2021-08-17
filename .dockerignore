@@ -1,8 +1,9 @@
 webapp/frontend/node_modules
 webapp/frontend/dist
-webapp/php/vendor
 # Rust
 webapp/rust/target
 # Node.js
 webapp/nodejs/node_modules
 webapp/nodejs/build
+# PHP
+webapp/php/vendor

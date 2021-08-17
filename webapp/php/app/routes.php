@@ -724,7 +724,7 @@ final class Handler
             $isuList[] = Isu::fromDbRow($row);
         }
 
-        /** @var GetIsuListResponse[] $responseList */
+        /** @var array<GetIsuListResponse> $responseList */
         $responseList = [];
         foreach ($isuList as $isu) {
             try {
