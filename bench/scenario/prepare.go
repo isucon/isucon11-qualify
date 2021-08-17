@@ -331,6 +331,7 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 				}
 				err = verifyIsu(res, isu, resIsu)
 				if err != nil {
+					logger.AdminLogger.Printf("isu: %v", isu)
 					step.AddError(err)
 					return
 				}
@@ -680,6 +681,8 @@ func (s *Scenario) prepareIrregularCheckGetIsuList(ctx context.Context, noIsuUse
 	// check: 椅子未所持の場合は椅子が存在しない
 	if errs := BrowserAccess(ctx, noIsuUser, "/", HomePage); len(errs) != 0 {
 		for _, err := range errs {
+			logger.AdminLogger.Printf("error: %+v", err)
+			panic(7)
 			step.AddError(err)
 		}
 		return
