@@ -8,6 +8,7 @@ import IsuCondition from './IsuCondition'
 import IsuDetail from './IsuDetail'
 import IsuGraph from './IsuGraph'
 import NowLoading from '/@/components/UI/NowLoading'
+import toast from 'react-hot-toast'
 
 const IsuRoot = () => {
   const [isu, setIsu] = useState<Isu | null>(null)
@@ -22,6 +23,7 @@ const IsuRoot = () => {
         if (e.response.status === 404) {
           setNotFound(true)
         }
+        toast.error(e.response.data)
       }
     }
     load()

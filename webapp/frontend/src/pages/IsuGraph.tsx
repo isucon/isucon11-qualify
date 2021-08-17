@@ -32,6 +32,11 @@ const IsuGraph = ({ isu }: Props) => {
       return acc
     }, {} as { [key: string]: string })
   let initialDate = getNowDate()
+  initialDate = new Date(
+    `${initialDate.getFullYear()}/${
+      initialDate.getMonth() + 1
+    }/${initialDate.getDate()}`
+  )
   const initialDateTimestamp = Number(queryParams.datetime)
   if (!isNaN(initialDateTimestamp) && initialDateTimestamp > 0) {
     initialDate = timestampToDate(initialDateTimestamp)
@@ -59,6 +64,7 @@ const IsuGraph = ({ isu }: Props) => {
             transitionData={transitionData}
             timeCategories={timeCategories}
             tooltipData={conditions}
+            day={day}
           />
         </div>
         <div className="absolute top-0 w-full">

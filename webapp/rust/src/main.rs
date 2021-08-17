@@ -907,7 +907,7 @@ fn calculate_graph_data_point(
         .count() as i64;
 
     let isu_conditions_length = isu_conditions.len() as i64;
-    let score = raw_score / isu_conditions_length;
+    let score = raw_score * 100 / 3 / isu_conditions_length;
 
     let sitting_percentage = sitting_count * 100 / isu_conditions_length;
     let is_broken_percentage =

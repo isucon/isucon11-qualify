@@ -26,4 +26,4 @@
   environment:
     PATH: "/home/isucon/local/go/bin:{{ ansible_env.PATH }}"
   shell: |
-    make build
+    make build RELEASE=1
