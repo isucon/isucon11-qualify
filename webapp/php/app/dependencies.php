@@ -52,7 +52,6 @@ return function (ContainerBuilder $containerBuilder) {
             ]);
 
             $pdo = new PDO($dsn, $databaseSettings['user'], $databaseSettings['password'], [
-                // TODO: 持続的な接続で問題ないか要検証
                 PDO::ATTR_PERSISTENT => true,
             ]);
 
