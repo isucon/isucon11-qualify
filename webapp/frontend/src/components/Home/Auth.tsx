@@ -10,7 +10,7 @@ const Auth = () => {
     <Card>
       <div className="flex flex-col items-center w-full">
         <img
-          src="/logo_orange.svg"
+          src="/assets/logo_orange.svg"
           alt="isucondition"
           className="my-2 max-w-sm"
         />

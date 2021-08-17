@@ -6,7 +6,7 @@ const PageHeader = () => {
     <header className="h-18 bg-accent-primary flex items-center pl-6 pr-8">
       <Link to="/">
         <img
-          src="/logo_white.svg"
+          src="/assets/logo_white.svg"
           alt="isucondition"
           className="h-11 cursor-pointer"
         />

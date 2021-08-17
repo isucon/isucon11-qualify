@@ -29,5 +29,5 @@ export default defineConfig({
   esbuild: {
     jsxInject: `import React from 'react'`
   },
-  publicDir: 'src/assets'
+  publicDir: 'public'
 })
