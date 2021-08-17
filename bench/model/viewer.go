@@ -19,7 +19,7 @@ type Viewer struct {
 
 	// asset名がキー、そのhashが値
 	staticCacheMx    sync.Mutex
-	StaticCachedHash map[string][16]byte
+	StaticCachedHash map[string]uint32
 }
 
 func NewViewer(agent *agent.Agent) Viewer {
@@ -27,9 +27,9 @@ func NewViewer(agent *agent.Agent) Viewer {
 		ErrorCount:                0,
 		ViewedUpdatedCount:        0,
 		Agent:                     agent,
-		verifiedConditionsInTrend: make(map[int]int64, 8192),
+		verifiedConditionsInTrend: make(map[int]int64, 700),
 		staticCacheMx:             sync.Mutex{},
-		StaticCachedHash:          make(map[string][16]byte),
+		StaticCachedHash:          make(map[string]uint32),
 	}
 }
 
@@ -58,23 +58,23 @@ func (v *Viewer) GetAgent() *agent.Agent {
 	return v.Agent
 }
 
-func (v *Viewer) SetStaticCache(path string, hash [16]byte) {
+func (v *Viewer) SetStaticCache(path string, hash uint32) {
 	v.staticCacheMx.Lock()
 	defer v.staticCacheMx.Unlock()
 
 	if v.StaticCachedHash == nil {
-		v.StaticCachedHash = map[string][16]byte{}
+		v.StaticCachedHash = map[string]uint32{}
 	}
 
 	v.StaticCachedHash[path] = hash
 }
 
-func (v *Viewer) GetStaticCache(path string, _ *http.Request) ([16]byte, bool) {
+func (v *Viewer) GetStaticCache(path string, _ *http.Request) (uint32, bool) {
 	v.staticCacheMx.Lock()
 	defer v.staticCacheMx.Unlock()
 
 	if v.StaticCachedHash == nil {
-		v.StaticCachedHash = map[string][16]byte{}
+		v.StaticCachedHash = map[string]uint32{}
 	}
 
 	hash, exist := v.StaticCachedHash[path]

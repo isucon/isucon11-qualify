@@ -5,6 +5,7 @@ import UploadImageButton from '/@/components/Main/UploadImageButton'
 import Input from '/@/components/UI/Input'
 import apis, { PostIsuRequest } from '/@/lib/apis'
 import Button from '/@/components/UI/Button'
+import toast from 'react-hot-toast'
 
 const Register = () => {
   const [id, setId] = useState('')
@@ -27,7 +28,7 @@ const Register = () => {
       if (e.response.status === 409) {
         history.push(`/isu/${id}`)
       } else {
-        alert(e.response.data)
+        toast.error(e.response.data)
       }
     }
   }
