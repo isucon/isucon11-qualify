@@ -33,7 +33,10 @@ const TransitionGraph = ({
     ],
     xaxis: {
       categories: timeCategories,
-      offsetY: 8
+      offsetY: 8,
+      labels: {
+        rotateAlways: true
+      }
     },
     yaxis: {
       min: 0,
