@@ -604,15 +604,21 @@ final class Handler
             return $response->withStatus(StatusCodeInterface::STATUS_INTERNAL_SERVER_ERROR);
         }
 
-        $jiaUserIdVar = $token->jia_user_id;
-        if (empty($jiaUserIdVar)) {
+        if (!property_exists($token, 'jia_user_id')) {
             $response->getBody()->write('invalid JWT payload');
 
             return $response->withStatus(StatusCodeInterface::STATUS_BAD_REQUEST)
                 ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
         }
-        $jiaUserId = (string)$jiaUserIdVar;
 
+        $jiaUserId = $token->jia_user_id;
+
+        if (!is_string($jiaUserId)) {
+            $response->getBody()->write('invalid JWT payload');
+
+            return $response->withStatus(StatusCodeInterface::STATUS_BAD_REQUEST)
+                ->withHeader('Content-Type', 'text/plain; charset=UTF-8');
+        }
 
         try {
             $stmt = $this->dbh->prepare('INSERT IGNORE INTO user (`jia_user_id`) VALUES (?)');
