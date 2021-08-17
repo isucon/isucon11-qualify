@@ -4,8 +4,7 @@ provider "aws" {
 
   default_tags {
     tags = {
-      Project = "qualify-dev"
-      #Project = "qualify" # TODO 本番時に差し替える
+      Project = "qualify"
     }
   }
 }

@@ -22,7 +22,7 @@ const IsuList = () => {
           <Link
             key={isu.jia_isu_uuid}
             to={`/isu/${isu.jia_isu_uuid}`}
-            className="hover:bg-primary flex flex-col items-center p-4 rounded"
+            className="hover:bg-primary flex flex-col items-center p-4 rounded transition-colors duration-200"
           >
             <IsuImage isu={isu} customClass="h-48 w-48" />
             <h3 className="text-primary mb-3 mt-2 font-medium">{isu.name}</h3>

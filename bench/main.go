@@ -24,7 +24,7 @@ import (
 	"github.com/isucon/isucandar/score"
 	"github.com/pkg/profile"
 
-	// TODO: isucon11-portal に差し替え
+	// TODO: isucon11-portal に差し替える (isucon/isucon11-portal#167)
 	"github.com/isucon/isucon10-portal/bench-tool.go/benchrun"
 	isuxportalResources "github.com/isucon/isucon10-portal/proto.go/isuxportal/resources"
 
@@ -61,7 +61,6 @@ var (
 	showVersion         bool
 
 	initializeTimeout time.Duration
-	// TODO: isucon11-portal に差し替え
 	reporter benchrun.Reporter
 )
 
@@ -91,8 +90,8 @@ func init() {
 	var targetableAddressesStr string
 
 	flag.StringVar(&targetAddress, "target", benchrun.GetTargetAddress(), "ex: localhost:9292")
-	// TODO: 環境変数名を portal チームから共有されたものに差し替える
-	flag.StringVar(&targetableAddressesStr, "targetable-addresses", getEnv("ISUXBENCH_TARGETABLE_ADDRESSES", ""), `ex: "192.168.0.1 192.168.0.2 192.168.0.3" (space separated, limit 3)`)
+	// TODO: benchrun.GetAllAddresses で環境変数を読み込む (isucon/isucon11-portal#167)
+	flag.StringVar(&targetableAddressesStr, "all-addresses", getEnv("ISUXBENCH_ALL_ADDRESSES", ""), `ex: "192.168.0.1 192.168.0.2 192.168.0.3" (space separated, limit 3)`)
 	flag.StringVar(&profileFile, "profile", "", "ex: cpu.out")
 	flag.StringVar(&memProfileDir, "mem-profile", "", "path of output heap profile at max memStats.sys allocated. ex: memprof")
 	flag.BoolVar(&exitStatusOnFail, "exit-status", false, "set exit status non-zero when a benchmark result is failing")
