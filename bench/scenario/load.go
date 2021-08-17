@@ -688,14 +688,24 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 	// scoreの計算
 	for behindDay, gr := range graphResponses {
 		minTimestampCount := int(^uint(0) >> 1)
-		for _, g := range *gr {
+		// 「今日のグラフ」をリクエストした時刻が 01:00 より前のときのフラグ
+		isTodayGraphOnly1Hour := false
+		for hour, g := range *gr {
 			// 「今日のグラフ」＆「リクエストした時間より先」ならもう minTimestampCount についてカウントしない
 			if behindDay == 0 && nowVirtualTime.Unix() < g.EndAt {
+				// 「今日のグラフ」をリクエストした時刻が 01:00 より前のとき
+				if hour == 0 {
+					isTodayGraphOnly1Hour = true
+				}
 				break
 			}
 			if len(g.ConditionTimestamps) < minTimestampCount {
 				minTimestampCount = len(g.ConditionTimestamps)
 			}
+		}
+		// 「今日のグラフ」をリクエストした時刻が 01:00 より前ならタグをつけずに次のループへ
+		if isTodayGraphOnly1Hour {
+			continue
 		}
 		// 「今日のグラフじゃない」&「まだ見ていない完成しているグラフ」なら加点
 		if behindDay != 0 && targetIsu.LastCompletedGraphTime <= virtualToday-(int64(behindDay)*OneDay) {
