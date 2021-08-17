@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import toast from 'react-hot-toast'
 import { useHistory, useLocation } from 'react-router-dom'
 import { GraphRequest, Graph } from '/@/lib/apis'
 import { dateToTimestamp, getNextDate, getPrevDate } from '/@/lib/date'
@@ -53,7 +54,7 @@ const useGraph = (
   const specify = async (day: string) => {
     const date = new Date(day)
     if (isNaN(date.getTime())) {
-      alert('日時の指定が不正です')
+      toast.error('日時の指定が不正です')
       return
     }
     updateDate(date)
