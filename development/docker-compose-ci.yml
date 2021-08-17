@@ -13,6 +13,8 @@ services:
       POST_ISUCONDITION_TARGET_BASE_URL: "http://isucondition-1.t.isucon.dev:3000"
     expose:
       - "3000"
+    ports:
+      - "3000:3000"
     volumes:
       - "../webapp/ec256-public.pem:/webapp/ec256-public.pem"
       - "../webapp/NoImage.jpg:/webapp/NoImage.jpg"
