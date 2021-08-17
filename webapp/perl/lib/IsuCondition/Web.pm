@@ -693,7 +693,7 @@ sub get_isu_conditions_from_db($self, $jia_isu_uuid, $end_time, $condition_level
     }
 
     if ($conditions_response->@* > $limit) {
-        splice $conditions_response->@*, 0, $limit - 1;
+        $conditions_response = [ splice $conditions_response->@*, 0, $limit ];
     }
     return $conditions_response;
 }
