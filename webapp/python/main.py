@@ -159,6 +159,7 @@ app.session_cookie_name = "isucondition_python"
 app.secret_key = getenv("SESSION_KEY", "isucondition")
 app.json_encoder = CustomJSONEncoder
 app.send_file_max_age_default = timedelta(0)
+app.config["JSON_AS_ASCII"] = False
 
 
 @app.errorhandler(HTTPException)
