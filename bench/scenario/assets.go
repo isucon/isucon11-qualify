@@ -7,13 +7,13 @@ var (
 		"/assets/favicon_black.svg": "fe0f6eb7",
 		"/assets/favicon_orange.svg": "63f35b9a",
 		"/assets/favicon_white.svg": "dcfbe5a7",
-		"/assets/index.8beea3b9.js": "67341813",
+		"/assets/index.c0cc4911.js": "f949ccb6",
 		"/assets/index.c0e4066b.css": "d3c941e7",
 		"/assets/logo_black.svg": "91648521",
 		"/assets/logo_orange.svg": "6c250f83",
 		"/assets/logo_white.svg": "61d68fa0",
-		"/assets/vendor.2ef188e3.js": "bf082fd6",
-		"/index.html": "2528c8cf",
+		"/assets/vendor.8c55c931.js": "5d3951e5",
+		"/index.html": "8605ca09",
 	}
 	resourcesMap = map[string]string{ 
 		"/assets/favicon.svg": "/assets/favicon.d0f5f504.svg",
@@ -21,11 +21,11 @@ var (
 		"/assets/favicon_orange.svg": "/assets/favicon_orange.svg",
 		"/assets/favicon_white.svg": "/assets/favicon_white.svg",
 		"/assets/index.css": "/assets/index.c0e4066b.css",
-		"/assets/index.js": "/assets/index.8beea3b9.js",
+		"/assets/index.js": "/assets/index.c0cc4911.js",
 		"/assets/logo_black.svg": "/assets/logo_black.svg",
 		"/assets/logo_orange.svg": "/assets/logo_orange.svg",
 		"/assets/logo_white.svg": "/assets/logo_white.svg",
-		"/assets/vendor.js": "/assets/vendor.2ef188e3.js",
+		"/assets/vendor.js": "/assets/vendor.8c55c931.js",
 		"/index.html": "/index.html",
 	}
 )
