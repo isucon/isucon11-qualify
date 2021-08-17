@@ -152,30 +152,40 @@ app.use(
 app.set("cert", readFileSync(jiaJWTSigningKeyPath));
 app.set("etag", false);
 
+class ErrorWithStatus extends Error {
+  public status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = new.target.name;
+    this.status = status;
+  }
+}
+
 async function getUserIdFromSession(
   req: express.Request,
   db: mysql.Connection
-): Promise<[string, number, Error?]> {
+): Promise<string> {
   if (!req.session) {
-    return ["", 500, new Error("failed to get session")];
+    throw new ErrorWithStatus(500, "failed to get session");
   }
   const jiaUserId = req.session["jia_user_id"];
   if (!jiaUserId) {
-    return ["", 401, new Error("no session")];
+    throw new ErrorWithStatus(401, "no session");
   }
 
+  let cnt: number;
   try {
-    const [[{ cnt }]] = await db.query<(RowDataPacket & { cnt: number })[]>(
+    [[{ cnt }]] = await db.query<(RowDataPacket & { cnt: number })[]>(
       "SELECT COUNT(*) AS `cnt` FROM `user` WHERE `jia_user_id` = ?",
       [jiaUserId]
     );
-    if (cnt === 0) {
-      return ["", 401, new Error("not found: user")];
-    }
   } catch (err) {
-    return ["", 500, new Error(`db error: ${err}`)];
+    throw new ErrorWithStatus(500, `db error: ${err}`);
   }
-  return [jiaUserId, 0, undefined];
+  if (cnt === 0) {
+    throw new ErrorWithStatus(401, "not found: user");
+  }
+  return jiaUserId;
 }
 
 async function getJIAServiceUrl(db: mysql.Connection): Promise<string> {
@@ -288,9 +298,10 @@ app.post("/api/auth", async (req, res) => {
 app.post("/api/signout", async (req, res) => {
   const db = await pool.getConnection();
   try {
-    const [, errStatusCode, err] = await getUserIdFromSession(req, db);
-    if (err) {
-      if (errStatusCode === 401) {
+    try {
+      await getUserIdFromSession(req, db);
+    } catch (err) {
+      if (err instanceof ErrorWithStatus && err.status === 401) {
         return res.status(401).type("text").send("you are not signed in");
       }
       console.error(err);
@@ -309,9 +320,11 @@ app.post("/api/signout", async (req, res) => {
 app.get("/api/user/me", async (req, res) => {
   const db = await pool.getConnection();
   try {
-    const [jiaUserId, errStatusCode, err] = await getUserIdFromSession(req, db);
-    if (err) {
-      if (errStatusCode === 401) {
+    let jiaUserId: string;
+    try {
+      jiaUserId = await getUserIdFromSession(req, db);
+    } catch (err) {
+      if (err instanceof ErrorWithStatus && err.status === 401) {
         return res.status(401).type("text").send("you are not signed in");
       }
       console.error(err);
@@ -330,9 +343,11 @@ app.get("/api/user/me", async (req, res) => {
 app.get("/api/isu", async (req, res) => {
   const db = await pool.getConnection();
   try {
-    const [jiaUserId, errStatusCode, err] = await getUserIdFromSession(req, db);
-    if (err) {
-      if (errStatusCode === 401) {
+    let jiaUserId: string;
+    try {
+      jiaUserId = await getUserIdFromSession(req, db);
+    } catch (err) {
+      if (err instanceof ErrorWithStatus && err.status === 401) {
         return res.status(401).type("text").send("you are not signed in");
       }
       console.error(err);
@@ -412,12 +427,11 @@ app.post(
     upload.single("image")(req, res, async (uploadErr) => {
       const db = await pool.getConnection();
       try {
-        const [jiaUserId, errStatusCode, err] = await getUserIdFromSession(
-          req,
-          db
-        );
-        if (err) {
-          if (errStatusCode === 401) {
+        let jiaUserId: string;
+        try {
+          jiaUserId = await getUserIdFromSession(req, db);
+        } catch (err) {
+          if (err instanceof ErrorWithStatus && err.status === 401) {
             return res.status(401).type("text").send("you are not signed in");
           }
           console.error(err);
@@ -519,12 +533,11 @@ app.get(
   async (req: express.Request<{ jia_isu_uuid: string }>, res) => {
     const db = await pool.getConnection();
     try {
-      const [jiaUserId, errStatusCode, err] = await getUserIdFromSession(
-        req,
-        db
-      );
-      if (err) {
-        if (errStatusCode === 401) {
+      let jiaUserId: string;
+      try {
+        jiaUserId = await getUserIdFromSession(req, db);
+      } catch (err) {
+        if (err instanceof ErrorWithStatus && err.status === 401) {
           return res.status(401).type("text").send("you are not signed in");
         }
         console.error(err);
@@ -562,12 +575,11 @@ app.get(
   async (req: express.Request<{ jia_isu_uuid: string }>, res) => {
     const db = await pool.getConnection();
     try {
-      const [jiaUserId, errStatusCode, err] = await getUserIdFromSession(
-        req,
-        db
-      );
-      if (err) {
-        if (errStatusCode === 401) {
+      let jiaUserId: string;
+      try {
+        jiaUserId = await getUserIdFromSession(req, db);
+      } catch (err) {
+        if (err instanceof ErrorWithStatus && err.status === 401) {
           return res.status(401).type("text").send("you are not signed in");
         }
         console.error(err);
@@ -611,12 +623,11 @@ app.get(
   ) => {
     const db = await pool.getConnection();
     try {
-      const [jiaUserId, errStatusCode, err] = await getUserIdFromSession(
-        req,
-        db
-      );
-      if (err) {
-        if (errStatusCode === 401) {
+      let jiaUserId: string;
+      try {
+        jiaUserId = await getUserIdFromSession(req, db);
+      } catch (err) {
+        if (err instanceof ErrorWithStatus && err.status === 401) {
           return res.status(401).type("text").send("you are not signed in");
         }
         console.error(err);
@@ -858,12 +869,11 @@ app.get(
   ) => {
     const db = await pool.getConnection();
     try {
-      const [jiaUserId, errStatusCode, err] = await getUserIdFromSession(
-        req,
-        db
-      );
-      if (err) {
-        if (errStatusCode === 401) {
+      let jiaUserId: string;
+      try {
+        jiaUserId = await getUserIdFromSession(req, db);
+      } catch (err) {
+        if (err instanceof ErrorWithStatus && err.status === 401) {
           return res.status(401).type("text").send("you are not signed in");
         }
         console.error(err);
