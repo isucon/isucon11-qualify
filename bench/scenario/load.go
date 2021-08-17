@@ -684,10 +684,13 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 				minTimestampCount = len(g.ConditionTimestamps)
 			}
 		}
-		// 「今日のグラフじゃない」&「まだ見ていない完成しているグラフ」なら加点
+		// 「今日のグラフじゃない」＆「まだ見てないグラフ」なら加点
 		if behindDay != 0 && targetIsu.LastCompletedGraphTime <= virtualToday-(int64(behindDay)*OneDay) {
-			// AddScoreはconditionのGETまで待つためここでタグを入れておく
-			scoreTags = append(scoreTags, getGraphScoreTag(minTimestampCount))
+			//「完成しているグラフ」なら加点
+			if 1 < behindDay || virtualToday+OneDay/2 < nowVirtualTime.Unix() {
+				// AddScoreはconditionのGETまで待つためここでタグを入れておく
+				scoreTags = append(scoreTags, getGraphScoreTag(minTimestampCount))
+			}
 		}
 		// 「今日のグラフ」についても加点
 		if behindDay == 0 {
