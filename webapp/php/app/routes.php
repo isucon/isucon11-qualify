@@ -861,7 +861,7 @@ final class Handler
 
         $body = new JiaServiceRequest($postIsuConditionTargetBaseUrl, $jiaIsuUuid);
         try {
-            $res = $this->httpClient->request('POST', $targetUrl, ['json' => $body]);
+            $res = $this->httpClient->request('POST', $targetUrl, ['json' => $body, 'http_errors' => false]);
         } catch (HttpClientException $e) {
             $this->dbh->rollBack();
             $this->logger->error('failed to request to JIAService: ' . $e->getMessage());
