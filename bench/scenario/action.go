@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"net/textproto"
 	"net/url"
+	"strconv"
 	"sync"
 	"time"
 
@@ -482,11 +483,36 @@ func getIsuIconErrorAction(ctx context.Context, a *agent.Agent, id string) (stri
 	return text, res, nil
 }
 
-func postIsuConditionAction(ctx context.Context, httpClient http.Client, targetUrl string, req *[]service.PostIsuConditionRequest) (*http.Response, error) {
-	conditionByte, err := json.Marshal(req)
-	if err != nil {
-		logger.AdminLogger.Panic(err)
+func encodeConditionJson(req *[]service.PostIsuConditionRequest) []byte {
+	res := []byte{'['}
+	for _, cond := range *req {
+		res = append(res, []byte(`{"is_sitting":`)...)
+		if cond.IsSitting {
+			res = append(res, []byte(`true`)...)
+		} else {
+			res = append(res, []byte(`false`)...)
+		}
+		res = append(res, []byte(`,"condition":"`)...)
+		res = append(res, []byte(cond.Condition)...)
+		res = append(res, []byte(`","message":"`)...)
+		res = append(res, []byte(cond.Message)...)
+		res = append(res, []byte(`","timestamp":`)...)
+		res = append(res, []byte(strconv.FormatInt(cond.Timestamp, 10))...)
+		res = append(res, '}', ',')
 	}
+	res[len(res)-1] = ']'
+	// conditionByte, err := json.Marshal(req)
+	// if err != nil {
+	// 	logger.AdminLogger.Panic(err)
+	// }
+	// if !bytes.Equal(res, conditionByte) {
+	// 	logger.AdminLogger.Print("ERROR!!")
+	// }
+	return res
+}
+
+func postIsuConditionAction(ctx context.Context, httpClient http.Client, targetUrl string, req *[]service.PostIsuConditionRequest) (*http.Response, error) {
+	conditionByte := encodeConditionJson(req)
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", targetUrl, bytes.NewBuffer(conditionByte))
 	if err != nil {
 		logger.AdminLogger.Panic(err)
