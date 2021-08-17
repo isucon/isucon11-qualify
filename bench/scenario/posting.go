@@ -3,6 +3,7 @@ package scenario
 import (
 	"context"
 	"crypto/tls"
+	"math"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -167,9 +168,6 @@ func (s *Scenario) keepPosting(ctx context.Context, targetBaseURL *url.URL, fqdn
 			reqLength = diffConditionCount
 		}
 
-		//TODO: 検証可能な生成方法にする
-		//TODO: stateの適用タイミングをちゃんと考える
-
 		conditions := make([]model.IsuCondition, 0, reqLength)
 		conditionsReq := make([]service.PostIsuConditionRequest, 0, reqLength)
 
@@ -183,7 +181,7 @@ func (s *Scenario) keepPosting(ctx context.Context, targetBaseURL *url.URL, fqdn
 
 			// 作った新しいstateに基づいてconditionを生成
 			condition := state.GetNewestCondition(randEngine, stateChange, isu)
-			stateChange = model.IsuStateChangeNone //TODO: stateの適用タイミングをちゃんと考える
+			stateChange = model.IsuStateChangeNone
 
 			//リクエスト
 			conditions = append(conditions, condition)
@@ -251,6 +249,7 @@ func (state *posterState) GetNewestCondition(randEngine *rand.Rand, stateChange 
 		//ConditionLevel: model.ConditionLevelCritical,
 		Message:       "",
 		TimestampUnix: state.lastConditionTimestamp + blur,
+		ReadTime:      math.MaxInt64 - ConditionDelayTime, // 減算しているのはオーバーフロー対策
 	}
 
 	//message
@@ -270,10 +269,9 @@ func (state *posterState) UpdateToNextState(randEngine *rand.Rand, stateChange m
 	//状態変化
 	if stateChange == model.IsuStateChangeBad {
 		randV := randEngine.Intn(100)
-		// TODO: 70% なら 69 じゃない, 対して影響はない
-		if randV <= 70 {
+		if randV < 70 {
 			state.dirty.isNow = true
-		} else if randV <= 90 {
+		} else if randV < 90 {
 			state.broken.isNow = true
 		} else {
 			state.dirty.isNow = true
@@ -295,7 +293,6 @@ func (state *posterState) UpdateToNextState(randEngine *rand.Rand, stateChange m
 		}
 	}
 
-	// TODO: over_weight が true のときは sitting を false にしないように
 	//sitting
 	if state.isSitting {
 		// sitting が false になるのは over_weight が true じゃないとき

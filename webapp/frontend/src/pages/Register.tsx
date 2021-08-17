@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useHistory } from 'react-router-dom'
 import Card from '/@/components/UI/Card'
-import IconInput from '/@/components/UI/IconInput'
+import UploadImageButton from '/@/components/Main/UploadImageButton'
 import Input from '/@/components/UI/Input'
 import apis, { PostIsuRequest } from '/@/lib/apis'
+import Button from '/@/components/UI/Button'
 
 const Register = () => {
   const [id, setId] = useState('')
@@ -38,20 +39,16 @@ const Register = () => {
           <div className="w-full">
             <h2 className="mb-8 text-xl font-bold">ISUを登録</h2>
             <div className="flex flex-col gap-4">
-              <Input label={'JIAのIsuID'} value={id} setValue={setId}></Input>
-              <Input
-                label={'ISUの名前'}
-                value={name}
-                setValue={setName}
-              ></Input>
+              <Input label="JIAのIsuID" value={id} setValue={setId} />
+              <Input label="ISUの名前" value={name} setValue={setName} />
               <div className="flex flex-col gap-8 items-center mt-6">
-                <IconInput putIsuIcon={setFile} />
-                <button
+                <UploadImageButton putIsuIcon={setFile} />
+                <Button
+                  label="登録"
                   onClick={submit}
-                  className="px-3 py-1 w-20 h-8 text-white-primary font-bold bg-button rounded-2xl focus:outline-none"
-                >
-                  登録
-                </button>
+                  customClass="px-4 py-1 h-8 text-white font-bold bg-button rounded-2xl"
+                  disabled={!id || !name}
+                />
               </div>
             </div>
           </div>
