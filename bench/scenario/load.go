@@ -672,6 +672,12 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 	// AddScoreはconditionのGETまで待つためここでタグを持っておく
 	scoreTags := []score.ScoreTag{}
 
+	// LastCompletedGraphTime を更新
+	newLastCompletedGraphTime := getNewLastCompletedGraphTime(graphResponses, virtualToday)
+	if targetIsu.LastCompletedGraphTime < newLastCompletedGraphTime {
+		targetIsu.LastCompletedGraphTime = newLastCompletedGraphTime
+	}
+
 	// scoreの計算
 	for behindDay, gr := range graphResponses {
 		minTimestampCount := int(^uint(0) >> 1)
@@ -685,12 +691,9 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 			}
 		}
 		// 「今日のグラフじゃない」＆「まだ見てないグラフ」なら加点
-		if behindDay != 0 && targetIsu.LastCompletedGraphTime <= virtualToday-(int64(behindDay)*OneDay) {
-			//「完成しているグラフ」なら加点
-			if 1 < behindDay || virtualToday+OneDay/2 < nowVirtualTime.Unix() {
-				// AddScoreはconditionのGETまで待つためここでタグを入れておく
-				scoreTags = append(scoreTags, getGraphScoreTag(minTimestampCount))
-			}
+		if behindDay != 0 && targetIsu.LastCompletedGraphTime >= virtualToday-(int64(behindDay)*OneDay) {
+			// AddScoreはconditionのGETまで待つためここでタグを入れておく
+			scoreTags = append(scoreTags, getGraphScoreTag(minTimestampCount))
 		}
 		// 「今日のグラフ」についても加点
 		if behindDay == 0 {
@@ -726,12 +729,6 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 	// graph の加点分を計算
 	for _, scoreTag := range scoreTags {
 		step.AddScore(scoreTag)
-	}
-
-	// LastCompletedGraphTime を更新
-	newLastCompletedGraphTime := getNewLastCompletedGraphTime(graphResponses, virtualToday)
-	if targetIsu.LastCompletedGraphTime < newLastCompletedGraphTime {
-		targetIsu.LastCompletedGraphTime = newLastCompletedGraphTime
 	}
 
 	return true
