@@ -690,7 +690,7 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 				minTimestampCount = len(g.ConditionTimestamps)
 			}
 		}
-		// 「今日のグラフじゃない」＆「まだ見ていない完成しているグラフ」なら加点
+		// 「今日のグラフじゃない」＆「まだ見ていない完成しているグラフ」なら加点( graphResponses がまだ見ていないグラフの集合なのは保証されている)
 		if behindDay != 0 && targetIsu.LastCompletedGraphTime >= virtualToday-(int64(behindDay)*OneDay) {
 			// AddScoreはconditionのGETまで待つためここでタグを入れておく
 			scoreTags = append(scoreTags, getGraphScoreTag(minTimestampCount))
