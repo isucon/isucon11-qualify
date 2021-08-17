@@ -813,8 +813,11 @@ sub post_isu_condition($self, $c) {
 
         $txn->commit;
     }
-    catch($e) {
+    catch ($e) {
         $txn->rollback;
+        if ($e isa Kossy::Exception) {
+            die $e; # rethrow
+        }
         warnf("db error: %s", $e);
         $c->halt_no_content(HTTP_INTERNAL_SERVER_ERROR);
     }
