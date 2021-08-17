@@ -13,7 +13,7 @@ module Isucondition
       register Sinatra::Reloader
     end
 
-    SESSION_NAME = 'isucondition'
+    SESSION_NAME = 'isucondition_ruby'
     CONDITION_LIMIT = 20
     FRONTEND_CONTENTS_PATH = '../public'
     JIA_JWT_SIGNING_KEY_PATH = '../ec256-public.pem'
@@ -469,7 +469,7 @@ module Isucondition
       end
 
       isu_conditions_length = isu_conditions.size
-      score = raw_score / isu_conditions_length
+      score = raw_score * 100 / 3 / isu_conditions_length
       sitting_percentage = sitting_count * 100 / isu_conditions_length
       is_broken_percentage = conditions_count.fetch('is_broken') * 100 / isu_conditions_length
       is_overweight_percentage = conditions_count.fetch('is_overweight') * 100 / isu_conditions_length
