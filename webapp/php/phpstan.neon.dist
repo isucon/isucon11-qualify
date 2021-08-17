@@ -5,5 +5,5 @@ parameters:
             message: '#Unreachable statement - code above always terminates\.#'
             path: app/routes.php
         -
-            message: '#If condition is always false\.#'
+            message: '#If condition is always true\.#'
             path: public/index.php
