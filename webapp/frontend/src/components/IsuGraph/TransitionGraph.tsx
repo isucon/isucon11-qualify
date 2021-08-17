@@ -17,6 +17,9 @@ const TransitionGraph = ({
     chart: {
       toolbar: {
         show: false
+      },
+      zoom: {
+        enabled: false
       }
     },
     grid: {
