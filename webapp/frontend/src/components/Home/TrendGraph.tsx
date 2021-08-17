@@ -13,22 +13,29 @@ const calcWidthPercentage = (
 }
 
 const TrendGraph = ({ trend, maxConditionCount }: Props) => {
+  const total = trend.info.length + trend.warning.length + trend.critical.length
   return (
     <div className="flex items-center w-full h-4">
       <div
-        className="bg-status-info h-full"
+        data-tip={`${trend.info.length}/${total}脚`}
+        data-place="top"
+        className="bg-status-info duration-50 hover:h-5 h-full"
         style={{
           width: calcWidthPercentage(trend.info.length, maxConditionCount)
         }}
       />
       <div
-        className="bg-status-warning h-full"
+        data-tip={`${trend.warning.length}/${total}脚`}
+        data-place="top"
+        className="bg-status-warning duration-50 hover:h-5 h-full"
         style={{
           width: calcWidthPercentage(trend.warning.length, maxConditionCount)
         }}
       />
       <div
-        className="bg-status-critical h-full"
+        data-tip={`${trend.critical.length}/${total}脚`}
+        data-place="top"
+        className="bg-status-critical duration-50 hover:h-5 h-full"
         style={{
           width: calcWidthPercentage(trend.critical.length, maxConditionCount)
         }}

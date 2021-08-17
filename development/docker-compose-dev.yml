@@ -54,6 +54,34 @@ services:
       - "../webapp/sql/init.sh:/webapp/sql/init.sh"
       - "../webapp/sql/0_Schema.sql:/webapp/sql/0_Schema.sql"
       - "../development/mysql-backend/2_Init.sql:/webapp/sql/1_InitData.sql"
+    depends_on:
+      - mysql-backend
+
+  backend-nodejs:
+    build:
+      context: ..
+      dockerfile: development/backend-nodejs/dev.dockerfile
+    environment:
+      MYSQL_HOST: mysql-backend
+      MYSQL_PORT: 3306
+      MYSQL_DBNAME: isucondition
+      MYSQL_USER: isucon
+      MYSQL_PASS: isucon
+      POST_ISUCONDITION_TARGET_BASE_URL: http://backend-nodejs:3000
+    entrypoint: dockerize -wait tcp://mysql-backend:3306 -timeout 60s
+    command: npm run dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - "../webapp/nodejs:/webapp/nodejs"
+      - "../webapp/ec256-public.pem:/webapp/ec256-public.pem"
+      - "../webapp/NoImage.jpg:/webapp/NoImage.jpg"
+      # SQLs
+      - "../webapp/sql/init.sh:/webapp/sql/init.sh"
+      - "../webapp/sql/0_Schema.sql:/webapp/sql/0_Schema.sql"
+      - "../development/mysql-backend/2_Init.sql:/webapp/sql/1_InitData.sql"
+    depends_on:
+      - mysql-backend
 
   backend-python:
     build:

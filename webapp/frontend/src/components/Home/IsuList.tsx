@@ -16,13 +16,13 @@ const IsuList = () => {
 
   return (
     <div>
-      <h2 className="mb-6 text-2xl font-bold">あなたの ISU</h2>
+      <h2 className="mb-6 text-2xl font-bold">あなたのISU</h2>
       <div className="grid-cols-list grid gap-8 w-full">
         {isus.map(isu => (
           <Link
             key={isu.jia_isu_uuid}
             to={`/isu/${isu.jia_isu_uuid}`}
-            className="hover:bg-primary flex flex-col items-center p-4 rounded"
+            className="hover:bg-primary flex flex-col items-center p-4 rounded transition-colors duration-200"
           >
             <IsuImage isu={isu} customClass="h-48 w-48" />
             <h3 className="text-primary mb-3 mt-2 font-medium">{isu.name}</h3>

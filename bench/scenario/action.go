@@ -772,16 +772,16 @@ func getAssets(ctx context.Context, user AgentWithStaticCache, resIndex *http.Re
 	faviconSvg := resourcesMap["/assets/favicon.svg"]
 	indexCss := resourcesMap["/assets/index.css"]
 	indexJs := resourcesMap["/assets/index.js"]
-	//logoOrange := resourcesMap["/assets/logo_orange.svg"]
-	//logoWhite := resourcesMap["/assets/logo_white.svg"]
+	logoOrange := resourcesMap["/assets/logo_orange.svg"]
+	logoWhite := resourcesMap["/assets/logo_white.svg"]
 	vendorJs := resourcesMap["/assets/vendor.js"]
 
 	var requireAssets []string
 	switch page {
 	case HomePage, IsuDetailPage, IsuConditionPage, IsuGraphPage, RegisterPage:
-		requireAssets = []string{faviconSvg, indexCss, vendorJs, indexJs /*logoWhite,*/}
+		requireAssets = []string{faviconSvg, indexCss, vendorJs, indexJs, logoWhite}
 	case TrendPage:
-		requireAssets = []string{faviconSvg, indexCss, vendorJs, indexJs /*logoOrange, logoWhite,*/}
+		requireAssets = []string{faviconSvg, indexCss, vendorJs, indexJs, logoOrange, logoWhite}
 	default:
 		logger.AdminLogger.Panicf("意図していないpage(%d)のResourceCheckを行っています。(path: %s)", page, resIndex.Request.URL.Path)
 	}
