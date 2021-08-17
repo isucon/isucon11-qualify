@@ -723,7 +723,7 @@ final class Handler
         foreach ($isuList as $isu) {
             try {
                 $stmt = $this->dbh->prepare('SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` DESC LIMIT 1');
-                $stmt->execute([$isu->jiaUserId]);
+                $stmt->execute([$isu->jiaIsuUuid]);
                 $rows = $stmt->fetchAll();
             } catch (PDOException $e) {
                 $this->dbh->rollBack();
