@@ -103,9 +103,6 @@ func (u *User) ClearStaticCache() {
 	u.staticCacheMx.Lock()
 	defer u.staticCacheMx.Unlock()
 
-	if u.StaticCachedHash == nil {
-		u.StaticCachedHash = map[string]uint32{}
-	}
 
 	u.StaticCachedHash = map[string]uint32{}
 }

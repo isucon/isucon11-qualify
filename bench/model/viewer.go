@@ -85,9 +85,6 @@ func (v *Viewer) ClearStaticCache() {
 	v.staticCacheMx.Lock()
 	defer v.staticCacheMx.Unlock()
 
-	if v.StaticCachedHash == nil {
-		v.StaticCachedHash = map[string]uint32{}
-	}
 
 	v.StaticCachedHash = map[string]uint32{}
 }
