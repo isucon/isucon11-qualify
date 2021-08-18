@@ -133,7 +133,6 @@ services:
     depends_on:
       - mysql-backend
 
-<<<<<<< HEAD
   backend-php:
     build:
       context: ..
