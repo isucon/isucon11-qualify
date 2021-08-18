@@ -748,6 +748,100 @@ func (s *Scenario) verifyTrend(
 	}
 	return newConditionNum, nil
 }
+func (s *Scenario) verifyPrepareTrend(
+	res *http.Response,
+	viewer *model.Viewer,
+	trendResp service.GetTrendResponse,
+) error {
+	// レスポンスの要素にある ISU の性格を格納するための set
+	var characterSet model.IsuCharacterSet
+	// レスポンスの要素にある ISU の ID を格納するための set
+	isuIDSet := make(map[int]struct{}, 700)
+
+	for _, trendOne := range trendResp {
+
+		character, err := model.NewIsuCharacter(trendOne.Character)
+		if err != nil {
+			return errorInvalid(res, err.Error())
+		}
+		characterSet = characterSet.Append(character)
+
+		for conditionEnum, conditions := range [][]service.TrendCondition{trendOne.Info, trendOne.Warning, trendOne.Critical} {
+			conditionLevel := conditionList[conditionEnum]
+
+			var lastConditionTimestamp int64
+			for idx, condition := range conditions {
+
+				// conditions が新しい順にソートされていることの検証
+				if idx != 0 && !(condition.Timestamp <= lastConditionTimestamp) {
+					return errorInvalid(res, "整列順が正しくありません")
+				}
+				lastConditionTimestamp = condition.Timestamp
+
+				// condition.ID から isu を取得する
+				isu, ok := s.GetIsuFromID(condition.IsuID)
+				if !ok {
+					// 次のループでまた bench の知らない IsuID の ISU を見つけたら落とせるように
+					if _, exist := isuIDSet[condition.IsuID]; exist {
+						return errorMismatch(res, "同じ ISU のコンディションが複数登録されています")
+					}
+					isuIDSet[condition.IsuID] = struct{}{}
+
+					// POST /api/isu などのレスポンス待ちなためここで落とすことはできない
+					continue
+				}
+
+				if err := func() error {
+					// isu.Condition の read lock を取る
+					isu.CondMutex.RLock()
+					defer isu.CondMutex.RUnlock()
+
+					// condition を最新順に取得するイテレータを生成
+					filter := model.ConditionLevelInfo | model.ConditionLevelWarning | model.ConditionLevelCritical
+					conditions := isu.Conditions
+					baseIter := conditions.UpperBound(filter, condition.Timestamp)
+
+					// condition.timestamp と condition.condition の値を検証
+					expected := baseIter.Prev()
+					if expected == nil || expected.TimestampUnix != condition.Timestamp {
+						return errorMismatch(res, "POSTに成功していない時刻のデータが返されました")
+					}
+					if !expected.ConditionLevel.Equal(conditionLevel) {
+						return errorMismatch(res, "コンディションレベルが正しくありません")
+					}
+					// 同じ isu の condition が複数返されてないことの検証
+					if _, exist := isuIDSet[condition.IsuID]; exist {
+						return errorMismatch(res, "同じ ISU のコンディションが複数登録されています")
+					}
+					isuIDSet[condition.IsuID] = struct{}{}
+
+					// 該当 condition が新規のものである場合はキャッシュを更新
+					if !viewer.ConditionAlreadyVerified(condition.IsuID, condition.Timestamp) {
+						// 該当 condition が以前のものよりも昔の timestamp で無いことの検証
+						if !viewer.ConditionIsUpdated(condition.IsuID, condition.Timestamp) {
+							return errorMismatch(res, "以前の取得結果よりも古いタイムスタンプのコンディションが返されています")
+						}
+						viewer.SetVerifiedCondition(condition.IsuID, condition.Timestamp)
+					}
+
+					return nil
+				}(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	// characterSet の検証
+	if !characterSet.IsFull() {
+		return errorInvalid(res, "全ての性格のトレンドが取得できていません")
+	}
+
+	// 初期データのISUが全てあることを確認
+	if !(len(isuIDSet) >= s.LenOfIsuFromId()) {
+		return errorInvalid(res, "ISU の個数が不足しています")
+	}
+	return nil
+}
 
 //分以下を切り捨て、一時間単位にする関数
 func truncateAfterHours(t time.Time) time.Time {

@@ -339,6 +339,12 @@ func (s *Scenario) GetIsuFromID(id int) (*model.Isu, bool) {
 	return isu, ok
 }
 
+func (s *Scenario) LenOfIsuFromId() int {
+	s.isuFromIDMutex.RLock()
+	defer s.isuFromIDMutex.RUnlock()
+	return len(s.isuFromID)
+}
+
 func (s *Scenario) GetRandomActivatedIsu(randEngine *rand.Rand) *model.Isu {
 	var isu *model.Isu
 

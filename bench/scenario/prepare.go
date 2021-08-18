@@ -573,7 +573,6 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 		logger.AdminLogger.Panicln(err)
 	}
 	viewer := model.NewViewer(viewerAgent)
-	requestTime := time.Now()
 	trend, res, errs := browserGetLandingPageAction(ctx, &viewer)
 	if len(errs) != 0 {
 		for _, err := range errs {
@@ -581,8 +580,7 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 		}
 		return
 	}
-	_, err = s.verifyTrend(ctx, res, &viewer, trend, requestTime)
-	if err != nil {
+	if err := s.verifyPrepareTrend(res, &viewer, trend); err != nil {
 		step.AddError(err)
 		return
 	}
