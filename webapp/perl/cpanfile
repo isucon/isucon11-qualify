@@ -12,3 +12,5 @@ requires 'File::Slurp';
 requires 'Crypt::JWT';
 requires 'Furl';
 requires 'Time::Moment';
+requires 'Starlet';
+requires 'List::UtilsBy';

@@ -41,7 +41,7 @@ services:
       MYSQL_PASS: isucon
       POST_ISUCONDITION_TARGET_BASE_URL: http://backend-perl:3000
     entrypoint: dockerize -wait tcp://mysql-backend:3306 -timeout 60s
-    command: plackup -p 3000 -Ilib app.psgi
+    command: plackup -s Starlet -p 3000 -Ilib app.psgi
     ports:
       - "3000:3000"
     volumes:

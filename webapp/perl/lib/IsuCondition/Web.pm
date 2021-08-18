@@ -17,6 +17,7 @@ use Crypt::JWT qw(decode_jwt);
 use Furl;
 use Time::Moment;
 use Scalar::Util qw(looks_like_number);
+use List::UtilsBy qw(partition_by);
 
 use constant {
     CONDITION_LIMIT              => 20,
@@ -143,8 +144,8 @@ sub get_user_id_from_session($self, $c) {
         $c->halt_text(HTTP_UNAUTHORIZED, "you are not signed in");
     }
 
-    my $count = $self->dbh->select_one("SELECT COUNT(*) FROM `user` WHERE `jia_user_id` = ?", $jia_user_id);
-    if ($count == 0) {
+    my $one = $self->dbh->select_one("SELECT jia_user_id FROM `user` WHERE `jia_user_id` = ?", $jia_user_id);
+    if (!$one) {
         $c->halt_text(HTTP_UNAUTHORIZED, "you are not signed in");
     }
 
@@ -389,7 +390,12 @@ sub get_isu_id($self, $c) {
     my $jia_isu_uuid = $c->args->{'jia_isu_uuid'};
 
     my $isu = $self->dbh->select_row(
-        "SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
+        "SELECT
+            `id`,
+            `jia_isu_uuid`,
+            `name`,
+            `character`
+         FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
         $jia_user_id, $jia_isu_uuid);
 
     if (!$isu) {
@@ -435,11 +441,11 @@ sub get_isu_graph($self, $c) {
     }
     my $date = tm_from_unix($datetime)->strftime('%Y-%m-%d %H:00:00');
 
-    my $count = $self->dbh->select_one(
-        "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
+    my $id = $self->dbh->select_one(
+        "SELECT id FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
         $jia_user_id, $jia_isu_uuid);
 
-    if ($count == 0) {
+    if (!$id) {
         return $c->halt_text(HTTP_NOT_FOUND, "not found: isu")
     }
 
@@ -731,19 +737,36 @@ sub get_trend($self, $c) {
         "SELECT `character` FROM `isu` GROUP BY `character`");
 
     my $trend_response = [];
-    for my $character ($character_list->@*) {
+
+    my $all_isu_list = do {
+        my $characters = [ map { $_->{character} } $character_list->@* ];
+
         my $isu_list = $self->dbh->select_all(
-            "SELECT * FROM `isu` WHERE `character` = ?",
-            $character->{character},
+            "SELECT * FROM `isu` WHERE `character` IN (?)",
+            $characters,
         );
+    };
+    my $isu_list_by_charcter = { partition_by { $_->{character} } $all_isu_list->@* };
+
+    my $conditions_by_jia_isu_uuid = do {
+        my $jia_isu_uuid_list = [ map { $_->{jia_isu_uuid} } $all_isu_list->@* ];
+
+        my $conditions = $self->dbh->select_all(
+            "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` IN (?) ORDER BY timestamp DESC",
+            $jia_isu_uuid_list,
+        );
+
+        my %data = partition_by { $_->{jia_isu_uuid} } $conditions->@*;
+        \%data;
+    };
+
+    for my $character ($character_list->@*) {
+        my $isu_list = $isu_list_by_charcter->{ $character->{character} };
 
         my $character_isu_conditions = {};
 
         for my $isu ($isu_list->@*) {
-            my $conditions = $self->dbh->select_all(
-                "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY timestamp DESC",
-                $isu->{jia_isu_uuid},
-            );
+            my $conditions = $conditions_by_jia_isu_uuid->{$isu->{jia_isu_uuid}};
 
             if ($conditions->@* > 0) {
                 my $isu_last_condition = $conditions->[0];
@@ -797,11 +820,12 @@ sub post_isu_condition($self, $c) {
     my $dbh = $self->dbh;
     my $txn = $dbh->txn_scope;
     try {
-        my $count = $self->dbh->select_one("SELECT COUNT(*) FROM `isu` WHERE `jia_isu_uuid` = ?", $jia_isu_uuid);
-        if ($count == 0) {
+        my $id = $self->dbh->select_one("SELECT id FROM `isu` WHERE `jia_isu_uuid` = ?", $jia_isu_uuid);
+        if (!$id) {
             $c->halt_text(HTTP_NOT_FOUND, "not found: isu");
         }
 
+        my $isu_conditions = [];
         for my $cond ($req->@*) {
             my $timestamp = mysql_datetime_from_unix($cond->{timestamp});
 
@@ -809,13 +833,18 @@ sub post_isu_condition($self, $c) {
                 $c->halt_text(HTTP_BAD_REQUEST, "bad request body");
             }
 
-            $dbh->query(
-                "INSERT INTO `isu_condition`" .
-                "    (`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`)".
-                "    VALUES (?, ?, ?, ?, ?)",
+            push $isu_conditions->@*, [
                 $jia_isu_uuid, $timestamp, $cond->{is_sitting}, $cond->{condition}, $cond->{message}
-            );
+            ];
         };
+
+        $dbh->query(
+            "INSERT INTO `isu_condition`" .
+            "    (`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`)".
+            "    VALUES " .
+            join(",", ("(?)") x $req->@*),
+            $isu_conditions->@*
+        );
 
         $txn->commit;
     }
