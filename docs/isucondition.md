@@ -82,6 +82,27 @@ ISU から定期的に送信されるデータには複数のコンディショ�
 ISUCONDITION は、ISU から送信されるコンディションのデータを保持しますが、アプリケーションの負荷を下げるためにデータを保存せずに `202 Accepted` を返すことがあります。
 ユーザはコンディションのデータの欠損を許容しますが、理想的には全てのコンディションのデータが保存されることを期待しています。
 
+### JIA ISU ID
+
+ISU の登録には JIA が管理する JIA ISU ID が必要となります。
+アプリケーションの動作確認には以下の JIA ISU ID が登録されており利用することができますが、下2つの JIA ISU ID は `isucon` ユーザが初期状態で利用を行っており ISU の登録済みの状態確認に利用することができます。
+
+| JIA ISU ID                           | 登録ユーザ |
+|--------------------------------------|----------|
+| 3a8ae675-3702-45b5-b1eb-1e56e96738ea |          |
+| 3efff0fa-75bc-4e3c-8c9d-ebfa89ecd15e |          |
+| f67fcb64-f91c-4e7b-a48d-ddf1164194d0 |          |
+| 32d1c708-e6ef-49d0-8ca9-4fd51844dcc8 |          |
+| af64735c-667a-4d95-a75e-22d0c76083e0 |          |
+| cb68f47f-25ef-46ec-965b-d72d9328160f |          |
+| 57d600ef-15b4-43bc-ab79-6399fab5c497 |          |
+| aa0844e6-812d-41d2-908a-eeb82a50b627 |          |
+| 0694e4d7-dfce-4aec-b7ca-887ac42cfb8f | isucon   |
+| f012233f-c50e-4349-9473-95681becff1e | isucon   |
+
+ISU を登録すると、 JIA API Mock  (Japan ISU Association のサービスと ISU の動きを模した開発用モック)から設定した URL に対してコンディションの送信が開始されます。
+
+
 ### 登録済みの ISU の確認
 
 ユーザは、一定の間隔で自身が登録した ISU の一覧 (`GET /api/isu`) を確認しています。ユーザは ISU の一覧を受け取ったとき、各ISUの詳細 (`GET /api/isu/:jia_isu_uuid`) を確認します。
@@ -203,6 +224,35 @@ JIA から認証トークン(JWT)を発行するためのエンドポイント�
 + Other Responsess
     + 400 (text/plain)
     + 401 (text/plain)
+
+### JIA API Mock について
+
+JIA API Mock は、ISUCONDITION の開発用に用いられる JIA の API モックとして、サーバーのポート 5000 番で待ち受けます。
+JIA API Mock は以下のエンドポイントと、 ISU からのコンディション送信を模擬したリクエストを送る機能を持っています。
+
+- `POST /api/auth` - ISUCONDITION へログインするためのトークンの発行
+- `POST /api/activate` - ISU の登録（アクティベート）
+- 登録した ISU から ISUCONDITION へ向けたコンディションの送信
+
+- JIA のログインページ
+  - `http://<Elastic IP アドレス>:5000/`
+
+JIA API のエンドポイント仕様は [ISUCONDITION アプリケーションマニュアル](./isucondition.md)を参照してください。
+
+JIA API Mock は ISU を登録（アクティベート）すると、指定された URL へのコンディションの送信を開始します。
+登録したISUからのコンディション送信は JIA API Mock を停止/再起動するまで続きますので、負荷走行前には JIA API Mock を停止/再起動することをお勧めします。
+JIA API Mock のサービスを停止/再起動する場合は、 以下のコマンドを利用してください。
+
+```shell
+$ sudo systemctl [stop|restart] jiaapi-mock.service
+```
+
+負荷走行後の ISUCONDITION はベンチマーカーが設定した JIA のエンドポイントが設定されているため、上記の設定を行っていても ISUCONDITIONから `500 Internal Server Error` が返されるエンドポイントがあります。
+負荷走行後に JIA API Mock を利用する際は、下記のように `POST /initialize` で JIA API Moc のエンドポイントを設定してください。
+
+```
+curl -sf -H 'content-type: application/json' https://<Elastic IP アドレス>/initialize -d '{"jia_service_url": "http://<Elastic IP アドレス>:5000"}'
+```
 
 ##　コンソールからの ISUCONDITION の動作確認
 
