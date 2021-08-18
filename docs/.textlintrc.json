@@ -6,9 +6,23 @@
       },
       "max-comma": {
         "max": 5
+      },
+      "ja-no-redundant-expression": false
+    },
+    "preset-ja-spacing": {
+      "textlint-rule-ja-space-between-half-and-full-width": {
+        "space": "always"
       }
     },
-    "no-todo": true
+    "no-todo": true,
+    "prh": {
+      "rulePaths": [
+        "prh-rule.yaml"
+      ]
+    },
+    "preset-jtf-style": {
+      "3.1.1.全角文字と半角文字の間": false
+    }
   },
   "filters": {
     "allowlist": {
