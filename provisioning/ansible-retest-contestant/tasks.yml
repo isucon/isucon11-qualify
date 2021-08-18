@@ -1,0 +1,42 @@
+---
+
+- hosts: all
+  tasks:
+  - name: "Deploy isucon-env-checker.service"
+    become_user: root
+    copy:
+      src: envchecker/isucon-env-checker.service
+      dest: /etc/systemd/system/isucon-env-cheker.service
+      owner: root
+      group: root
+      mode: 0644
+
+  - name: "Deploy run-isucon-env-checker.sh"
+    become_user: root
+    copy:
+      src: envchecker/run-isucon-env-checker.sh
+      dest: /opt/isucon-env-checker/run-isucon-env-checker.sh
+      owner: root
+      group: root
+      mode: 0700
+
+  - name: "Deploy isucon-env-checker"
+    become_user: root
+    copy:
+      src: envchecker/isucon-env-checker/isucon-env-checker
+      dest: /opt/isucon-env-checker/isucon-env-checker
+      owner: root
+      group: root
+      mode: 0755
+
+  - name: "Restart isucon-env-cheker.service"
+    become_user: root
+    systemd:
+      daemon_reload: "yes"
+      name: "isucon-env-checker.service"
+      enabled: "yes"
+
+  - name: "Reboot instance"
+    become_user: root
+    reboot:
+      msg: "Reboot initiated by Ansible for retest"
