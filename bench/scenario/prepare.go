@@ -965,7 +965,8 @@ func (s *Scenario) prepareIrregularCheckGetIsuGraph(ctx context.Context, existJi
 	}
 	// check: 未ログイン状態
 	query := url.Values{}
-	query.Set("datetime", strconv.FormatInt(time.Now().Unix(), 10))
+	reqDate := strconv.FormatInt(trancateTimestampToDate(time.Now()), 10)
+	query.Set("datetime", reqDate)
 	resBody, res, err := getIsuGraphErrorAction(ctx, guestAgent, existJiaIsuUUID, query)
 	if err != nil {
 		step.AddError(err)
@@ -1011,7 +1012,7 @@ func (s *Scenario) prepareIrregularCheckGetIsuGraph(ctx context.Context, existJi
 
 	// check: 他ユーザの椅子に対するリクエスト
 	query = url.Values{}
-	query.Set("datetime", strconv.FormatInt(time.Now().Unix(), 10))
+	query.Set("datetime", reqDate)
 	resBody, res, err = getIsuGraphErrorAction(ctx, noIsuUser.Agent, existJiaIsuUUID, query)
 	if err != nil {
 		step.AddError(err)
@@ -1028,7 +1029,7 @@ func (s *Scenario) prepareIrregularCheckGetIsuGraph(ctx context.Context, existJi
 
 	// check: 登録されていない椅子に対するリクエスト
 	query = url.Values{}
-	query.Set("datetime", strconv.FormatInt(time.Now().Unix(), 10))
+	query.Set("datetime", reqDate)
 	resBody, res, err = getIsuGraphErrorAction(ctx, loginUserAgent, NotExistJiaIsuUUID, query)
 	if err != nil {
 		step.AddError(err)
