@@ -30,6 +30,7 @@ func (m *IsuConditionPosterManager) StartPosting(targetURL *url.URL, isuUUID str
 	}()
 	if !conflict {
 		isu := m.activatedIsu[key]
+		m.activatedIsuUUIDs = append(m.activatedIsuUUIDs, isuUUID)
 		go isu.KeepPosting()
 	}
 	return nil
