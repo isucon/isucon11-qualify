@@ -920,6 +920,17 @@ func signoutScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *m
 		return
 	}
 
+	_, hres, err := getMeErrorAction(ctx, user.Agent)
+	if err != nil {
+		addErrorWithContext(ctx, step, err)
+		// return するとこのあとのログイン必須なシナリオが回らないから return はしない
+	}
+	defer hres.Body.Close()
+	if hres.StatusCode != http.StatusUnauthorized {
+		addErrorWithContext(ctx, step, errorInvalidStatusCode(hres, http.StatusUnauthorized))
+		// return するとこのあとのログイン必須なシナリオが回らないから return はしない
+	}
+
 	user.Agent.ClearCookie()
 	user.Agent.CacheStore.Clear()
 	user.ClearStaticCache()
