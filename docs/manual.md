@@ -127,7 +127,7 @@ $ /opt/isucon-env-checker/isucon-env-checker
 [ssh_config](https://man.openbsd.org/ssh_config.5) の例を以下に示します。なお、あくまで例示であり必ず以下の設定を利用する必要はありません。
 
 ```
- Host isucon-server1
+Host isucon-server1
    HostName <Elastic IPアドレス 1>
    User isucon
 
