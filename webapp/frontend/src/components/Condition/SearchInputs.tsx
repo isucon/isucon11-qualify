@@ -3,7 +3,7 @@ import Button from '/@/components/UI/Button'
 import Input from '/@/components/UI/Input'
 import TimeInputs from './TimeInputs'
 import { ConditionRequest } from '/@/lib/apis'
-import { getNowDate } from '/@/lib/date'
+import { getNowDate, getConditionTime } from '/@/lib/date'
 import toast from 'react-hot-toast'
 
 interface Props {
@@ -12,11 +12,16 @@ interface Props {
 }
 
 const SearchInputs = ({ query, search }: Props) => {
+  const initStartTime = query.start_time
+    ? getConditionTime(query.start_time)
+    : ''
+  const initEndTime = query.end_time ? getConditionTime(query.end_time) : ''
+
   const [tmpConditionLevel, setTmpConditionLevel] = useState(
     query.condition_level
   )
-  const [tmpStartTime, setTmpStartTime] = useState('')
-  const [tmpEndTime, setTmpEndTime] = useState('')
+  const [tmpStartTime, setTmpStartTime] = useState(initStartTime)
+  const [tmpEndTime, setTmpEndTime] = useState(initEndTime)
 
   return (
     // string→Dateのバリデーション・パースはここでやる
