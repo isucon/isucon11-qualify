@@ -111,77 +111,40 @@ ISU から送信されるデータには 1 つ以上のコンディションが�
 またこのときコンディションレベルで表示するものを絞り込むことができます。
 
 ISU のコンディションレベルは悪くなる事があり、ユーザは悪いコンディションレベル（`Info` 以外）を確認すると速やかに問題を改善します。
-コンディションレベルが悪い ISU があった場合、ユーザは掃除や修理などで ISU のコンディションを改善します。
-この改善は速やかに完了し、 ISU は次のコンディション送信からは改善されたコンディションを送信します。
 
 #### グラフの確認
 
 グラフは、指定した時刻から 24 時間分の ISU の状態を可視化したものです。
-グラフは24時間のデータで構成されており、1つのデータは1時間ごとのコンディションを元に計算されます。グラフのデータには以下の情報が含まれます。
-
-
-- スコア ( ( (Infoの数 * 3) + (Warning の数 * 2) + (Critical の数 * 1) ) * 100 / 3 / 含まれているコンディション数)
-- ISU に座っていた時間の割合 (`is_sitting=true` の数 * 100 / 含まれているコンディション数)
-- コンディションレベルの割合 
-  - `is_dirty` の割合 (`is_dirty=true` の数 * 100 / 含まれているコンディション数)
-  - `is_overweight` の割合 (`is_overweight=true` の数 * 100 / 含まれているコンディション数)
-  - `is_broken` の割合 (`is_broken=true` の数 * 100 / 含まれているコンディション数)
+データは 1 時間単位で集計されています。
 
 ユーザは、最新のグラフを確認後、まだ確認していない過去のグラフがある場合に、過去に遡ってグラフを確認します。
-まだ確認していなかったグラフを確認後、最後に確認したグラフの中からデータが存在する時間をランダムに 1 時間選択し、コンディションを確認します。
 
 ### トレンドの閲覧
 
-トレンドは ISUCONDITION のサービスを知ってもらうための機能で、ログインしていないユーザ（閲覧者）が閲覧します。
-トレンドでは ISUCONDITION に登録されているすべての ISU の最新のコンディションレベルが性格ごとにまとまっており、コンディションレベルの割合から、ISU が持つ性格ごとの傾向を見ることができます。
+トレンドは ISUCONDITION のサービスを知ってもらうための機能で、閲覧者に提供されます。
+トレンドでは ISUCONDITION に登録されているすべての ISU の最新のコンディションレベルが性格ごとにまとまっており、ISU が持つ性格ごとの傾向を見ることができます。
 
-閲覧者は、**未ログイン状態** で　ISUCONDITION　のトップページに表示されるトレンド (`GET /api/trend`) を確認しています。
-サービスに興味を持っている閲覧者はサービストップページに表示されるトレンドを一定間隔で閲覧し、トレンドの変化に注目しています。
-閲覧者たちがトレンドの変化を一定回数確認するたびに、ユーザが 1 人増加します。また、閲覧者の行動中にエラー(タイムアウトを含む)があった場合、 1 回のエラーにつき閲覧者は 1 人減ります。
-閲覧者はユーザが「[ISU のコンディション確認](#isu-のコンディション確認)」に書かれた処理を正しく 1 回行うと 1 人増えます。
+閲覧者は、　ISUCONDITION　のトップページに表示されるトレンド (`GET /api/trend`) を確認しています。
+サービスに興味を持っている閲覧者はトップページに表示されるトレンドを閲覧し、トレンドの変化に注目しています。
 
-## Japan ISU Association (JIA) の API 
+## JIA の API 
 
-現在 ISUCONDITION が利用している JIA の API は２つです。
-
-- `POST /api/auth`
-- `POST /api/activate`
-
-詳細は下記のとおりです。
-
-### `POST /api/auth`
-
-JIA から認証トークン(JWT)を発行するためのエンドポイントであり、JIA の認証サイト `https://jia-auth.xi.isucon.dev` で提供されています。
-認証に成功をすると JWT を生成して返します。
-
-+ Request (application/json)
-    + Schema
-
-            {
-                "user": "string",
-                "password": "string"
-            }
-
-    + Attributes (object)
-        | Field    | Type   | Required | Description        | Example   |
-        |----------|--------|----------|--------------------|-----------|
-        | user     | string | true     | ログインをするユーザ名 | `isucon`  |
-        | password | string | true     | ログインパスワード    | `isucon`  |
-
-+ Response 200 (text/plain)
-    + Body
-
-            eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2Mjg1NjMxODksImlhdCI6MTYyODU2MTM4OSwiamlhX3VzZXJfaWQiOiJpc3Vjb24ifQ.MuIl1-kVe60DzwoGHj2yrck8QwYWDH_N20uCqNVR1IZiuo7ArYiBDbMdTbEzFbkN52x8SxGS3GvKoGuMmRfZXQ
-
-+ Other Responsess
-    + 400 (text/plain)
-    + 401 (text/plain)
+以下の API は開発/検証用に JIA API Mock という名前で開発者向けに同様の機能が提供されています。
 
 ### `POST /api/activate`
 
-JIA が管理する ISU に対して指定の URL に向けて、センサーデータを送るように指示するためのエンドポイントです。
-アクティベートに成功すると、ISU は `target_base_url` で指定された URL に対しセンサーデータの送信を継続します。
-レスポンスにはアクティベートされた ISU の性格が含まれます。
+JIA が管理する ISU をアクティベートするためのエンドポイントです。
+
+`target_base_url` には下記の制約があります。違反した場合 JIA から `400 Bad Request` が返され ISU のアクティベートに失敗します。
+
+- ホスト部は下記の3つのみを指定できる。
+  - `isucondition-1.t.isucon.dev`
+  - `isucondition-2.t.isucon.dev`
+  - `isucondition-3.t.isucon.dev`
+- スキームには `https` のみが利用できる。
+- ポート番号は指定できない。
+
+また、同一の ISU に対する 2 度目以降のリクエストは成功しますが `target_base_url`　は 1 度目の内容が利用されます。
 
 + Request (application/json)
     + Schema
@@ -216,18 +179,8 @@ JIA が管理する ISU に対して指定の URL に向けて、センサーデ
 
 + Other Responsess
     + 400 (text/plain)
-    + 403 (text/plain)
-    + 500 (text/plain)
+    + 404 (text/plain)
 
-
-このエンドポイントは、開発/検証用に JIA API Mock という名前で開発者向けに同様の機能が提供されています。
-
-注意点として、以下があります。
-
-- `target_base_url` には下記の3つの FQDN のみを指定することができます。それ以外を指定した場合は JIA から `400 Bad Request` が返され ISU のアクティベートに失敗します。
-  - `isucondition-1.t.isucon.dev`
-  - `isucondition-2.t.isucon.dev`
-  - `isucondition-3.t.isucon.dev`
 
 ### JIA API Mock について
 
