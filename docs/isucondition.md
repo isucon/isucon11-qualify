@@ -171,10 +171,10 @@ JIA が管理する ISU に対して指定の URL に向けて、センサーデ
         | character | string | true     | アクティベートされた ISU の性格 | `いじっぱり` |
 
 
-
-- Response 400 (text/plain)
-- Response 403 (text/plain)
-- Response 500 (text/plain)
++ Other Responsess
+    + 400 (text/plain)
+    + 403 (text/plain)
+    + 500 (text/plain)
 
 ### `POST /api/auth`
 
@@ -200,5 +200,6 @@ JIA から認証トークン(JWT)を発行するためのエンドポイント�
 
             eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2Mjg1NjMxODksImlhdCI6MTYyODU2MTM4OSwiamlhX3VzZXJfaWQiOiJpc3Vjb24ifQ.MuIl1-kVe60DzwoGHj2yrck8QwYWDH_N20uCqNVR1IZiuo7ArYiBDbMdTbEzFbkN52x8SxGS3GvKoGuMmRfZXQ
 
-+ Response 400 (text/plain)
-+ Response 401 (text/plain)
++ Other Responsess
+    + 400 (text/plain)
+    + 401 (text/plain)
