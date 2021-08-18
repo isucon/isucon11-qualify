@@ -107,8 +107,7 @@ func (c *ActivationController) PostActivate(ctx echo.Context) error {
 	}
 
 	if c.isuConditionPosterManager.IsActivatedUUID(req.IsuUUID) {
-		ctx.Logger().Warnf("duplicated ISU UUID")
-		return ctx.String(http.StatusAccepted, "Duplicated ISU UUID")
+		return ctx.JSON(http.StatusAccepted, isuState)
 	}
 
 	err = c.isuConditionPosterManager.StartPosting(parsedURL, req.IsuUUID)
