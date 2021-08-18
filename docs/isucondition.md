@@ -254,10 +254,10 @@ $ sudo systemctl [stop|restart] jiaapi-mock.service
 curl -sf -H 'content-type: application/json' https://<Elastic IP アドレス>/initialize -d '{"jia_service_url": "http://<Elastic IP アドレス>:5000"}'
 ```
 
-##　コンソールからの ISUCONDITION の動作確認
+##　ターミナルからの ISUCONDITION の動作確認
 
-JIA からトークンを取得し、ISUCONDITION へ取得したトークンを使いログインを行い、cookie の設定を行うことで、コンソールからも ISUCONDITION の動作確認が可能です。
-以下、コンソールからの動作確認方法の一例を示します。
+JIA からトークンを取得し、ISUCONDITION へ取得したトークンを使いログインを行い、cookie の設定を行うことで、ターミナルからも ISUCONDITION の動作確認が可能です。
+以下、ターミナルからの動作確認方法の一例を示します。
 
 ### JIA API からの トークンの取得
 
