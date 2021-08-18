@@ -260,9 +260,12 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 			if err != nil {
 				errs = append(errs, err)
 			}
-			err = verifyIsuIcon(targetIsu, isu.Icon, isu.IconStatusCode)
-			if err != nil {
-				errs = append(errs, err)
+			// isu.Icon が nil じゃないときはすでにエラーを追加している
+			if isu.Icon != nil {
+				err = verifyIsuIcon(targetIsu, isu.Icon, isu.IconStatusCode)
+				if err != nil {
+					errs = append(errs, err)
+				}
 			}
 			return errs
 		})
