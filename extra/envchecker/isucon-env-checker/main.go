@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+
+	"github.com/cenkalti/backoff/v4"
 )
 
 func main() {
@@ -12,7 +14,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	info, err := p.GetInfo("qualify")
+	var info EnvCheckInfo
+	err = backoff.Retry(func() error {
+		info, err = p.GetInfo("qualify")
+		return err
+	}, newBackoff())
 	if err != nil {
 		fmt.Printf("ポータルから情報の取得に失敗しました: %v\n", err)
 		os.Exit(1)
@@ -24,7 +30,10 @@ func main() {
 		AZ:  info.AZ,
 	})
 
-	if err := p.SendResult(result); err != nil {
+	err = backoff.Retry(func() error {
+		return p.SendResult(result)
+	}, newBackoff())
+	if err != nil {
 		fmt.Printf("チェック結果の送信に失敗しました: %v\n", err)
 		os.Exit(1)
 	}
