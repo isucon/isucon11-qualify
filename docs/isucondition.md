@@ -157,10 +157,10 @@ JIA が管理する ISU をアクティベートするためのエンドポイ�
 
     + Attributes (object)
 
-        | Field           | Type   | Required | Description                | Example                                |
-        |-----------------|--------|----------|----------------------------|----------------------------------------|
-        | target_base_url | string | true     | ISU のコンディション送信先     | `https://isucondition-1.t.isucon.dev`  |
-        | isu_uuid        | string | true     | JIA が発行する ISU の 固有ID  | `0694e4d7-dfce-4aec-b7ca-887ac42cfb8f` |
+        | Field           | Type   | Required | Description          | Example                                |
+        |-----------------|--------|----------|----------------------|----------------------------------------|
+        | target_base_url | string | true     | ISU のコンディション送信先 | `https://isucondition-1.t.isucon.dev`  |
+        | isu_uuid        | string | true     | JIA ISU ID           | `0694e4d7-dfce-4aec-b7ca-887ac42cfb8f` |
 
 
 + Response 202 (application/json)
@@ -184,74 +184,24 @@ JIA が管理する ISU をアクティベートするためのエンドポイ�
 
 ### JIA API Mock について
 
-JIA API Mock は、ISUCONDITION の開発用に用いられる JIA の API モックとして、サーバーのポート 5000 番で待ち受けます。
-JIA API Mock は以下のエンドポイントと、 ISU からのコンディション送信を模擬したリクエストを送る機能を持っています。
+JIA API Mock は、ISUCONDITION の開発に利用できる JIA の API モックとして、選手に提供される各サーバーのポート 5000 番で待ち受けています。
+JIA API Mock は以下の機能を持っています。
 
-- `POST /api/activate` - ISU の登録（アクティベート）
-- 登録した ISU から ISUCONDITION へ向けたコンディションの送信
+- `POST /api/activate` - ISU 管理サービス
+  - ただし、先述した　`target_base_url` の制約は存在しない
+- 登録した ISU から ISUCONDITION へ向けたテスト用コンディションの送信
 
-JIA API Mock は ISU を登録（アクティベート）すると、指定された URL へのコンディションの送信を開始します。
-登録したISUからのコンディション送信は JIA API Mock を停止/再起動するまで続きますので、負荷走行前には JIA API Mock を停止/再起動することをお勧めします。
-JIA API Mock のサービスを停止/再起動する場合は、 以下のコマンドを利用してください。
+JIA API Mock は ISU がアクティベートされると、JIA API Mock　が停止されるまで ISUCONDITION へテスト用コンディションの送信を行います。JIA API Mock の操作は永続化されません。
+そのため、負荷走行前には JIA API Mock を停止または再起動することをお勧めします。
+
+JIA API Mock のサービスを停止または再起動するには、 以下のコマンドを利用してください。
 
 ```shell
 $ sudo systemctl [stop|restart] jiaapi-mock.service
 ```
 
-負荷走行後の ISUCONDITION はベンチマーカーが設定した JIA のエンドポイントが設定されているため、上記の設定を行っていても ISUCONDITIONから `500 Internal Server Error` が返されるエンドポイントがあります。
-負荷走行後に JIA API Mock を利用する際は、下記のように `POST /initialize` で JIA API Moc のエンドポイントを設定してください。
+なお、負荷走行後に JIA API Mock を利用する際は、下記のように `POST /initialize` で JIA API Mock のエンドポイントを設定してください。
 
 ```
-curl -sf -H 'content-type: application/json' https://<Elastic IP アドレス>/initialize -d '{"jia_service_url": "http://<Elastic IP アドレス>:5000"}'
+curl -fk -H 'content-type: application/json' https://<Elastic IP アドレス>/initialize -d '{"jia_service_url": "http://localhost:5000"}'
 ```
-
-##　ターミナルからの ISUCONDITION の動作確認
-
-JIA からトークンを取得し、ISUCONDITION へ取得したトークンを使いログインを行い、cookie の設定を行うことで、ターミナルからも ISUCONDITION の動作確認が可能です。
-以下、ターミナルからの動作確認方法の一例を示します。
-
-### JIA API からの トークンの取得
-
-```
-$ TOKEN=`curl -sf -H 'content-type: application/json' https://jia-auth.xi.isucon.dev/api/auth -d '{"user": "isucon", "password": "isucon"}'`
-```
-
-JIA API に送信する `user` と `password` には、当日マニュアルに記載されているものを用いてください。
-JIA API から発行されるトークンの有効期限は、発行から30分となります。
-
-###  トークンを使った cookie の設定
-
-```
-$ curl -c cookie.txt -vf -XPOST -H "authorization: Bearer ${TOKEN}" https://<Elastic IP アドレス>/api/auth
-```
-
-一例として、cookie を使い `GET /api/isu` にアクセスします。
-
-```
-$ curl -b cookie.txt https://<Elastic IP アドレス>/api/isu
-```
-
-### ISU からのコンディションを受け取る `POST /api/condition/:jia_isu_uuid` の検証
-
-ISU からのコンディションを受け取る `POST /api/condition/:jia_isu_uuid` は、
-アクティベートを行った ISU であれば、以下のようにコンソールからもコンディションを受け取ることが可能です。
-JIA ISU ID は、予選当日マニュアル 2 アプリケーションの動作確認 に記載されているものを利用してください。
-
-```
-$ export JIA_ISU_UUID=0694e4d7-dfce-4aec-b7ca-887ac42cfb8f
-$ curl -XPOST -H 'content-type: application/json' https://<Elastic IP アドレス>/api/condition/${JIA_ISU_UUID} \
--d '[{"is_sitting": true, "condition": "is_dirty=true,is_overweight=true,is_broken=true","message":"test","timestamp": 1628492991}]'
-```
-
-#### JIA API Mock を用いたローカルでの開発方法
-
-ローカル環境で開発している ISUCONDITION に対して JIA API Mock を利用した検証を行うためには、サーバー上の 5000 番ポートで待ち受けている JIA API Mock へアクセスできるようにするため、ポートフォワーディングが必要です。
-
-以下に [SSH におけるローカルポートフォワーディング](https://help.ubuntu.com/community/SSH/OpenSSH/PortForwarding#Local_Port_Forwarding) を実行するコマンドを例示します。
-これは「リモートホスト `isucon-server1` に SSH 接続をした上で」「ローカルの `localhost:5000` への TCP 接続を」「リモートホストを通して `isucondition-1.t.isucon.dev` へ転送する」というコマンドです。
-
-```shell
-$ ssh -L localhost:5000:isucondition-1.t.isucon.dev:5000 isucon-server1
-```
-
-上記のローカルポートフォワーディングの設定を行った場合、ログインや ISU の登録（アクティベート）の機能は利用可能となりますが、登録した ISU からローカル環境で開発している ISUCONDITION へ向けたコンディションの送信はできません。[ISU からのコンディションを受け取る `POST /api/condition/:jia_isu_uuid` の検証](#isu-からのコンディションを受け取る-post-apiconditionjia_isu_uuid-の検証) を参考に、コンソールから ISU のコンディション送信を行った検証を行ってください。
