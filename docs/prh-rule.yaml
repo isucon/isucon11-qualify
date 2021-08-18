@@ -1,0 +1,9 @@
+rules:
+  - expected: ISU
+    patterns:
+      - イス
+      - 椅子
+  - expected: サーバー
+    patterns:
+      - /サーバ[^ー]/g
+      - インスタンス
