@@ -35,29 +35,29 @@ ISUCONDITION はこうした人々のニーズに応えるサービスとして�
 
 ### ログイン
 
-ISUCONDITION はログインを JIA に委ねており、ユーザは JIA へログイン時に発行されるトークンを使って ISUCONDITION へのログインを行います。
+ISUCONDITION は認証を JIA に委ねており、ユーザは JIA の認証サイトで認証成功時に発行されるトークンを使って ISUCONDITION へのログインを行います。
 
 ログインの処理は以下のような流れになります。
 
-![ログインの動き](https://user-images.githubusercontent.com/210692/129367327-ff05fb22-46fe-4982-9b9b-b4b72613a6f2.png)
+![ログインの動き](https://user-images.githubusercontent.com/210692/129871067-c6e56bb9-546b-4743-979e-859ab6ca8e0b.png)
 
 1. ユーザは、ISUCONDITION のトップページにアクセスします。
-2. ISUCONDITION のトップページにある "JIA のアカウントでログイン" のボタンを押下すると JIA のページへ遷移します。
-3. JIA のページで JIA のアカウントを利用してログインを行います
-4. ログイン成功時にトークン（JWT: JSON Web Token）が発行され ISUCONDITION にリダイレクトされます。
+2. ISUCONDITION のトップページにある "JIA のアカウントでログイン" のボタンを押下すると JIA 認証サイトへ遷移します。
+3. JIA の認証サイトで JIA のアカウントを利用して認証を行います
+4. 認証成功時にトークン（JWT: JSON Web Token）が発行され ISUCONDITION にリダイレクトされます。
 5. ISUCONDITION はトークンが妥当なものかを検証します。
-6. トークンの妥当性が確認された場合ログイン成功。
+6. トークンの妥当性が確認された場合 ISUCOONDITON のログインに成功します。
 
 ### ISUの登録とISUのコンディション送信処理
 
-ユーザが、ISUCONDITION に ISU を登録することで、ISU  から ISUCONDITION へのコンディション送信が開始されます。
+ユーザが、ISUCONDITION に ISU を登録することで、ISU から ISUCONDITION へのコンディション送信が開始されます。
 
 ISU の登録は以下のような流れになります。
 
-![ISUのアクティベートイメージ](https://user-images.githubusercontent.com/210692/129368206-8130c782-b7a5-44ed-8084-c370feab6a4b.png)
+![ISUのアクティベートイメージ](https://user-images.githubusercontent.com/210692/129871576-269324a6-14be-452e-8826-2bb421196d37.png)
 
-1. ISUCONDITION はユーザから ISU の登録リクエストを受け取った場合 JIA に対して ISU のアクティベーションリクエストを送信します。
-2. JIA は ISUCONDITION から ISU のアクティベートリクエストを受け取ることで、 対象の ISU にコンディション送信を開始するよう指示します。
+1. ISUCONDITION はユーザから ISU の登録リクエストを受け取った場合 JIA の ISU を管理サービスに対して ISU のアクティベーションリクエストを送信します。
+2. JIA の ISU を管理サービスは ISUCONDITION から ISU のアクティベートリクエストを受け取ることで、 対象の ISU にコンディション送信を開始するよう指示します。
 3. コンディションの送信先 URL はアクティベート時に ISUCONDITION が JSON で送信する `target_base_url` と `isu_uuid` により以下のように決定されます。
 
 ```
@@ -152,12 +152,44 @@ ISU を登録すると、 JIA API Mock  (Japan ISU Association のサービス�
 
 ## Japan ISU Association (JIA) の API 
 
-JIA はブラウザからトップページ (`GET /`) へアクセスしログインをすることができますが、それ以外にも API を提供しています。
-現在 ISUCONDITION が利用している JIA　の API は以下の２つです。JIA のユーザ登録については ISUCONDITION 側では取り扱わないため、本アプリケーションマニュアルでは記載しません。
+現在 ISUCONDITION が利用している JIA の API は２つです。
+
+- `POST /api/auth`
+- `POST /api/activate`
+
+詳細は下記のとおりです。
+
+### `POST /api/auth`
+
+JIA から認証トークン(JWT)を発行するためのエンドポイントであり、JIA の認証サイト `https://jia-auth.xi.isucon.dev` で提供されています。
+認証に成功をすると JWT を生成して返します。
+
++ Request (application/json)
+    + Schema
+
+            {
+                "user": "string",
+                "password": "string"
+            }
+
+    + Attributes (object)
+        | Field    | Type   | Required | Description        | Example   |
+        |----------|--------|----------|--------------------|-----------|
+        | user     | string | true     | ログインをするユーザ名 | `isucon`  |
+        | password | string | true     | ログインパスワード    | `isucon`  |
+
++ Response 200 (text/plain)
+    + Body
+
+            eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2Mjg1NjMxODksImlhdCI6MTYyODU2MTM4OSwiamlhX3VzZXJfaWQiOiJpc3Vjb24ifQ.MuIl1-kVe60DzwoGHj2yrck8QwYWDH_N20uCqNVR1IZiuo7ArYiBDbMdTbEzFbkN52x8SxGS3GvKoGuMmRfZXQ
+
++ Other Responsess
+    + 400 (text/plain)
+    + 401 (text/plain)
 
 ### `POST /api/activate`
 
-JIA が管理する ISU に対して指定の URL に向けて、センサーデータを送るように指示するためのエンドポイント。
+JIA が管理する ISU に対して指定の URL に向けて、センサーデータを送るように指示するためのエンドポイントです。
 アクティベートに成功すると、ISU は `target_base_url` で指定された URL に対しセンサーデータの送信を継続します。
 レスポンスにはアクティベートされた ISU の性格が含まれます。
 
@@ -197,47 +229,16 @@ JIA が管理する ISU に対して指定の URL に向けて、センサーデ
     + 403 (text/plain)
     + 500 (text/plain)
 
-### `POST /api/auth`
 
-JIA から認証トークン(JWT)を発行するためのエンドポイント。
-認証に成功をすると JWT を生成して返します。
-
-+ Request (application/json)
-    + Schema
-
-            {
-                "user": "string",
-                "password": "string"
-            }
-
-    + Attributes (object)
-        | Field    | Type   | Required | Description        | Example   |
-        |----------|--------|----------|--------------------|-----------|
-        | user     | string | true     | ログインをするユーザ名 | `isucon`  |
-        | password | string | true     | ログインパスワード    | `isucon`  |
-
-+ Response 200 (text/plain)
-    + Body
-
-            eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2Mjg1NjMxODksImlhdCI6MTYyODU2MTM4OSwiamlhX3VzZXJfaWQiOiJpc3Vjb24ifQ.MuIl1-kVe60DzwoGHj2yrck8QwYWDH_N20uCqNVR1IZiuo7ArYiBDbMdTbEzFbkN52x8SxGS3GvKoGuMmRfZXQ
-
-+ Other Responsess
-    + 400 (text/plain)
-    + 401 (text/plain)
+このエンドポイントは、開発/検証用に JIA API Mock という名前で開発者向けに同様の機能が提供されています。
 
 ### JIA API Mock について
 
 JIA API Mock は、ISUCONDITION の開発用に用いられる JIA の API モックとして、サーバーのポート 5000 番で待ち受けます。
 JIA API Mock は以下のエンドポイントと、 ISU からのコンディション送信を模擬したリクエストを送る機能を持っています。
 
-- `POST /api/auth` - ISUCONDITION へログインするためのトークンの発行
 - `POST /api/activate` - ISU の登録（アクティベート）
 - 登録した ISU から ISUCONDITION へ向けたコンディションの送信
-
-- JIA のログインページ
-  - `http://<Elastic IP アドレス>:5000/`
-
-JIA API のエンドポイント仕様は [ISUCONDITION アプリケーションマニュアル](./isucondition.md)を参照してください。
 
 JIA API Mock は ISU を登録（アクティベート）すると、指定された URL へのコンディションの送信を開始します。
 登録したISUからのコンディション送信は JIA API Mock を停止/再起動するまで続きますので、負荷走行前には JIA API Mock を停止/再起動することをお勧めします。
@@ -262,10 +263,10 @@ JIA からトークンを取得し、ISUCONDITION へ取得したトークンを
 ### JIA API からの トークンの取得
 
 ```
-$ TOKEN=`curl -sf -H 'content-type: application/json' http://<Elastic IP アドレス>:5000/api/auth -d '{"user": "isucon", "password": "isucon"}'`
+$ TOKEN=`curl -sf -H 'content-type: application/json' https://jia-auth.xi.isucon.dev/api/auth -d '{"user": "isucon", "password": "isucon"}'`
 ```
 
-JIA API に送信する `user` と `password` には、 [2.1 ブラウザからの ISUCONDITION の動作確認](#21-ブラウザからの-isucondition-の動作確認) に記載されているものを用いてください。
+JIA API に送信する `user` と `password` には、当日マニュアルに記載されているものを用いてください。
 JIA API から発行されるトークンの有効期限は、発行から30分となります。
 
 ###  トークンを使った cookie の設定
