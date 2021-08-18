@@ -613,11 +613,36 @@ func browserGetLandingPageIgnoreAction(ctx context.Context, user AgentWithStatic
 		return err
 	}
 
-	_, err := getTrendIgnoreAction(ctx, user.GetAgent())
-	if err != nil {
-		// ここのエラーは気にしないので握りつぶす
+	usersAgent := user.GetAgent()
+	url := usersAgent.BaseURL
+	trendAgent, err := agent.NewAgent(agent.WithBaseURL(fmt.Sprintf("%s://%s", url.Scheme, url.Host)), agent.WithUserAgent(usersAgent.Name), func(a *agent.Agent) error {
+		trans := a.HttpClient.Transport.(*http.Transport)
+		transport := &http.Transport{
+			Proxy:                 http.ProxyFromEnvironment,
+			Dial:                  trans.Dial,
+			DialContext:           trans.DialContext,
+			TLSClientConfig:       trans.TLSClientConfig,
+			DisableCompression:    trans.DisableCompression,
+			MaxIdleConns:          trans.MaxIdleConns,
+			MaxIdleConnsPerHost:   trans.MaxIdleConnsPerHost,
+			MaxConnsPerHost:       trans.MaxConnsPerHost,
+			TLSHandshakeTimeout:   trans.TLSHandshakeTimeout,
+			ResponseHeaderTimeout: trans.ResponseHeaderTimeout,
+			IdleConnTimeout:       trans.IdleConnTimeout,
+			ForceAttemptHTTP2:     trans.ForceAttemptHTTP2,
+			DisableKeepAlives:     true,
+		}
+		a.HttpClient.Transport = transport
 		return nil
+	})
+	if err != nil {
+		logger.AdminLogger.Panic(err)
 	}
+	go func(trendAgent *agent.Agent) {
+		// 登録済みユーザーは trend に興味はないので verify はせず投げっぱなし
+		_, _ = getTrendIgnoreAction(ctx, trendAgent)
+		// ここのエラーは気にしないので握りつぶす
+	}(trendAgent)
 
 	return nil
 }
@@ -752,6 +777,7 @@ func AgentDo(a *agent.Agent, ctx context.Context, req *http.Request) (*http.Resp
 type AgentWithStaticCache interface {
 	SetStaticCache(path string, hash uint32)
 	GetStaticCache(path string, req *http.Request) (uint32, bool)
+	ClearStaticCache()
 
 	GetAgent() *agent.Agent
 }

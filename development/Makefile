@@ -19,6 +19,10 @@ up-perl:
 up-rust:
 	docker-compose -f docker-compose-dev.yml up --build -- backend-rust mysql-backend jiaapi-mock
 
+.PHONY: up-python
+up-python:
+	docker-compose -f docker-compose-dev.yml up --build -- backend-python mysql-backend jiaapi-mock
+
 .PHONY: up-nodejs
 up-nodejs:
 	docker-compose -f docker-compose-dev.yml up --build -- backend-nodejs mysql-backend jiaapi-mock
@@ -38,6 +42,10 @@ test-php:
 .PHONY: test-rust
 test-rust:
 	target=rust make test
+
+.PHONY: test-python
+test-python:
+	target=python make test
 
 .PHONY: test-nodejs
 test-nodejs:

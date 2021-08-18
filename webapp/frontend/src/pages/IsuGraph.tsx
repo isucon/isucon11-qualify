@@ -7,6 +7,7 @@ import GraphNavigator from '/@/components/IsuGraph/GraphNavigator'
 import NowLoading from '/@/components/UI/NowLoading'
 import { useLocation } from 'react-router-dom'
 import { getNowDate, timestampToDate } from '/@/lib/date'
+import Legend from '/@/components/IsuGraph/Legend'
 
 interface Props {
   isu: Isu
@@ -72,6 +73,9 @@ const IsuGraph = ({ isu }: Props) => {
             sittingData={sittingData}
             timeCategories={timeCategories}
           />
+        </div>
+        <div className="flex justify-center">
+          <Legend />
         </div>
         {isLoading ? <NowLoading /> : null}
       </div>

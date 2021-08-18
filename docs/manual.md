@@ -36,7 +36,7 @@ ISUCON11 サポート Discord サーバーは競技中ならびにその前後�
 競技時間中はポータルサイトを通して質問やサポート依頼を送信することができますので、そちらを利用してください。
 
 ただし、予選参加者（以下選手）は競技時間中も Discord の確認が可能な状態、通知が受け取れる状態を維持してください。
-これはポータルで送信した質問/サポート依頼の内容を主催者が確認した上で、リアルタイムでのチャットが必要だと判断した場合、主催者が Discord 上でプライベートチャンネルを作成し、メンション の上よびかけを行う場合があるためです。
+これはポータルで送信した質問/サポート依頼の内容を主催者が確認した上で、リアルタイムでのチャットが必要だと判断した場合、主催者が Discord 上でプライベートチャンネルを作成し、メンション の上よびかけを行う場合があるためです。よびかけに応じない場合、主催者から質問・サポート依頼への回答ができないことに留意してください。
 
 また、主催者からのアナウンス等も Discord で実施されます。
 
@@ -64,9 +64,10 @@ ISUCON11 サポート Discord サーバーは競技中ならびにその前後�
 
 このテンプレートでは以下のリソースを作成します。
 
-- EC2 インスタンス (x5.large) x 3
-- EBS (gp3) x 3
-- VPC
+- EC2 インスタンス (c5.large) x 3
+- EBS (gp3 20GB) x 3
+- VPC および VPC 関連リソース
+- EIP
 - インターネットゲートウェイ
 - セキュリティグループ
 - Availability Zone 情報取得に利用する Lambda 関数
@@ -92,8 +93,6 @@ TODO: テンプレートを使った AWS CloudFormation での作成手順を確
 #### 競技環境の再構築方法
 
 選手自らが設定変更等により競技環境を破壊し復旧できなくなった場合や、検証環境が必要になった場合は、上記「テンプレートでのスタックの作成」を参考に選手自らが AWS CloudFormation で新たに競技環境の構築を行うことになります。再構築の際は、 AWS CloudFormation で既存のスタックとは異なる名前で新しいスタックを作成してください。新規競技環境は競技開始時点の初期状態となります。古い競技環境上で変更を加えたソースコードや設定ファイル等の移行が必要な場合は、各チームの責任で行ってください。
-
-TODO: 再構築手順を実際に確認（スタック名の変更は必要か、ポータル側が上書きされているか、古い競技環境を消さないとチェックスクリプトがどうなるか、etc...）
 
 #### 競技環境の確認
 
@@ -126,7 +125,7 @@ $ /opt/isucon-env-checker/isucon-env-checker
 [ssh_config](https://man.openbsd.org/ssh_config.5) の例を以下に示します。なお、あくまで例示であり必ず以下の設定を利用する必要はありません。
 
 ```
- Host isucon-server1
+Host isucon-server1
    HostName <Elastic IPアドレス 1>
    User isucon
 
@@ -145,7 +144,7 @@ Host isucon-server3
   - テンプレートで作成されたリソースに対して、変更（AMIやインスタンスタイプの変更など）を行うことは禁止行為にあたり失格となります。
   - 競技終了時点で競技環境確認に失敗した場合や、ポータル上の環境情報に複数環境 (スタック)が混在した状態の場合失格となります。
   - 特例として外部のメトリクス計測サービスの使用のみ許可をしますが、スコアを向上させるいかなる効果も持つものであってはいけません。
-- **競技終了後は、負荷走行成績の追試を行います。Discord サーバー および http://isucon.net/ にて主催者からお知らせをするまで、サーバーの操作はしないでください。**
+- **競技終了後は、負荷走行成績の追試を行います。Discord サーバー および http://isucon.net にて主催者からお知らせをするまで、サーバーの操作はしないでください。**
   - 競技終了後の作業は禁止行為にあたり失格となります。
 - **サーバー上の `isucon` 以外のユーザに関して、ユーザ削除や既存の公開鍵の削除、その他 sshd の設定変更等を行ったことにより、主催者による追試をおこなうことができない場合は、失格とします。**
 
@@ -162,18 +161,11 @@ SSH ログインのユーザ名は `isucon` です。
 
 ### 2. アプリケーションの動作確認
 
-#### 2.1 ブラウザからの ISUCONDITION の動作確認
+サーバーの Elastic IP アドレスに Web ブラウザから HTTPS でアクセスすると、ISUCONDITIONのトップページが表示されます。
 
-初期状態ではサーバーの Elastic IP アドレスに、Web ブラウザから HTTPS で `GET /` へアクセスするとアプリケーションが表示されます。
-サーバーの Elastic IP アドレスにアクセスすると TLS 証明書の検証エラーが表示されますが、このエラーを回避するにはサーバーの Elastic IP アドレスが `54.150.88.xx` だった場合、Mac や Linux であれば `/etc/hosts` に以下の行を追加する必要があります。
-
-例:
-```
-54.150.88.xx isucondition.t.isucon.dev
-```
 
 ログインには Japan ISU Association（以下 JIA）のアカウントが必要です。
-下記の 4 ユーザが登録されているので、動作確認にご利用ください。
+初期状態では下記の 4 ユーザが登録されています。
 
 | ログイン ID | パスワード   | 備考      |
 |------------|------------|----------|
@@ -183,60 +175,11 @@ SSH ログインのユーザ名は `isucon` です。
 | isucon3    | isucon3    | 初期ユーザ |
 
 
-ISU の登録には JIA が管理する JIA ISU ID が必要となります。
-アプリケーションの動作確認には以下の JIA ISU ID を利用することができます。
-
-| JIA ISU ID                           |
-|--------------------------------------|
-| 0694e4d7-dfce-4aec-b7ca-887ac42cfb8f |
-| 3a8ae675-3702-45b5-b1eb-1e56e96738ea |
-| 3efff0fa-75bc-4e3c-8c9d-ebfa89ecd15e |
-| f67fcb64-f91c-4e7b-a48d-ddf1164194d0 |
-| 32d1c708-e6ef-49d0-8ca9-4fd51844dcc8 |
-| f012233f-c50e-4349-9473-95681becff1e |
-| af64735c-667a-4d95-a75e-22d0c76083e0 |
-| cb68f47f-25ef-46ec-965b-d72d9328160f |
-| 57d600ef-15b4-43bc-ab79-6399fab5c497 |
-| aa0844e6-812d-41d2-908a-eeb82a50b627 |
-
-ISU を登録すると、 JIA API Mock  (Japan ISU Association のサービスと ISU の動きを模した開発用モック)から設定した URL に対してコンディションの送信が開始されます。
-
-#### 2.2 コンソールからの ISUCONDITION の動作確認
-
-JIA からトークンを取得し、ISUCONDITION へ取得したトークンを使いログインを行い、cookie の設定を行うことで、コンソールからも ISUCONDITION の動作確認が可能です。
-以下、コンソールからの動作確認方法の一例を示します。
-
-##### JIA API からの トークンの取得
+なお、ブラウザからサーバーの Elastic IP アドレスにアクセスすると TLS 証明書の検証エラーが表示されますが、不具合ではありません。
+このエラー表示を回避したい場合には、以下の作業を行ってください：　Elastic IP アドレスが `54.150.88.xx` だった場合、Mac や Linux であれば `/etc/hosts` に、 Windows であれば `C:\Windows\System32\drivers\etc\hosts` に以下の行を追加。
 
 ```
-$ TOKEN=`curl -sf -H 'content-type: application/json' http://<Elastic IP アドレス>:5000/api/auth -d '{"user": "isucon", "password": "isucon"}'`
-```
-
-JIA API に送信する `user` と `password` には、 [2.1 ブラウザからの ISUCONDITION の動作確認](#21-ブラウザからの-isucondition-の動作確認) に記載されているものを用いてください。
-JIA API から発行されるトークンの有効期限は、発行から30分となります。
-
-#####  トークンを使った cookie の設定
-
-```
-$ curl -c cookie.txt -vf -XPOST -H "authorization: Bearer ${TOKEN}" https://<Elastic IP アドレス>/api/auth
-```
-
-一例として、cookie を使い `GET /api/isu` にアクセスします。
-
-```
-$ curl -b cookie.txt https://<Elastic IP アドレス>/api/isu
-```
-
-##### ISU からのコンディションを受け取る `POST /api/condition/:jia_isu_uuid` の検証
-
-ISU からのコンディションを受け取る `POST /api/condition/:jia_isu_uuid` は、 
-アクティベートを行った ISU であれば、以下のようにコンソールからもコンディションを受け取ることが可能です。
-JIA ISU ID は、[2.1 ブラウザからの ISUCONDITION の動作確認](#21-ブラウザからの-isucondition-の動作確認) に記載されているものを利用してください。 
-
-```
-$ export JIA_ISU_UUID=0694e4d7-dfce-4aec-b7ca-887ac42cfb8f
-$ curl -XPOST -H 'content-type: application/json' https://<Elastic IP アドレス>/api/condition/${JIA_ISU_UUID} \
--d '[{"is_sitting": true, "condition": "is_dirty=true,is_overweight=true,is_broken=true","message":"test","timestamp": 1628492991}]'
+54.150.88.xx isucondition.t.isucon.dev
 ```
 
 ### 3. 負荷走行 (ベンチマーク)
@@ -246,60 +189,7 @@ $ curl -XPOST -H 'content-type: application/json' https://<Elastic IP アドレ�
 
 なお、負荷走行が待機中 (PENDING) もしくは実行中 (RUNNING) の間は追加の Enqueue を行うことはできません。
 
-### JIA API Mock　について
-
-JIA API Mock は、ISUCONDITION の開発用に用いられる JIA の API モックとして、サーバーのポート 5000 番で待ち受けます。
-JIA API Mock は以下のエンドポイントと、 ISU からのコンディション送信を模擬したリクエストを送る機能を持っています。
-
-- `GET /` - ブラウザから JIA へのログイン動作を確認するための画面を表示
-- `POST /api/auth` - ISUCONDITION へログインするためのトークンの発行
-- `POST /api/activate` - ISU の登録（アクティベート）
-- 登録した ISU から ISUCONDITION へ向けたコンディションの送信
-
-- JIA のログインページ
-  - `http://<Elastic IP アドレス>:5000/`
-
-JIA API のエンドポイント仕様は [ISUCONDITION アプリケーションマニュアル](./isucondition.md)を参照してください。
-
-JIA API Mock は ISU を登録（アクティベート）すると、指定された URL へのコンディションの送信を開始します。
-登録したISUからのコンディション送信は JIA API Mock を停止/再起動するまで続きますので、負荷走行前には JIA API Mock を停止/再起動することをお勧めします。
-JIA API Mock のサービスを停止/再起動する場合は、 以下のコマンドを利用してください。
-
-```shell
-$ sudo systemctl [stop|restart] jiaapi-mock.service
-```
-
-負荷走行後の ISUCONDITION はベンチマーカーが設定した JIA のエンドポイントが設定されているため、ISUCONDITIONから `500 Internal Server Error` が返されるエンドポイントがあります。
-負荷走行後に JIA API Mock を利用する際は、下記のように `POST /initialize` で JIA API Mock のエンドポイントを設定してください。ただし `POST /initialize` は下記 "データベースの初期化方法" にも記載があるように、データベース内のデータを初期化することに留意してください。
-
-```
-curl -sf -H 'content-type: application/json' https://<Elastic IP アドレス 1,2,3>/initialize -d '{"jia_service_url": "http://localhost:5000"}'
-```
-
-#### JIA API Mock の URL 設定
-
-負荷走行後の ISUCONDITION はベンチマーカーが設定した JIA のエンドポイントが設定されているため、上記の設定を行っていても ISUCONDITIONから `500 Internal Server Error` が返されるエンドポイントがあります。
-負荷走行後に JIA API Mock を利用する際は、下記のように `POST /initialize` で JIA API Moc のエンドポイントを設定してください。
-
-```
-curl -sf -H 'content-type: application/json' https://<Elastic IP アドレス>/initialize -d '{"jia_service_url": "http://<Elastic IP アドレス>:5000"}'
-```
-
-#### JIA API Mock を用いたローカルでの開発方法
-
-ローカル環境で開発している ISUCONDITION に対して JIA API Mock を利用した検証を行うためには、サーバー上の 5000 番ポートで待ち受けている JIA API Mock へアクセスできるようにするため、ポートフォワーディングが必要です。
-
-以下に [SSH におけるローカルポートフォワーディング](https://help.ubuntu.com/community/SSH/OpenSSH/PortForwarding#Local_Port_Forwarding) を実行するコマンドを例示します。
-これは「リモートホスト `isucon-server1` に SSH 接続をした上で」「ローカルの `localhost:5000` への TCP 接続を」「リモートホストを通して `isucondition-1.t.isucon.dev` へ転送する」というコマンドです。
-
-```shell
-$ ssh -L localhost:5000:isucondition-1.t.isucon.dev:5000 isucon-server1
-```
-
-上記のローカルポートフォワーディングの設定を行った場合、ログインや ISU の登録（アクティベート）の機能は利用可能となりますが、登録した ISU からローカル環境で開発している ISUCONDITION へ向けたコンディションの送信はできません。[ISU からのコンディションを受け取る `POST /api/condition/:jia_isu_uuid` の検証](#isu-からのコンディションを受け取る-post-apiconditionjia_isu_uuid-の検証) を参考に、コンソールから ISU のコンディション送信を行った検証を行ってください。
-
-
-### データベースの初期化方法
+## データベースの初期化方法
 
 初期状態のアプリケーションでは、初期化処理（`POST /initialize`）においてデータベースを初期状態に戻します。
 次のコマンドを実行してもデータベースを初期状態に戻すことができます。
@@ -308,7 +198,7 @@ $ ssh -L localhost:5000:isucondition-1.t.isucon.dev:5000 isucon-server1
 $ ~isucon/webapp/sql/init.sh
 ```
 
-### 参考実装
+## 参考実装
 
 下記の言語での実装が提供されています。
 
@@ -333,7 +223,7 @@ sudo systemctl disable --now isucondition.go.service
 sudo systemctl enable --now isucondition.ruby.service
 ```
 
-### `/etc/hosts` ならびに `isucondition-[1-3].t.isucon.dev` ドメインについて
+## `/etc/hosts` ならびに `isucondition-[1-3].t.isucon.dev` ドメインについて
 
 サーバーには初期状態で、割り当てられている 3 台のサーバーの IP アドレスが事前に `/etc/hosts` へ登録されています。これらのホスト名は自由に利用して構いません (これを利用しなくても構いません)
 
@@ -348,16 +238,6 @@ sudo systemctl enable --now isucondition.ruby.service
 `*.t.isucon.dev` の FQDN に関しては `127.0.0.1` (IPv6 は `::1`) の DNS レコードが登録されています。また、サーバーに配置されている TLS 証明書は subject name が `*.t.isucon.dev` であるため、この名前であれば TLS 証明書の検証が通る状態で HTTPS 接続等を行うことができるようになっています。
 
 ベンチマーカーには `192.168.0.11`,`192.168.0.12`,`192.168.0.13` ではなく Elastic IP アドレスを利用した `/etc/hosts` エントリが登録されています。負荷走行の際は、ベンチマーカーより負荷走行の対象となるサーバーに対応する `isucondition-1` ~ `isucondition-3.t.isucon.dev` のホスト名を利用した HTTPS 接続が行われます。その際、TLS 証明書検証が通る必要がある旨、留意してください。
-
-### 時計について
-
-主催者が管理するベンチマーカーについては、Amazon Time Sync Service (169.254.169.123) と systemd-timesyncd を利用して時刻同期が設定されています。
-
-選手へ提供されるサーバーについても、初期状態で同様の設定がされています。
-
-### ISU の仮想時間について
-
-ベンチマーカーが模す ISU の世界では現実時間の 1 秒を 3 万倍(30,000 秒)加速した時間が流れており、ISU はこの仮想時間を使ったデータを送信します。
 
 ## 負荷走行について
 
@@ -378,13 +258,28 @@ sudo systemctl enable --now isucondition.ruby.service
 
 ### キャッシュについて
 
-アプリケーションは下記の条件においてキャッシュが認められています。
+アプリケーションは「[`POST /api/condition/:jia_isu_uuid` の反映について](#post-apiconditionjia_isu_uuid-の反映について)」に基づいてキャッシュを返すことが認められています。
+それ以外については、データの更新が即時反映されていることを期待してベンチマーカーは検証を行います。ただし、ベンチマーカーが検知しない限りは古い情報を返しても構いません。
 
-- `GET /api/trend`, `/api/condition/:jia_isu_uuid`, `GET /api/isu/:jia_isu_uuid/graph`
-  - アプリケーションは、古い情報を返すことができます。ただし、これは後述の「スコア計算」において得点の加点を受ける機会が減る可能性があるに留意してください。
-  - `POST /initialize` によって生成される初期データに対しては、反映されていることを期待してベンチマーカーは検証を行います。
-- 上記以外の HTTP リクエスト
-  - データの更新が即時反映されていることを期待してベンチマーカーは検証を行います。ただし、ベンチマーカーが検知しない限りは古い情報を返しても構いません。
+なお、キャッシュを用いた場合に、加点の機会が減る可能性に留意してください（[スコア計算](#スコア計算)を参照）]
+
+#### `POST /api/condition/:jia_isu_uuid` の反映について
+
+`POST /api/condition:jia_isu_uuid` で受け取ったコンディションの反映が遅れることについて、ベンチマーカーは許容しています。
+以下のエンドポイントが該当します。
+	
+- `GET /api/isu`
+- `GET /api/isu/:jia_isu_uuid/graph`
+- `GET /api/condition/:jia_isu_uuid`
+- `GET /api/trend`
+
+ただし、ベンチマーカーは、あるエンドポイントで一度取得したコンディションは、以降もそのエンドポイントで取得できることを期待しています。
+また、`GET /api/condition/:jia_isu_uuid` と `GET /api/isu/:jia_isu_uuid/graph` については以下の条件を期待してベンチマーカーは検証を行います
+ 
+ - `GET /api/condition/:jia_isu_uuid` で取得できたコンディションは、 1 秒後には`GET /api/isu/:jia_isu_uuid/graph` でも取得できる。
+ - `GET /api/isu/:jia_isu_uuid/graph` で取得できたコンディションは、 1 秒後には `GET /api/isu/:jia_isu_uuid` でも取得できる。
+
+なお、反映を遅らせた場合、加点の機会が減る可能性に留意してください（[スコア計算](#スコア計算)を参照）]
 
 #### Conditional GET のサポートについて
 
@@ -416,15 +311,30 @@ ToDo: ベンチと確認&意識合わせ
 
 DB への高負荷状態を解消するためには以下のように動作中の ISUCONDITION サービスを再起動してください。
 
-MEMO: MariaDBの再起動でも行けるか確認
 
 ```
 sudo systemctl restart isucondition.go
 ```
+### 時計について
+
+主催者が管理するベンチマーカーについては、Amazon Time Sync Service (169.254.169.123) と systemd-timesyncd を利用して時刻同期が設定されています。
+
+選手へ提供されるサーバーについても、初期状態で同様の設定がされています。
+
+### ISU の仮想時間について
+
+ベンチマーカーが模す ISU の世界では現実の3万倍の速度で時間が流れており(現実の1秒がISU世界では30,000秒)、ISU はこの仮想時間を使ったデータを送信します。
+
+### ベンチマーカーが利用する JIAアカウント
+
+ベンチマーカーはJIAアカウントとして `isucon` を利用します。 `isucon` は初期状態で登録されているユーザーです。
+`isucon` ユーザーを用いることで、負荷走行後のアプリケーションの状態の確認が可能です。
+
 
 ## スコア計算
 
-負荷走行のスコアは下記の加点と減点から算出されます。
+アプリケーション互換性チェックを通過し負荷走行が開始されると、初期スコアとして1000点が加点されます。
+それ以降は下記の通り加点、減点が行われます。
 
 ### 負荷走行時における加点について
 
@@ -452,6 +362,36 @@ sudo systemctl restart isucondition.go
 | Worst     | 10   | 0  <= n < 5  |
 
   - ToDo：上記の得点や条件は仮のもののため調整が終わり次第書き換える
+
+#### 当日のグラフの確認による加点
+
+- ToDo
+
+#### コンディションの確認による加点
+
+- ToDo
+
+#### 負荷走行後ログに出力される加点理由
+
+負荷走行後、加点理由がポータルのログに出力されます。
+ログに出力される加点理由の意味を以下に示します。
+
+| 名称                  | 意味                                                    |
+|-----------------------|---------------------------------------------------------|
+| StartBenchmark        | 初期スコアが加点されたか否か(0, 1)                      |
+| GraphExcellenct       | Excellent のグラフを確認した回数                        |
+| GraphGood             | Good のグラフを確認した回数                             |
+| GraphNormal           | Normal のグラフを確認した回数                           |
+| GraphBad              | Bad のグラフを確認した回数                              |
+| GraphWorst            | Worstのグラフを確認した回数                             |
+| TodayGraphExcellenct  | 当日のグラフで、Excellent のグラフを確認した回数        |
+| TodayGraphGood        | 当日のグラフで、Good のグラフを確認した回数             |
+| TodayGraphNormal      | 当日のグラフで、Normal のグラフを確認した回数           |
+| TodayGraphBad         | 当日のグラフで、Bad のグラフを確認した回数              |
+| TodayGraphWorst       | 当日のグラフで、Worstのグラフを確認した回数             |
+| ReadInfoCondition     | Info のコンディションを確認した回数(50回ごとに1加算)    |
+| ReadWarningCondition  | Warning のコンディションを確認した回数(50回ごとに1加算) |
+| ReadCriticalCondition | Critical のコンディションを確認した回数(50回ごと1加算)  |
 
 ### 負荷走行時における減点、即時失敗（fail) について
 
@@ -523,8 +463,9 @@ language の値が実装に利用した言語となります。 language が空�
 高速化の際、主催者より問題として与えられた Web アプリケーションから、以下の部分は変更しないこと。
 
 - アクセス先の URI、ただしサーバー側で生成する部分（ID など）は文字種（[0-9] や [0-9a-zA-Z_] など）を変えない範囲で自由に生成しても良い
-- レスポンス (HTML の DOM, JSON オブジェクト等) の構造
+- レスポンス (JSON オブジェクト等) の構造
 - JavaScript/CSS ファイルの内容
+- **HTML ファイルの内容 (空白の挿入等、構造を変更しない場合も禁止)**
 - 画像および動画等のメディアファイルの内容
 
 各サーバーにおけるソフトウェアの入れ替え、設定の変更、アプリケーションコードの変更および入れ替えなどは一切禁止しない。
