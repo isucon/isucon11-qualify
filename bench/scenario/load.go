@@ -922,15 +922,12 @@ func signoutScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *m
 	user.Agent.CacheStore.Clear()
 
 	// signout したらトップページに飛ぶ(MEMO: 初期状態だと trend おもすぎて backend をころしてしまうかも)
-	go func() {
-		// 登録済みユーザーは trend に興味はないので verify はせず投げっぱなし
-		if errs := browserGetLandingPageIgnoreAction(ctx, user); errs != nil {
-			for _, err := range errs {
-				addErrorWithContext(ctx, step, err)
-			}
-			// return するとこのあとのログイン必須なシナリオが回らないから return はしない
+	if errs := browserGetLandingPageIgnoreAction(ctx, user); errs != nil {
+		for _, err := range errs {
+			addErrorWithContext(ctx, step, err)
 		}
-	}()
+		// return するとこのあとのログイン必須なシナリオが回らないから return はしない
+	}
 
 	authInfinityRetry(ctx, user, user.UserID, step)
 }

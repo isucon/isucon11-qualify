@@ -613,11 +613,11 @@ func browserGetLandingPageIgnoreAction(ctx context.Context, user AgentWithStatic
 		return err
 	}
 
-	_, err := getTrendIgnoreAction(ctx, user.GetAgent())
-	if err != nil {
+	go func() {
+		// 登録済みユーザーは trend に興味はないので verify はせず投げっぱなし
+		_, _ = getTrendIgnoreAction(ctx, user.GetAgent())
 		// ここのエラーは気にしないので握りつぶす
-		return nil
-	}
+	}()
 
 	return nil
 }

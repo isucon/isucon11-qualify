@@ -144,14 +144,12 @@ func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a
 	user.Agent = a
 
 	//backendにpostする
-	go func() {
-		// 登録済みユーザーは trend に興味がないからリクエストを待たない
-		if errs := browserGetLandingPageIgnoreAction(ctx, user); len(errs) != 0 {
-			for _, err := range errs {
-				addErrorWithContext(ctx, step, err)
-			}
+	// 登録済みユーザーは trend に興味がないからリクエストを待たない
+	if errs := browserGetLandingPageIgnoreAction(ctx, user); len(errs) != 0 {
+		for _, err := range errs {
+			addErrorWithContext(ctx, step, err)
 		}
-	}()
+	}
 	_, errs := authAction(ctx, user, user.UserID)
 	for _, err := range errs {
 		addErrorWithContext(ctx, step, err)
