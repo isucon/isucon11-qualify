@@ -612,7 +612,7 @@ module Isucondition
       end
 
       content_type :json
-      res
+      res.to_json
     end
 
     # ISUからのコンディションを受け取る
