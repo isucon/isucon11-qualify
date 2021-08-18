@@ -14,6 +14,10 @@ up-python:
 up-nodejs:
 	docker-compose -f docker-compose-dev.yml up --build -- backend-nodejs mysql-backend jiaapi-mock
 
+.PHONY: up-perl
+up-perl:
+	docker-compose -f docker-compose-dev.yml up --build -- backend-perl mysql-backend jiaapi-mock
+
 .PHONY: up-php
 up-php:
 	docker-compose -f docker-compose-dev.yml up -d --build -- backend-php mysql-backend jiaapi-mock
@@ -41,6 +45,10 @@ test-python:
 .PHONY: test-nodejs
 test-nodejs:
 	target=nodejs make test
+
+.PHONY: test-perl
+test-perl:
+	target=perl make test
 
 .PHONY: test
 test:
