@@ -203,3 +203,54 @@ JIA から認証トークン(JWT)を発行するためのエンドポイント�
 + Other Responsess
     + 400 (text/plain)
     + 401 (text/plain)
+
+##　コンソールからの ISUCONDITION の動作確認
+
+JIA からトークンを取得し、ISUCONDITION へ取得したトークンを使いログインを行い、cookie の設定を行うことで、コンソールからも ISUCONDITION の動作確認が可能です。
+以下、コンソールからの動作確認方法の一例を示します。
+
+### JIA API からの トークンの取得
+
+```
+$ TOKEN=`curl -sf -H 'content-type: application/json' http://<Elastic IP アドレス>:5000/api/auth -d '{"user": "isucon", "password": "isucon"}'`
+```
+
+JIA API に送信する `user` と `password` には、 [2.1 ブラウザからの ISUCONDITION の動作確認](#21-ブラウザからの-isucondition-の動作確認) に記載されているものを用いてください。
+JIA API から発行されるトークンの有効期限は、発行から30分となります。
+
+###  トークンを使った cookie の設定
+
+```
+$ curl -c cookie.txt -vf -XPOST -H "authorization: Bearer ${TOKEN}" https://<Elastic IP アドレス>/api/auth
+```
+
+一例として、cookie を使い `GET /api/isu` にアクセスします。
+
+```
+$ curl -b cookie.txt https://<Elastic IP アドレス>/api/isu
+```
+
+### ISU からのコンディションを受け取る `POST /api/condition/:jia_isu_uuid` の検証
+
+ISU からのコンディションを受け取る `POST /api/condition/:jia_isu_uuid` は、
+アクティベートを行った ISU であれば、以下のようにコンソールからもコンディションを受け取ることが可能です。
+JIA ISU ID は、予選当日マニュアル 2 アプリケーションの動作確認 に記載されているものを利用してください。
+
+```
+$ export JIA_ISU_UUID=0694e4d7-dfce-4aec-b7ca-887ac42cfb8f
+$ curl -XPOST -H 'content-type: application/json' https://<Elastic IP アドレス>/api/condition/${JIA_ISU_UUID} \
+-d '[{"is_sitting": true, "condition": "is_dirty=true,is_overweight=true,is_broken=true","message":"test","timestamp": 1628492991}]'
+```
+
+#### JIA API Mock を用いたローカルでの開発方法
+
+ローカル環境で開発している ISUCONDITION に対して JIA API Mock を利用した検証を行うためには、サーバー上の 5000 番ポートで待ち受けている JIA API Mock へアクセスできるようにするため、ポートフォワーディングが必要です。
+
+以下に [SSH におけるローカルポートフォワーディング](https://help.ubuntu.com/community/SSH/OpenSSH/PortForwarding#Local_Port_Forwarding) を実行するコマンドを例示します。
+これは「リモートホスト `isucon-server1` に SSH 接続をした上で」「ローカルの `localhost:5000` への TCP 接続を」「リモートホストを通して `isucondition-1.t.isucon.dev` へ転送する」というコマンドです。
+
+```shell
+$ ssh -L localhost:5000:isucondition-1.t.isucon.dev:5000 isucon-server1
+```
+
+上記のローカルポートフォワーディングの設定を行った場合、ログインや ISU の登録（アクティベート）の機能は利用可能となりますが、登録した ISU からローカル環境で開発している ISUCONDITION へ向けたコンディションの送信はできません。[ISU からのコンディションを受け取る `POST /api/condition/:jia_isu_uuid` の検証](#isu-からのコンディションを受け取る-post-apiconditionjia_isu_uuid-の検証) を参考に、コンソールから ISU のコンディション送信を行った検証を行ってください。
