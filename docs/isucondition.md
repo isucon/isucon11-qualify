@@ -44,7 +44,7 @@ ISUCONDITION はログインを JIA に委ねており、ユーザは JIA へロ
 1. ユーザは、ISUCONDITION のトップページにアクセスします。
 2. ISUCONDITION のトップページにある "JIA のアカウントでログイン" のボタンを押下すると JIA のページへ遷移します。
 3. JIA のページで JIA のアカウントを利用してログインを行います
-4. ログイン成功時にトークン（JWT: JSON Web Token）が発行され ISUCONDITION に転送されます。
+4. ログイン成功時にトークン（JWT: JSON Web Token）が発行され ISUCONDITION にリダイレクトされます。
 5. ISUCONDITION はトークンが妥当なものかを検証します。
 6. トークンの妥当性が確認された場合ログイン成功。
 
