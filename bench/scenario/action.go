@@ -752,6 +752,7 @@ func AgentDo(a *agent.Agent, ctx context.Context, req *http.Request) (*http.Resp
 type AgentWithStaticCache interface {
 	SetStaticCache(path string, hash uint32)
 	GetStaticCache(path string, req *http.Request) (uint32, bool)
+	ClearStaticCache()
 
 	GetAgent() *agent.Agent
 }

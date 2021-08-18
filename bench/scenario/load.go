@@ -357,7 +357,7 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 	user := s.NewUser(ctx, step, userAgent, model.UserTypeNormal, isIsuconUser)
 	if user == nil {
 		//logger.AdminLogger.Println("Normal User fail: NewUser")
-		return nil //致命的でないエラー
+		return nil
 	}
 	func() {
 		s.normalUsersMtx.Lock()
@@ -919,7 +919,21 @@ func signoutScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *m
 		// MEMO: ここで実は signout に成功していました、みたいな状況だと以降のこのユーザーループが死ぬがそれはユーザー責任とする
 		return
 	}
+
+	_, hres, err := getMeErrorAction(ctx, user.Agent)
+	if err != nil {
+		addErrorWithContext(ctx, step, err)
+		// return するとこのあとのログイン必須なシナリオが回らないから return はしない
+	}
+	defer hres.Body.Close()
+	if hres.StatusCode != http.StatusUnauthorized {
+		addErrorWithContext(ctx, step, errorInvalidStatusCode(hres, http.StatusUnauthorized))
+		// return するとこのあとのログイン必須なシナリオが回らないから return はしない
+	}
+
+	user.Agent.ClearCookie()
 	user.Agent.CacheStore.Clear()
+	user.ClearStaticCache()
 
 	// signout したらトップページに飛ぶ(MEMO: 初期状態だと trend おもすぎて backend をころしてしまうかも)
 	if errs := browserGetLandingPageIgnoreAction(ctx, user); errs != nil {
