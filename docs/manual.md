@@ -481,26 +481,27 @@ sudo systemctl restart isucondition.go
 
 - ToDo
 
-#### 負荷走行後に出力される加点理由
+#### 負荷走行後ログに出力される加点理由
 
 負荷走行後、加点理由がポータルのログに出力されます。
 ログに出力される加点理由の意味を以下に示します。
 
-| 名称                  | 意味 |
-| StartBenchmark        | 初期スコアが加点されたか否か(0, 1) |
-| GraphExcellenct       | Excellent のグラフを確認した回数 |
-| GraphGood             | Good のグラフを確認した回数 |
-| GraphNormal           | Normal のグラフを確認した回数 |
-| GraphBad              | Bad のグラフを確認した回数 |
-| GraphWorst            | Worstのグラフを確認した回数 |
-| TodayGraphExcellenct  | 当日のグラフで、Excellent のグラフを確認した回数 |
-| TodayGraphGood        | 当日のグラフで、Good のグラフを確認した回数 |
-| TodayGraphNormal      | 当日のグラフで、Normal のグラフを確認した回数 |
-| TodayGraphBad         | 当日のグラフで、Bad のグラフを確認した回数 |
-| TodayGraphWorst       | 当日のグラフで、Worstのグラフを確認した回数 |
-| ReadInfoCondition     | Info のコンディションを確認した回数(50回ごとに1加算) |
+| 名称                  | 意味                                                    |
+|-----------------------|---------------------------------------------------------|
+| StartBenchmark        | 初期スコアが加点されたか否か(0, 1)                      |
+| GraphExcellenct       | Excellent のグラフを確認した回数                        |
+| GraphGood             | Good のグラフを確認した回数                             |
+| GraphNormal           | Normal のグラフを確認した回数                           |
+| GraphBad              | Bad のグラフを確認した回数                              |
+| GraphWorst            | Worstのグラフを確認した回数                             |
+| TodayGraphExcellenct  | 当日のグラフで、Excellent のグラフを確認した回数        |
+| TodayGraphGood        | 当日のグラフで、Good のグラフを確認した回数             |
+| TodayGraphNormal      | 当日のグラフで、Normal のグラフを確認した回数           |
+| TodayGraphBad         | 当日のグラフで、Bad のグラフを確認した回数              |
+| TodayGraphWorst       | 当日のグラフで、Worstのグラフを確認した回数             |
+| ReadInfoCondition     | Info のコンディションを確認した回数(50回ごとに1加算)    |
 | ReadWarningCondition  | Warning のコンディションを確認した回数(50回ごとに1加算) |
-| ReadCriticalCondition | Critical のコンディションを確認した回数(50回ごと1加算) |
+| ReadCriticalCondition | Critical のコンディションを確認した回数(50回ごと1加算)  |
 
 ### 負荷走行時における減点、即時失敗（fail) について
 
