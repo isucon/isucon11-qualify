@@ -383,7 +383,7 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 					return
 				}
 
-				req := service.GetGraphRequest{Date: lastCond.TimestampUnix}
+				req := service.GetGraphRequest{Date: trancateTimestampToDate(time.Unix(lastCond.TimestampUnix, 0))}
 				graph, res, err := getIsuGraphAction(ctx, randomUser.Agent, jiaIsuUUID, req)
 				if err != nil {
 					step.AddError(err)
@@ -396,7 +396,7 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 				}
 
 				// 前日分も検証
-				yesterday := time.Unix(lastCond.TimestampUnix, 0).Add(-24 * time.Hour).Unix()
+				yesterday := req.Date - 24*60*60
 				req = service.GetGraphRequest{Date: yesterday}
 				graph, res, err = getIsuGraphAction(ctx, randomUser.Agent, jiaIsuUUID, req)
 				if err != nil {
