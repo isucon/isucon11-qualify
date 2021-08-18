@@ -16,6 +16,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
@@ -811,33 +812,40 @@ func getAssets(ctx context.Context, user AgentWithStaticCache, resIndex *http.Re
 	default:
 		logger.AdminLogger.Panicf("意図していないpage(%d)のResourceCheckを行っています。(path: %s)", page, resIndex.Request.URL.Path)
 	}
-
-	wg := &sync.WaitGroup{}
-	errsMx := sync.Mutex{}
+	requireAssetsPath := map[string]struct{}{}
 	for _, asset := range requireAssets {
-		wg.Add(1)
-		go func(path string) {
-			defer wg.Done()
-			rpath := joinURL(resIndex.Request.URL, path)
-			req, err := user.GetAgent().GET(rpath)
-			if err != nil {
-				logger.AdminLogger.Panic(err)
-			}
-			res, err := AgentStaticDo(ctx, user, req, path)
-			if err != nil {
-				errsMx.Lock()
-				errs = append(errs, failure.NewError(ErrHTTP, err))
-				errsMx.Unlock()
-				return
-			}
-			err = errorAssetChecksum(req, res, user, path)
-			if err != nil {
-				errsMx.Lock()
-				errs = append(errs, err)
-				errsMx.Unlock()
-			}
-		}(asset)
+		requireAssetsPath[resourcesMap[asset]] = struct{}{}
 	}
-	wg.Wait()
+
+	htmlBody, err := io.ReadAll(resIndex.Body)
+	if err != nil {
+		return []error{failure.NewError(ErrHTTP, err)}
+	}
+	resIndex.Body = ioutil.NopCloser(bytes.NewReader(htmlBody))
+	resources, err := user.GetAgent().ProcessHTML(ctx, resIndex, ioutil.NopCloser(bytes.NewReader(htmlBody)))
+	if err != nil {
+		return []error{failure.NewError(ErrHTTP, err)}
+	}
+	// resourceの検証
+	actualResource := map[string]struct{}{}
+	for path, res := range resources {
+		if _, ok := requireAssetsPath[path]; !ok {
+			errs = append(errs, errorMismatch(resIndex, "意図しないリソース(%s)の取得が実行されました", path))
+			continue
+		}
+		if _, ok := actualResource[path]; ok {
+			errs = append(errs, errorMismatch(resIndex, "html内でリソース(%s)を複数回取得しています", path))
+			continue
+		}
+		actualResource[path] = struct{}{}
+		err = errorAssetChecksum(res.Request, res.Response, user, path)
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if len(actualResource) != len(requireAssetsPath) {
+		errs = append(errs, errorMismatch(resIndex, "取得するリソースが足りません"))
+	}
+
 	return errs
 }
