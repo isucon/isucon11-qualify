@@ -762,7 +762,7 @@ sub get_trend($self, $c) {
 
         for my $level (keys $character_isu_conditions->%*) {
             my $conditions = $character_isu_conditions->{$level};
-            my @sorted_conditions = sort { $a->{timestamp} > $b->{timestamp} } $conditions->@*;
+            my @sorted_conditions = sort { $b->{timestamp} <=> $a->{timestamp} } $conditions->@*;
             $character_isu_conditions->{$level} = \@sorted_conditions;
         }
 
