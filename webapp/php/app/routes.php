@@ -1602,7 +1602,7 @@ final class Handler
         // TODO: 一定割合リクエストを落としてしのぐようにしたが、本来は全量さばけるようにすべき
         $dropProbability = 0.9;
 
-        if ((rand() / getrandmax()) < $dropProbability) {
+        if ((rand() / getrandmax()) <= $dropProbability) {
             $this->logger->warning('drop post isu condition request');
 
             return $response->withStatus(StatusCodeInterface::STATUS_ACCEPTED);
