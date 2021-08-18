@@ -587,7 +587,7 @@ module Isucondition
           unless conditions.empty?
             isu_last_condition = conditions.first
             condition_level = calculate_condition_level(isu_last_condition.fetch(:condition))
-            trend_condition = { id: isu.fetch(:id), timestamp: isu_last_condition.fetch(:timestamp).to_i }
+            trend_condition = { isu_id: isu.fetch(:id), timestamp: isu_last_condition.fetch(:timestamp).to_i }
             case condition_level
             when 'info'
               character_info_isu_conditions.push(trend_condition)
