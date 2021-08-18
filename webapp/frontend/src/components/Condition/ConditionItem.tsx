@@ -26,7 +26,7 @@ const ConditionItem = ({ condition }: Props) => {
         </div>
         <ConditionIcons conditionCSV={condition.condition} />
         {condition.is_sitting ? <Tip variant="sitting" /> : <div />}
-        <div className="text-secondary my-4">
+        <div className="text-secondary my-4 text-center">
           {getConditionTime(condition.date)}
         </div>
       </div>

@@ -80,3 +80,11 @@ func (v *Viewer) GetStaticCache(path string, _ *http.Request) (uint32, bool) {
 	hash, exist := v.StaticCachedHash[path]
 	return hash, exist
 }
+
+func (v *Viewer) ClearStaticCache() {
+	v.staticCacheMx.Lock()
+	defer v.staticCacheMx.Unlock()
+
+
+	v.StaticCachedHash = map[string]uint32{}
+}

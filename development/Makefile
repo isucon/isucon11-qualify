@@ -18,6 +18,10 @@ up-nodejs:
 up-perl:
 	docker-compose -f docker-compose-dev.yml up --build -- backend-perl mysql-backend jiaapi-mock
 
+.PHONY: up-php
+up-php:
+	docker-compose -f docker-compose-dev.yml up -d --build -- backend-php mysql-backend jiaapi-mock
+
 .PHONY: down-dev
 down-dev:
 	docker-compose -f docker-compose-dev.yml down
@@ -25,6 +29,10 @@ down-dev:
 .PHONY: test-go
 test-go:
 	target=go make test
+
+.PHONY: test-php
+test-php:
+	target=php make test
 
 .PHONY: test-rust
 test-rust:
