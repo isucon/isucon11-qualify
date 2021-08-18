@@ -74,7 +74,7 @@ $target_base_url/api/condition/$isu_uuid
 
 なお上記の `target_base_url` は環境変数 `POST_CONDITION_TARGET_BASE_URL` で指定されています。
 
-ISU は、JIA から送信開始の指示を受け取った時点から、自身のコンディションを ISUCONDITION に送信するリクエスト (`POST /api/condition/:jia_isu_uuid`) を続けます。ISU のコンディションレベルは悪くなる事があり、ユーザは悪いコンディションレベルを確認すると速やかに改善を行うため、悪いコンディションレベルを確認後に ISU のコンディションレベルは改善します
+ISU は、JIA から送信開始の指示を受け取った時点から、自身のコンディションを ISUCONDITION に送信するリクエスト (`POST /api/condition/:jia_isu_uuid`) を続けます。ISU のコンディションレベルは悪くなる事があり、ユーザは悪いコンディションレベルを確認すると速やかにコンディションレベルを完全する行動をとるため、悪いコンディションレベルを確認後に ISU のコンディションレベルは改善します
 
 ISU から定期的に送信されるデータには複数のコンディションが含まれます。
 コンディションにはコンディションが記録された時刻情報が含まれますが、この時刻情報は、既に送られたコンディションの時刻情報よりも過去の時刻となることはありません。また、1つの ISU が同一時刻のコンディションを複数送信することはありません。
@@ -151,10 +151,10 @@ JIA が管理する ISU に対して指定の URL に向けて、センサーデ
 
     + Attributes (object)
 
-        | Field           | Type   | Required | Description                | Example                              |
-        |-----------------|--------|----------|----------------------------|--------------------------------------|
-        | target_base_url | string | true     | ISU のコンディション送信先     | https://isucondition-1.t.isucon.dev  |
-        | isu_uuid        | string | true     | JIA が発行する ISU の 固有ID  | 0694e4d7-dfce-4aec-b7ca-887ac42cfb8f |
+        | Field           | Type   | Required | Description                | Example                                |
+        |-----------------|--------|----------|----------------------------|----------------------------------------|
+        | target_base_url | string | true     | ISU のコンディション送信先     | `https://isucondition-1.t.isucon.dev`  |
+        | isu_uuid        | string | true     | JIA が発行する ISU の 固有ID  | `0694e4d7-dfce-4aec-b7ca-887ac42cfb8f` |
 
 
 + Response 202 (application/json)
@@ -166,9 +166,9 @@ JIA が管理する ISU に対して指定の URL に向けて、センサーデ
 
     + Attributes (object)
 
-        | Field     | Type   | Required | Description                 | Example  |
-        |-----------|--------|----------|-----------------------------|----------|
-        | character | string | true     | アクティベートされた ISU の性格 | いじっぱり |
+        | Field     | Type   | Required | Description                 | Example    |
+        |-----------|--------|----------|-----------------------------|------------|
+        | character | string | true     | アクティベートされた ISU の性格 | `いじっぱり` |
 
 
 
@@ -190,10 +190,10 @@ JIA から認証トークン(JWT)を発行するためのエンドポイント�
             }
 
     + Attributes (object)
-        | Field    | Type   | Required | Description        | Example |
-        |----------|--------|----------|--------------------|---------|
-        | user     | string | true     | ログインをするユーザ名 | isucon  |
-        | password | string | true     | ログインパスワード    | isucon  |
+        | Field    | Type   | Required | Description        | Example   |
+        |----------|--------|----------|--------------------|-----------|
+        | user     | string | true     | ログインをするユーザ名 | `isucon`  |
+        | password | string | true     | ログインパスワード    | `isucon`  |
 
 + Response 200 (text/plain)
     + Body
