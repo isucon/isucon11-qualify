@@ -8,12 +8,12 @@ var (
 		"/assets/favicon_orange.svg": "63f35b9a",
 		"/assets/favicon_white.svg": "dcfbe5a7",
 		"/assets/index.144d8ca8.css": "d4c612eb",
-		"/assets/index.f50c82ee.js": "ec49b806",
+		"/assets/index.6162851f.js": "407d967",
 		"/assets/logo_black.svg": "91648521",
 		"/assets/logo_orange.svg": "6c250f83",
 		"/assets/logo_white.svg": "61d68fa0",
 		"/assets/vendor.42115f8b.js": "5d3951e5",
-		"/index.html": "4455c671",
+		"/index.html": "b70a8d74",
 	}
 	resourcesMap = map[string]string{ 
 		"/assets/favicon.svg": "/assets/favicon.d0f5f504.svg",
@@ -21,7 +21,7 @@ var (
 		"/assets/favicon_orange.svg": "/assets/favicon_orange.svg",
 		"/assets/favicon_white.svg": "/assets/favicon_white.svg",
 		"/assets/index.css": "/assets/index.144d8ca8.css",
-		"/assets/index.js": "/assets/index.f50c82ee.js",
+		"/assets/index.js": "/assets/index.6162851f.js",
 		"/assets/logo_black.svg": "/assets/logo_black.svg",
 		"/assets/logo_orange.svg": "/assets/logo_orange.svg",
 		"/assets/logo_white.svg": "/assets/logo_white.svg",
