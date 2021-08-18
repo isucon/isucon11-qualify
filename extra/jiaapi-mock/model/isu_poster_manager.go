@@ -16,19 +16,17 @@ func NewIsuConditionPosterManager() *IsuConditionPosterManager {
 }
 
 func (m *IsuConditionPosterManager) StartPosting(targetURL *url.URL, isuUUID string) error {
-	key := getKey(targetURL.String(), isuUUID)
-
 	conflict := func() bool {
 		m.activatedIsuMtx.Lock()
 		defer m.activatedIsuMtx.Unlock()
-		if _, ok := m.activatedIsu[key]; ok {
+		if _, ok := m.activatedIsu[isuUUID]; ok {
 			return true
 		}
-		m.activatedIsu[key] = NewIsuConditionPoster(targetURL, isuUUID)
+		m.activatedIsu[isuUUID] = NewIsuConditionPoster(targetURL, isuUUID)
 		return false
 	}()
 	if !conflict {
-		isu := m.activatedIsu[key]
+		isu := m.activatedIsu[isuUUID]
 		go isu.KeepPosting()
 	}
 	return nil
