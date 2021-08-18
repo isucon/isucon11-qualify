@@ -340,11 +340,11 @@ func (s *Scenario) GetIsuFromID(id int) (*model.Isu, bool) {
 }
 
 func (s *Scenario) GetRandomActivatedIsu(randEngine *rand.Rand) *model.Isu {
-	targetCount := randEngine.Intn(len(s.isuFromID))
 	var isu *model.Isu
 
 	s.isuFromIDMutex.RLock()
 	defer s.isuFromIDMutex.RUnlock()
+	targetCount := randEngine.Intn(len(s.isuFromID))
 	for _, isuP := range s.isuFromID {
 		if !isuP.IsNoPoster() {
 			isu = isuP
