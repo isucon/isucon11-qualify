@@ -97,6 +97,10 @@ const genTooltipCard = (tooltip: IsuCondition) => {
       <div>${tooltip.score}</div>
     </div>
     <div class="flex flex-row">
+      <div class="w-25">sitting</div>
+      <div>${tooltip.sitting}</div>
+    </div>
+    <div class="flex flex-row">
       <div class="w-25">is_dirty</div>
       <div>${tooltip.is_dirty}</div>
     </div>

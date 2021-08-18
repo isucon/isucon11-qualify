@@ -7,6 +7,7 @@ import { dateToTimestamp, getNextDate, getPrevDate } from '/@/lib/date'
 export interface IsuCondition {
   score: number
   count: number
+  sitting: string
   is_dirty: string
   is_overweight: string
   is_broken: string
@@ -90,6 +91,7 @@ const genGraphData = (graphs: Graph[]) => {
       tooltipData.push({
         score: graph.data.score,
         count: graph.condition_timestamps.length,
+        sitting: `${graph.data.percentage.sitting}%`,
         is_dirty: `${graph.data.percentage.is_dirty}%`,
         is_overweight: `${graph.data.percentage.is_overweight}%`,
         is_broken: `${graph.data.percentage.is_broken}%`
@@ -100,6 +102,7 @@ const genGraphData = (graphs: Graph[]) => {
       tooltipData.push({
         score: 0,
         count: 0,
+        sitting: '-',
         is_dirty: '-',
         is_overweight: '-',
         is_broken: '-'
