@@ -977,10 +977,6 @@ sub tm_from_unix {
         my $body = $_JSON->encode($obj, $json_spec); # Cpanel::JSON::XS::Typeを利用する
         $body = $c->escape_json($body);
 
-        if ( ( $c->req->env->{'HTTP_USER_AGENT'} || '' ) =~ m/Safari/ ) {
-            $body = "\xEF\xBB\xBF" . $body;
-        }
-
         $status //= 200;
 
         $c->res->status( $status );
