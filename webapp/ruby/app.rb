@@ -587,7 +587,7 @@ module Isucondition
           unless conditions.empty?
             isu_last_condition = conditions.first
             condition_level = calculate_condition_level(isu_last_condition.fetch(:condition))
-            trend_condition = { id: isu.fetch(:id), timestamp: isu_last_condition.fetch(:timestamp).to_i }
+            trend_condition = { isu_id: isu.fetch(:id), timestamp: isu_last_condition.fetch(:timestamp).to_i }
             case condition_level
             when 'info'
               character_info_isu_conditions.push(trend_condition)
@@ -599,9 +599,9 @@ module Isucondition
           end
         end
 
-        character_info_isu_conditions.sort! { |a,b| a.fetch(:timestamp) <=> b.fetch(:timestamp) }
-        character_warning_isu_conditions.sort! { |a,b| a.fetch(:timestamp) <=> b.fetch(:timestamp) }
-        character_critical_isu_conditions.sort! { |a,b| a.fetch(:timestamp) <=> b.fetch(:timestamp) }
+        character_info_isu_conditions.sort! { |a,b| b.fetch(:timestamp) <=> a.fetch(:timestamp) }
+        character_warning_isu_conditions.sort! { |a,b| b.fetch(:timestamp) <=> a.fetch(:timestamp) }
+        character_critical_isu_conditions.sort! { |a,b| b.fetch(:timestamp) <=> a.fetch(:timestamp) }
 
         {
           character: character.fetch(:character),
@@ -612,7 +612,7 @@ module Isucondition
       end
 
       content_type :json
-      res
+      res.to_json
     end
 
     # ISUからのコンディションを受け取る
