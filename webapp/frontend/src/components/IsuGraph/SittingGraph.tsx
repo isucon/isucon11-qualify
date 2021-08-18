@@ -16,7 +16,6 @@ const SittingGraph = ({ sittingData, timeCategories }: Props) => {
     colors: ['#ff6433'],
     series: [
       {
-        type: 'heatmap',
         data: sittingData,
         name: ''
       }

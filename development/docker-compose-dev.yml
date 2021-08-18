@@ -29,6 +29,31 @@ services:
   # MEMO: 各言語用のコンテナをここ以下に列挙
   # backend-python:
   # ...
+  backend-perl:
+    build:
+      context: ..
+      dockerfile: development/backend-perl/dev.dockerfile
+    environment:
+      MYSQL_HOST: mysql-backend
+      MYSQL_PORT: 3306
+      MYSQL_DBNAME: isucondition
+      MYSQL_USER: isucon
+      MYSQL_PASS: isucon
+      POST_ISUCONDITION_TARGET_BASE_URL: http://backend-perl:3000
+    entrypoint: dockerize -wait tcp://mysql-backend:3306 -timeout 60s
+    command: plackup -p 3000 -Ilib app.psgi
+    ports:
+      - "3000:3000"
+    volumes:
+      - "../webapp/perl:/webapp/perl"
+      - "../webapp/ec256-public.pem:/webapp/ec256-public.pem"
+      - "../webapp/NoImage.jpg:/webapp/NoImage.jpg"
+      # SQLs
+      - "../webapp/sql/init.sh:/webapp/sql/init.sh"
+      - "../webapp/sql/0_Schema.sql:/webapp/sql/0_Schema.sql"
+      - "../development/mysql-backend/2_Init.sql:/webapp/sql/1_InitData.sql"
+    depends_on:
+      - mysql-backend
 
   backend-rust:
     build:
@@ -108,6 +133,58 @@ services:
     depends_on:
       - mysql-backend
 
+<<<<<<< HEAD
+  backend-php:
+    build:
+      context: ..
+      dockerfile: development/backend-php/dev.dockerfile
+    environment:
+      MYSQL_HOST: mysql-backend
+      MYSQL_PORT: 3306
+      MYSQL_DBNAME: isucondition
+      MYSQL_USER: isucon
+      MYSQL_PASS: isucon
+      POST_ISUCONDITION_TARGET_BASE_URL: http://backend-php:3000
+    entrypoint: dockerize -wait tcp://mysql-backend:3306 -timeout 60s
+    command: ./composer.phar start
+    ports:
+      - "3000:3000"
+    volumes:
+      - "../webapp/php:/webapp/php"
+      - "../webapp/ec256-public.pem:/webapp/ec256-public.pem"
+      - "../webapp/NoImage.jpg:/webapp/NoImage.jpg"
+      # SQLs
+      - "../webapp/sql/init.sh:/webapp/sql/init.sh"
+      - "../webapp/sql/0_Schema.sql:/webapp/sql/0_Schema.sql"
+      - "../development/mysql-backend/2_Init.sql:/webapp/sql/1_InitData.sql"
+    depends_on:
+      - mysql-backend
+
+  backend-ruby:
+    build:
+      context: ..
+      dockerfile: development/backend-ruby/dev.dockerfile
+    environment:
+      MYSQL_HOST: mysql-backend
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: isucondition
+      MYSQL_USER: isucon
+      MYSQL_PASSWORD: isucon
+      POST_ISUCONDITION_TARGET_BASE_URL: http://backend-ruby:3000
+    command: bundle exec puma -p 3000
+    ports:
+      - "3000:3000"
+    volumes:
+      - "../webapp/ruby:/webapp/ruby"
+      - "../webapp/ec256-public.pem:/webapp/ec256-public.pem"
+      - "../webapp/NoImage.jpg:/webapp/NoImage.jpg"
+      # SQLs
+      - "../webapp/sql/init.sh:/webapp/sql/init.sh"
+      - "../webapp/sql/0_Schema.sql:/webapp/sql/0_Schema.sql"
+      - "../development/mysql-backend/2_Init.sql:/webapp/sql/1_InitData.sql"
+    depends_on:
+      - mysql-backend
+
   mysql-backend:
     build:
       context: .
@@ -126,7 +203,7 @@ services:
     expose:
       - "3306"
     ports:
-      - "3306:3306"
+      - "127.0.0.1::3306"
 
   jiaapi-mock:
     image: golang:1.16.5-buster

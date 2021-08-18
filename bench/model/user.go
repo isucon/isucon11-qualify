@@ -98,3 +98,11 @@ func (u *User) GetStaticCache(path string, req *http.Request) (uint32, bool) {
 	hash, exist := u.StaticCachedHash[path]
 	return hash, exist
 }
+
+func (u *User) ClearStaticCache() {
+	u.staticCacheMx.Lock()
+	defer u.staticCacheMx.Unlock()
+
+
+	u.StaticCachedHash = map[string]uint32{}
+}
