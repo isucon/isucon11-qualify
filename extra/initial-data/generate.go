@@ -52,8 +52,26 @@ func main() {
 			// {
 			// 	models.User{JIAUserID: "isucon3", CreatedAt: random.Time()},
 			// },
+			// trend検証用のcondition生成用ユーザ
+			{
+				models.NewUser(),
+				1,
+				10,
+				6,
+			},
+			{
+				models.NewUser(),
+				1,
+				10,
+				6,
+			},
+			{
+				models.NewUser(),
+				1,
+				10,
+				6,
+			},
 		}
-		characterId := 0
 		for _, d := range data {
 			if err := d.user.Create(); err != nil {
 				log.Fatal(err)
@@ -62,8 +80,12 @@ func main() {
 			for j := 0; j < d.isuNum; j++ {
 				isuCounter += 1
 				// trendの検証のために全てのcharacterが必要なので25種類のcharacterを1つずつ用意できるようにしている
+				characterId := isuCounter - 1
+				// 同一character内のtimestampの順番検証のために同じ性格のISUを4つ確保する
+				if isuCounter > 25 {
+					characterId = 0
+				}
 				isu := models.NewIsuWithCharacterId(d.user, characterId)
-				characterId++
 				isu.CreatedAt = d.user.CreatedAt.Add(time.Minute) // ISU は User 作成の1分後に作成される
 				if err := isu.WithUpdateName(); err != nil {
 					log.Fatalf("%+v", err)
