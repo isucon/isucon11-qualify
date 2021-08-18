@@ -843,15 +843,15 @@ sub is_valid_condition_format($condition_str) {
     for (my $idx_keys = 0; $idx_keys < $keys->@*; $idx_keys++) {
         my $key = $keys->[$idx_keys];
 
-        if (substr($condition_str, $idx_cond_str) !~ m!^$key!) {
+        if (index($condition_str, $key, $idx_cond_str) != $idx_cond_str) {
             return !!0;
         }
         $idx_cond_str += length $key;
 
-        if (substr($condition_str, $idx_cond_str) =~ m!^$value_true!) {
+        if (index($condition_str, $value_true, $idx_cond_str) == $idx_cond_str) {
             $idx_cond_str += length $value_true;
         }
-        elsif (substr($condition_str, $idx_cond_str) =~ m!^$value_false!) {
+        elsif (index($condition_str, $value_false, $idx_cond_str) == $idx_cond_str) {
             $idx_cond_str += length $value_false;
         }
         else {
@@ -859,7 +859,7 @@ sub is_valid_condition_format($condition_str) {
         }
 
         if ($idx_keys < $keys->@* - 1) {
-            if (substr($condition_str, $idx_cond_str, 1) ne ",") {
+            if (index($condition_str, ",", $idx_cond_str) != $idx_cond_str) {
                 return !!0;
             }
             $idx_cond_str++;
