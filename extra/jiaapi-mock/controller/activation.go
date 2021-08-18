@@ -106,6 +106,11 @@ func (c *ActivationController) PostActivate(ctx echo.Context) error {
 		return ctx.String(http.StatusNotFound, "Bad isu_uuid")
 	}
 
+	if c.isuConditionPosterManager.IsActivatedUUID(req.IsuUUID) {
+		ctx.Logger().Warnf("duplicated ISU UUID")
+		return ctx.String(http.StatusAccepted, "Duplicated ISU UUID")
+	}
+
 	err = c.isuConditionPosterManager.StartPosting(parsedURL, req.IsuUUID)
 	if err != nil {
 		ctx.Logger().Errorf("failed to startPosting: %v", err)
