@@ -1,0 +1,39 @@
+---
+
+- name: "roles/contestant.envchecker/tasks/main: Build isucon-env-checker"
+  become_user: isucon
+  args:
+    chdir: /tmp/isucon11-qualify/extra/envchecker/isucon-env-checker
+  environment:
+    PATH: "/home/isucon/local/go/bin:{{ ansible_env.PATH }}"
+  shell: go build -o isucon-env-checker .
+
+- name: "roles/contestant.envchecker/tasks/main: Mkdir for isucon-env-checker"
+  file:
+    state: directory
+    path: /opt/isucon-env-checker/
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: "roles/contestant.envchecker/tasks/main: Deploy isucon-env-checker"
+  copy:
+    remote_src: yes
+    src: "{{ item.src }}"
+    dest: "{{ item.dst }}"
+    owner: root
+    group: root
+  with_itmes:
+    - src: /tmp/isucon11-qualify/extra/envchecker/isucon-env-checker/isucon-env-checker
+      dst: /opt/isucon-env-checker/isucon-env-checker
+    - src: /tmp/isucon11-qualify/extra/envchecker/run-isucon-env-checker.sh
+      dst: /opt/isucon-env-checker/run-isucon-env-checker.sh
+    - src: /tmp/isucon11-qualify/extra/envchecker/isucon-env-checker.service
+      dst: /etc/systemd/system/isucon-env-checker.service
+
+- name: "roles/contestant.envchecker/tasks/main: Enable isucon-env-checker.service"
+  become_user: root
+  systemd:
+    daemon_reload: "yes"
+    name: "isucon-env-checker.service"
+    enabled: "yes"

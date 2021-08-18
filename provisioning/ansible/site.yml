@@ -11,8 +11,8 @@
     - langs
 
 - name: "contestant roles"
-  hosts: [contestant, standalone]
-  tags: [contestant, standalone]
+  hosts: [contestant]
+  tags: [contestant]
   become: true
   roles:
     - langs.go
@@ -23,6 +23,7 @@
     - langs.ruby
     - langs.rust
     - contestant
+    - contestant.envchecker
 
 - name: "bench roles"
   hosts: [bench]
@@ -40,5 +41,13 @@
   tags: [standalone]
   become: true
   roles:
+    - langs.go
+    - langs.nodejs
+    - langs.perl
+    - langs.php
+    - langs.python
+    - langs.ruby
+    - langs.rust
+    - contestant
     - bench
 
