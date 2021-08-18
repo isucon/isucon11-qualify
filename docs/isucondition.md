@@ -151,10 +151,10 @@ JIA が管理する ISU に対して指定の URL に向けて、センサーデ
 
     + Attributes (object)
 
-        | Field           | Type   | Required | Description                | Example                              |
-        |-----------------|--------|----------|----------------------------|--------------------------------------|
-        | target_base_url | string | true     | ISU のコンディション送信先     | https://isucondition-1.t.isucon.dev  |
-        | isu_uuid        | string | true     | JIA が発行する ISU の 固有ID  | 0694e4d7-dfce-4aec-b7ca-887ac42cfb8f |
+        | Field           | Type   | Required | Description                | Example                                |
+        |-----------------|--------|----------|----------------------------|----------------------------------------|
+        | target_base_url | string | true     | ISU のコンディション送信先     | `https://isucondition-1.t.isucon.dev`  |
+        | isu_uuid        | string | true     | JIA が発行する ISU の 固有ID  | `0694e4d7-dfce-4aec-b7ca-887ac42cfb8f` |
 
 
 + Response 202 (application/json)
@@ -166,9 +166,9 @@ JIA が管理する ISU に対して指定の URL に向けて、センサーデ
 
     + Attributes (object)
 
-        | Field     | Type   | Required | Description                 | Example  |
-        |-----------|--------|----------|-----------------------------|----------|
-        | character | string | true     | アクティベートされた ISU の性格 | いじっぱり |
+        | Field     | Type   | Required | Description                 | Example    |
+        |-----------|--------|----------|-----------------------------|------------|
+        | character | string | true     | アクティベートされた ISU の性格 | `いじっぱり` |
 
 
 
@@ -190,10 +190,10 @@ JIA から認証トークン(JWT)を発行するためのエンドポイント�
             }
 
     + Attributes (object)
-        | Field    | Type   | Required | Description        | Example |
-        |----------|--------|----------|--------------------|---------|
-        | user     | string | true     | ログインをするユーザ名 | isucon  |
-        | password | string | true     | ログインパスワード    | isucon  |
+        | Field    | Type   | Required | Description        | Example   |
+        |----------|--------|----------|--------------------|-----------|
+        | user     | string | true     | ログインをするユーザ名 | `isucon`  |
+        | password | string | true     | ログインパスワード    | `isucon`  |
 
 + Response 200 (text/plain)
     + Body
