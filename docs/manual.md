@@ -183,24 +183,6 @@ SSH ログインのユーザ名は `isucon` です。
 上記のうち `isucon` ユーザはベンチマーカーがユーザとして実行するアカウントでもあり、負荷走行後のアプリケーションの状態確認に利用することが可能です。
 
 
-ISU の登録には JIA が管理する JIA ISU ID が必要となります。
-アプリケーションの動作確認には以下の JIA ISU ID が登録されており利用することができますが、下2つの JIA ISU ID は `isucon` ユーザが初期状態で利用を行っており ISU の登録済みの状態確認に利用することができます。
-
-| JIA ISU ID                           | 登録ユーザ |
-|--------------------------------------|----------|
-| 3a8ae675-3702-45b5-b1eb-1e56e96738ea |          |
-| 3efff0fa-75bc-4e3c-8c9d-ebfa89ecd15e |          |
-| f67fcb64-f91c-4e7b-a48d-ddf1164194d0 |          |
-| 32d1c708-e6ef-49d0-8ca9-4fd51844dcc8 |          |
-| af64735c-667a-4d95-a75e-22d0c76083e0 |          |
-| cb68f47f-25ef-46ec-965b-d72d9328160f |          |
-| 57d600ef-15b4-43bc-ab79-6399fab5c497 |          |
-| aa0844e6-812d-41d2-908a-eeb82a50b627 |          |
-| 0694e4d7-dfce-4aec-b7ca-887ac42cfb8f | isucon   |
-| f012233f-c50e-4349-9473-95681becff1e | isucon   |
-
-ISU を登録すると、 JIA API Mock  (Japan ISU Association のサービスと ISU の動きを模した開発用モック)から設定した URL に対してコンディションの送信が開始されます。
-
 ### 3. 負荷走行 (ベンチマーク)
 
 負荷走行はポータルサイト上からリクエストします。
@@ -208,36 +190,7 @@ ISU を登録すると、 JIA API Mock  (Japan ISU Association のサービス�
 
 なお、負荷走行が待機中 (PENDING) もしくは実行中 (RUNNING) の間は追加の Enqueue を行うことはできません。
 
-### JIA API Mock について
-
-JIA API Mock は、ISUCONDITION の開発用に用いられる JIA の API モックとして、サーバーのポート 5000 番で待ち受けます。
-JIA API Mock は以下のエンドポイントと、 ISU からのコンディション送信を模擬したリクエストを送る機能を持っています。
-
-- `POST /api/auth` - ISUCONDITION へログインするためのトークンの発行
-- `POST /api/activate` - ISU の登録（アクティベート）
-- 登録した ISU から ISUCONDITION へ向けたコンディションの送信
-
-- JIA のログインページ
-  - `http://<Elastic IP アドレス>:5000/`
-
-JIA API のエンドポイント仕様は [ISUCONDITION アプリケーションマニュアル](./isucondition.md)を参照してください。
-
-JIA API Mock は ISU を登録（アクティベート）すると、指定された URL へのコンディションの送信を開始します。
-登録したISUからのコンディション送信は JIA API Mock を停止/再起動するまで続きますので、負荷走行前には JIA API Mock を停止/再起動することをお勧めします。
-JIA API Mock のサービスを停止/再起動する場合は、 以下のコマンドを利用してください。
-
-```shell
-$ sudo systemctl [stop|restart] jiaapi-mock.service
-```
-
-負荷走行後の ISUCONDITION はベンチマーカーが設定した JIA のエンドポイントが設定されているため、上記の設定を行っていても ISUCONDITIONから `500 Internal Server Error` が返されるエンドポイントがあります。
-負荷走行後に JIA API Mock を利用する際は、下記のように `POST /initialize` で JIA API Moc のエンドポイントを設定してください。
-
-```
-curl -sf -H 'content-type: application/json' https://<Elastic IP アドレス>/initialize -d '{"jia_service_url": "http://<Elastic IP アドレス>:5000"}'
-```
-
-### データベースの初期化方法
+## データベースの初期化方法
 
 初期状態のアプリケーションでは、初期化処理（`POST /initialize`）においてデータベースを初期状態に戻します。
 次のコマンドを実行してもデータベースを初期状態に戻すことができます。
@@ -246,7 +199,7 @@ curl -sf -H 'content-type: application/json' https://<Elastic IP アドレス>/i
 $ ~isucon/webapp/sql/init.sh
 ```
 
-### 参考実装
+## 参考実装
 
 下記の言語での実装が提供されています。
 
@@ -271,7 +224,7 @@ sudo systemctl disable --now isucondition.go.service
 sudo systemctl enable --now isucondition.ruby.service
 ```
 
-### `/etc/hosts` ならびに `isucondition-[1-3].t.isucon.dev` ドメインについて
+## `/etc/hosts` ならびに `isucondition-[1-3].t.isucon.dev` ドメインについて
 
 サーバーには初期状態で、割り当てられている 3 台のサーバーの IP アドレスが事前に `/etc/hosts` へ登録されています。これらのホスト名は自由に利用して構いません (これを利用しなくても構いません)
 
@@ -286,16 +239,6 @@ sudo systemctl enable --now isucondition.ruby.service
 `*.t.isucon.dev` の FQDN に関しては `127.0.0.1` (IPv6 は `::1`) の DNS レコードが登録されています。また、サーバーに配置されている TLS 証明書は subject name が `*.t.isucon.dev` であるため、この名前であれば TLS 証明書の検証が通る状態で HTTPS 接続等を行うことができるようになっています。
 
 ベンチマーカーには `192.168.0.11`,`192.168.0.12`,`192.168.0.13` ではなく Elastic IP アドレスを利用した `/etc/hosts` エントリが登録されています。負荷走行の際は、ベンチマーカーより負荷走行の対象となるサーバーに対応する `isucondition-1` ~ `isucondition-3.t.isucon.dev` のホスト名を利用した HTTPS 接続が行われます。その際、TLS 証明書検証が通る必要がある旨、留意してください。
-
-### 時計について
-
-主催者が管理するベンチマーカーについては、Amazon Time Sync Service (169.254.169.123) と systemd-timesyncd を利用して時刻同期が設定されています。
-
-選手へ提供されるサーバーについても、初期状態で同様の設定がされています。
-
-### ISU の仮想時間について
-
-ベンチマーカーが模す ISU の世界では現実の3万倍の速度で時間が流れており(現実の1秒がISU世界では30,000秒)、ISU はこの仮想時間を使ったデータを送信します。
 
 ## 負荷走行について
 
@@ -373,6 +316,15 @@ DB への高負荷状態を解消するためには以下のように動作中�
 ```
 sudo systemctl restart isucondition.go
 ```
+### 時計について
+
+主催者が管理するベンチマーカーについては、Amazon Time Sync Service (169.254.169.123) と systemd-timesyncd を利用して時刻同期が設定されています。
+
+選手へ提供されるサーバーについても、初期状態で同様の設定がされています。
+
+### ISU の仮想時間について
+
+ベンチマーカーが模す ISU の世界では現実の3万倍の速度で時間が流れており(現実の1秒がISU世界では30,000秒)、ISU はこの仮想時間を使ったデータを送信します。
 
 ## スコア計算
 
