@@ -599,9 +599,9 @@ module Isucondition
           end
         end
 
-        character_info_isu_conditions.sort! { |a,b| a.fetch(:timestamp) <=> b.fetch(:timestamp) }
-        character_warning_isu_conditions.sort! { |a,b| a.fetch(:timestamp) <=> b.fetch(:timestamp) }
-        character_critical_isu_conditions.sort! { |a,b| a.fetch(:timestamp) <=> b.fetch(:timestamp) }
+        character_info_isu_conditions.sort! { |a,b| b.fetch(:timestamp) <=> a.fetch(:timestamp) }
+        character_warning_isu_conditions.sort! { |a,b| b.fetch(:timestamp) <=> a.fetch(:timestamp) }
+        character_critical_isu_conditions.sort! { |a,b| b.fetch(:timestamp) <=> a.fetch(:timestamp) }
 
         {
           character: character.fetch(:character),
