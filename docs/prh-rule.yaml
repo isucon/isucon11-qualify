@@ -13,3 +13,6 @@ rules:
   - expected: ）
     patterns:
       - )
+  - expected: ユーザ
+    patterns:
+      - ユーザー
