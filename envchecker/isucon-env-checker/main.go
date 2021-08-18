@@ -12,15 +12,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	var name string
-	if len(os.Args) == 2 && os.Args[1] == "boot" {
-		name = "test-boot"
-	} else {
-		name = "test-ssh"
-		fmt.Println("SSH 接続が成功しました")
-	}
-
-	info, err := p.GetInfo(name)
+	info, err := p.GetInfo("qualify")
 	if err != nil {
 		fmt.Printf("ポータルから情報の取得に失敗しました: %v\n", err)
 		os.Exit(1)
@@ -28,9 +20,8 @@ func main() {
 
 	fmt.Println("環境をチェックしています...")
 	result := Check(CheckConfig{
-		Name: name,
-		AMI:  info.AMI,
-		AZ:   info.AZ,
+		AMI: info.AMI,
+		AZ:  info.AZ,
 	})
 
 	if err := p.SendResult(result); err != nil {

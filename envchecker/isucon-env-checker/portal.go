@@ -16,8 +16,8 @@ type Portal struct {
 }
 
 type EnvCheckInfo struct {
-	AMI string `json:"ami_id"`
-	AZ  string `json:"az_id"`
+	AMI []string `json:"ami_ids"`
+	AZ  string   `json:"az_id"`
 }
 
 func LoadPortalCredentials() (*Portal, error) {

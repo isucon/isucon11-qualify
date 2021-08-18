@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials/ec2rolecreds"
@@ -35,6 +36,10 @@ func GetPublicIP(svc *ec2metadata.EC2Metadata) (string, error) {
 	return svc.GetMetadata("public-ipv4")
 }
 
+func GetInstanceID(svc *ec2metadata.EC2Metadata) (string, error) {
+	return svc.GetMetadata("instance-id")
+}
+
 func GetVPC(svc *ec2metadata.EC2Metadata) (string, error) {
 	s, err := net.Interfaces()
 	if err != nil {
@@ -42,8 +47,15 @@ func GetVPC(svc *ec2metadata.EC2Metadata) (string, error) {
 	}
 	var unexpectedNames []string
 	for _, i := range s {
-		if i.Name == "eth0" {
+		if i.Name == "ens5" {
 			return svc.GetMetadata(fmt.Sprintf("network/interfaces/macs/%s/vpc-id", i.HardwareAddr.String()))
+		}
+		if addrs, err := i.Addrs(); err == nil {
+			for _, addr := range addrs {
+				if strings.HasPrefix(addr.String(), "192.168.0.") {
+					return svc.GetMetadata(fmt.Sprintf("network/interfaces/macs/%s/vpc-id", i.HardwareAddr.String()))
+				}
+			}
 		}
 		unexpectedNames = append(unexpectedNames, i.Name)
 	}
