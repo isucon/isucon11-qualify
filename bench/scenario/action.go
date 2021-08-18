@@ -593,7 +593,7 @@ func getTrendAction(ctx context.Context, a *agent.Agent) (service.GetTrendRespon
 	return trend, res, nil
 }
 
-func browserGetLandingPageAction(ctx context.Context, user AgentWithStaticCache) (service.GetTrendResponse, *http.Response, []error) {
+func browserGetLandingPageAction(ctx context.Context, user WithAgent) (service.GetTrendResponse, *http.Response, []error) {
 	// 静的ファイルのGET
 	if err := BrowserAccess(ctx, user, "/", TrendPage); err != nil {
 		return nil, nil, err
@@ -607,7 +607,7 @@ func browserGetLandingPageAction(ctx context.Context, user AgentWithStaticCache)
 	return trend, res, nil
 }
 
-func browserGetLandingPageIgnoreAction(ctx context.Context, user AgentWithStaticCache) []error {
+func browserGetLandingPageIgnoreAction(ctx context.Context, user WithAgent) []error {
 	// 静的ファイルのGET
 	if err := BrowserAccess(ctx, user, "/", TrendPage); err != nil {
 		return err
@@ -704,12 +704,12 @@ func browserGetIsuConditionAction(ctx context.Context, a *agent.Agent, id string
 	return conditions, errors
 }
 
-func BrowserAccessIndexHtml(ctx context.Context, user AgentWithStaticCache, rpath string) []error {
+func BrowserAccessIndexHtml(ctx context.Context, user WithAgent, rpath string) []error {
 	req, err := user.GetAgent().GET(rpath)
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 	}
-	res, err := AgentStaticDo(ctx, user, req, "/index.html")
+	res, err := AgentStaticDo(ctx, user, req)
 	if err != nil {
 		return []error{failure.NewError(ErrHTTP, err)}
 	}
@@ -721,12 +721,12 @@ func BrowserAccessIndexHtml(ctx context.Context, user AgentWithStaticCache, rpat
 	return nil
 }
 
-func BrowserAccess(ctx context.Context, user AgentWithStaticCache, rpath string, page PageType) []error {
+func BrowserAccess(ctx context.Context, user WithAgent, rpath string, page PageType) []error {
 	req, err := user.GetAgent().GET(rpath)
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 	}
-	res, err := AgentStaticDo(ctx, user, req, "/index.html")
+	res, err := AgentStaticDo(ctx, user, req)
 	if err != nil {
 		return []error{failure.NewError(ErrHTTP, err)}
 	}
@@ -749,24 +749,16 @@ func AgentDo(a *agent.Agent, ctx context.Context, req *http.Request) (*http.Resp
 	return a.Do(ctx, req)
 }
 
-type AgentWithStaticCache interface {
-	SetStaticCache(path string, hash uint32)
-	GetStaticCache(path string, req *http.Request) (uint32, bool)
-
+type WithAgent interface {
 	GetAgent() *agent.Agent
 }
 
 // User.StaticCachedHash を使って静的ファイルのキャッシュを更新する
-func AgentStaticDo(ctx context.Context, user AgentWithStaticCache, req *http.Request, cachePath string) (*http.Response, error) {
-	res, err := user.GetAgent().Do(ctx, req)
-	if err != nil {
-		return res, err
-	}
-
-	return res, nil
+func AgentStaticDo(ctx context.Context, user WithAgent, req *http.Request) (*http.Response, error) {
+	return user.GetAgent().Do(ctx, req)
 }
 
-func getAssets(ctx context.Context, user AgentWithStaticCache, resIndex *http.Response, page PageType) []error {
+func getAssets(ctx context.Context, user WithAgent, resIndex *http.Response, page PageType) []error {
 	errs := []error{}
 
 	faviconSvg := resourcesMap["/assets/favicon.svg"]
@@ -797,7 +789,7 @@ func getAssets(ctx context.Context, user AgentWithStaticCache, resIndex *http.Re
 			if err != nil {
 				logger.AdminLogger.Panic(err)
 			}
-			res, err := AgentStaticDo(ctx, user, req, path)
+			res, err := AgentStaticDo(ctx, user, req)
 			if err != nil {
 				errsMx.Lock()
 				errs = append(errs, failure.NewError(ErrHTTP, err))

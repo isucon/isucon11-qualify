@@ -466,20 +466,15 @@ func joinURL(base *url.URL, target string) string {
 	return u
 }
 
-func errorAssetChecksum(req *http.Request, res *http.Response, user AgentWithStaticCache, path string) error {
+func errorAssetChecksum(req *http.Request, res *http.Response, user WithAgent, path string) error {
 	if err := verifyStatusCodes(res, []int{http.StatusOK, http.StatusNotModified}); err != nil {
 		return err
 	}
 
 	defer res.Body.Close()
-	if res.StatusCode != http.StatusNotModified {
-		// cache の更新
-		hasher := crc32.New(crc32.IEEETable)
-		_, err := io.Copy(hasher, res.Body)
-		if err != nil {
-			return err
-		}
-		user.SetStaticCache(path, hasher.Sum32())
+	if res.StatusCode == http.StatusNotModified {
+		//検証しない
+		return nil
 	}
 
 	// crc32でリソースの比較
@@ -487,13 +482,12 @@ func errorAssetChecksum(req *http.Request, res *http.Response, user AgentWithSta
 	if expected == "" {
 		logger.AdminLogger.Panicf("意図していないpath(%s)のAssetResourceCheckを行っています。", path)
 	}
-	actualHash, exist := user.GetStaticCache(path, req)
-	if !exist {
-		if res.StatusCode != http.StatusNotModified {
-			logger.AdminLogger.Panic("static cacheがありません")
-		}
-		return errorCheckSum("304 StatusNotModified を返却していますが cache がありません: %s", path)
+	hasher := crc32.New(crc32.IEEETable)
+	_, err := io.Copy(hasher, res.Body)
+	if err != nil {
+		return err
 	}
+	actualHash := hasher.Sum32()
 	actual := fmt.Sprintf("%x", actualHash)
 	if expected != actual {
 		return errorCheckSum("期待するチェックサムと一致しません: %s", path)
