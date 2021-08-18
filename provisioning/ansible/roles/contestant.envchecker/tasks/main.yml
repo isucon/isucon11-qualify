@@ -1,7 +1,7 @@
 ---
 
 - name: "roles/contestant.envchecker/tasks/main: Build isucon-env-checker"
-  become_user: isucon
+  become_user: root
   args:
     chdir: /tmp/isucon11-qualify/extra/envchecker/isucon-env-checker
   environment:
@@ -9,6 +9,7 @@
   shell: go build -o isucon-env-checker .
 
 - name: "roles/contestant.envchecker/tasks/main: Mkdir for isucon-env-checker"
+  become_user: root
   file:
     state: directory
     path: /opt/isucon-env-checker/
@@ -17,13 +18,14 @@
     mode: "0755"
 
 - name: "roles/contestant.envchecker/tasks/main: Deploy isucon-env-checker"
+  become_user: root
   copy:
     remote_src: yes
     src: "{{ item.src }}"
     dest: "{{ item.dst }}"
     owner: root
     group: root
-  with_itmes:
+  with_items:
     - src: /tmp/isucon11-qualify/extra/envchecker/isucon-env-checker/isucon-env-checker
       dst: /opt/isucon-env-checker/isucon-env-checker
     - src: /tmp/isucon11-qualify/extra/envchecker/run-isucon-env-checker.sh
