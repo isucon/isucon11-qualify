@@ -7,11 +7,11 @@
 
 **"ISU とつくる新しい明日"**
 
-あなたの大事なパートナーであるISUが教えてくれるコンディションから、コンディションレベルやその変化をスコアとして知ることで、大事なISUと長く付き合っていくためのサービスです。
+あなたの大事なパートナーである ISU が教えてくれるコンディションから、コンディションレベルやその変化をスコアとして知ることで、大事な ISU と長く付き合っていくためのサービスです。
 
 ### ストーリー
 
-20xx年、政府が働く人々にリモートワークを推奨したことにより、家での仕事を支える存在として ISU が大事にされるようになりました。
+20xx 年、政府が働く人々にリモートワークを推奨したことにより、家での仕事を支える存在として ISU が大事にされるようになりました。
 働く人々が ISU に愛着を持って大事にするようになった結果、大事な ISU のコンディションを知ることで ISU を理解し、ISU と長く付きあっていきたいと人々は願うようになりました。
 ISUCONDITION はこうした人々のニーズに応えるサービスとしてリリース目前です。しかし、パフォーマンスに大きな問題を抱えていました。
 あなたは ISUCONDITION の開発者として 18 時までにこの問題の改善し、人と ISU が作る新しい明日を支えなければなりません。
@@ -27,7 +27,7 @@ ISUCONDITION はこうした人々のニーズに応えるサービスとして�
     - **Info**: 一切、問題が発生していない状態。
     - **Warning**: 1〜2 つの問題が発生している状態。
     - **Critical**: 3 つの問題が発生している状態。
-- **スコア**: コンディションから計算された1時間毎の点数。0 以上 100 以下の整数値をとる。
+- **スコア**: コンディションから計算された 1 時間毎の点数。0 以上 100 以下の整数値をとる。
 - **グラフ**: 24 時間分の ISU の状態を可視化したもの。
 - **トレンド**: ISUCONDITION に登録されている ISU たちの、性格ごとの最新の "Info", "Warning", "Critical" の割合を表示したもの。
 
@@ -96,14 +96,14 @@ ISU から送信されるデータには 1 つ以上のコンディションが�
 
 ### 登録済みの ISU の確認
 
-ユーザは、一定の間隔で自身が登録した ISU の一覧 (`GET /api/isu`) を確認しています。ユーザは ISU の一覧を見て、各ISUの詳細 (`GET /api/isu/:jia_isu_uuid`) を確認します。
+ユーザは、一定の間隔で自身が登録した ISU の一覧（`GET /api/isu`）を確認しています。ユーザは ISU の一覧を見て、各 ISU の詳細（`GET /api/isu/:jia_isu_uuid`）を確認します。
 
 ### ISU の詳細確認
 
 ユーザは、ISU の詳細ページから次のことを行います。
 
-- コンディションの確認 (`GET /api/condition/:jia_isu_uuid`) 
-- グラフの確認 (`GET /api/isu/:jia_isu_uuid/graph`)
+- コンディションの確認（`GET /api/condition/:jia_isu_uuid`） 
+- グラフの確認（`GET /api/isu/:jia_isu_uuid/graph`）
 
 #### コンディションの確認
 
@@ -124,7 +124,7 @@ ISU のコンディションレベルは悪くなる事があり、ユーザは�
 トレンドは ISUCONDITION のサービスを知ってもらうための機能で、閲覧者に提供されます。
 トレンドでは ISUCONDITION に登録されているすべての ISU の最新のコンディションレベルが性格ごとにまとまっており、ISU が持つ性格ごとの傾向を見ることができます。
 
-閲覧者は、　ISUCONDITION　のトップページに表示されるトレンド (`GET /api/trend`) を確認しています。
+閲覧者は、　ISUCONDITION　のトップページに表示されるトレンド（`GET /api/trend`）を確認しています。
 サービスに興味を持っている閲覧者はトップページに表示されるトレンドを閲覧し、トレンドの変化に注目しています。
 
 ## JIA の API 
@@ -137,7 +137,7 @@ JIA が管理する ISU をアクティベートするためのエンドポイ�
 
 `target_base_url` には下記の制約があります。違反した場合 JIA から `400 Bad Request` が返され ISU のアクティベートに失敗します。
 
-- ホスト部は下記の3つのみを指定できる。
+- ホスト部は下記の 3 つのみを指定できる。
   - `isucondition-1.t.isucon.dev`
   - `isucondition-2.t.isucon.dev`
   - `isucondition-3.t.isucon.dev`
@@ -146,7 +146,7 @@ JIA が管理する ISU をアクティベートするためのエンドポイ�
 
 また、同一の ISU に対する 2 度目以降のリクエストは成功しますが `target_base_url`　は 1 度目の内容が利用されます。
 
-+ Request (application/json)
++ Request（application/json）
     + Schema
 
             {
@@ -155,7 +155,7 @@ JIA が管理する ISU をアクティベートするためのエンドポイ�
             }
 
 
-    + Attributes (object)
+    + Attributes（object）
 
         | Field           | Type   | Required | Description          | Example                                |
         |-----------------|--------|----------|----------------------|----------------------------------------|
@@ -163,14 +163,14 @@ JIA が管理する ISU をアクティベートするためのエンドポイ�
         | isu_uuid        | string | true     | JIA ISU ID           | `0694e4d7-dfce-4aec-b7ca-887ac42cfb8f` |
 
 
-+ Response 202 (application/json)
++ Response 202（application/json）
     + Schema
 
             {
                 "character": "string"
             }
 
-    + Attributes (object)
+    + Attributes（object）
 
         | Field     | Type   | Required | Description                 | Example    |
         |-----------|--------|----------|-----------------------------|------------|
@@ -178,8 +178,8 @@ JIA が管理する ISU をアクティベートするためのエンドポイ�
 
 
 + Other Responsess
-    + 400 (text/plain)
-    + 404 (text/plain)
+    + 400（text/plain）
+    + 404（text/plain）
 
 
 ### JIA API Mock について
