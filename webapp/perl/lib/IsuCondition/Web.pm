@@ -569,7 +569,8 @@ sub calculate_graph_data_point($isu_conditions) {
         }
         elsif ($bad_conditions_count >= 1) {
             $raw_score += SCORE_CONDITION_LEVEL_WARNING;
-        } else {
+        }
+        else {
             $raw_score += SCORE_CONDITION_LEVEL_INFO;
         }
     }
@@ -664,7 +665,8 @@ sub get_isu_conditions_from_db($self, $jia_isu_uuid, $end_time, $condition_level
                 "    ORDER BY `timestamp` DESC",
             $jia_isu_uuid, $end_time,
         )
-    } else {
+    }
+    else {
         $conditions = $self->dbh->select_all(
             "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ?".
                 "    AND `timestamp` < ?".
