@@ -1,0 +1,24 @@
+{
+  "rules": {
+    "preset-ja-technical-writing": {
+      "sentence-length": {
+        "max": 200
+      },
+      "max-comma": {
+        "max": 5
+      }
+    },
+    "no-todo": true
+  },
+  "filters": {
+    "allowlist": {
+      "allow": [
+        "負荷走行実行時",
+        "負荷走行実施後",
+        "負荷走行終了時点",
+        "負荷走行終了後",
+        "競技時間終了後"
+      ]
+    }
+  }
+}
