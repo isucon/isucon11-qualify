@@ -57,8 +57,8 @@ ISU の登録は以下のような流れになります。
 
 ![ISUのアクティベートイメージ](https://user-images.githubusercontent.com/210692/130006167-ecbf4bb1-c5ba-4d2c-b141-9258f44b87dc.png)
 
-①  ユーザが ISUCONDITION に ISU の ID を入力します。
-②  ISUCONDITION は JIA の ISU 管理サービスに対して ISU の ID を送信します。
+①  ユーザが ISUCONDITION に JIA ISU ID を入力します。
+②  ISUCONDITION は JIA の ISU 管理サービスに対して JIA ISU ID を送信します。
 ③  ISU 管理サービスは、対象の ISU にコンディション送信を開始するよう指示します（アクティベート）。
 ④  ISUCONDITION は ISU の情報を保存し登録が完了します。
 ④' ISU は ISUCONDITION に対してコンディションを送信します。
