@@ -913,11 +913,15 @@ func findBadIsuState(conditions service.GetIsuConditionResponseArray) (model.Isu
 
 // 確率で signout して再度ログインするシナリオ。全てのシナリオの最後に確率で発生する
 func signoutScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User) {
-	_, err := signoutAction(ctx, user.Agent)
-	if err != nil {
-		addErrorWithContext(ctx, step, err)
-		// MEMO: ここで実は signout に成功していました、みたいな状況だと以降のこのユーザーループが死ぬがそれはユーザー責任とする
-		return
+
+	for {
+		_, err := signoutAction(ctx, user.Agent)
+		if err != nil {
+			addErrorWithContext(ctx, step, err)
+			// MEMO: ここで実は signout に成功していました、みたいな状況だと以降のこのユーザーループが死ぬがそれはユーザー責任とする
+			continue
+		}
+		break
 	}
 
 	_, hres, err := getMeErrorAction(ctx, user.Agent)
