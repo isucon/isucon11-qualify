@@ -826,6 +826,10 @@ func getAssets(ctx context.Context, user AgentWithStaticCache, resIndex *http.Re
 	actualResource := map[string]struct{}{}
 	for _, res := range resources {
 		path := res.Request.URL.Path
+		if res.Error != nil {
+			errs = append(errs, errorMismatch(resIndex, "リソース(%s)の取得に失敗しました", path))
+			continue
+		}
 		if _, ok := requireAssetsPath[path]; !ok {
 			errs = append(errs, errorMismatch(resIndex, "意図しないリソース(%s)の取得が実行されました", path))
 			continue
