@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -130,13 +131,18 @@ func (s *Scenario) postActivate(c echo.Context) error {
 		if !ok {
 			return http.StatusBadRequest, "Bad URL: hostname must be isucondition[1-3].t.isucon.dev"
 		}
-		//portは指定なしのみ
+		//httpsモードの際はportは指定なしのみ
 		port := targetBaseURL.Port()
-		if port != "" {
+		if s.UseTLS && port != "" {
 			return http.StatusBadRequest, "Bad Port: ポート番号は指定できません"
 		}
 		// URL の文字列を IP アドレスに変換
-		targetBaseURL.Host = ipAddr
+		if port != "" {
+			targetBaseURL.Host = strings.Join([]string{ipAddr, port}, ":")
+		} else {
+			targetBaseURL.Host = ipAddr
+			return http.StatusBadRequest, "Bad Port: ポート番号は指定できません"
+		}
 
 		// activate 済みフラグを立てる
 		isuIsActivated[state.IsuUUID] = struct{}{}
