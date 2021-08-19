@@ -140,7 +140,7 @@ module Isucondition
 
         idx_cond_str = 0
         keys.each_with_index do |key, idx_keys|
-          return false if condition_str[idx_cond_str..-1].start_with?(key)
+          return false unless condition_str[idx_cond_str..-1].start_with?(key)
           idx_cond_str += key.size
           case
           when condition_str[idx_cond_str..-1].start_with?(value_true)
@@ -409,7 +409,7 @@ module Isucondition
 
       data_points.each_with_index do |graph, i|
         start_index = i if start_index == data_points.size && graph.fetch(:start_at) >= graph_date
-        end_next_index = i if end_next_index == data_points.size && graph.fetch(:start_at) >= end_time
+        end_next_index = i if end_next_index == data_points.size && graph.fetch(:start_at) > end_time
       end
 
       filtered_data_points = []
