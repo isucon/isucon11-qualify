@@ -40,11 +40,11 @@ data "aws_security_group" "isucon11q-bench" {
 data "aws_ami" "bench" {
   owners = ["self"]
   filter {
-    name = "name"
+    name   = "name"
     values = ["isucon11q-amd64-bench-*"]
   }
   filter {
-    name = "tag:GitTag"
+    name   = "tag:GitTag"
     values = [var.git_tag]
   }
 }
@@ -52,7 +52,7 @@ data "aws_ami" "bench" {
 data "template_file" "isuxportal_supervisor_env" {
   for_each = toset(local.team_ids)
 
-  template = file("../../base/generate-isuxportal-supervisor-env.sh")
+  template = file("../../.base/generate-isuxportal-supervisor-env.sh")
   vars = {
     isuxportal_supervisor_endpoint_url = var.isuxportal_supervisor_endpoint_url
     isuxportal_supervisor_token        = var.isuxportal_supervisor_token
@@ -73,24 +73,24 @@ data "template_cloudinit_config" "config" {
 
 ### resources ###
 
-resource "aws_subnet" "isucon11q-zone-d" {
+resource "aws_subnet" "isucon11q-zone-a" {
   vpc_id                  = data.aws_vpc.isucon11q.id
-  cidr_block              = "192.168.3.0/24"
-  availability_zone       = "ap-northeast-1d"
+  cidr_block              = "192.168.1.0/24"
+  availability_zone       = "ap-northeast-1a"
   map_public_ip_on_launch = true
   tags = {
-    Name = "isucon11q-zone-d"
+    Name = "isucon11q-zone-a"
   }
 }
 
 resource "aws_route_table_association" "isucon11q" {
-  subnet_id      = aws_subnet.isucon11q-zone-d.id
+  subnet_id      = aws_subnet.isucon11q-zone-a.id
   route_table_id = data.aws_route_table.isucon11q.id
 }
 
 resource "aws_key_pair" "keypair" {
-  key_name   = "isucon11q-zone-d"
-  public_key = file("../../base/pubkey.pem")
+  key_name   = "isucon11q-zone-a"
+  public_key = file("../../.base/pubkey.pem")
 }
 
 resource "aws_instance" "bench" {
@@ -99,8 +99,8 @@ resource "aws_instance" "bench" {
   ami                    = data.aws_ami.bench.id
   instance_type          = "c5.large"
   key_name               = aws_key_pair.keypair.id
-  subnet_id              = aws_subnet.isucon11q-zone-d.id
-  private_ip             = "192.168.3.${index(local.team_ids, each.key) + 4}"
+  subnet_id              = aws_subnet.isucon11q-zone-a.id
+  private_ip             = "192.168.1.${index(local.team_ids, each.key) + 4}"
   vpc_security_group_ids = [data.aws_security_group.isucon11q-bench.id]
   root_block_device {
     volume_size = 20

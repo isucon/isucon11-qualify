@@ -131,7 +131,7 @@ func errorBadResponse(res *http.Response, message string, args ...interface{}) e
 }
 
 func errorFormatWithResponse(res *http.Response, message string, args ...interface{}) error {
-	return errorFormatWithURI(res.StatusCode, res.Request.Method, res.Request.URL.Path, message, args...)
+	return errorFormatWithURI(res.StatusCode, res.Request.Method, res.Request.URL.RequestURI(), message, args...)
 }
 func errorFormatWithURI(statusCode int, method string, urlPath string, message string, args ...interface{}) error {
 	args = append(args, statusCode, method, urlPath)

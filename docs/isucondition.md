@@ -14,15 +14,15 @@
 20xx 年、政府が働く人々にリモートワークを推奨したことにより、家での仕事を支える存在として ISU が大事にされるようになりました。
 働く人々が ISU に愛着を持って大事にするようになった結果、大事な ISU のコンディションを知ることで ISU を理解し、ISU と長く付きあっていきたいと人々は願うようになりました。
 ISUCONDITION はこうした人々のニーズに応えるサービスとしてリリース目前です。しかし、パフォーマンスに大きな問題を抱えていました。
-あなたは ISUCONDITION の開発者として 18 時までにこの問題の改善し、人と ISU が作る新しい明日を支えなければなりません。
+あなたは ISUCONDITION の開発者として時間までにこの問題の改善し、人と ISU が作る新しい明日を支えなければなりません。
 
 ## 用語
 
 - **ISU**: この世界で愛されるあなたの大事なパートナー。いろいろな性格を持っていて、その時その時のコンディションを通知してくれる。すべての ISU にはあらかじめ JIA ISU ID が割り当てられている。
 - **ユーザ**: ISUCONDITION に登録をしている人。
 - **閲覧者**: ISUCONDITION に登録はしていないが、トップページでトレンドを見ている人。
-- **JIA**: Japan ISU Association の略。この世界において日本の　ISU を取りまとめる団体。すべての ISU に固有の JIA ISU ID を割り当てて管理を行っている。
-- **コンディション**: ISU から送られてくる情報。ISU が誰かに座られているか耐荷重を超えていないかと言った情報や、汚れていないか、壊れていないかなどを教えてくれる。
+- **JIA**: Japan ISU Association の略。この世界において日本の ISU を取りまとめる団体。すべての ISU に固有の JIA ISU ID を割り当てて管理を行っている。
+- **コンディション**: ISU から送られてくる情報。ISU が人に座られているか、耐荷重を超えていないかと言った情報や、汚れていないか、壊れていないかなどを教えてくれる。
 - **コンディションレベル**: ISU から送られた `is_dirty`、`is_overweight`、`is_broken` という 3 つの情報から決まる ISU の状態。それぞれの情報は問題が発生している場合は `true` になる。以下の 3 つのレベルが存在する。
     - **Info**: 一切、問題が発生していない状態。
     - **Warning**: 1〜2 つの問題が発生している状態。
@@ -39,14 +39,14 @@ ISUCONDITION は認証を JIA に委ねており、ユーザは JIA の認証サ
 
 ログインの処理は以下のような流れになります。
 
-![ログインの動き](https://user-images.githubusercontent.com/210692/129871067-c6e56bb9-546b-4743-979e-859ab6ca8e0b.png)
+![ログインの動き](https://user-images.githubusercontent.com/210692/130006129-293ac048-30c3-4a4b-815c-67572ef3b44e.png)
 
-1. ユーザは、ISUCONDITION のトップページにアクセスします。
-2. ユーザが、ISUCONDITION のトップページにある "JIA のアカウントでログイン" のボタンを押下すると JIA 認証サイトへ遷移します。
-3. ユーザが、JIA 認証サイトで JIA のアカウント情報を入力します。
-4. JIA 認証サイトは認証成功時にトークン（JWT: JSON Web Token）を発行し、ユーザを ISUCONDITION にリダイレクトします。リダイレクトの URL にはクエリパラメータにトークンが設定されています。
-5. ISUCONDITION はトークンが妥当なものかを検証します。
-6. トークンの妥当性が確認された場合、ユーザは ISUCOONDITON のログインに成功します。
+① ユーザは、ISUCONDITION のトップページにアクセスします。
+② ユーザが、ISUCONDITION のトップページにある "JIA のアカウントでログイン" のボタンを押下すると JIA 認証サイトへ遷移します。
+③ ユーザが、JIA 認証サイトで JIA のアカウント情報を入力します。
+④ JIA 認証サイトは認証成功時にトークン（JWT: JSON Web Token）を発行し、ユーザを ISUCONDITION にリダイレクトします。リダイレクトの URL にはクエリパラメータにトークンが設定されています。
+⑤ ISUCONDITION はトークンが妥当なものかを検証します。
+⑥ トークンの妥当性が確認された場合、ユーザは ISUCOONDITON のログインに成功します。
 
 ### ISUの登録
 
@@ -55,12 +55,13 @@ ISUCONDITION は認証を JIA に委ねており、ユーザは JIA の認証サ
 
 ISU の登録は以下のような流れになります。
 
-![ISUのアクティベートイメージ](https://user-images.githubusercontent.com/210692/129871576-269324a6-14be-452e-8826-2bb421196d37.png)
+![ISUのアクティベートイメージ](https://user-images.githubusercontent.com/210692/130006167-ecbf4bb1-c5ba-4d2c-b141-9258f44b87dc.png)
 
-1. ユーザが ISUCONDITION に ISU の ID を入力します。
-2. ISUCONDITION は　JIA の ISU 管理サービスに対して ISU の ID を送信します。
-3. ISU 管理サービスは、対象の ISU にコンディション送信を開始するよう指示します（アクティベート）。
-4. ISUCONDITION は ISU の情報を保存し登録が完了します。
+①  ユーザが ISUCONDITION に JIA ISU ID を入力します。
+②  ISUCONDITION は JIA の ISU 管理サービスに対して JIA ISU ID を送信します。
+③  ISU 管理サービスは、対象の ISU にコンディション送信を開始するよう指示します（アクティベート）。
+④  ISUCONDITION は ISU の情報を保存し登録が完了します。
+④' ISU は ISUCONDITION に対してコンディションを送信します。
 
 #### JIA ISU ID
 
@@ -76,6 +77,8 @@ ISU の登録は以下のような流れになります。
 | cb68f47f-25ef-46ec-965b-d72d9328160f |
 | 57d600ef-15b4-43bc-ab79-6399fab5c497 |
 | aa0844e6-812d-41d2-908a-eeb82a50b627 |
+| 0694e4d7-dfce-4aec-b7ca-887ac42cfb8f |
+| f012233f-c50e-4349-9473-95681becff1e |
 
 ### ISUのコンディション送信処理
 
@@ -124,7 +127,7 @@ ISU のコンディションレベルは悪くなる事があり、ユーザは�
 トレンドは ISUCONDITION のサービスを知ってもらうための機能で、閲覧者に提供されます。
 トレンドでは ISUCONDITION に登録されているすべての ISU の最新のコンディションレベルが性格ごとにまとまっており、ISU が持つ性格ごとの傾向を見ることができます。
 
-閲覧者は、　ISUCONDITION　のトップページに表示されるトレンド（`GET /api/trend`）を確認しています。
+閲覧者は、 ISUCONDITION のトップページに表示されるトレンド（`GET /api/trend`）を確認しています。
 サービスに興味を持っている閲覧者はトップページに表示されるトレンドを閲覧し、トレンドの変化に注目しています。
 
 ## JIA の API 
@@ -144,7 +147,7 @@ JIA が管理する ISU をアクティベートするためのエンドポイ�
 - スキームには `https` のみが利用できる。
 - ポート番号は指定できない。
 
-また、同一の ISU に対する 2 度目以降のリクエストは成功しますが `target_base_url`　は 1 度目の内容が利用されます。
+また、同一の ISU に対する 2 度目以降のリクエストは成功しますが `target_base_url` は 1 度目の内容が利用されます。
 
 + Request（application/json）
     + Schema
@@ -188,11 +191,11 @@ JIA API Mock は、ISUCONDITION の開発に利用できる JIA の API モッ�
 JIA API Mock は以下の機能を持っています。
 
 - `POST /api/activate` - ISU 管理サービス
-  - ただし、先述した　`target_base_url` の制約は存在しない
+  - ただし、先述した `target_base_url` の制約は存在しない
 - 登録した ISU から ISUCONDITION へ向けたテスト用コンディションの送信
 
-JIA API Mock は ISU がアクティベートされると、JIA API Mock　が停止されるまで ISUCONDITION へテスト用コンディションの送信を行います。JIA API Mock の操作は永続化されません。
-そのため、負荷走行前には JIA API Mock を停止または再起動することをお勧めします。
+JIA API Mock は ISU がアクティベートされると、JIA API Mock が停止されるまで ISUCONDITION へテスト用コンディションの送信を行います。JIA API Mock の操作は永続化されません。
+そのため、負荷走行前には JIA API Mock を停止または再起動することでテスト用コンディションの送信を停止することをお勧めします。
 
 JIA API Mock のサービスを停止または再起動するには、 以下のコマンドを利用してください。
 
@@ -203,5 +206,5 @@ $ sudo systemctl [stop|restart] jiaapi-mock.service
 なお、負荷走行後に JIA API Mock を利用する際は、下記のように `POST /initialize` で JIA API Mock のエンドポイントを設定してください。
 
 ```
-curl -fk -H 'content-type: application/json' https://<Elastic IP アドレス>/initialize -d '{"jia_service_url": "http://localhost:5000"}'
+curl -fk -H 'content-type: application/json' https://<サーバー IP アドレス>/initialize -d '{"jia_service_url": "http://localhost:5000"}'
 ```

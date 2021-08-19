@@ -383,7 +383,7 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 					return
 				}
 
-				req := service.GetGraphRequest{Date: lastCond.TimestampUnix}
+				req := service.GetGraphRequest{Date: trancateTimestampToDate(time.Unix(lastCond.TimestampUnix, 0))}
 				graph, res, err := getIsuGraphAction(ctx, randomUser.Agent, jiaIsuUUID, req)
 				if err != nil {
 					step.AddError(err)
@@ -396,7 +396,7 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 				}
 
 				// 前日分も検証
-				yesterday := time.Unix(lastCond.TimestampUnix, 0).Add(-24 * time.Hour).Unix()
+				yesterday := req.Date - 24*60*60
 				req = service.GetGraphRequest{Date: yesterday}
 				graph, res, err = getIsuGraphAction(ctx, randomUser.Agent, jiaIsuUUID, req)
 				if err != nil {
@@ -566,6 +566,24 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 	w.AddParallelism(2)
 	w.Process(ctx)
 	w.Wait()
+
+	// check: トレンド
+	viewerAgent, err := s.NewAgent(agent.WithTimeout(s.prepareTimeout))
+	if err != nil {
+		logger.AdminLogger.Panicln(err)
+	}
+	viewer := model.NewViewer(viewerAgent)
+	trend, res, errs := browserGetLandingPageAction(ctx, &viewer)
+	if len(errs) != 0 {
+		for _, err := range errs {
+			step.AddError(err)
+		}
+		return
+	}
+	if err := s.verifyPrepareTrend(res, &viewer, trend); err != nil {
+		step.AddError(err)
+		return
+	}
 
 }
 
@@ -965,7 +983,8 @@ func (s *Scenario) prepareIrregularCheckGetIsuGraph(ctx context.Context, existJi
 	}
 	// check: 未ログイン状態
 	query := url.Values{}
-	query.Set("datetime", strconv.FormatInt(time.Now().Unix(), 10))
+	reqDate := strconv.FormatInt(trancateTimestampToDate(s.ToVirtualTime(time.Now())), 10)
+	query.Set("datetime", reqDate)
 	resBody, res, err := getIsuGraphErrorAction(ctx, guestAgent, existJiaIsuUUID, query)
 	if err != nil {
 		step.AddError(err)
@@ -1011,7 +1030,7 @@ func (s *Scenario) prepareIrregularCheckGetIsuGraph(ctx context.Context, existJi
 
 	// check: 他ユーザの椅子に対するリクエスト
 	query = url.Values{}
-	query.Set("datetime", strconv.FormatInt(time.Now().Unix(), 10))
+	query.Set("datetime", reqDate)
 	resBody, res, err = getIsuGraphErrorAction(ctx, noIsuUser.Agent, existJiaIsuUUID, query)
 	if err != nil {
 		step.AddError(err)
@@ -1028,7 +1047,7 @@ func (s *Scenario) prepareIrregularCheckGetIsuGraph(ctx context.Context, existJi
 
 	// check: 登録されていない椅子に対するリクエスト
 	query = url.Values{}
-	query.Set("datetime", strconv.FormatInt(time.Now().Unix(), 10))
+	query.Set("datetime", reqDate)
 	resBody, res, err = getIsuGraphErrorAction(ctx, loginUserAgent, NotExistJiaIsuUUID, query)
 	if err != nil {
 		step.AddError(err)
