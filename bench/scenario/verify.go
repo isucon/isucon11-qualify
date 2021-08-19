@@ -780,15 +780,9 @@ func (s *Scenario) verifyPrepareTrend(
 
 				// condition.ID から isu を取得する
 				isu, ok := s.GetIsuFromID(condition.IsuID)
+				// prepareでは初期データ以外のISUは存在しないはずなのでエラー
 				if !ok {
-					// 次のループでまた bench の知らない IsuID の ISU を見つけたら落とせるように
-					if _, exist := isuIDSet[condition.IsuID]; exist {
-						return errorMismatch(res, "同じ ISU のコンディションが複数登録されています")
-					}
-					isuIDSet[condition.IsuID] = struct{}{}
-
-					// POST /api/isu などのレスポンス待ちなためここで落とすことはできない
-					continue
+					return errorInvalid(res, "存在しないはず ISU がレスポンスに含まれています")
 				}
 
 				if err := func() error {
@@ -798,8 +792,8 @@ func (s *Scenario) verifyPrepareTrend(
 
 					// condition を最新順に取得するイテレータを生成
 					filter := model.ConditionLevelInfo | model.ConditionLevelWarning | model.ConditionLevelCritical
-					conditions := isu.Conditions
-					baseIter := conditions.UpperBound(filter, condition.Timestamp)
+					conditionArray := isu.Conditions
+					baseIter := conditionArray.End(filter)
 
 					// condition.timestamp と condition.condition の値を検証
 					expected := baseIter.Prev()
@@ -837,8 +831,8 @@ func (s *Scenario) verifyPrepareTrend(
 	}
 
 	// 初期データのISUが全てあることを確認
-	if !(len(isuIDSet) >= s.LenOfIsuFromId()) {
-		return errorInvalid(res, "ISU の個数が不足しています")
+	if len(isuIDSet) != s.LenOfIsuFromId() {
+		return errorInvalid(res, "ISU の個数が一致しません")
 	}
 	return nil
 }
