@@ -105,7 +105,7 @@ resource "aws_security_group_rule" "isucon11q-ecs-jiaapi-mock" {
   from_port         = 5000
   to_port           = 5000
   protocol          = "tcp"
-  cidr_blocks       = ["192.168.128.0/25"]
+  cidr_blocks       = ["192.168.0.0/16"]
   security_group_id = aws_security_group.isucon11q-ecs.id
 }
 
