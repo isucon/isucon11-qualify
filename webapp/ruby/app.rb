@@ -409,7 +409,7 @@ module Isucondition
 
       data_points.each_with_index do |graph, i|
         start_index = i if start_index == data_points.size && graph.fetch(:start_at) >= graph_date
-        end_next_index = i if end_next_index == data_points.size && graph.fetch(:start_at) >= end_time
+        end_next_index = i if end_next_index == data_points.size && graph.fetch(:start_at) > end_time
       end
 
       filtered_data_points = []
