@@ -129,7 +129,7 @@ func (s *Scenario) postActivate(c echo.Context) error {
 		fqdn = targetBaseURL.Hostname()
 		ipAddr, ok := s.GetIPAddrFromFqdn(fqdn)
 		if !ok {
-			return http.StatusBadRequest, "Bad URL: hostname must be isucondition[1-3].t.isucon.dev"
+			return http.StatusBadRequest, "Bad URL: hostname must be isucondition-[1-3].t.isucon.dev"
 		}
 		//httpsモードの際はportは指定なしのみ
 		port := targetBaseURL.Port()
