@@ -24,7 +24,8 @@ const (
 	PostIntervalBlurSecond = 5                      //Virtual Timeでのpost間隔のブレ幅(+-PostIntervalBlurSecond)
 	PostContentNum         = 10                     //一回のpostで何要素postするか virtualTimeMulti * timerDuration(20ms) / PostIntervalSecond
 	postConditionTimeout   = 100 * time.Millisecond //MEMO: timeout は気にせずにズバズバ投げる
-	timeoutFeadback        = 25 * time.Millisecond  // timeout がおきたらこの値だけ待つように
+	timeoutFeadback        = 50 * time.Millisecond  // timeout がおきたらこの値だけ待つように
+	minWait                = 40 * time.Millisecond  // timeout がおきたらこの値だけ待つように
 )
 
 var (
@@ -133,8 +134,8 @@ func (s *Scenario) keepPosting(ctx context.Context, targetBaseURL *url.URL, fqdn
 		ForceAttemptHTTP2: true,
 	}
 
-	timeout := postConditionTimeout
-	timer := time.After(1 * time.Nanosecond)
+	timeout := minWait
+	timer := time.After(1 * time.Millisecond)
 	for {
 		select {
 		case <-ctx.Done():
