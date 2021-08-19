@@ -914,26 +914,38 @@ func findBadIsuState(conditions service.GetIsuConditionResponseArray) (model.Isu
 // 確率で signout して再度ログインするシナリオ。全てのシナリオの最後に確率で発生する
 func signoutScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User) {
 
-	for {
-		_, err := signoutAction(ctx, user.Agent)
-		if err != nil {
-			addErrorWithContext(ctx, step, err)
-			// MEMO: ここで実は signout に成功していました、みたいな状況だと以降のこのユーザーループが死ぬがそれはユーザー責任とする
-			continue
-		}
-		break
-	}
-
-	_, hres, err := getMeErrorAction(ctx, user.Agent)
+	_, err := signoutAction(ctx, user.Agent)
 	if err != nil {
 		addErrorWithContext(ctx, step, err)
-		// return するとこのあとのログイン必須なシナリオが回らないから return はしない
-	} else {
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			// 失敗したときも区別せずに return してよい(次シナリオループで終了するため)
+			return
+		default:
+		}
+
+		_, hres, err := getMeErrorAction(ctx, user.Agent)
+		if err != nil {
+			addErrorWithContext(ctx, step, err)
+
+			//失敗したのでサインアウト再試行
+			_, err := signoutAction(ctx, user.Agent)
+			if err != nil {
+				addErrorWithContext(ctx, step, err)
+				// MEMO: ここで実は signout に成功していました、みたいな状況だと以降のこのユーザーループが死ぬがそれはユーザー責任とする
+			}
+
+			continue
+		}
 		hres.Body.Close()
 		if hres.StatusCode != http.StatusUnauthorized {
 			addErrorWithContext(ctx, step, errorInvalidStatusCode(hres, http.StatusUnauthorized))
 			// return するとこのあとのログイン必須なシナリオが回らないから return はしない
 		}
+		break
 	}
 
 	user.Agent.ClearCookie()
