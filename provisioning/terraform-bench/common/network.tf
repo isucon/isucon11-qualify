@@ -88,21 +88,58 @@ resource "aws_security_group_rule" "isucon11q-jump-egress" {
   security_group_id = aws_security_group.isucon11q-jump.id
 }
 
-### security group for jia-login ###
+### security group for ecs ###
 
-resource "aws_security_group" "isucon11q-jia-login" {
-  name   = "isucon11q-jia-login"
+resource "aws_security_group" "isucon11q-ecs" {
+  name   = "isucon11q-ecs"
   vpc_id = aws_vpc.isucon11q.id
   tags = {
-    Name    = "isucon11q-jia-login"
+    Name    = "isucon11q-ecs"
   }
 }
 
-resource "aws_security_group_rule" "isucon11q-jia-login-http" {
+resource "aws_security_group_rule" "isucon11q-ecs-jiaapi-mock" {
   type              = "ingress"
-  from_port         = 80
-  to_port           = 80
+  from_port         = 5000
+  to_port           = 5000
+  protocol          = "tcp"
+  cidr_blocks       = ["192.168.128.0/25"]
+  security_group_id = aws_security_group.isucon11q-ecs.id
+}
+
+resource "aws_security_group_rule" "isucon11q-ecs-egress" {
+  type              = "egress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.isucon11q-ecs.id
+}
+
+### security group for ecs-lb ###
+
+resource "aws_security_group" "isucon11q-ecs-lb" {
+  name   = "isucon11q-ecs-lb"
+  vpc_id = aws_vpc.isucon11q.id
+  tags = {
+    Name    = "isucon11q-ecs-lb"
+  }
+}
+
+resource "aws_security_group_rule" "isucon11q-ecs-lb-https" {
+  type              = "ingress"
+  from_port         = 443
+  to_port           = 443
   protocol          = "tcp"
   cidr_blocks       = ["0.0.0.0/0"]
-  security_group_id = aws_security_group.isucon11q-jia-login.id
+  security_group_id = aws_security_group.isucon11q-ecs-lb.id
+}
+
+resource "aws_security_group_rule" "isucon11q-ecs-lb-egress" {
+  type              = "egress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.isucon11q-ecs-lb.id
 }
