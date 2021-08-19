@@ -391,6 +391,8 @@ module Isucondition
           conditions_in_this_hour = []
           timestamps_in_this_hour = []
         end
+        conditions_in_this_hour.push(condition)
+        timestamps_in_this_hour.push(condition.fetch(:timestamp).to_i)
       end
 
       unless conditions_in_this_hour.empty?
@@ -409,7 +411,7 @@ module Isucondition
 
       data_points.each_with_index do |graph, i|
         start_index = i if start_index == data_points.size && graph.fetch(:start_at) >= graph_date
-        end_next_index = i if end_next_index == data_points.size && graph.fetch(:start_at) >= end_time
+        end_next_index = i if end_next_index == data_points.size && graph.fetch(:start_at) > end_time
       end
 
       filtered_data_points = []
@@ -420,10 +422,11 @@ module Isucondition
       this_time = graph_date
 
       while this_time < (graph_date + (3600*24))
+        data = nil
         timestamps = []
         if index < filtered_data_points.size
           data_with_info = filtered_data_points[index]
-          if data_points.fetch(:start_at) == this_time
+          if data_with_info.fetch(:start_at) == this_time
             data = data_with_info.fetch(:data)
             timestamps = data_with_info.fetch(:condition_timestamps)
             index += 1
