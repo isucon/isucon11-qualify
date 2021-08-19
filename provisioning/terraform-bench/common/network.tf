@@ -150,6 +150,7 @@ resource "aws_security_group_rule" "isucon11q-ecs-lb-egress" {
 ### vpc peering
 
 data "aws_vpc" "isucon11-portal" {
+  id = "vpc-04f36e0596c6daf7f"
   filter {
     name   = "tag:Project"
     values = ["portal"]
