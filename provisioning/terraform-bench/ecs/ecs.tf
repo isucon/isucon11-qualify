@@ -50,7 +50,7 @@ resource "aws_subnet" "isucon11q-ecs-zone-a" {
   availability_zone       = "ap-northeast-1a"
   map_public_ip_on_launch = true
   tags = {
-    Name = "isucon11q-ecs"
+    Name = "isucon11q-ecs-a"
   }
 }
 resource "aws_subnet" "isucon11q-ecs-zone-c" {
@@ -59,7 +59,7 @@ resource "aws_subnet" "isucon11q-ecs-zone-c" {
   availability_zone       = "ap-northeast-1c"
   map_public_ip_on_launch = true
   tags = {
-    Name = "isucon11q-ecs"
+    Name = "isucon11q-ecs-c"
   }
 }
 
