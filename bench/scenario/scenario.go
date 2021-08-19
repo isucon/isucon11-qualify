@@ -12,6 +12,7 @@ import (
 
 	"github.com/isucon/isucandar"
 	"github.com/isucon/isucandar/agent"
+	"github.com/isucon/isucandar/random/useragent"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
 	"github.com/isucon/isucon11-qualify/bench/random"
@@ -86,7 +87,7 @@ func (s *Scenario) WithInitializeTimeout(t time.Duration) *Scenario {
 }
 
 func (s *Scenario) NewAgent(opts ...agent.AgentOption) (*agent.Agent, error) {
-	opts = append(opts, agent.WithBaseURL(s.BaseURL))
+	opts = append(opts, agent.WithBaseURL(s.BaseURL), agent.WithUserAgent(useragent.UserAgent()))
 	return agent.NewAgent(opts...)
 }
 
@@ -337,6 +338,12 @@ func (s *Scenario) GetIsuFromID(id int) (*model.Isu, bool) {
 	defer s.isuFromIDMutex.RUnlock()
 	isu, ok := s.isuFromID[id]
 	return isu, ok
+}
+
+func (s *Scenario) LenOfIsuFromId() int {
+	s.isuFromIDMutex.RLock()
+	defer s.isuFromIDMutex.RUnlock()
+	return len(s.isuFromID)
 }
 
 func (s *Scenario) GetRandomActivatedIsu(randEngine *rand.Rand) *model.Isu {
