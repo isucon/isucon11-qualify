@@ -710,9 +710,9 @@ def get_trend():
                 elif condition_level == "critical":
                     character_critical_isu_conditions.append(trend_condition)
 
-        character_info_isu_conditions.sort(key=lambda c: c.timestamp)
-        character_warning_isu_conditions.sort(key=lambda c: c.timestamp)
-        character_critical_isu_conditions.sort(key=lambda c: c.timestamp)
+        character_info_isu_conditions.sort(key=lambda c: c.timestamp, reverse=True)
+        character_warning_isu_conditions.sort(key=lambda c: c.timestamp, reverse=True)
+        character_critical_isu_conditions.sort(key=lambda c: c.timestamp, reverse=True)
 
         res.append(
             TrendResponse(
