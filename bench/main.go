@@ -91,7 +91,7 @@ func init() {
 
 	flag.StringVar(&targetAddress, "target", benchrun.GetTargetAddress(), "ex: localhost:9292")
 	// TODO: benchrun.GetAllAddresses で環境変数を読み込む (isucon/isucon11-portal#167)
-	flag.StringVar(&targetableAddressesStr, "all-addresses", getEnv("ISUXBENCH_ALL_ADDRESSES", ""), `ex: "192.168.0.1 192.168.0.2 192.168.0.3" (space separated, limit 3)`)
+	flag.StringVar(&targetableAddressesStr, "all-addresses", getEnv("ISUXBENCH_ALL_ADDRESSES", ""), `ex: "192.168.0.1,192.168.0.2,192.168.0.3" (comma separated, limit 3)`)
 	flag.StringVar(&profileFile, "profile", "", "ex: cpu.out")
 	flag.StringVar(&memProfileDir, "mem-profile", "", "path of output heap profile at max memStats.sys allocated. ex: memprof")
 	flag.BoolVar(&exitStatusOnFail, "exit-status", false, "set exit status non-zero when a benchmark result is failing")
@@ -113,7 +113,7 @@ func init() {
 	}
 	// validate targetable-addresses
 	// useTLS な場合のみ IPアドレスと FQDN のペアが必要になる
-	targetableAddresses = strings.Split(targetableAddressesStr, " ")
+	targetableAddresses = strings.Split(targetableAddressesStr, ",")
 	if !(1 <= len(targetableAddresses) && len(targetableAddresses) <= 3) || targetableAddresses[0] == "" {
 		panic("invalid targetableAddresses: length must be 1~3")
 	}
