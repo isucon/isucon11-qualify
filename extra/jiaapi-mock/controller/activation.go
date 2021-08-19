@@ -34,12 +34,6 @@ var (
 		"さみしがり",
 		"しんちょう",
 	}
-	allowedTargetFQDN = []string{
-		"isucondition-1.t.isucon.dev",
-		"isucondition-2.t.isucon.dev",
-		"isucondition-3.t.isucon.dev",
-	}
-	forDev = false
 )
 
 func init() {
@@ -79,25 +73,6 @@ func (c *ActivationController) PostActivate(ctx echo.Context) error {
 	if err != nil {
 		ctx.Logger().Errorf("bad url: %v", err)
 		return ctx.String(http.StatusBadRequest, "Bad URL")
-	}
-
-	if !forDev {
-		// POST isucondition する URL に https 以外が指定されていたら 400 を返す
-		if parsedURL.Scheme != "https" {
-			return ctx.String(http.StatusBadRequest, "Bad URL Scheme")
-		}
-
-		// FQDN が競技者 VM のものでない場合 400 を返す
-		var ok bool
-		for _, fqdn := range allowedTargetFQDN {
-			if parsedURL.Hostname() == fqdn {
-				ok = true
-				break
-			}
-		}
-		if !ok {
-			return ctx.String(http.StatusBadRequest, "Bad URL: hostname must be isucondition[1-3].t.isucon.dev")
-		}
 	}
 
 	isuState, ok := validIsu[req.IsuUUID]

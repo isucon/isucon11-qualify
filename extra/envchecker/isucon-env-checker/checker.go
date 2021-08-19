@@ -10,6 +10,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/cenkalti/backoff/v4"
 )
 
 type CheckConfig struct {
@@ -92,7 +93,10 @@ func (c *checker) loadAWS() error {
 	ec2md := ec2metadata.New(sess)
 	ec2client := ec2.New(sess)
 
-	c.InstanceIP, err = GetPublicIP(ec2md)
+	err = backoff.Retry(func() error {
+		c.InstanceIP, err = GetPublicIP(ec2md)
+		return err
+	}, newBackoff())
 	if err != nil {
 		return fmt.Errorf("GetPublicIP: %w", err)
 	}
