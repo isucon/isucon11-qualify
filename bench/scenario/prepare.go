@@ -567,6 +567,24 @@ func (s *Scenario) prepareNormal(ctx context.Context, step *isucandar.BenchmarkS
 	w.Process(ctx)
 	w.Wait()
 
+	// check: トレンド
+	viewerAgent, err := s.NewAgent(agent.WithTimeout(s.prepareTimeout))
+	if err != nil {
+		logger.AdminLogger.Panicln(err)
+	}
+	viewer := model.NewViewer(viewerAgent)
+	trend, res, errs := browserGetLandingPageAction(ctx, &viewer)
+	if len(errs) != 0 {
+		for _, err := range errs {
+			step.AddError(err)
+		}
+		return
+	}
+	if err := s.verifyPrepareTrend(res, &viewer, trend); err != nil {
+		step.AddError(err)
+		return
+	}
+
 }
 
 func (s *Scenario) prepareCheckAuth(ctx context.Context, isuconUser *model.User, step *isucandar.BenchmarkStep) {
