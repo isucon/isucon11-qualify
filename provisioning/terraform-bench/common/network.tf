@@ -163,10 +163,7 @@ data "aws_route_table" "isucon11-portal" {
   }
 }
 data "aws_security_group" "isucon11-portal" {
-  filter {
-    name   = "tag:Name"
-    values = ["isucon11q-ecs"]
-  }
+  name = "elb-http"
 }
 
 resource "aws_vpc_peering_connection" "isucon11q-and-isucon11-portal" {
