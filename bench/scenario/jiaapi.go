@@ -141,7 +141,6 @@ func (s *Scenario) postActivate(c echo.Context) error {
 			targetBaseURL.Host = strings.Join([]string{ipAddr, port}, ":")
 		} else {
 			targetBaseURL.Host = ipAddr
-			return http.StatusBadRequest, "Bad Port: ポート番号は指定できません"
 		}
 
 		// activate 済みフラグを立てる
