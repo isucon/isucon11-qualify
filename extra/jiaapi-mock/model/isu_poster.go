@@ -46,9 +46,6 @@ func (m *IsuConditionPoster) KeepPosting() {
 
 	httpClient := http.Client{}
 	httpClient.Timeout = 100 * time.Millisecond
-	httpClient.Transport = &http.Transport{
-		ForceAttemptHTTP2: true,
-	}
 
 	timer := time.NewTicker(postingIntervalSec * time.Second)
 	defer timer.Stop()
