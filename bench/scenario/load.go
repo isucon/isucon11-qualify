@@ -798,9 +798,6 @@ func getCheckHour(nowViewingGraph service.GraphResponse, randEngine *rand.Rand) 
 }
 
 func getGraphScoreTag(minTimestampCount int) score.ScoreTag {
-	if minTimestampCount > ScoreGraphTimestampCount.Excellent {
-		return ScoreGraphExcellent
-	}
 	if minTimestampCount > ScoreGraphTimestampCount.Good {
 		return ScoreGraphGood
 	}
@@ -814,9 +811,6 @@ func getGraphScoreTag(minTimestampCount int) score.ScoreTag {
 }
 
 func getTodayGraphScoreTag(minTimestampCount int) score.ScoreTag {
-	if minTimestampCount > ScoreGraphTimestampCount.Excellent {
-		return ScoreTodayGraphExcellent
-	}
 	if minTimestampCount > ScoreGraphTimestampCount.Good {
 		return ScoreTodayGraphGood
 	}

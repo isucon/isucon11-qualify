@@ -33,12 +33,10 @@ func (s *Scenario) Prepare(ctx context.Context, step *isucandar.BenchmarkStep) e
 	// keepPostingのuserTimerでctx終了させられてしまうのでprepareでも設定する
 
 	step.Result().Score.Set(ScoreStartBenchmark, 1000)
-	step.Result().Score.Set(ScoreGraphExcellent, 200)
 	step.Result().Score.Set(ScoreGraphGood, 150)
 	step.Result().Score.Set(ScoreGraphNormal, 100)
 	step.Result().Score.Set(ScoreGraphBad, 60)
 	step.Result().Score.Set(ScoreGraphWorst, 10)
-	step.Result().Score.Set(ScoreTodayGraphExcellent, 80)
 	step.Result().Score.Set(ScoreTodayGraphGood, 60)
 	step.Result().Score.Set(ScoreTodayGraphNormal, 40)
 	step.Result().Score.Set(ScoreTodayGraphBad, 24)
