@@ -96,7 +96,7 @@ https://portal.isucon.net/contestant/contestant_instances
 
 ### 3. サーバーへの SSH 接続
 
-スタックの作成完了後、1 分程度で SSH 接続できるようになります。サーバーには選手が GitHub に登録している SSH 鍵を利用して、ユーザー名 `isucon` で SSH 接続ができます。
+スタックの作成完了後、1 分程度で SSH 接続できるようになります。サーバーには選手が GitHub に登録している SSH 鍵を利用して、ユーザ名 `isucon` で SSH 接続ができます。
 
 サーバーの IP アドレスは[ポータル](https://portal.isucon.net/contestant/contestant_instances)か、AWS マネジメントコンソールの EC2 インスタンスページから確認できます。
 
