@@ -8,7 +8,8 @@
         "max": 5
       },
       "ja-no-redundant-expression": false,
-      "no-doubled-joshi": false
+      "no-doubled-joshi": false,
+      "no-doubled-conjunction": false
     },
     "preset-ja-spacing": {
       "textlint-rule-ja-space-between-half-and-full-width": {
@@ -33,7 +34,11 @@
         "負荷走行実施後",
         "負荷走行終了時点",
         "負荷走行終了後",
-        "競技時間終了後"
+        "競技時間終了後",
+        "再構築作業完了後",
+        "EC2 インスタンス",
+        "インスタンスタイプ",
+        "他のインスタンスに処理を委譲するなど"
       ]
     }
   }

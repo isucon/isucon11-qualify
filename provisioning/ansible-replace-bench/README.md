@@ -10,6 +10,8 @@ ansible-replace-bench
 
 ### 実行方法
 
+**この Playbook は踏み台サーバで実行されることが想定されています。**
+
 * teams.json から hosts ファイルを生成
 
 ```
@@ -20,15 +22,11 @@ python generate_hosts.py > hosts
     * 本番環境の構成上、手元から ansible を実行する場合は jump サーバ経由で ssh する必要があります
 
 ```diff
-  Host *
-    User isucon-admin
-+   IdentityFile <秘密鍵のPATH>
   Host 192.168.*
     User isucon-admin
-    ControlMaster auto
-    ControlPath ~/.ssh/%C
-    ControlPersist 60s
 +   ProxyJump <jumpサーバのアドレス>
+    StrictHostKeyChecking no
+    UserKnownHostsFile /dev/null
 ```
 
 * 差し替えたいコンパイル済みのベンチバイナリ (`bench`) 、supervisorバイナリ (`isuxportal-supervisor`) をこのディレクトリに配置

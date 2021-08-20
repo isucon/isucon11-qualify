@@ -71,7 +71,7 @@ func authAction(ctx context.Context, user *model.User, userID string) (*service.
 	}
 
 	// リダイレクト時のフロントアクセス
-	if errs := BrowserAccessIndexHtml(ctx, user, "/"); len(errs) != 0 {
+	if errs := BrowserAccessIndexHtml(ctx, user, "/?jwt="+jwtOK); len(errs) != 0 {
 		errors = append(errors, errs...)
 		return nil, errors
 	}

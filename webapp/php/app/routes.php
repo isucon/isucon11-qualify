@@ -461,7 +461,7 @@ final class Handler
     private const CONDITION_LIMIT = 20;
     private const FRONTEND_CONTENTS_PATH = __DIR__ . '/../../public';
     private const JIA_JWT_SIGNING_KEY_PATH = __DIR__ . '/../../ec256-public.pem';
-    private const DEFAULT_ICON_FILE_PATH = "../NoImage.jpg";
+    private const DEFAULT_ICON_FILE_PATH = __DIR__ . '/../../NoImage.jpg';
     private const DEFAULT_JIA_SERVICE_URL = "http://localhost:5000";
     private const MYSQL_ERR_NUM_DUPLICATE_ENTRY = 1062;
     private const CONDITION_LEVEL_INFO = "info";
