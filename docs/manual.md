@@ -12,7 +12,7 @@
 
 ## 課題アプリケーション ISUCONDITION について
 
-課題アプリケーション ISUCONDITION の仕様については、[ISUCONDITION アプリケーションマニュアル](https://gist.github.com/ryoha000/049893ea703d502205968035ecfe93aa)を参照してください。
+課題アプリケーション ISUCONDITION の仕様については、[ISUCONDITION アプリケーションマニュアル](https://gist.github.com/ockie1729/fcb41ade9cb9d2166dd3f53e5179e8a9)を参照してください。
 
 ## ISUCON11 ポータルサイト（ポータル）
 
