@@ -810,7 +810,7 @@ func getAssets(ctx context.Context, user AgentWithStaticCache, resIndex *http.Re
 	}
 	requireAssetsPath := map[string]struct{}{}
 	for _, asset := range requireAssets {
-		requireAssetsPath[asset] = struct{}{}
+		requireAssetsPath[joinURL(resIndex.Request.URL, asset)] = struct{}{}
 	}
 
 	htmlBody, err := io.ReadAll(resIndex.Body)
@@ -824,27 +824,35 @@ func getAssets(ctx context.Context, user AgentWithStaticCache, resIndex *http.Re
 	}
 	// resourceの検証
 	actualResource := map[string]struct{}{}
-	for _, res := range resources {
+	for resUrl, res := range resources {
 		if res.Error != nil {
 			errs = append(errs, failure.NewError(ErrHTTP, res.Error))
 			continue
 		}
-		path := res.Request.URL.Path
-		if _, ok := requireAssetsPath[path]; !ok {
-			errs = append(errs, errorMismatch(res.Response, "意図しないリソース(%s)の取得が実行されました", path))
+		if _, ok := requireAssetsPath[resUrl]; !ok {
+			errs = append(errs, errorMismatch(res.Response, "意図しないリソース(%s)の取得が実行されました", resUrl))
 			continue
 		}
-		if _, ok := actualResource[path]; ok {
-			errs = append(errs, errorMismatch(res.Response, "html内でリソース(%s)を複数回取得しています", path))
+		if _, ok := actualResource[resUrl]; ok {
+			errs = append(errs, errorMismatch(res.Response, "html内でリソース(%s)を複数回取得しています", resUrl))
 			continue
 		}
-		actualResource[path] = struct{}{}
-		err = errorAssetChecksum(res.Request, res.Response, user, path)
+		actualResource[resUrl] = struct{}{}
+		err = errorAssetChecksum(res.Request, res.Response, user, res.Request.URL.Path)
 		if err != nil {
 			errs = append(errs, err)
 		}
 	}
-	if len(actualResource) != len(requireAssetsPath) {
+
+	// htmlから必要なresourceが取得可能かチェック
+	haveAllResources := true
+	for assetsUrl := range requireAssetsPath {
+		if _, ok := resources[assetsUrl]; !ok {
+			haveAllResources = false
+			break
+		}
+	}
+	if !haveAllResources {
 		errs = append(errs, errorMismatch(resIndex, "取得するリソースが足りません"))
 	}
 
