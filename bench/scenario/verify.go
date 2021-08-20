@@ -168,10 +168,10 @@ func verifyIsuList(res *http.Response, expectedReverse []*model.Isu, isuList []*
 						expectedCondition.ConditionString() == isu.LatestIsuCondition.Condition &&
 						expectedCondition.ConditionLevel.Equal(isu.LatestIsuCondition.ConditionLevel) &&
 						expectedCondition.Message == isu.LatestIsuCondition.Message) {
-						logger.AdminLogger.Printf(`expected: { JIAIsuUUID: %v, Name: %v, IsSitting: %v,
-						ConditionString: %v, ConditionLevel: %v, Message: %v, Timestamp: %v }
-						actual: { JAIsuUUID: %v, Name: %v, IsSitting: %v,
-						ConditionString: %v, ConditionLevel: %v, Message: %v, Timestamp: %v }`,
+						logger.AdminLogger.Printf(`expected: { JIAIsuUUID: %v, Name: %v, IsSitting: %v,`+
+							`ConditionString: %v, ConditionLevel: %v, Message: %v, Timestamp: %v }`+
+							`actual: { JAIsuUUID: %v, Name: %v, IsSitting: %v,`+
+							`ConditionString: %v, ConditionLevel: %v, Message: %v, Timestamp: %v }`,
 							expected.JIAIsuUUID, expected.Name, expectedCondition.IsSitting,
 							expectedCondition.ConditionString(), expectedCondition.ConditionLevel, expectedCondition.Message, expectedCondition.TimestampUnix,
 							isu.LatestIsuCondition.JIAIsuUUID, isu.LatestIsuCondition.IsuName, isu.LatestIsuCondition.IsSitting,
