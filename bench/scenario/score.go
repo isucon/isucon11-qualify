@@ -22,11 +22,12 @@ const (
 	ScoreIsuInitialize         score.ScoreTag = "_1.IsuInitialize        " //scoreが0のもの
 	ScoreNormalUserInitialize  score.ScoreTag = "_2.NormalUserInitialize " //全てのIsuInitializeが終わってはじめて+1
 	ScoreViewerInitialize      score.ScoreTag = "_3.ViewerInitialize     "
-	ScoreViewerDropout         score.ScoreTag = "_4.ViewerDropout        "
-	ScoreRepairIsu             score.ScoreTag = "_5.RepairIsu            "
-	ScorePostInfoCondition     score.ScoreTag = "_6.PostInfoCondition    "
-	ScorePostWarningCondition  score.ScoreTag = "_7.PostWarningCondition "
-	ScorePostCriticalCondition score.ScoreTag = "_8.PostCriticalCondition"
+	ScoreViewerLoop            score.ScoreTag = "_4.ViewerLoop           "
+	ScoreViewerDropout         score.ScoreTag = "_5.ViewerDropout        "
+	ScoreRepairIsu             score.ScoreTag = "_6.RepairIsu            "
+	ScorePostInfoCondition     score.ScoreTag = "_7.PostInfoCondition    "
+	ScorePostWarningCondition  score.ScoreTag = "_8.PostWarningCondition "
+	ScorePostCriticalCondition score.ScoreTag = "_9.PostCriticalCondition"
 )
 
 func SetScoreTags(scoreTable score.ScoreTable) {
