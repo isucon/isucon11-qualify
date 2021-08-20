@@ -25,11 +25,22 @@
     dest: "{{ item.dst }}"
     owner: root
     group: root
+    mode: "0700"
   with_items:
     - src: /tmp/isucon11-qualify/extra/envchecker/isucon-env-checker/isucon-env-checker
       dst: /opt/isucon-env-checker/isucon-env-checker
     - src: /tmp/isucon11-qualify/extra/envchecker/run-isucon-env-checker.sh
       dst: /opt/isucon-env-checker/run-isucon-env-checker.sh
+
+- name: "roles/contestant.envchecker/tasks/main: Deploy isucon-env-checker.service"
+  become_user: root
+  copy:
+    remote_src: yes
+    src: "{{ item.src }}"
+    dest: "{{ item.dst }}"
+    owner: root
+    group: root
+  with_items:
     - src: /tmp/isucon11-qualify/extra/envchecker/isucon-env-checker.service
       dst: /etc/systemd/system/isucon-env-checker.service
 

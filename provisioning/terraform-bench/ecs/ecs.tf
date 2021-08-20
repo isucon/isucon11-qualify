@@ -46,7 +46,7 @@ data "aws_acm_certificate" "xi_isucon_dev" {
 
 resource "aws_subnet" "isucon11q-ecs-zone-a" {
   vpc_id                  = data.aws_vpc.isucon11q.id
-  cidr_block              = "192.168.128.0/26"
+  cidr_block              = "192.168.0.128/26"
   availability_zone       = "ap-northeast-1a"
   map_public_ip_on_launch = true
   tags = {
@@ -55,7 +55,7 @@ resource "aws_subnet" "isucon11q-ecs-zone-a" {
 }
 resource "aws_subnet" "isucon11q-ecs-zone-c" {
   vpc_id                  = data.aws_vpc.isucon11q.id
-  cidr_block              = "192.168.192.0/26"
+  cidr_block              = "192.168.0.192/26"
   availability_zone       = "ap-northeast-1c"
   map_public_ip_on_launch = true
   tags = {

@@ -97,7 +97,7 @@ resource "aws_instance" "bench" {
   for_each = toset(local.team_ids)
 
   ami                    = data.aws_ami.bench.id
-  instance_type          = "c5.large"
+  instance_type          = "c4.xlarge"
   key_name               = aws_key_pair.keypair.id
   subnet_id              = aws_subnet.isucon11q-zone-a.id
   private_ip             = "192.168.1.${index(local.team_ids, each.key) + 4}"

@@ -506,7 +506,7 @@ def generate_isu_graph_response(jia_isu_uuid: str, graph_date: datetime) -> list
         if start_index == len(data_points) and graph.start_at >= graph_date:
             start_index = i
         if end_next_index == len(data_points) and graph.start_at > end_time:
-            end_next_index = 1
+            end_next_index = i
 
     filtered_data_points = []
     if start_index < end_next_index:

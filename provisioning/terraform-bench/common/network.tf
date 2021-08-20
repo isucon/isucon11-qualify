@@ -105,7 +105,7 @@ resource "aws_security_group_rule" "isucon11q-ecs-jiaapi-mock" {
   from_port         = 5000
   to_port           = 5000
   protocol          = "tcp"
-  cidr_blocks       = ["192.168.128.0/25"]
+  cidr_blocks       = ["192.168.0.0/16"]
   security_group_id = aws_security_group.isucon11q-ecs.id
 }
 
@@ -150,6 +150,7 @@ resource "aws_security_group_rule" "isucon11q-ecs-lb-egress" {
 ### vpc peering
 
 data "aws_vpc" "isucon11-portal" {
+  id = "vpc-04f36e0596c6daf7f"
   filter {
     name   = "tag:Project"
     values = ["portal"]
@@ -162,10 +163,7 @@ data "aws_route_table" "isucon11-portal" {
   }
 }
 data "aws_security_group" "isucon11-portal" {
-  filter {
-    name   = "tag:Name"
-    values = ["isucon11q-ecs"]
-  }
+  name = "elb-http"
 }
 
 resource "aws_vpc_peering_connection" "isucon11q-and-isucon11-portal" {
