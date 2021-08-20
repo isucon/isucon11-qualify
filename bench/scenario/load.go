@@ -913,12 +913,7 @@ func findBadIsuState(conditions service.GetIsuConditionResponseArray) (model.Isu
 
 // 確率で signout して再度ログインするシナリオ。全てのシナリオの最後に確率で発生する
 func signoutScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User) {
-	isSuccess := signoutInfinityRetry(ctx, user.Agent, step)
-	if !isSuccess {
-		return
-	}
-
-	isSuccess = getMeInfinityRetry(ctx, user, step)
+	isSuccess := signoutInfinityRetry(ctx, user, step)
 	if !isSuccess {
 		return
 	}
@@ -986,40 +981,23 @@ func postIsuInfinityRetry(ctx context.Context, a *agent.Agent, req service.PostI
 }
 
 // 返り値が false のときは常に ctx.Done
-func signoutInfinityRetry(ctx context.Context, a *agent.Agent, step *isucandar.BenchmarkStep) bool {
+func signoutInfinityRetry(ctx context.Context, user *model.User, step *isucandar.BenchmarkStep) bool {
 	for {
 		select {
 		case <-ctx.Done():
 			return false
 		default:
 		}
-		res, err := signoutAction(ctx, a)
+		res, err := signoutAction(ctx, user.Agent)
 		if err != nil {
 			if res != nil && res.StatusCode == http.StatusUnauthorized {
 				// 前回の signout がタイムアウトとかで失敗だけど backend 的には成功していた時
-				return true
+			} else {
+				addErrorWithContext(ctx, step, err)
+				continue
 			}
-			addErrorWithContext(ctx, step, err)
-			continue
 		}
-		return true
-	}
-}
-
-// 返り値が false のときは常に ctx.Done
-func getMeInfinityRetry(ctx context.Context, user *model.User, step *isucandar.BenchmarkStep) bool {
-	for {
-		select {
-		case <-ctx.Done():
-			return false
-		default:
-		}
-		me, res, err := getMeAction(ctx, user.Agent)
-		if err != nil {
-			addErrorWithContext(ctx, step, err)
-			continue
-		}
-		err = verifyMe(user.UserID, res, me)
+		_, _, err = getMeErrorAction(ctx, user.Agent)
 		if err != nil {
 			addErrorWithContext(ctx, step, err)
 			continue
