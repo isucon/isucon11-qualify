@@ -8,8 +8,6 @@ require 'mysql2-cs-bind'
 
 module Isucondition
   class App < Sinatra::Base
-    set :protection, false
-
     configure :development do
       require 'sinatra/reloader'
       register Sinatra::Reloader
