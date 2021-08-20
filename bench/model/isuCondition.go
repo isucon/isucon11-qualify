@@ -114,6 +114,20 @@ func (ia *IsuConditionArray) Back() *IsuCondition {
 	return iter.Prev()
 }
 
+func (ia *IsuConditionArray) Length(filter ConditionLevel) int {
+	length := 0
+	if (filter & ConditionLevelInfo) != 0 {
+		length += len(ia.Info)
+	}
+	if (filter & ConditionLevelWarning) != 0 {
+		length += len(ia.Warning)
+	}
+	if (filter & ConditionLevelCritical) != 0 {
+		length += len(ia.Critical)
+	}
+	return length
+}
+
 // IsuConditionArrayは、後ろの方が新しい
 // UpperBound は IsuConditionArray から特定の時間「より新しい」最も古い(手前の)コンディションを指すイテレータを返す
 func (ia *IsuConditionArray) UpperBound(filter ConditionLevel, targetTimestamp int64) IsuConditionArrayIterator {

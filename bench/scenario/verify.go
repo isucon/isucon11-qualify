@@ -910,6 +910,12 @@ func verifyPrepareGraph(res *http.Response, targetUser *model.User, targetIsuUUI
 					return errorMismatch(res, "GraphのTimestampデータが正しくありません")
 				}
 			}
+
+			expected := baseIter.Prev()
+			if expected != nil && graphOne.StartAt <= expected.TimestampUnix {
+				return errorMismatch(res, "初期データが欠損しています")
+			}
+
 			return nil
 		}(); err != nil {
 			return err
