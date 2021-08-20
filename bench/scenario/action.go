@@ -16,6 +16,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
@@ -738,10 +739,7 @@ func BrowserAccessIndexHtml(ctx context.Context, user AgentWithStaticCache, rpat
 	if err != nil {
 		return []error{failure.NewError(ErrHTTP, err)}
 	}
-	// index.html の hash 検証
-	if err := errorAssetChecksum(req, res, user, "/index.html"); err != nil {
-		return []error{err}
-	}
+	res.Body.Close()
 
 	return nil
 }
@@ -754,11 +752,6 @@ func BrowserAccess(ctx context.Context, user AgentWithStaticCache, rpath string,
 	res, err := AgentStaticDo(ctx, user, req, "/index.html")
 	if err != nil {
 		return []error{failure.NewError(ErrHTTP, err)}
-	}
-	// index.html の hash 検証
-	err = errorAssetChecksum(req, res, user, "/index.html")
-	if err != nil {
-		return []error{err}
 	}
 
 	// index.html で取りに行っているはずの assets の取得
@@ -793,6 +786,7 @@ func AgentStaticDo(ctx context.Context, user AgentWithStaticCache, req *http.Req
 }
 
 func getAssets(ctx context.Context, user AgentWithStaticCache, resIndex *http.Response, page PageType) []error {
+	defer resIndex.Body.Close()
 	errs := []error{}
 
 	faviconSvg := resourcesMap["/assets/favicon.svg"]
@@ -803,18 +797,68 @@ func getAssets(ctx context.Context, user AgentWithStaticCache, resIndex *http.Re
 	vendorJs := resourcesMap["/assets/vendor.js"]
 
 	var requireAssets []string
+	var logoAssets []string
 	switch page {
 	case HomePage, IsuDetailPage, IsuConditionPage, IsuGraphPage, RegisterPage:
-		requireAssets = []string{faviconSvg, indexCss, vendorJs, indexJs, logoWhite}
+		requireAssets = []string{faviconSvg, indexCss, vendorJs, indexJs}
+		logoAssets = []string{logoWhite}
 	case TrendPage:
-		requireAssets = []string{faviconSvg, indexCss, vendorJs, indexJs, logoOrange, logoWhite}
+		requireAssets = []string{faviconSvg, indexCss, vendorJs, indexJs}
+		logoAssets = []string{logoOrange, logoWhite}
 	default:
 		logger.AdminLogger.Panicf("意図していないpage(%d)のResourceCheckを行っています。(path: %s)", page, resIndex.Request.URL.Path)
+	}
+	requireAssetsPath := map[string]struct{}{}
+	for _, asset := range requireAssets {
+		requireAssetsPath[joinURL(resIndex.Request.URL, asset)] = struct{}{}
+	}
+
+	htmlBody, err := io.ReadAll(resIndex.Body)
+	if err != nil {
+		return []error{failure.NewError(ErrHTTP, err)}
+	}
+	resIndex.Body = ioutil.NopCloser(bytes.NewReader(htmlBody))
+	resources, err := user.GetAgent().ProcessHTML(ctx, resIndex, ioutil.NopCloser(bytes.NewReader(htmlBody)))
+	if err != nil {
+		return []error{failure.NewError(ErrHTTP, err)}
+	}
+	// resourceの検証
+	actualResource := map[string]struct{}{}
+	for resUrl, res := range resources {
+		if res.Error != nil {
+			errs = append(errs, failure.NewError(ErrHTTP, res.Error))
+			continue
+		}
+		if _, ok := requireAssetsPath[resUrl]; !ok {
+			errs = append(errs, errorMismatch(res.Response, "意図しないリソース(%s)の取得が実行されました", resUrl))
+			continue
+		}
+		if _, ok := actualResource[resUrl]; ok {
+			errs = append(errs, errorMismatch(res.Response, "html内でリソース(%s)を複数回取得しています", resUrl))
+			continue
+		}
+		actualResource[resUrl] = struct{}{}
+		err = errorAssetChecksum(res.Request, res.Response, user, res.Request.URL.Path)
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	// htmlから必要なresourceが取得可能かチェック
+	haveAllResources := true
+	for assetsUrl := range requireAssetsPath {
+		if _, ok := resources[assetsUrl]; !ok {
+			haveAllResources = false
+			break
+		}
+	}
+	if !haveAllResources {
+		errs = append(errs, errorMismatch(resIndex, "取得するリソースが足りません"))
 	}
 
 	wg := &sync.WaitGroup{}
 	errsMx := sync.Mutex{}
-	for _, asset := range requireAssets {
+	for _, asset := range logoAssets {
 		wg.Add(1)
 		go func(path string) {
 			defer wg.Done()
@@ -839,5 +883,6 @@ func getAssets(ctx context.Context, user AgentWithStaticCache, resIndex *http.Re
 		}(asset)
 	}
 	wg.Wait()
+
 	return errs
 }
