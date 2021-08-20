@@ -61,7 +61,7 @@ var (
 	showVersion         bool
 
 	initializeTimeout time.Duration
-	reporter benchrun.Reporter
+	reporter          benchrun.Reporter
 )
 
 func getEnv(key, defaultValue string) string {
@@ -167,7 +167,7 @@ func checkError(err error) (critical bool, timeout bool, deduction bool) {
 	return scenario.CheckError(err)
 }
 
-func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish bool) bool {
+func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish bool, writeScoreToAdminLogger bool) bool {
 	defer func() {
 		if finish {
 			logger.AdminLogger.Println("<=== sendResult finish")
@@ -197,7 +197,9 @@ func sendResult(s *scenario.Scenario, result *isucandar.BenchmarkResult, finish 
 		return tagCountPair[i].Tag < tagCountPair[j].Tag
 	})
 	for _, p := range tagCountPair {
-		logger.AdminLogger.Printf("SCORE: %s: %d", p.Tag, p.Count)
+		if writeScoreToAdminLogger {
+			logger.AdminLogger.Printf("SCORE: %s: %d", p.Tag, p.Count)
+		}
 		promTags = append(promTags, fmt.Sprintf("xsuconbench_score_breakdown{name=\"%s\"} %d\n", strings.TrimRight(string(p.Tag), " "), p.Count))
 	}
 	if finish {
@@ -418,16 +420,18 @@ func main() {
 		default:
 		}
 
+		count := 0
 		for {
 			// 途中経過を3秒毎に送信
 			timer := time.After(3 * time.Second)
-			sendResult(s, step.Result(), false)
+			sendResult(s, step.Result(), false, count%5 == 0)
 
 			select {
 			case <-timer:
 			case <-ctx.Done():
 				return nil
 			}
+			count++
 		}
 	})
 
@@ -435,7 +439,7 @@ func main() {
 
 	wg.Wait()
 
-	if !sendResult(s, result, true) && exitStatusOnFail {
+	if !sendResult(s, result, true, true) && exitStatusOnFail {
 		os.Exit(1)
 	}
 }

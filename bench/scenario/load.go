@@ -344,6 +344,7 @@ func (s *Scenario) loadViewer(ctx context.Context, step *isucandar.BenchmarkStep
 			continue
 		}
 		atomic.AddInt32(&viewUpdatedTrendCounter, int32(updatedCount))
+		step.AddScore(ScoreViewerLoop)
 	}
 }
 
