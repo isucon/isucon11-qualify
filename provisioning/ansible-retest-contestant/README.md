@@ -27,6 +27,13 @@ ansible-retest-contestant
     * isucon-env-checker は必要に応じてビルドを行う
     * 配置してない場合、task は fail されます
 
+```
+cp -a ../../extra/envchecker .
+pushd envchecker/isucon-env-checker
+env GOOS=linux GOARCH=amd64 go build
+popd
+```
+
 * Ansible の実行
 
 ```
