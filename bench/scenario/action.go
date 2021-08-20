@@ -280,7 +280,7 @@ func authActionWithForbiddenJWT(ctx context.Context, a *agent.Agent, invalidJWT 
 func signoutAction(ctx context.Context, a *agent.Agent) (*http.Response, error) {
 	res, err := reqNoContentResNoContent(ctx, a, http.MethodPost, "/api/signout", []int{http.StatusOK})
 	if err != nil {
-		return nil, err
+		return res, err
 	}
 	return res, nil
 }

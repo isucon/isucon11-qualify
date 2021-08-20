@@ -913,23 +913,9 @@ func findBadIsuState(conditions service.GetIsuConditionResponseArray) (model.Isu
 
 // 確率で signout して再度ログインするシナリオ。全てのシナリオの最後に確率で発生する
 func signoutScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User) {
-	_, err := signoutAction(ctx, user.Agent)
-	if err != nil {
-		addErrorWithContext(ctx, step, err)
-		// MEMO: ここで実は signout に成功していました、みたいな状況だと以降のこのユーザーループが死ぬがそれはユーザー責任とする
+	isSuccess := signoutInfinityRetry(ctx, user, step)
+	if !isSuccess {
 		return
-	}
-
-	_, hres, err := getMeErrorAction(ctx, user.Agent)
-	if err != nil {
-		addErrorWithContext(ctx, step, err)
-		// return するとこのあとのログイン必須なシナリオが回らないから return はしない
-	} else {
-		hres.Body.Close()
-		if hres.StatusCode != http.StatusUnauthorized {
-			addErrorWithContext(ctx, step, errorInvalidStatusCode(hres, http.StatusUnauthorized))
-			// return するとこのあとのログイン必須なシナリオが回らないから return はしない
-		}
 	}
 
 	user.Agent.ClearCookie()
@@ -937,11 +923,9 @@ func signoutScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *m
 	user.ClearStaticCache()
 
 	// signout したらトップページに飛ぶ(MEMO: 初期状態だと trend おもすぎて backend をころしてしまうかも)
-	if errs := browserGetLandingPageIgnoreAction(ctx, user); errs != nil {
-		for _, err := range errs {
-			addErrorWithContext(ctx, step, err)
-		}
-		// return するとこのあとのログイン必須なシナリオが回らないから return はしない
+	isSuccess = browserGetLandingPageIgnoreInfinityRetry(ctx, user, step)
+	if !isSuccess {
+		return
 	}
 
 	authInfinityRetry(ctx, user, user.UserID, step)
@@ -993,6 +977,47 @@ func postIsuInfinityRetry(ctx context.Context, a *agent.Agent, req service.PostI
 			continue
 		}
 		return isu, res
+	}
+}
+
+// 返り値が false のときは常に ctx.Done
+func signoutInfinityRetry(ctx context.Context, user *model.User, step *isucandar.BenchmarkStep) bool {
+	for {
+		select {
+		case <-ctx.Done():
+			return false
+		default:
+		}
+		_, err := reqNoContentResNoContent(ctx, user.Agent, http.MethodPost, "/api/signout", []int{http.StatusOK, http.StatusUnauthorized})
+		if err != nil {
+			addErrorWithContext(ctx, step, err)
+			continue
+		}
+		_, _, err = getMeErrorAction(ctx, user.Agent)
+		if err != nil {
+			addErrorWithContext(ctx, step, err)
+			continue
+		}
+		return true
+	}
+}
+
+// 返り値が false のときは常に ctx.Done
+func browserGetLandingPageIgnoreInfinityRetry(ctx context.Context, user *model.User, step *isucandar.BenchmarkStep) bool {
+	for {
+		select {
+		case <-ctx.Done():
+			return false
+		default:
+		}
+		errs := browserGetLandingPageIgnoreAction(ctx, user)
+		if len(errs) != 0 {
+			for _, err := range errs {
+				addErrorWithContext(ctx, step, err)
+			}
+			continue
+		}
+		return true
 	}
 }
 
