@@ -6,19 +6,17 @@ import "github.com/isucon/isucandar/score"
 
 const (
 	ScoreStartBenchmark        score.ScoreTag = "00.StartBenchmark       "
-	ScoreGraphExcellent        score.ScoreTag = "01.GraphExcellent       "
-	ScoreGraphGood             score.ScoreTag = "02.GraphGood            "
-	ScoreGraphNormal           score.ScoreTag = "03.GraphNormal          "
-	ScoreGraphBad              score.ScoreTag = "04.GraphBad             "
-	ScoreGraphWorst            score.ScoreTag = "05.GraphWorst           "
-	ScoreTodayGraphExcellent   score.ScoreTag = "06.TodayGraphExcellent  "
-	ScoreTodayGraphGood        score.ScoreTag = "07.TodayGraphGood       "
-	ScoreTodayGraphNormal      score.ScoreTag = "08.TodayGraphNormal     "
-	ScoreTodayGraphBad         score.ScoreTag = "09.TodayGraphBad        "
-	ScoreTodayGraphWorst       score.ScoreTag = "10.TodayGraphWorst      "
-	ScoreReadInfoCondition     score.ScoreTag = "11.ReadInfoCondition    "
-	ScoreReadWarningCondition  score.ScoreTag = "12.ReadWarningCondition "
-	ScoreReadCriticalCondition score.ScoreTag = "13.ReadCriticalCondition"
+	ScoreGraphGood             score.ScoreTag = "01.GraphGood            "
+	ScoreGraphNormal           score.ScoreTag = "02.GraphNormal          "
+	ScoreGraphBad              score.ScoreTag = "03.GraphBad             "
+	ScoreGraphWorst            score.ScoreTag = "04.GraphWorst           "
+	ScoreTodayGraphGood        score.ScoreTag = "05.TodayGraphGood       "
+	ScoreTodayGraphNormal      score.ScoreTag = "06.TodayGraphNormal     "
+	ScoreTodayGraphBad         score.ScoreTag = "07.TodayGraphBad        "
+	ScoreTodayGraphWorst       score.ScoreTag = "08.TodayGraphWorst      "
+	ScoreReadInfoCondition     score.ScoreTag = "09.ReadInfoCondition    "
+	ScoreReadWarningCondition  score.ScoreTag = "10.ReadWarningCondition "
+	ScoreReadCriticalCondition score.ScoreTag = "11.ReadCriticalCondition"
 	ScoreIsuInitialize         score.ScoreTag = "_1.IsuInitialize        " //scoreが0のもの
 	ScoreNormalUserInitialize  score.ScoreTag = "_2.NormalUserInitialize " //全てのIsuInitializeが終わってはじめて+1
 	ScoreViewerInitialize      score.ScoreTag = "_3.ViewerInitialize     "
@@ -32,12 +30,10 @@ const (
 
 func SetScoreTags(scoreTable score.ScoreTable) {
 	setScoreTag(scoreTable, ScoreStartBenchmark)
-	setScoreTag(scoreTable, ScoreGraphExcellent)
 	setScoreTag(scoreTable, ScoreGraphGood)
 	setScoreTag(scoreTable, ScoreGraphNormal)
 	setScoreTag(scoreTable, ScoreGraphBad)
 	setScoreTag(scoreTable, ScoreGraphWorst)
-	setScoreTag(scoreTable, ScoreTodayGraphExcellent)
 	setScoreTag(scoreTable, ScoreTodayGraphGood)
 	setScoreTag(scoreTable, ScoreTodayGraphNormal)
 	setScoreTag(scoreTable, ScoreTodayGraphBad)
