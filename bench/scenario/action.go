@@ -530,7 +530,8 @@ func postIsuConditionErrorAction(ctx context.Context, httpClient http.Client, ta
 func getIsuConditionAction(ctx context.Context, a *agent.Agent, id string, req service.GetIsuConditionRequest) (service.GetIsuConditionResponseArray, *http.Response, error) {
 	reqUrl := getIsuConditionRequestParams(fmt.Sprintf("/api/condition/%s", id), req)
 	conditions := service.GetIsuConditionResponseArray{}
-	res, err := reqJSONResGojayArray(ctx, a, http.MethodGet, reqUrl, nil, &conditions, []int{http.StatusOK})
+	//res, err := reqJSONResGojayArray(ctx, a, http.MethodGet, reqUrl, nil, &conditions, []int{http.StatusOK})
+	res, err := reqJSONResJSON(ctx, a, http.MethodGet, reqUrl, nil, &conditions, []int{http.StatusOK})
 	if err != nil {
 		return nil, nil, err
 	}

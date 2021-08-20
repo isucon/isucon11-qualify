@@ -41,7 +41,8 @@ func (t *TrendHash) getObj(res []byte) (service.GetTrendResponse, error) {
 	}
 
 	obj := service.GetTrendResponse{}
-	err := gojay.UnmarshalJSONArray(res, &obj)
+	//err := gojay.UnmarshalJSONArray(res, &obj)
+	err := json.Unmarshal(res, &obj)
 	if err != nil {
 		return nil, err
 	}
