@@ -55,13 +55,6 @@
     - etc/systemd/system/isucondition.ruby.service
     - etc/systemd/system/isucondition.rust.service
 
-- name: "roles/contestant/tasks/isucondition: Enable isucondition.go.service"
-  become_user: root
-  systemd:
-    daemon_reload: "yes"
-    name: "isucondition.go.service"
-    enabled: "yes"
-
 - name: "roles/contestant/tasks/isucondition: Deploy isucon11 initial-data"
   copy:
     src: "initial-data.sql"
