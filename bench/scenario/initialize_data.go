@@ -25,14 +25,14 @@ func (s *Scenario) InitializeData(ctx context.Context) {
 	}
 
 	for i, _ := range users {
-		user := users[i]
+		user := &users[i]
 
 		//var userConditions []model.IsuCondition
 
 		for key, _ := range user.IsuListByID {
 			// isu の初期化
 			isu := user.IsuListByID[key]
-			model.NewIsuRawForInitData(isu, &user, key)
+			model.NewIsuRawForInitData(isu, user, key)
 			//PosterForInitData(ctx, streamsForPoster)
 
 			// isu.ID から model.TrendCondition を取得できるようにする (GET /trend 用)
@@ -54,7 +54,7 @@ func (s *Scenario) InitializeData(ctx context.Context) {
 		// }
 
 		user.Type = model.UserTypeNormal
-		s.normalUsers = append(s.normalUsers, &user)
+		s.normalUsers = append(s.normalUsers, user)
 	}
 
 	//初期データを登録
