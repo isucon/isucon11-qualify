@@ -4,8 +4,8 @@
     - aws
   become_user: root
   copy:
-    src: "var/lib/cloud/scripts/per-instance/generate-env_aws.sh"
-    dest: "/var/lib/cloud/scripts/per-instance/generate-env.sh"
-    owner: "root"
-    group: "root"
+    src: "home/isucon/bin/generate-env_aws.sh"
+    dest: "/home/isucon/bin/generate-env.sh"
+    owner: "isucon"
+    group: "isucon"
     mode: "0755"
