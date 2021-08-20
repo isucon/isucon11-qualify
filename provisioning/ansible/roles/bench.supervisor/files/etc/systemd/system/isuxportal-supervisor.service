@@ -24,6 +24,8 @@ EnvironmentFile=/home/isucon/isuxportal-supervisor.env
 AmbientCapabilities=CAP_NET_BIND_SERVICE
 CapabilityBoundingSet=CAP_NET_BIND_SERVICE
 
+# bench の public address を取得して EnvironmentFile に追記 or 更新する
+ExecStartPre=/home/isucon/bin/generate-env.sh
 # bench 差し替えを graceful に行うための設定
 ExecStartPre=-/bin/mv /tmp/isuxportal-supervisor /home/isucon/bin/isuxportal-supervisor
 ExecStartPre=-/bin/mv /tmp/bench /home/isucon/bench/bench
