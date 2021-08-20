@@ -195,6 +195,8 @@
         'sudo rm -rf /dev/shm/files',
         'sudo rm -rf /dev/shm/files-generated',
         'sudo rm -rf /dev/shm/ansible',
+        // Rmdir deployed by ansible
+        'sudo rm -rf /tmp/isucon11-qualify',
         // Cleanup cloud-init except scripts
         'sudo mv /var/lib/cloud/scripts /tmp/cloud-init.scripts',
         'sudo rm -rf /var/lib/cloud/*',
