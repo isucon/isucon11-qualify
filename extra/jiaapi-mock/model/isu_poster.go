@@ -77,10 +77,17 @@ func (m *IsuConditionPoster) KeepPosting() {
 		}
 
 		func() {
-			resp, err := http.Post(
-				targetURL.String(), "application/json",
+			httpReq, err := http.NewRequest(
+				http.MethodPost, targetURL.String(),
 				bytes.NewBuffer(conditionsJSON),
 			)
+			if err != nil {
+				log.Error(err)
+				return // goto next loop
+			}
+			httpReq.Header.Set("Content-Type", "application/json")
+			httpReq.Header.Set("User-Agent", "JIA-Members-Client-MOCK/1.0")
+			resp, err := http.DefaultClient.Do(httpReq)
 			if err != nil {
 				log.Error(err)
 				return // goto next loop
