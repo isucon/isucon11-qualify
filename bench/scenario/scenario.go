@@ -12,6 +12,7 @@ import (
 
 	"github.com/isucon/isucandar"
 	"github.com/isucon/isucandar/agent"
+	"github.com/isucon/isucandar/random/useragent"
 	"github.com/isucon/isucon11-qualify/bench/logger"
 	"github.com/isucon/isucon11-qualify/bench/model"
 	"github.com/isucon/isucon11-qualify/bench/random"
@@ -86,7 +87,7 @@ func (s *Scenario) WithInitializeTimeout(t time.Duration) *Scenario {
 }
 
 func (s *Scenario) NewAgent(opts ...agent.AgentOption) (*agent.Agent, error) {
-	opts = append(opts, agent.WithBaseURL(s.BaseURL))
+	opts = append(opts, agent.WithBaseURL(s.BaseURL), agent.WithUserAgent(useragent.UserAgent()))
 	return agent.NewAgent(opts...)
 }
 
@@ -144,14 +145,12 @@ func (s *Scenario) NewUser(ctx context.Context, step *isucandar.BenchmarkStep, a
 	user.Agent = a
 
 	//backendにpostする
-	go func() {
-		// 登録済みユーザーは trend に興味がないからリクエストを待たない
-		if errs := browserGetLandingPageIgnoreAction(ctx, user); len(errs) != 0 {
-			for _, err := range errs {
-				addErrorWithContext(ctx, step, err)
-			}
+	// 登録済みユーザーは trend に興味がないからリクエストを待たない
+	if errs := browserGetLandingPageIgnoreAction(ctx, user); len(errs) != 0 {
+		for _, err := range errs {
+			addErrorWithContext(ctx, step, err)
 		}
-	}()
+	}
 	_, errs := authAction(ctx, user, user.UserID)
 	for _, err := range errs {
 		addErrorWithContext(ctx, step, err)
@@ -341,12 +340,18 @@ func (s *Scenario) GetIsuFromID(id int) (*model.Isu, bool) {
 	return isu, ok
 }
 
+func (s *Scenario) LenOfIsuFromId() int {
+	s.isuFromIDMutex.RLock()
+	defer s.isuFromIDMutex.RUnlock()
+	return len(s.isuFromID)
+}
+
 func (s *Scenario) GetRandomActivatedIsu(randEngine *rand.Rand) *model.Isu {
-	targetCount := randEngine.Intn(len(s.isuFromID))
 	var isu *model.Isu
 
 	s.isuFromIDMutex.RLock()
 	defer s.isuFromIDMutex.RUnlock()
+	targetCount := randEngine.Intn(len(s.isuFromID))
 	for _, isuP := range s.isuFromID {
 		if !isuP.IsNoPoster() {
 			isu = isuP

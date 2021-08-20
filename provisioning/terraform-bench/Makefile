@@ -1,103 +1,120 @@
 .PHONY: all
 all: init apply
 
-.PHONY: init init-common init-zone-a init-zone-c init-zone-d
-init: init-common init-zone-a init-zone-d init-zone-c
+.PHONY: init init-common init-zone-a init-zone-c init-zone-d init-ecs
+init: init-common init-zone-a init-zone-c init-zone-d init-ecs
 
 init-common: common/aws.tf common/backend.tf common/versions.tf
 	terraform -chdir=common init
-init-zone-a: zones/a/aws.tf zones/a/backend.tf zones/a/versions.tf zones/a/teams.json
-	terraform -chdir=zones/a init
-init-zone-c: zones/c/aws.tf zones/c/backend.tf zones/c/versions.tf zones/c/teams.json
-	terraform -chdir=zones/c init
-init-zone-d: zones/d/aws.tf zones/d/backend.tf zones/d/versions.tf zones/d/teams.json
-	 terraform -chdir=zones/d init
+init-zone-a: ec2/zone-a/aws.tf ec2/zone-a/backend.tf ec2/zone-a/versions.tf ec2/zone-a/teams.json
+	terraform -chdir=ec2/zone-a init
+init-zone-c: ec2/zone-c/aws.tf ec2/zone-c/backend.tf ec2/zone-c/versions.tf ec2/zone-c/teams.json
+	terraform -chdir=ec2/zone-c init
+init-zone-d: ec2/zone-d/aws.tf ec2/zone-d/backend.tf ec2/zone-d/versions.tf ec2/zone-d/teams.json
+	 terraform -chdir=ec2/zone-d init
+init-ecs: ecs/aws.tf ecs/backend.tf ecs/versions.tf
+	@$(call _validate_envvars)
+	terraform -chdir=ecs init \
 
-.PHONY: apply apply-common apply-zone-a apply-zone-c apply-zone-d
-apply: apply-common apply-zone-a apply-zone-c apply-zone-d
+.PHONY: apply apply-common apply-zone-a apply-zone-c apply-zone-d apply-ecs
+apply: apply-common apply-zone-a apply-zone-c apply-zone-d apply-ecs
 
 apply-common: common/aws.tf common/backend.tf common/versions.tf
 	terraform -chdir=common apply
-apply-zone-a: zones/a/teams.json zones/a/aws.tf zones/a/backend.tf zones/a/versions.tf
+apply-zone-a: ec2/zone-a/teams.json ec2/zone-a/aws.tf ec2/zone-a/backend.tf ec2/zone-a/versions.tf
 	@$(call _validate_envvars)
-	terraform -chdir=zones/a apply \
+	terraform -chdir=ec2/zone-a apply \
 		-var="git_tag=$(GIT_TAG)" \
 		-var="isuxportal_supervisor_endpoint_url=$(ISUXPORTAL_SUPERVISOR_ENDPOINT_URL)" \
 		-var="isuxportal_supervisor_token=$(ISUXPORTAL_SUPERVISOR_TOKEN)"
-apply-zone-c: zones/c/teams.json zones/c/aws.tf zones/c/backend.tf zones/c/versions.tf
+apply-zone-c: ec2/zone-c/teams.json ec2/zone-c/aws.tf ec2/zone-c/backend.tf ec2/zone-c/versions.tf
 	@$(call _validate_envvars)
-	terraform -chdir=zones/c apply \
+	terraform -chdir=ec2/zone-c apply \
 		-var="git_tag=$(GIT_TAG)" \
 		-var="isuxportal_supervisor_endpoint_url=$(ISUXPORTAL_SUPERVISOR_ENDPOINT_URL)" \
 		-var="isuxportal_supervisor_token=$(ISUXPORTAL_SUPERVISOR_TOKEN)"
-apply-zone-d: zones/d/teams.json zones/d/aws.tf zones/d/backend.tf zones/d/versions.tf
+apply-zone-d: ec2/zone-d/teams.json ec2/zone-d/aws.tf ec2/zone-d/backend.tf ec2/zone-d/versions.tf
 	@$(call _validate_envvars)
-	terraform -chdir=zones/d apply \
+	terraform -chdir=ec2/zone-d apply \
 		-var="git_tag=$(GIT_TAG)" \
 		-var="isuxportal_supervisor_endpoint_url=$(ISUXPORTAL_SUPERVISOR_ENDPOINT_URL)" \
 		-var="isuxportal_supervisor_token=$(ISUXPORTAL_SUPERVISOR_TOKEN)"
+apply-ecs: ecs/aws.tf ecs/backend.tf ecs/versions.tf
+	@$(call _validate_envvars)
+	terraform -chdir=ecs apply
 
-zones/a/teams.json:
-	cat teams.json | jq -r ".zone_a" > zones/a/teams.json
-zones/c/teams.json:
-	cat teams.json | jq -r ".zone_c" > zones/c/teams.json
-zones/d/teams.json:
-	cat teams.json | jq -r ".zone_b" > zones/d/teams.json
+ec2/zone-a/teams.json:
+	cat teams.json | jq -r ".zone_a" > ec2/zone-a/teams.json
+ec2/zone-c/teams.json:
+	cat teams.json | jq -r ".zone_c" > ec2/zone-c/teams.json
+ec2/zone-d/teams.json:
+	cat teams.json | jq -r ".zone_d" > ec2/zone-d/teams.json
 
 common/aws.tf:
-	cp base/aws.tf common/aws.tf
-zones/a/aws.tf:
-	cp base/aws.tf zones/a/aws.tf
-zones/c/aws.tf:
-	cp base/aws.tf zones/c/aws.tf
-zones/d/aws.tf:
-	cp base/aws.tf zones/d/aws.tf
+	cp .base/aws.tf common/aws.tf
+ec2/zone-a/aws.tf:
+	cp .base/aws.tf ec2/zone-a/aws.tf
+ec2/zone-c/aws.tf:
+	cp .base/aws.tf ec2/zone-c/aws.tf
+ec2/zone-d/aws.tf:
+	cp .base/aws.tf ec2/zone-d/aws.tf
+ecs/aws.tf:
+	cp .base/aws.tf ecs/aws.tf
 
 common/backend.tf:
-	cat base/backend.tf | sed -e 's/__KIND__/common/' > common/backend.tf
-zones/a/backend.tf:
-	cat base/backend.tf | sed -e 's/__KIND__/zone-a/' > zones/a/backend.tf
-zones/c/backend.tf:
-	cat base/backend.tf | sed -e 's/__KIND__/zone-c/' > zones/c/backend.tf
-zones/d/backend.tf:
-	cat base/backend.tf | sed -e 's/__KIND__/zone-d/' > zones/d/backend.tf
+	cat .base/backend.tf | sed -e 's/__KIND__/common/' > common/backend.tf
+ec2/zone-a/backend.tf:
+	cat .base/backend.tf | sed -e 's/__KIND__/zone-a/' > ec2/zone-a/backend.tf
+ec2/zone-c/backend.tf:
+	cat .base/backend.tf | sed -e 's/__KIND__/zone-c/' > ec2/zone-c/backend.tf
+ec2/zone-d/backend.tf:
+	cat .base/backend.tf | sed -e 's/__KIND__/zone-d/' > ec2/zone-d/backend.tf
+ecs/backend.tf:
+	cat .base/backend.tf | sed -e 's/__KIND__/ecs/' > ecs/backend.tf
 
 common/versions.tf:
-	cp base/versions.tf common/versions.tf
-zones/a/versions.tf:
-	cp base/versions.tf zones/a/versions.tf
-zones/c/versions.tf:
-	cp base/versions.tf zones/c/versions.tf
-zones/d/versions.tf:
-	cp base/versions.tf zones/d/versions.tf
+	cp .base/versions.tf common/versions.tf
+ec2/zone-a/versions.tf:
+	cp .base/versions.tf ec2/zone-a/versions.tf
+ec2/zone-c/versions.tf:
+	cp .base/versions.tf ec2/zone-c/versions.tf
+ec2/zone-d/versions.tf:
+	cp .base/versions.tf ec2/zone-d/versions.tf
+ecs/versions.tf:
+	cp .base/versions.tf ecs/versions.tf
 
-.PHONY: destroy destroy-common destroy-zone-a destroy-zone-d destroy-zone-c
-destroy: destroy-zone-a destroy-zone-c destroy-zone-d destroy-common
+.PHONY: destroy destroy-common destroy-zone-a destroy-zone-d destroy-zone-c destroy-ecs
+destroy: destroy-ecs destroy-zone-a destroy-zone-c destroy-zone-d destroy-common
 
 destroy-common:
 	terraform -chdir=common destroy
 destroy-zone-a:
-	terraform -chdir=zones/a destroy \
+	terraform -chdir=ec2/zone-a destroy \
 		-var="git_tag=$(GIT_TAG)" \
 		-var="isuxportal_supervisor_endpoint_url=" \
 		-var="isuxportal_supervisor_token="
 destroy-zone-c:
-	terraform -chdir=zones/c destroy \
+	terraform -chdir=ec2/zone-c destroy \
 		-var="git_tag=$(GIT_TAG)" \
 		-var="isuxportal_supervisor_endpoint_url=" \
 		-var="isuxportal_supervisor_token="
 destroy-zone-d:
-	terraform -chdir=zones/d destroy \
+	terraform -chdir=ec2/zone-d destroy \
 		-var="git_tag=$(GIT_TAG)" \
 		-var="isuxportal_supervisor_endpoint_url=" \
 		-var="isuxportal_supervisor_token="
+destroy-ecs:
+	terraform -chdir=ecs destroy
 
 .PHONY: cleanup
 cleanup:
-	rm -rf zones/{a,c,d}/teams.json
-	rm -rf zones/{a,c,d}/aws.tf
-	rm -rf zones/{a,c,d}/backend.tf
-	rm -rf zones/{a,c,d}/versions.tf
+	rm -rf ecs/aws.tf
+	rm -rf ecs/backend.tf
+	rm -rf ecs/versions.tf
+	rm -rf ec2/zone-{a,c,d}/teams.json
+	rm -rf ec2/zone-{a,c,d}/aws.tf
+	rm -rf ec2/zone-{a,c,d}/backend.tf
+	rm -rf ec2/zone-{a,c,d}/versions.tf
 	rm -rf common/aws.tf
 	rm -rf common/backend.tf
 	rm -rf common/versions.tf

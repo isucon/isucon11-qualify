@@ -6,4 +6,4 @@
   environment:
     PATH: "/home/isucon/.cargo/bin:{{ ansible_env.PATH }}"
   shell: |
-    make build
+    cargo build --locked --release

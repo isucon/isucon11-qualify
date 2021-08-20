@@ -143,18 +143,18 @@ func (s *Scenario) userAdder(ctx context.Context, step *isucandar.BenchmarkStep)
 		}
 
 		if int32(timeoutCount) > TimeoutLimitPerUser*userLoopCountLocal {
-			logger.ContestantLogger.Println("タイムアウト数が上限に達したため、以降負荷レベルは上昇しません")
+			logger.ContestantLogger.Println("タイムアウト数が多いため、サービスの評判が悪くなりました。以降ユーザーは増加しません")
 			break
 		}
 
 		addStep := AddUserStep * userLoopCountLocal
 		addCount := atomic.LoadInt32(&viewUpdatedTrendCounter) / addStep
 		if addCount > 0 {
-			logger.ContestantLogger.Printf("現レベルの負荷へ応答ができているため、ユーザーを%d人追加します", AddUserCount*int(addCount))
+			logger.ContestantLogger.Printf("サービスの評判が良くなり、ユーザーが%d人増えました", AddUserCount*int(addCount))
 			s.AddNormalUser(ctx, step, AddUserCount*int(addCount))
 			atomic.AddInt32(&viewUpdatedTrendCounter, -addStep*addCount)
 		} else {
-			logger.ContestantLogger.Println("ユーザーは追加されませんでした")
+			logger.ContestantLogger.Println("ユーザーは増えませんでした")
 		}
 	}
 }
@@ -260,9 +260,12 @@ func (s *Scenario) loadNormalUser(ctx context.Context, step *isucandar.Benchmark
 			if err != nil {
 				errs = append(errs, err)
 			}
-			err = verifyIsuIcon(targetIsu, isu.Icon, isu.IconStatusCode)
-			if err != nil {
-				errs = append(errs, err)
+			// isu.Icon が nil じゃないときはすでにエラーを追加している
+			if isu.Icon != nil {
+				err = verifyIsuIcon(targetIsu, isu.Icon, isu.IconStatusCode)
+				if err != nil {
+					errs = append(errs, err)
+				}
 			}
 			return errs
 		})
@@ -354,7 +357,7 @@ func (s *Scenario) initNormalUser(ctx context.Context, step *isucandar.Benchmark
 	user := s.NewUser(ctx, step, userAgent, model.UserTypeNormal, isIsuconUser)
 	if user == nil {
 		//logger.AdminLogger.Println("Normal User fail: NewUser")
-		return nil //致命的でないエラー
+		return nil
 	}
 	func() {
 		s.normalUsersMtx.Lock()
@@ -671,7 +674,7 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 	// 最新の condition から、一度見た condition が帰ってくるまで condition のページングをする
 	nowVirtualTime := s.ToVirtualTime(time.Now())
 	// 割り算で切り捨てを発生させている(day単位にしている)
-	virtualToday := trancateTimestampToDate(nowVirtualTime.Unix())
+	virtualToday := trancateTimestampToDate(nowVirtualTime)
 	virtualToday -= OneDay
 
 	graphResponses, errs := getIsuGraphUntilLastViewed(ctx, user, targetIsu, virtualToday)
@@ -694,14 +697,24 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 	// scoreの計算
 	for behindDay, gr := range graphResponses {
 		minTimestampCount := int(^uint(0) >> 1)
-		for _, g := range *gr {
+		// 「今日のグラフ」をリクエストした時刻が 01:00 より前のときのフラグ
+		isTodayGraphOnly1Hour := false
+		for hour, g := range *gr {
 			// 「今日のグラフ」＆「リクエストした時間より先」ならもう minTimestampCount についてカウントしない
 			if behindDay == 0 && nowVirtualTime.Unix() < g.EndAt {
+				// 「今日のグラフ」をリクエストした時刻が 01:00 より前のとき
+				if hour == 0 {
+					isTodayGraphOnly1Hour = true
+				}
 				break
 			}
 			if len(g.ConditionTimestamps) < minTimestampCount {
 				minTimestampCount = len(g.ConditionTimestamps)
 			}
+		}
+		// 「今日のグラフ」をリクエストした時刻が 01:00 より前ならタグをつけずに次のループへ
+		if isTodayGraphOnly1Hour {
+			continue
 		}
 		// 「今日のグラフじゃない」＆「まだ見ていない完成しているグラフ」なら加点( graphResponses がまだ見ていないグラフの集合なのは保証されている)
 		if behindDay != 0 && targetIsu.LastCompletedGraphTime >= virtualToday-(int64(behindDay)*OneDay) {
@@ -713,6 +726,11 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 			// AddScoreはconditionのGETまで待つためここでタグを入れておく
 			scoreTags = append(scoreTags, getTodayGraphScoreTag(minTimestampCount))
 		}
+	}
+
+	// graph の加点分を計算
+	for _, scoreTag := range scoreTags {
+		step.AddScore(scoreTag)
 	}
 
 	// データが入ってるレスポンスから、ランダムで見る condition を選ぶ
@@ -739,17 +757,12 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 		}
 	}
 
-	// graph の加点分を計算
-	for _, scoreTag := range scoreTags {
-		step.AddScore(scoreTag)
-	}
-
 	return true
 }
 
 // unix timeのtimestampをその「日」に切り捨てる
-func trancateTimestampToDate(timestamp int64) int64 {
-	return (timestamp / OneDay) * OneDay
+func trancateTimestampToDate(now time.Time) int64 {
+	return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).Unix()
 }
 
 // 新しい LastCompletedGraphTime を得る。
@@ -900,24 +913,20 @@ func findBadIsuState(conditions service.GetIsuConditionResponseArray) (model.Isu
 
 // 確率で signout して再度ログインするシナリオ。全てのシナリオの最後に確率で発生する
 func signoutScenario(ctx context.Context, step *isucandar.BenchmarkStep, user *model.User) {
-	_, err := signoutAction(ctx, user.Agent)
-	if err != nil {
-		addErrorWithContext(ctx, step, err)
-		// MEMO: ここで実は signout に成功していました、みたいな状況だと以降のこのユーザーループが死ぬがそれはユーザー責任とする
+	isSuccess := signoutInfinityRetry(ctx, user, step)
+	if !isSuccess {
 		return
 	}
+
+	user.Agent.ClearCookie()
 	user.Agent.CacheStore.Clear()
+	user.ClearStaticCache()
 
 	// signout したらトップページに飛ぶ(MEMO: 初期状態だと trend おもすぎて backend をころしてしまうかも)
-	go func() {
-		// 登録済みユーザーは trend に興味はないので verify はせず投げっぱなし
-		if errs := browserGetLandingPageIgnoreAction(ctx, user); errs != nil {
-			for _, err := range errs {
-				addErrorWithContext(ctx, step, err)
-			}
-			// return するとこのあとのログイン必須なシナリオが回らないから return はしない
-		}
-	}()
+	isSuccess = browserGetLandingPageIgnoreInfinityRetry(ctx, user, step)
+	if !isSuccess {
+		return
+	}
 
 	authInfinityRetry(ctx, user, user.UserID, step)
 }
@@ -968,6 +977,47 @@ func postIsuInfinityRetry(ctx context.Context, a *agent.Agent, req service.PostI
 			continue
 		}
 		return isu, res
+	}
+}
+
+// 返り値が false のときは常に ctx.Done
+func signoutInfinityRetry(ctx context.Context, user *model.User, step *isucandar.BenchmarkStep) bool {
+	for {
+		select {
+		case <-ctx.Done():
+			return false
+		default:
+		}
+		_, err := reqNoContentResNoContent(ctx, user.Agent, http.MethodPost, "/api/signout", []int{http.StatusOK, http.StatusUnauthorized})
+		if err != nil {
+			addErrorWithContext(ctx, step, err)
+			continue
+		}
+		_, _, err = getMeErrorAction(ctx, user.Agent)
+		if err != nil {
+			addErrorWithContext(ctx, step, err)
+			continue
+		}
+		return true
+	}
+}
+
+// 返り値が false のときは常に ctx.Done
+func browserGetLandingPageIgnoreInfinityRetry(ctx context.Context, user *model.User, step *isucandar.BenchmarkStep) bool {
+	for {
+		select {
+		case <-ctx.Done():
+			return false
+		default:
+		}
+		errs := browserGetLandingPageIgnoreAction(ctx, user)
+		if len(errs) != 0 {
+			for _, err := range errs {
+				addErrorWithContext(ctx, step, err)
+			}
+			continue
+		}
+		return true
 	}
 }
 

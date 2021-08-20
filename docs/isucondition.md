@@ -7,140 +7,146 @@
 
 **"ISU とつくる新しい明日"**
 
-あなたの大事なパートナーであるISUが教えてくれるコンディションから、コンディションレベルやその変化をスコアとして知ることで、大事なISUと長く付き合っていくためのサービスです。
+あなたの大事なパートナーである ISU が教えてくれるコンディションから、そのメッセージやコンディションレベルを知ることで、大事な ISU と長く付き合っていくためのサービスです。
 
 ### ストーリー
 
-20xx年、政府が働く人々にリモートワークを推奨したことにより、家での仕事を支える存在として ISU が大事にされるようになりました。
+20xx 年、政府が働く人々にリモートワークを推奨したことにより、家での仕事を支える存在として ISU が大事にされるようになりました。
 働く人々が ISU に愛着を持って大事にするようになった結果、大事な ISU のコンディションを知ることで ISU を理解し、ISU と長く付きあっていきたいと人々は願うようになりました。
 ISUCONDITION はこうした人々のニーズに応えるサービスとしてリリース目前です。しかし、パフォーマンスに大きな問題を抱えていました。
-あなたは ISUCONDITION の開発者として 18 時までにこの問題の改善し、人と ISU が作る新しい明日を支えなければなりません。
+あなたは ISUCONDITION の開発者としてリリースまでにこの問題を改善し、人と ISU が作る新しい明日を支えなければなりません。
 
 ## 用語
 
-- **ISU**: この世界で愛されるあなたの大事なパートナー。いろいろな性格を持っていて、その時その時のコンディションを通知してくれる。
-- **ユーザ**: ISUCONDITION に登録をしている人。
-- **閲覧者**: ISUCONDITION に登録はしていないが、トップページでトレンドを見ている人。
-- **JIA**: Japan ISU Association の略。この世界において日本のイスを取りまとめる団体。
-- **コンディション**: ISU から送られてくる情報。ISU が誰かに座られているか耐荷重を超えていないかと言った情報や、汚れていないか、壊れていないかなどを教えてくれる。
-- **コンディションレベル**: ISU から送られた "is_dirty"、"is_overweight"、"is_broken" という3つの情報から決まる ISU の状態。以下の3つのレベルが存在します。
-    - **Info**: "is_dirty"、"is_overweight"、"is_broken" 3つ全てで問題が起きていない状態。
-    - **Warning**: "is_dirty"、"is_overweight"、"is_broken" 3 つの情報のうち 1〜2 つで問題が起きている状態。
-    - **Critical**: "is_dirty"、"is_overweight"、"is_broken" 3 つ全てで問題が起きている状態。
-- **スコア**: コンディションから計算された1時間毎の点数。0 以上 100 以下の整数値をとります。
-- **グラフ**: 24 時間分の ISU の状態を可視化したもの。
-- **トレンド**: ISUCONDITION に登録されている ISU たちの、性格ごとの最新の "Info", "Warning", "Critical" の割合を表示したもの。
+- **ISU**: この世界で愛されるあなたの大事なパートナー。いろいろな性格を持っていて、その時その時のコンディションを教えてくれる。すべての ISU にはあらかじめ JIA ISU ID が割り当てられている。
+- **ユーザ**: ISUCONDITION に登録している人。
+- **閲覧者**: ISUCONDITION に登録していないが、トップページでトレンドを見ている人。
+- **JIA**: Japan ISU Association の略。この世界において日本の ISU を取りまとめる団体。すべての ISU に固有の JIA ISU ID を割り当てて管理を行っている。
+- **コンディション**: ISU からのメッセージやその時の ISU の状態に関する情報。
+- **コンディションレベル**: コンディション内の `is_dirty`、`is_overweight`、`is_broken` という 3 つの情報から決まる ISU の状態。それぞれの情報は、問題が発生している場合に `true` となる。以下の 3 つのレベルが存在する。
+    - **Info**: 一切、問題が発生していない状態。
+    - **Warning**: 1〜2 つの問題が発生している状態。
+    - **Critical**: 3 つの問題が発生している状態。
+- **グラフ**: 24 時間分の ISU の状態を 1 時間単位で可視化したもの。
+- **トレンド**: 性格ごとに、最新の ISU のコンディションを累計したもの。 
 
 ## ISUCONDITIONの機能とユーザ、ISU、閲覧者について
 
-### 1. ログイン
+### ログイン
 
-ISUCONDITION はログインを JIA に委ねており、ユーザは JIA へログイン時に発行されるトークンを使って ISUCONDITION へのログインを行います。
+ISUCONDITION は認証を JIA に委ねており、ユーザは JIA の認証サイトで認証成功時に発行されるトークンを使って ISUCONDITION にログインします。
 
 ログインの処理は以下のような流れになります。
 
-![ログインの動き](https://user-images.githubusercontent.com/210692/129367327-ff05fb22-46fe-4982-9b9b-b4b72613a6f2.png)
+![ログインの動き](https://user-images.githubusercontent.com/210692/130006129-293ac048-30c3-4a4b-815c-67572ef3b44e.png)
 
 1. ユーザは、ISUCONDITION のトップページにアクセスします。
-2. ISUCONDITION のトップページにある "JIA のアカウントでログイン" のボタンを押下すると JIA のページへ遷移します。
-3. JIA のページで JIA のアカウントを利用してログインを行います
-4. ログイン成功時にトークン（JWT: JSON Web Token）が発行され ISUCONDITION に転送されます。
+2. ユーザが、ISUCONDITION のトップページにある "JIA のアカウントでログイン" のボタンをクリックすると JIA 認証サイトへ遷移します。
+3. ユーザが、JIA 認証サイトで JIA のアカウント情報を入力します。
+4. JIA 認証サイトは認証成功時にトークン（JWT: JSON Web Token）を発行し、ユーザを ISUCONDITION にリダイレクトします。リダイレクトの URL にはクエリパラメータにトークンが設定されています。
 5. ISUCONDITION はトークンが妥当なものかを検証します。
-6. トークンの妥当性が確認された場合ログイン成功。
+6. トークンの妥当性が確認された場合、ユーザは ISUCONDITION のログインに成功します。
 
-### 2. ISUの登録とISUのコンディション送信処理
+### ISUの登録
 
-ユーザが、ISUCONDITION に ISU を登録することで、ISU  から ISUCONDITION へのコンディション送信が開始されます。
+ユーザが、ISUCONDITION に ISU を登録することで、ISU から ISUCONDITION へのコンディション送信が開始されます。
+コンディション送信を開始するには JIA による ISU のアクティベートが必要です。
 
 ISU の登録は以下のような流れになります。
 
-![ISUのアクティベートイメージ](https://user-images.githubusercontent.com/210692/129368206-8130c782-b7a5-44ed-8084-c370feab6a4b.png)
+![ISUのアクティベートイメージ](https://user-images.githubusercontent.com/210692/130178391-005ee191-202d-45d9-95d5-d8f4405d355d.png)
 
-1. ISUCONDITION はユーザから ISU の登録リクエストを受け取った場合 JIA に対して ISU のアクティベーションリクエストを送信します。
-2. JIA は ISUCONDITION から ISU のアクティベートリクエストを受け取ることで、 対象の ISU にコンディション送信を開始するよう指示します。
-3. コンディションの送信先 URL はアクティベート時に ISUCONDITION が JSON で送信する `target_base_url` と `isu_uuid` により以下のように決定されます。
+1. ユーザが ISUCONDITION に JIA ISU ID を入力します。
+2. ISUCONDITION は JIA の ISU 管理サービスに対して JIA ISU ID を送信します。
+3. ISU 管理サービスは、対象の ISU にコンディション送信を開始するよう指示します（アクティベート）。
+4. ISUCONDITION は ISU の情報を保存し登録が完了します。
+
+#### JIA ISU ID
+
+アプリケーションの動作確認には以下の JIA ISU ID を利用できます。
+
+| JIA ISU ID                           |
+|--------------------------------------|
+| 3a8ae675-3702-45b5-b1eb-1e56e96738ea |
+| 3efff0fa-75bc-4e3c-8c9d-ebfa89ecd15e |
+| f67fcb64-f91c-4e7b-a48d-ddf1164194d0 |
+| 32d1c708-e6ef-49d0-8ca9-4fd51844dcc8 |
+| af64735c-667a-4d95-a75e-22d0c76083e0 |
+| cb68f47f-25ef-46ec-965b-d72d9328160f |
+| 57d600ef-15b4-43bc-ab79-6399fab5c497 |
+| aa0844e6-812d-41d2-908a-eeb82a50b627 |
+| 0694e4d7-dfce-4aec-b7ca-887ac42cfb8f |
+| f012233f-c50e-4349-9473-95681becff1e |
+
+### ISUのコンディション送信処理
+
+コンディションの送信先 URL はアクティベート時に、 ISUCONDITION が JSON で送信する `target_base_url` と `isu_uuid` により以下のように決定されます。
 
 ```
-$target_base_url/api/condition/$isu_uuid
+${target_base_url}/api/condition/${isu_uuid}
 ```
 
-注意点として、以下の2点があります。
+ISU はアクティベートされると、自身のコンディションを送信先 URL へ継続的に送信するようになります。
 
-- `target_base_url` を変更することで ISU がコンディションを送る先を変更することが可能ですが、既に登録済みの ISU には反映されません。
-- `target_base_url` には下記の3つの FQDN のみを指定することができます。それ以外を指定した場合は JIA から `400 Bad Request` が返され ISU のアクティベートに失敗します。
-  - `isucondition-1.t.isucon.dev`
-  - `isucondition-2.t.isucon.dev`
-  - `isucondition-3.t.isucon.dev`
+ISU から送信されるデータには 1 つ以上のコンディションが含まれます。送信されるコンディションは ISU 単位で下記が保証されています。
 
-なお上記の `target_base_url` は環境変数 `POST_CONDITION_TARGET_BASE_URL` で指定されています。
+- コンディションの時刻情報が重複することはない。
+- コンディションの時刻情報は、既に送られたコンディションの時刻情報よりも常に先の時刻となる。
 
-ISU は、JIA から送信開始の指示を受け取った時点から、自身のコンディションを ISUCONDITION に送信するリクエスト (`POST /api/condition/:jia_isu_uuid`) を続けます。ISU のコンディションレベルは悪くなる事があり、ユーザは悪いコンディションレベルを確認すると速やかに改善を行うため、悪いコンディションレベルを確認後に ISU のコンディションレベルは改善します
+ユーザはコンディションのデータ欠損を許容しますが、理想的には全てのコンディションのデータが保存されることを期待しています。
 
-ISU から定期的に送信されるデータには複数のコンディションが含まれます。
-コンディションにはコンディションが記録された時刻情報が含まれますが、この時刻情報は、既に送られたコンディションの時刻情報よりも過去の時刻となることはありません。また、1つの ISU が同一時刻のコンディションを複数送信することはありません。
+### 登録済みの ISU の確認
 
-ISUCONDITION は、ISU から送信されるコンディションのデータを保持しますが、アプリケーションの負荷を下げるためにデータを保存せずに `202 Accepted` を返すことがあります。
-ユーザはコンディションのデータの欠損を許容しますが、理想的には全てのコンディションのデータが保存されることを期待しています。
+ユーザは、自身が登録した ISU の一覧（`GET /api/isu`）を確認しています。ユーザは ISU の一覧を見て、各 ISU の詳細（`GET /api/isu/:jia_isu_uuid`）を確認します。
 
-### 3. 登録済みの ISU の確認
+ユーザは一覧中の、最新コンディションに変化がない ISU には興味を持ちません。
 
-ユーザは、一定の間隔で自身が登録した ISU の一覧 (`GET /api/isu`) を確認しています。ユーザは ISU の一覧を受け取ったとき、各ISUの詳細 (`GET /api/isu/:jia_isu_uuid`) を確認します。
-他のユーザの ISU について見ることできません。
+### ISU の詳細確認
 
-### 4. ISU のコンディション確認
+ISU の詳細ページでは、次のことが行えます。
 
-ユーザは、ISU の詳細ページから次のことを行っています。
+- コンディションの確認（`GET /api/condition/:jia_isu_uuid`） 
+- グラフの確認（`GET /api/isu/:jia_isu_uuid/graph`）
 
-- コンディションの確認、コンディションレベルが悪い ISU の検索 (`GET /api/condition/:jia_isu_uuid`) 
-- グラフの確認 (`GET /api/isu/:jia_isu_uuid/graph`)
+#### コンディションの確認
 
-#### 4.1. コンディションの確認
+コンディションの確認では ISU に登録されたコンディションの履歴を確認できます。このとき、コンディションレベルや時刻情報で表示するデータを絞り込めます。
 
-ユーザは、最新の ISU のコンディションを確認後、まだ確認していないコンディションがある場合、過去に遡って ISU のコンディションを確認します。
+ISU のコンディションレベルは悪くなる事があり、ユーザは悪いコンディションレベル（ `Info` 以外）を確認すると速やかに問題を改善します。
 
-#### 4.2. コンディションレベルが悪い ISU の検索
+#### グラフの確認
 
-ユーザは、コンディションレベルを指定して検索をする機能を利用し、状態の悪い ISU がいないかを調べます。コンディションレベルが悪い ISU があった場合、ユーザは掃除や修理などで ISU のコンディションを改善します。
-この改善は速やかに完了し、 ISU は次のコンディション送信からは改善されたコンディションを送信します。
+グラフは、ある日の 24 時間分の ISU の状態を可視化したものです。過去のグラフも遡って確認できます。
 
-#### 4.3. グラフの確認
+データポイントは 0 時から 24 時までの 1 時間単位で集計されています。
 
-グラフは、指定した時刻から 24 時間分の ISU の状態を可視化したものです。
-グラフは24時間のデータで構成されており、1つのデータは1時間ごとのコンディションを元に計算されます。グラフのデータには以下の情報が含まれます。
+### トレンドの閲覧
 
+閲覧者は、ISUCONDITION のトップページに表示されるトレンド（`GET /api/trend`）を確認しています。
 
-- スコア ( ( (Infoの数 * 3) + (Warning の数 * 2) + (Critical の数 * 1) ) * 100 / 3 / 含まれているコンディション数)
-- ISU に座っていた時間の割合 (`is_sitting=true` の数 * 100 / 含まれているコンディション数)
-- コンディションレベルの割合 
-  - `is_dirty` の割合 (`is_dirty=true` の数 * 100 / 含まれているコンディション数)
-  - `is_overweight` の割合 (`is_overweight=true` の数 * 100 / 含まれているコンディション数)
-  - `is_broken` の割合 (`is_broken=true` の数 * 100 / 含まれているコンディション数)
+トレンドでは ISUCONDITION に登録されているすべての ISU の最新のコンディションレベルが性格ごとにまとまっており、ISU が持つ性格ごとの傾向を見ることができます。ISUCONDITION に興味を持っている閲覧者は、トレンドの変化に注目しています。
 
-ユーザは、最新のグラフを確認後、まだ確認していない過去のグラフがある場合に、過去に遡ってグラフを確認します。
-まだ確認していなかったグラフを確認後、最後に確認したグラフの中からデータが存在する時間をランダムに 1 時間選択し、コンディションを確認します。
+## JIA ISU 管理サービス API 
 
-#### 5. トレンドの閲覧
-
-トレンドは ISUCONDITION のサービスを知ってもらうための機能で、ログインしていないユーザ（閲覧者）が閲覧します。
-トレンドでは ISUCONDITION に登録されているすべての ISU の最新のコンディションレベルが性格ごとにまとまっており、コンディションレベルの割合から、ISU が持つ性格ごとの傾向を見ることができます。
-
-閲覧者は、**"未ログイン状態"** で　ISUCONDITION　のトップページに表示されるトレンド (`GET /api/trend`) を確認しています。
-サービスに興味を持っている閲覧者はサービストップページに表示されるトレンドを一定間隔で閲覧し、トレンドの変化に注目しています。
-閲覧者たちがトレンドの変化を一定回数確認するたびに、ユーザが 1 人増加します。また、閲覧者の行動中にエラー(タイムアウトを含む)があった場合、 1 回のエラーにつき閲覧者は 1 人減ります。
-閲覧者はユーザが「4. ISU のコンディション確認」に書かれた処理を正しく 1 回行うと 1 人増えます。
-
-## Japan ISU Association (JIA) の API 
-
-JIA はブラウザからトップページ (`GET /`) へアクセスしログインをすることができますが、それ以外にも API を提供しています。
-現在 ISUCONDITION が利用している JIA　の API は以下の２つです。JIA のユーザ登録については ISUCONDITION 側では取り扱わないため、本アプリケーションマニュアルでは記載しません。
+JIA ISU 管理サービスが提供する API は以下の通りです。
+同様の機能が、開発/検証用に JIA API Mock という名前で提供されています（後述）。
 
 ### `POST /api/activate`
 
-JIA が管理する ISU に対して指定の URL に向けて、センサーデータを送るように指示するためのエンドポイント。
-アクティベートに成功すると、ISU は `target_base_url` で指定された URL に対しセンサーデータの送信を継続します。
-レスポンスにはアクティベートされた ISU の性格が含まれます。
+JIA が管理する ISU をアクティベートするためのエンドポイントです。
 
-+ Request (application/json)
+`target_base_url` には下記の制約があります。これに違反した場合、 JIA から `400 Bad Request` が返され ISU のアクティベートに失敗します。
+
+- ホスト部は下記の 3 つのみを指定できる。
+  - `isucondition-1.t.isucon.dev`
+  - `isucondition-2.t.isucon.dev`
+  - `isucondition-3.t.isucon.dev`
+- スキームには `https` のみが利用できる。
+- ポート番号は指定できない。
+
+また、同一の ISU に対する 2 度目以降のリクエストは成功しますが `target_base_url` は 1 度目の内容が利用されます。
+
++ Request（application/json）
     + Schema
 
             {
@@ -149,56 +155,55 @@ JIA が管理する ISU に対して指定の URL に向けて、センサーデ
             }
 
 
-    + Attributes (object)
+    + Attributes
 
-        | Field           | Type   | Reqyured | Description                | Example                              |
-        |-----------------|--------|----------|----------------------------|--------------------------------------|
-        | target_base_url | string | true     | ISU のコンディション送信先     | https://isucondition-1.t.isucon.dev  |
-        | isu_uuid        | string | true     | JIA が発行する ISU の 固有ID  | 0694e4d7-dfce-4aec-b7ca-887ac42cfb8f |
+        | Field           | Type   | Required | Description          | Example                                |
+        |-----------------|--------|----------|----------------------|----------------------------------------|
+        | target_base_url | string | true     | ISU のコンディション送信先 | `https://isucondition-1.t.isucon.dev`  |
+        | isu_uuid        | string | true     | JIA ISU ID           | `0694e4d7-dfce-4aec-b7ca-887ac42cfb8f` |
 
 
-+ Response 202 (application/json)
++ Response 202（application/json）
     + Schema
 
             {
                 "character": "string"
             }
 
-    + Attributes (object)
+    + Attributes
 
-        | Field     | Type   | Reqyured | Description                 | Example  |
-        |-----------|--------|----------|-----------------------------|----------|
-        | character | string | true     | アクティベートされた ISU の性格 | いじっぱり |
+        | Field     | Type   | Required | Description                 | Example    |
+        |-----------|--------|----------|-----------------------------|------------|
+        | character | string | true     | アクティベートされた ISU の性格 | `いじっぱり` |
 
 
++ Other Responsess
+    + 400（text/plain）
+    + 404（text/plain）
 
-- Response 400 (text/plain)
-- Response 403 (text/plain)
-- Response 500 (text/plain)
 
-### `POST /api/auth`
+### JIA API Mock について
 
-JIA から認証トークン(JWT)を発行するためのエンドポイント。
-認証に成功をすると JWT を生成して返します。
+JIA API Mock は、ISUCONDITION の開発に利用できる JIA の API モックとして、選手に提供される各サーバーのポート 5000 番で待ち受けています。
+JIA API Mock は以下の機能を持っています。
 
-+ Request (application/json)
-    + Schema
+- ISU 管理サービス(`POST /api/activate`)
+  - ただし、先述した `target_base_url` の制約は存在しない
+- 登録した ISU から ISUCONDITION へ向けたテスト用コンディションの送信
 
-            {
-                "user": "string",
-                "password": "string"
-            }
+JIA API Mock は ISU がアクティベートされると、JIA API Mock が停止されるまで ISUCONDITION へテスト用コンディションの送信を行います。JIA API Mock の操作は永続化されません。
+そのため、負荷走行前には JIA API Mock を停止または再起動することでテスト用コンディションの送信を停止することをお勧めします。
 
-    + Attributes (object)
-        | Field    | Type   | Reqyured | Description        | Example |
-        |----------|--------|----------|--------------------|---------|
-        | user     | string | true     | ログインをするユーザ名 | isucon  |
-        | password | string | true     | ログインパスワード    | isucon  |
+JIA API Mock のサービスを停止または再起動するには、 以下のコマンドを利用してください。
 
-+ Response 200 (text/plain)
-    + Body
+```shell
+sudo systemctl [stop|restart] jiaapi-mock.service
+```
 
-            eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2Mjg1NjMxODksImlhdCI6MTYyODU2MTM4OSwiamlhX3VzZXJfaWQiOiJpc3Vjb24ifQ.MuIl1-kVe60DzwoGHj2yrck8QwYWDH_N20uCqNVR1IZiuo7ArYiBDbMdTbEzFbkN52x8SxGS3GvKoGuMmRfZXQ
+なお、負荷走行後に JIA API Mock を利用する際は、下記のように `POST /initialize` で JIA API Mock のエンドポイントを再設定してください。
 
-+ Response 400 (text/plain)
-+ Response 401 (text/plain)
+```shell
+curl -fk -H 'content-type: application/json' https://localhost/initialize -d '{"jia_service_url": "http://localhost:5000"}'
+```
+
+なお、各サーバーのポート 5000 番は外部から接続できないよう、AWS のセキュリティグループで設定されています。セキュリティグループを変更すると当日マニュアルに記載されている環境確認が失敗するようになり、失格となる恐れがあるのでご注意ください。

@@ -17,6 +17,17 @@
     mode: 0644
     backup: yes
 
+- name: "roles/contestant/tasks/isucondition-php: Fix php.ini for timezone"
+  become: yes
+  become_user: isucon
+  ini_file:
+    path: /home/isucon/local/php/etc/php.ini
+    section: Date
+    option: date.timezone
+    value: "Asia/Tokyo"
+    mode: 0644
+    backup: no
+
 - name: "roles/contestant/tasks/isucondition-php: Build Web Application PHP"
   become: yes
   become_user: isucon

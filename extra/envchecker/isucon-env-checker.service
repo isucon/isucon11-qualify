@@ -1,0 +1,11 @@
+[Unit]
+Description=Check Environments for ISUCON11 Contestants
+After=network.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+ExecStart=/opt/isucon-env-checker/run-isucon-env-checker.sh
+
+[Install]
+WantedBy=multi-user.target

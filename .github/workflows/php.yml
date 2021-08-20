@@ -1,0 +1,90 @@
+name: ci for php
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - bench/**/*
+      - webapp/php/**/*
+      - webapp/frontend/**/*  # bench/assets.go の更新検知のために回す
+      - development/backend-php/**/*
+      - development/docker-compose-ci.yml
+      - development/docker-compose-dev.yml
+      - development/Makefile
+      - .github/workflows/php.yml
+  pull_request:
+    paths:
+      - bench/**/*
+      - webapp/php/**/*
+      - webapp/frontend/**/*  # bench/assets.go の更新検知のために回す
+      - development/backend-php/**/*
+      - development/docker-compose-ci.yml
+      - development/docker-compose-dev.yml
+      - development/Makefile
+      - .github/workflows/php.yml
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: self-hosted
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: webapp/php
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.0"
+        env:
+          runner: self-hosted
+      - name: Install dependencies
+        run: ./composer.phar install
+
+      - name: Check coding style
+        run: ./composer.phar style
+
+      - name: Static Analysis
+        run: ./composer.phar analyse
+  test:
+    name: Integration Test
+    runs-on: self-hosted
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: development
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-1
+
+      - name: Install some utils
+        env:
+          AWS_CLI_VERSION: 2.2.16
+        run: |
+          curl -sL https://awscli.amazonaws.com/awscli-exe-linux-x86_64-${AWS_CLI_VERSION}.zip -o /tmp/awscliv2.zip \
+            && unzip -o /tmp/awscliv2.zip -d /tmp/ \
+            && /tmp/aws/install --update -i $HOME/work/_tool/isucon11-qualify/aws-cli -b $HOME/work/_tool/isucon11-qualify
+
+
+      - name: Download init-data.sql
+        working-directory: .
+        run: |
+          ${HOME}/work/_tool/isucon11-qualify/aws s3 cp s3://isucon11-qualify-dev/initial-data.sql webapp/sql/1_InitData.sql
+          ${HOME}/work/_tool/isucon11-qualify/aws s3 cp s3://isucon11-qualify-dev/initialize.json bench/data/initialize.json
+
+      - name: Build PHP App
+        run: target=php docker-compose -f docker-compose-ci.yml up -d --build -- backend mysql-backend
+      - name: Test PHP App
+        run: |
+          # イメージを self-hosted runner のローカルからコピー
+          rm -r ../bench/images && cp -a /opt/isucon11-qualify/images ../bench/images
+          target=php docker-compose -f docker-compose-ci.yml up --build --exit-code-from apitest -- apitest
+      - name: Clean up
+        if: failure() || true
+        run: target=php docker-compose -f docker-compose-ci.yml down

@@ -50,6 +50,13 @@
     group: root
     mode: 0440
 
+- name: "roles/common/tasks/user: Create .ssh directory for isucon user"
+  become_user: isucon
+  file:
+    path: /home/isucon/.ssh
+    state: directory
+    mode: 0700
+
 - name: "roles/common/tasks/user: Create .ssh directory for isucon-admin user"
   become_user: isucon-admin
   file:

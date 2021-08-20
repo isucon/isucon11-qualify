@@ -461,7 +461,7 @@ func (s *Scenario) keepPostingError(ctx context.Context) {
 			break
 		}
 		targetBaseURLMapMutex.Unlock()
-		targetPath = targetPath + "/api/condition/" + isu.JIAIsuUUID
+		targetPath = path.Join(targetPath, "/api/condition/", isu.JIAIsuUUID)
 		httpClient.Transport.(*http.Transport).TLSClientConfig.ServerName = targetServer
 		// timeout も無視するので全てのエラーを見ない
 		postIsuConditionAction(ctx, httpClient, targetPath, &conditionsReq)

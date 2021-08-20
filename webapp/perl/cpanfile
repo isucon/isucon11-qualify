@@ -1,0 +1,14 @@
+requires 'Kossy', '0.40';
+requires 'DBD::mysql', '4.050';
+requires 'DBIx::Sunny', '0.9992';
+requires 'HTTP::Status';
+requires 'Log::Minimal';
+requires 'JSON::MaybeXS', '1.004003';
+requires 'constant';
+requires 'Cpanel::JSON::XS', '4.26';
+requires 'Starlet';
+requires 'Plack::Middleware::Session';
+requires 'File::Slurp';
+requires 'Crypt::JWT';
+requires 'Furl';
+requires 'Time::Moment';

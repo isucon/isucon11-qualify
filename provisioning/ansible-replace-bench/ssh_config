@@ -1,9 +1,5 @@
-Host *
-  User ubuntu
-  IdentityFile <privkey-path>
 Host 192.168.*
   User isucon-admin
-  ControlMaster auto
-  ControlPath ~/.ssh/%C
-  ControlPersist 60s
-  ProxyJump <jump-server-addr>
+  IdentityFile <privkey-path>
+  StrictHostKeyChecking no
+  UserKnownHostsFile /dev/null
