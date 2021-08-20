@@ -24,8 +24,7 @@ const (
 	PostIntervalBlurSecond = 5                      //Virtual Timeでのpost間隔のブレ幅(+-PostIntervalBlurSecond)
 	PostContentNum         = 10                     //一回のpostで何要素postするか virtualTimeMulti * timerDuration(20ms) / PostIntervalSecond
 	postConditionTimeout   = 100 * time.Millisecond //MEMO: timeout は気にせずにズバズバ投げる
-	timeoutFeadback        = 50 * time.Millisecond  // timeout がおきたらこの値だけ待つように
-	minWait                = 40 * time.Millisecond  // timeout がおきたらこの値だけ待つように
+	failInterval           = 250 * time.Millisecond // timeout がおきたらこの値だけ待つように
 )
 
 var (
@@ -134,15 +133,14 @@ func (s *Scenario) keepPosting(ctx context.Context, targetBaseURL *url.URL, fqdn
 		ForceAttemptHTTP2: true,
 	}
 
-	timeout := minWait
-	timer := time.After(1 * time.Millisecond)
+	timer := time.NewTicker(40 * time.Millisecond)
+	defer timer.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-timer:
+		case <-timer.C:
 		}
-		timer = time.After(timeout)
 
 		nowTimeStamp = s.ToVirtualTime(time.Now()).Unix()
 
@@ -229,13 +227,12 @@ func (s *Scenario) keepPosting(ctx context.Context, targetBaseURL *url.URL, fqdn
 		}
 		isu.AddIsuConditions(conditions)
 
-		// timeout も無視するので全てのエラーを見ない
 		res, err := postIsuConditionAction(ctx, httpClient, targetBaseURL.String(), &conditionsReq)
 		if err != nil {
-			timeout += timeoutFeadback
+			time.Sleep(failInterval)
 		} else {
 			if res.StatusCode != http.StatusAccepted {
-				timeout += timeoutFeadback
+				time.Sleep(failInterval)
 			}
 		}
 	}
