@@ -54,9 +54,7 @@ ISUCONDITION は認証を JIA に委ねており、ユーザは JIA の認証サ
 
 ISU の登録は以下のような流れになります。
 
-![ISUのアクティベートイメージ](https://user-images.githubusercontent.com/210692/130006167-ecbf4bb1-c5ba-4d2c-b141-9258f44b87dc.png)
-
-★絵の4'を消す
+![ISUのアクティベートイメージ](https://user-images.githubusercontent.com/210692/130178391-005ee191-202d-45d9-95d5-d8f4405d355d.png)
 
 1. ユーザが ISUCONDITION に JIA ISU ID を入力します。
 2. ISUCONDITION は JIA の ISU 管理サービスに対して JIA ISU ID を送信します。
