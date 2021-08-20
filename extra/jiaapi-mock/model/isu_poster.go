@@ -44,6 +44,12 @@ func (m *IsuConditionPoster) KeepPosting() {
 	nowTime := time.Now()
 	randEngine.Seed(nowTime.UnixNano()/1000000000 + 961054102) // 乱数初期化（逆算できるように）
 
+	httpClient := http.Client{}
+	httpClient.Timeout = 100 * time.Millisecond
+	httpClient.Transport = &http.Transport{
+		ForceAttemptHTTP2: true,
+	}
+
 	timer := time.NewTicker(postingIntervalSec * time.Second)
 	defer timer.Stop()
 	for {
@@ -77,10 +83,11 @@ func (m *IsuConditionPoster) KeepPosting() {
 		}
 
 		func() {
-			resp, err := http.Post(
+			resp, err := httpClient.Post(
 				targetURL.String(), "application/json",
 				bytes.NewBuffer(conditionsJSON),
 			)
+
 			if err != nil {
 				log.Error(err)
 				return // goto next loop
