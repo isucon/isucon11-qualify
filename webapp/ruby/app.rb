@@ -8,6 +8,8 @@ require 'mysql2-cs-bind'
 
 module Isucondition
   class App < Sinatra::Base
+    set :protection, false
+
     configure :development do
       require 'sinatra/reloader'
       register Sinatra::Reloader
@@ -33,6 +35,7 @@ module Isucondition
     set :sessions, key: SESSION_NAME
 
     set :public_folder, FRONTEND_CONTENTS_PATH
+    set :protection, false  # IPアドレスでHTTPS接続した場合に一部機能が動かなくなるため無効化
 
     POST_ISU_CONDITION_TARGET_BASE_URL = ENV.fetch('POST_ISUCONDITION_TARGET_BASE_URL')
     JIA_JWT_SIGNING_KEY = OpenSSL::PKey::EC.new(File.read(JIA_JWT_SIGNING_KEY_PATH), '')
