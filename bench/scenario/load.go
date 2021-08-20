@@ -728,6 +728,11 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 		}
 	}
 
+	// graph の加点分を計算
+	for _, scoreTag := range scoreTags {
+		step.AddScore(scoreTag)
+	}
+
 	// データが入ってるレスポンスから、ランダムで見る condition を選ぶ
 	if len(graphResponses) != 0 {
 		// ユーザーが今見ているグラフ
@@ -750,11 +755,6 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 			addErrorWithContext(ctx, step, err)
 			return false
 		}
-	}
-
-	// graph の加点分を計算
-	for _, scoreTag := range scoreTags {
-		step.AddScore(scoreTag)
 	}
 
 	return true
