@@ -427,16 +427,11 @@ func (s *Scenario) requestNewConditionScenario(ctx context.Context, step *isucan
 		ConditionLevel: "info,warning,critical",
 	}
 	conditions, newLastReadConditionTimestamps, errs := s.getIsuConditionUntilAlreadyRead(ctx, user, targetIsu, request, step, readConditionCount)
-	if len(errs) != 0 {
-		for _, err := range errs {
-			addErrorWithContext(ctx, step, err)
-		}
-		return false
+
+	if conditions != nil {
+		// GETに成功したのでその分を加点
+		readCondition(conditions, step, readConditionCount)
 	}
-
-	// GETに成功したのでその分を加点
-	readCondition(conditions, step, readConditionCount)
-
 	// LastReadConditionTimestamp を更新
 	var nextTimestamps [service.ConditionLimit]int64
 	indexIsu := 0
@@ -456,6 +451,12 @@ func (s *Scenario) requestNewConditionScenario(ctx context.Context, step *isucan
 	}
 	targetIsu.LastReadConditionTimestamps = nextTimestamps
 
+	if len(errs) != 0 {
+		for _, err := range errs {
+			addErrorWithContext(ctx, step, err)
+		}
+		return false
+	}
 	// このシナリオでは修理しない
 	return true
 }
