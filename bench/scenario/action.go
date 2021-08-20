@@ -825,17 +825,17 @@ func getAssets(ctx context.Context, user AgentWithStaticCache, resIndex *http.Re
 	// resourceの検証
 	actualResource := map[string]struct{}{}
 	for _, res := range resources {
-		path := res.Request.URL.Path
 		if res.Error != nil {
-			errs = append(errs, errorMismatch(resIndex, "リソース(%s)の取得に失敗しました", path))
+			errs = append(errs, failure.NewError(ErrHTTP, res.Error))
 			continue
 		}
+		path := res.Request.URL.Path
 		if _, ok := requireAssetsPath[path]; !ok {
-			errs = append(errs, errorMismatch(resIndex, "意図しないリソース(%s)の取得が実行されました", path))
+			errs = append(errs, errorMismatch(res.Response, "意図しないリソース(%s)の取得が実行されました", path))
 			continue
 		}
 		if _, ok := actualResource[path]; ok {
-			errs = append(errs, errorMismatch(resIndex, "html内でリソース(%s)を複数回取得しています", path))
+			errs = append(errs, errorMismatch(res.Response, "html内でリソース(%s)を複数回取得しています", path))
 			continue
 		}
 		actualResource[path] = struct{}{}
