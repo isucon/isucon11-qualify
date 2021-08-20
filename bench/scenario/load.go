@@ -988,14 +988,10 @@ func signoutInfinityRetry(ctx context.Context, user *model.User, step *isucandar
 			return false
 		default:
 		}
-		res, err := signoutAction(ctx, user.Agent)
+		_, err := reqNoContentResNoContent(ctx, user.Agent, http.MethodPost, "/api/signout", []int{http.StatusOK, http.StatusUnauthorized})
 		if err != nil {
-			if res != nil && res.StatusCode == http.StatusUnauthorized {
-				// 前回の signout がタイムアウトとかで失敗だけど backend 的には成功していた時
-			} else {
-				addErrorWithContext(ctx, step, err)
-				continue
-			}
+			addErrorWithContext(ctx, step, err)
+			continue
 		}
 		_, _, err = getMeErrorAction(ctx, user.Agent)
 		if err != nil {
