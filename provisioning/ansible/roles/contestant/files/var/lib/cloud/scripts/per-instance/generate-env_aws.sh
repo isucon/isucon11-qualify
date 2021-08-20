@@ -11,3 +11,5 @@ MYSQL_PASS=isucon
 POST_ISUCONDITION_TARGET_BASE_URL="https://isucondition-${index}.t.isucon.dev"
 _EOF_
 chown isucon: /home/isucon/env.sh
+
+sudo systemctl restart isucondition.go.service
