@@ -95,6 +95,7 @@ func verifyIsu(res *http.Response, expected *model.Isu, actual *service.Isu) err
 	if actual.ID != expected.ID ||
 		actual.Character != expected.Character ||
 		actual.Name != expected.Name {
+		logger.AdminLogger.Printf("expected: { ID: %v, Character: %v, Name: %v }, actual: { ID: %v, Character: %v, Name: %v }", expected.ID, expected.Character, expected.Name, actual.ID, actual.Character, actual.Name)
 		return errorMismatch(res, "椅子(JIA_ISU_UUID=%s)の情報が異なります", expected.JIAIsuUUID)
 	}
 	return nil
@@ -115,6 +116,7 @@ func verifyIsuList(res *http.Response, expectedReverse []*model.Isu, isuList []*
 	var newConditionUUIDs []string
 	length := len(expectedReverse)
 	if length != len(isuList) {
+		logger.AdminLogger.Printf("len(isuList). expected: %v, actual: %v", length, len(isuList))
 		errs = append(errs, errorMismatch(res, "椅子の数が異なります"))
 		return nil, errs
 	}
@@ -166,6 +168,14 @@ func verifyIsuList(res *http.Response, expectedReverse []*model.Isu, isuList []*
 						expectedCondition.ConditionString() == isu.LatestIsuCondition.Condition &&
 						expectedCondition.ConditionLevel.Equal(isu.LatestIsuCondition.ConditionLevel) &&
 						expectedCondition.Message == isu.LatestIsuCondition.Message) {
+						logger.AdminLogger.Printf(`expected: { JIAIsuUUID: %v, Name: %v, IsSitting: %v,
+						ConditionString: %v, ConditionLevel: %v, Message: %v, Timestamp: %v }
+						actual: { JAIsuUUID: %v, Name: %v, IsSitting: %v,
+						ConditionString: %v, ConditionLevel: %v, Message: %v, Timestamp: %v }`,
+							expected.JIAIsuUUID, expected.Name, expectedCondition.IsSitting,
+							expectedCondition.ConditionString(), expectedCondition.ConditionLevel, expectedCondition.Message, expectedCondition.TimestampUnix,
+							isu.LatestIsuCondition.JIAIsuUUID, isu.LatestIsuCondition.IsuName, isu.LatestIsuCondition.IsSitting,
+							isu.LatestIsuCondition.Condition, isu.LatestIsuCondition.ConditionLevel, isu.LatestIsuCondition.Message, isu.LatestIsuCondition.Timestamp)
 						errs = append(errs, errorMismatch(res, "%d番目の椅子 (JIA_ISU_UUID=%s) の情報が異なります: latest_isu_conditionの内容が不正です", i+1, isu.JIAIsuUUID))
 					} else if expected.LastReadConditionTimestamps[0] < isu.LatestIsuCondition.Timestamp {
 						// もし前回の latestIsuCondition の timestamp より新しいならばカウンタをインクリメント
@@ -189,6 +199,7 @@ func verifyIsuConditions(res *http.Response,
 
 	//limitを超えているかチェック
 	if service.ConditionLimit < len(backendData) {
+		logger.AdminLogger.Printf("actual length: %v", len(backendData))
 		return errorInvalid(res, "要素数が正しくありません")
 	}
 	//レスポンス側のstartTimeのチェック
@@ -243,10 +254,12 @@ func verifyIsuConditions(res *http.Response,
 				}
 
 				if expected.TimestampUnix < c.Timestamp {
+					logger.AdminLogger.Printf("actual timestamp: %v", c.Timestamp)
 					return errorMismatch(res, "POSTに成功していない時刻のデータが返されました")
 				}
 
 				if request.StartTime != nil && c.Timestamp < *request.StartTime {
+					logger.AdminLogger.Printf("actual timestamp: %v", c.Timestamp)
 					return errorMismatch(res, "start_time に指定された時間より前のデータが返されました")
 				}
 
@@ -287,6 +300,9 @@ func verifyIsuConditions(res *http.Response,
 				c.JIAIsuUUID != targetIsuUUID ||
 				c.Message != expected.Message ||
 				c.IsuName != targetIsu.Name {
+				logger.AdminLogger.Printf("expected: {Condition: %v, ConditionLevel: %v, IsSitting: %v,	JIAIsuUUID: %v, Message: %v, IsuName: %v}, actual: {Condition: %v, ConditionLevel: %v, IsSitting: %v,	JIAIsuUUID: %v, Message: %v, IsuName: %v",
+					expectedCondition, expectedConditionLevelStr, expected.IsSitting, targetIsuUUID, expected.Message, targetIsu.Name,
+					c.Condition, c.ConditionLevel, c.IsSitting, c.JIAIsuUUID, c.Message, c.IsuName)
 				return errorMismatch(res, "データが正しくありません")
 			}
 			lastSort = nowSort
@@ -346,6 +362,7 @@ func verifyIsuConditions(res *http.Response,
 	if len(backendData) < service.ConditionLimit && mustExistIndex < service.ConditionLimit && mustExistTimestamps[mustExistIndex] != 0 {
 		if request.StartTime == nil || *request.StartTime <= mustExistTimestamps[mustExistIndex] {
 			//まだ表示されるべきデータが残っている
+			logger.AdminLogger.Printf("actual length: %v", len(backendData))
 			return errorInvalid(res, "limitに満たない件数のデータが返されました: 以前に存在を確認したデータが欠落しています")
 		}
 	}
@@ -510,6 +527,7 @@ func verifyGraph(
 
 	// graphResp の配列は必ず 24 つ (24時間分) である
 	if len(getGraphResp) != 24 {
+		logger.AdminLogger.Printf("actual length: %v", len(getGraphResp))
 		return errorInvalid(res, "要素数が正しくありません")
 	}
 
@@ -569,6 +587,7 @@ func verifyGraph(
 					expected = baseIter.Prev()
 					// 降順イテレータから得た expected が timestamp を追い抜いた ⇒ actual が expected に無いデータを返している
 					if expected == nil || expected.TimestampUnix < timestamp {
+						logger.AdminLogger.Printf("actual timestamp: %v", timestamp)
 						return errorMismatch(res, "POSTに成功していない時刻のデータが返されました")
 					}
 					if expected.TimestampUnix == timestamp {
@@ -584,6 +603,7 @@ func verifyGraph(
 
 					// GET /api/condition/:id で見た ConditionDelayTime秒以上後に、その condition がないとき
 					if expected.ReadTime+ConditionDelayTime < requestTimeUnix {
+						logger.AdminLogger.Printf("must exist timestamp: %v", expected.TimestampUnix)
 						return errorMismatch(res, "GET /api/condition/:jia_isu_uuid か GET /api/isu/:jia_isu_uuid/graph で確認された condition がありません")
 					}
 				}
@@ -605,6 +625,7 @@ func verifyGraph(
 
 					// GET /api/condition/:id で見た ConditionDelayTime秒以上後に、その condition がないとき
 					if expected.ReadTime+ConditionDelayTime < requestTimeUnix {
+						logger.AdminLogger.Printf("must exist timestamp: %v", expected.TimestampUnix)
 						return errorMismatch(res, "GET /api/condition/:jia_isu_uuid か GET /api/isu/:jia_isu_uuid/graph で確認された condition がありません")
 					}
 				}
