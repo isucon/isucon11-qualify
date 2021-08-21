@@ -103,7 +103,7 @@ https://portal.isucon.net/contestant/contestant_instances
 サーバーへ接続後、下記のコマンドを実行することで正しく起動しているか検証が行われます。この作業は全サーバーで実行する必要はありません（1 つの実行で全サーバーの検証が行われます）。
 
 ```
-/opt/isucon-env-checker/isucon-env-checker
+sudo /opt/isucon-env-checker/isucon-env-checker
 ```
 
 ## アプリケーションの動作確認
@@ -152,7 +152,7 @@ ISUCONDITION を利用するには Japan ISU Association（以下 JIA）のア�
 この処理はサーバー起動時以外に、以下のコマンドで選手自らが行えます（[競技環境構築](#3-サーバーへの-SSH-接続)で案内したコマンドと同一です）。
 
 ```
-/opt/isucon-env-checker/isucon-env-checker
+sudo /opt/isucon-env-checker/isucon-env-checker
 ```
 
 ### 競技環境の再構築方法
