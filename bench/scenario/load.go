@@ -868,7 +868,7 @@ func getIsuGraphUntilLastViewed(
 		// 一日前
 		virtualDay -= 24 * 60 * 60
 		// すでに見たグラフなら終わる
-		if virtualDay == targetIsu.LastCompletedGraphTime {
+		if virtualDay <= targetIsu.LastCompletedGraphTime {
 			return graph, nil
 		}
 
