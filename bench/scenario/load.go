@@ -111,7 +111,21 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	<-ctx.Done()
 	s.JiaPosterCancel()
 	logger.AdminLogger.Println("LOAD WAIT")
-	s.loadWaitGroup.Wait()
+
+	loadWaitCh := make(chan struct{}, 1)
+
+	go func() {
+		s.loadWaitGroup.Wait()
+		close(loadWaitCh)
+	}()
+
+	select {
+	case <-ctx.Done():
+		// コンテキストが終わったら抜ける
+	case <-loadWaitCh:
+		// あるいは、正しく loadWaitGroup が done したら抜ける
+	}
+
 	logger.AdminLogger.Println("end s.loadWaitGroup.Wait()")
 
 	// 余りの加点
