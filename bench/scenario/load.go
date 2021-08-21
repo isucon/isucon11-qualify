@@ -80,6 +80,7 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	s.loadWaitGroup.Add(1)
 	go func() {
 		defer s.loadWaitGroup.Done()
+		defer logger.AdminLogger.Println("defer s.loadWaitGroup.Done() userAdder")
 		s.userAdder(ctx, step)
 	}()
 
@@ -87,6 +88,7 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	s.loadWaitGroup.Add(1)
 	go func() {
 		defer s.loadWaitGroup.Done()
+		defer logger.AdminLogger.Println("defer s.loadWaitGroup.Done() postConditionNumReporter")
 		s.postConditionNumReporter(ctx, step)
 	}()
 
@@ -94,6 +96,7 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	s.loadWaitGroup.Add(1)
 	go func() {
 		defer s.loadWaitGroup.Done()
+		defer logger.AdminLogger.Println("defer s.loadWaitGroup.Done() keepPostingError")
 		s.keepPostingError(ctx)
 	}()
 
@@ -101,6 +104,7 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	s.loadWaitGroup.Add(1)
 	go func() {
 		defer s.loadWaitGroup.Done()
+		defer logger.AdminLogger.Println("defer s.loadWaitGroup.Done() loadErrorCheck")
 		s.loadErrorCheck(ctx, step)
 	}()
 
@@ -108,6 +112,7 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	s.JiaPosterCancel()
 	logger.AdminLogger.Println("LOAD WAIT")
 	s.loadWaitGroup.Wait()
+	logger.AdminLogger.Println("end s.loadWaitGroup.Wait()")
 
 	// 余りの加点
 	addConditionScoreTag(step, &ReadConditionCount{
