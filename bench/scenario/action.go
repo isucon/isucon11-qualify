@@ -623,7 +623,7 @@ func browserGetLandingPageIgnoreAction(ctx context.Context, user AgentWithStatic
 			Proxy:                 http.ProxyFromEnvironment,
 			Dial:                  trans.Dial,
 			DialContext:           trans.DialContext,
-			TLSClientConfig:       trans.TLSClientConfig,
+			TLSClientConfig:       trans.TLSClientConfig.Clone(),
 			DisableCompression:    trans.DisableCompression,
 			MaxIdleConns:          trans.MaxIdleConns,
 			MaxIdleConnsPerHost:   trans.MaxIdleConnsPerHost,
