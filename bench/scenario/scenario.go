@@ -105,6 +105,7 @@ func (s *Scenario) AddNormalUser(ctx context.Context, step *isucandar.BenchmarkS
 	for i := 0; i < count; i++ {
 		go func(ctx context.Context, step *isucandar.BenchmarkStep) {
 			defer s.loadWaitGroup.Done()
+			defer logger.AdminLogger.Println("defer s.loadWaitGroup.Done() AddNormalUser")
 			s.loadNormalUser(ctx, step, false)
 		}(ctx, step)
 	}
