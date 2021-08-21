@@ -85,10 +85,10 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	}()
 
 	//postした件数を記録
-	s.loadWaitGroup.Add(1)
+	//s.loadWaitGroup.Add(1)
 	go func() {
-		defer s.loadWaitGroup.Done()
-		defer logger.AdminLogger.Println("defer s.loadWaitGroup.Done() postConditionNumReporter")
+		//defer s.loadWaitGroup.Done()
+		//defer logger.AdminLogger.Println("defer s.loadWaitGroup.Done() postConditionNumReporter")
 		s.postConditionNumReporter(ctx, step)
 	}()
 
