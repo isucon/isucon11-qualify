@@ -127,7 +127,7 @@ func (s *Scenario) prepareCheck(parent context.Context, step *isucandar.Benchmar
 		logger.AdminLogger.Panicln(err)
 	}
 	s.noIsuUser = s.NewUser(ctx, step, noIsuAgent, model.UserTypeNormal, false)
-	if s.noIsuUser != nil {
+	if s.noIsuUser == nil {
 		return nil
 	}
 
