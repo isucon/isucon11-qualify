@@ -122,11 +122,11 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	select {
 	case <-ctx.Done():
 		// コンテキストが終わったら抜ける
+		logger.AdminLogger.Println("WARNING!!: Force ending loadWaitGroup")
 	case <-loadWaitCh:
 		// あるいは、正しく loadWaitGroup が done したら抜ける
+		logger.AdminLogger.Println("end s.loadWaitGroup.Wait()")
 	}
-
-	logger.AdminLogger.Println("end s.loadWaitGroup.Wait()")
 
 	// 余りの加点
 	addConditionScoreTag(step, &ReadConditionCount{
