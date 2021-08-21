@@ -27,7 +27,7 @@
       dest: /opt/isucon-env-checker/isucon-env-checker
       owner: root
       group: root
-      mode: 0755
+      mode: 0700
 
   - name: "Restart isucon-env-cheker.service"
     become_user: root

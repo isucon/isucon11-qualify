@@ -4,4 +4,3 @@ Host *
   ControlPath ~/.ssh/%C
   ControlPersist 60s
   IdentityFile <privkey-path>
-  ProxyJump <jump-server-addr>

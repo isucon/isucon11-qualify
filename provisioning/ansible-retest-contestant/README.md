@@ -20,7 +20,6 @@ ansible-retest-contestant
     ControlPath ~/.ssh/%C
     ControlPersist 60s
 +   IdentityFile <秘密鍵のPATH>
-+   ProxyJump <jumpサーバのアドレス>
 ```
 
 * 再配置するチェックスクリプトは envchecker に配置
@@ -31,6 +30,7 @@ ansible-retest-contestant
 cp -a ../../extra/envchecker .
 pushd envchecker/isucon-env-checker
 env GOOS=linux GOARCH=amd64 go build
+scp isucon-env-checker isucon11-qualify/extra/envchecker/isucon-env-checker/isucon-env-checker
 popd
 ```
 
