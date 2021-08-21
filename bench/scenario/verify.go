@@ -47,6 +47,9 @@ func verifyStatusCode(res *http.Response, code int) error {
 	return nil
 }
 func verifyContentType(res *http.Response, contentType string) error {
+	if res.StatusCode == http.StatusNotModified {
+		return nil
+	}
 	actual := res.Header.Get("Content-Type")
 	if !strings.HasPrefix(actual, contentType) {
 		return errorInvalidContentType(res, contentType)
