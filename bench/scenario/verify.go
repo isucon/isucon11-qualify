@@ -148,6 +148,9 @@ func verifyIsuList(res *http.Response, expectedReverse []*model.Isu, isuList []*
 			// この ISU はまだ poster から condition を受け取っていないため skip
 			continue
 		}
+		if isu.LatestIsuCondition == nil {
+			continue
+		}
 		func() {
 			expected.CondMutex.RLock()
 			defer expected.CondMutex.RUnlock()
