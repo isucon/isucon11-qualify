@@ -131,7 +131,6 @@ func (s *Scenario) AddViewer(ctx context.Context, step *isucandar.BenchmarkStep,
 	for i := 0; i < count; i++ {
 		go func(ctx context.Context, step *isucandar.BenchmarkStep) {
 			defer s.loadWaitGroup.Done()
-			defer logger.AdminLogger.Println("defer s.loadWaitGroup.Done() AddViewer")
 			s.loadViewer(ctx, step)
 		}(ctx, step)
 	}
