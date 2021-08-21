@@ -151,8 +151,10 @@ func reqJSONResGojayArray(ctx context.Context, agent *agent.Agent, method string
 	}
 	defer httpres.Body.Close()
 
-	if !strings.HasPrefix(httpres.Header.Get("Content-Type"), "application/json") {
-		return nil, errorInvalidContentType(httpres, "application/json")
+	if httpres.StatusCode != http.StatusNotModified {
+		if !strings.HasPrefix(httpres.Header.Get("Content-Type"), "application/json") {
+			return nil, errorInvalidContentType(httpres, "application/json")
+		}
 	}
 
 	afterDec := gojay.NewDecoder(httpres.Body)
@@ -178,8 +180,10 @@ func reqJSONResTrend(ctx context.Context, agent *agent.Agent, method string, rpa
 	}
 	defer httpres.Body.Close()
 
-	if !strings.HasPrefix(httpres.Header.Get("Content-Type"), "application/json") {
-		return nil, nil, errorInvalidContentType(httpres, "application/json")
+	if httpres.StatusCode != http.StatusNotModified {
+		if !strings.HasPrefix(httpres.Header.Get("Content-Type"), "application/json") {
+			return nil, nil, errorInvalidContentType(httpres, "application/json")
+		}
 	}
 
 	bytes, err := io.ReadAll(httpres.Body)
@@ -300,8 +304,10 @@ func doRequest(ctx context.Context, agent *agent.Agent, httpreq *http.Request, a
 func checkContentTypeAndGetBody(httpres *http.Response, contentType string) ([]byte, error) {
 	defer httpres.Body.Close()
 
-	if !strings.HasPrefix(httpres.Header.Get("Content-Type"), contentType) {
-		return nil, errorInvalidContentType(httpres, contentType)
+	if httpres.StatusCode != http.StatusNotModified {
+		if !strings.HasPrefix(httpres.Header.Get("Content-Type"), contentType) {
+			return nil, errorInvalidContentType(httpres, contentType)
+		}
 	}
 
 	resBody, err := ioutil.ReadAll(httpres.Body)
