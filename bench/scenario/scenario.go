@@ -105,6 +105,7 @@ func (s *Scenario) AddNormalUser(ctx context.Context, step *isucandar.BenchmarkS
 	for i := 0; i < count; i++ {
 		go func(ctx context.Context, step *isucandar.BenchmarkStep) {
 			defer s.loadWaitGroup.Done()
+			defer logger.AdminLogger.Println("defer s.loadWaitGroup.Done() AddNormalUser")
 			s.loadNormalUser(ctx, step, false)
 		}(ctx, step)
 	}
@@ -115,6 +116,7 @@ func (s *Scenario) AddIsuconUser(ctx context.Context, step *isucandar.BenchmarkS
 	s.loadWaitGroup.Add(1)
 	go func(ctx context.Context, step *isucandar.BenchmarkStep) {
 		defer s.loadWaitGroup.Done()
+		defer logger.AdminLogger.Println("defer s.loadWaitGroup.Done() AddIsuconUser")
 		s.loadNormalUser(ctx, step, true)
 	}(ctx, step)
 }
@@ -129,6 +131,7 @@ func (s *Scenario) AddViewer(ctx context.Context, step *isucandar.BenchmarkStep,
 	for i := 0; i < count; i++ {
 		go func(ctx context.Context, step *isucandar.BenchmarkStep) {
 			defer s.loadWaitGroup.Done()
+			defer logger.AdminLogger.Println("defer s.loadWaitGroup.Done() AddViewer")
 			s.loadViewer(ctx, step)
 		}(ctx, step)
 	}

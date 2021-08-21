@@ -149,6 +149,7 @@ func (s *Scenario) postActivate(c echo.Context) error {
 		s.loadWaitGroup.Add(1)
 		go func() {
 			defer s.loadWaitGroup.Done()
+			defer logger.AdminLogger.Println("defer s.loadWaitGroup.Done() keepPosting")
 			s.keepPosting(posterContext, targetBaseURL, fqdn, isu, scenarioChan)
 		}()
 		return 0, ""
