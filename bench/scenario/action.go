@@ -617,26 +617,7 @@ func browserGetLandingPageIgnoreAction(ctx context.Context, user AgentWithStatic
 
 	usersAgent := user.GetAgent()
 	url := usersAgent.BaseURL
-	trendAgent, err := agent.NewAgent(agent.WithBaseURL(fmt.Sprintf("%s://%s", url.Scheme, url.Host)), agent.WithUserAgent(usersAgent.Name), func(a *agent.Agent) error {
-		trans := a.HttpClient.Transport.(*http.Transport)
-		transport := &http.Transport{
-			Proxy:                 http.ProxyFromEnvironment,
-			Dial:                  trans.Dial,
-			DialContext:           trans.DialContext,
-			TLSClientConfig:       trans.TLSClientConfig.Clone(),
-			DisableCompression:    trans.DisableCompression,
-			MaxIdleConns:          trans.MaxIdleConns,
-			MaxIdleConnsPerHost:   trans.MaxIdleConnsPerHost,
-			MaxConnsPerHost:       trans.MaxConnsPerHost,
-			TLSHandshakeTimeout:   trans.TLSHandshakeTimeout,
-			ResponseHeaderTimeout: trans.ResponseHeaderTimeout,
-			IdleConnTimeout:       trans.IdleConnTimeout,
-			ForceAttemptHTTP2:     trans.ForceAttemptHTTP2,
-			DisableKeepAlives:     true,
-		}
-		a.HttpClient.Transport = transport
-		return nil
-	})
+	trendAgent, err := agent.NewAgent(agent.WithBaseURL(fmt.Sprintf("%s://%s", url.Scheme, url.Host)), agent.WithUserAgent(usersAgent.Name))
 	if err != nil {
 		logger.AdminLogger.Panic(err)
 	}
