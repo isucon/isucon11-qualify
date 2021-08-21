@@ -111,8 +111,22 @@ func (s *Scenario) Load(parent context.Context, step *isucandar.BenchmarkStep) e
 	<-ctx.Done()
 	s.JiaPosterCancel()
 	logger.AdminLogger.Println("LOAD WAIT")
-	s.loadWaitGroup.Wait()
-	logger.AdminLogger.Println("end s.loadWaitGroup.Wait()")
+
+	loadWaitCh := make(chan struct{}, 1)
+
+	go func() {
+		s.loadWaitGroup.Wait()
+		close(loadWaitCh)
+	}()
+
+	select {
+	case <-time.After(100 * time.Millisecond):
+		// 1秒だけ待ったら抜ける
+		logger.AdminLogger.Println("WARNING!!: Force ending loadWaitGroup")
+	case <-loadWaitCh:
+		// あるいは、正しく loadWaitGroup が done したら抜ける
+		logger.AdminLogger.Println("end s.loadWaitGroup.Wait()")
+	}
 
 	// 余りの加点
 	addConditionScoreTag(step, &ReadConditionCount{
