@@ -6,7 +6,7 @@
     become_user: root
     copy:
       src: envchecker/isucon-env-checker.service
-      dest: /etc/systemd/system/isucon-env-cheker.service
+      dest: /etc/systemd/system/isucon-env-checker.service
       owner: root
       group: root
       mode: 0644
