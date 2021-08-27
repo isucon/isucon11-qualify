@@ -21,3 +21,6 @@
 となっています。
 
 ## Links
+
+- [ISUCON11 予選レギュレーション](https://isucon.net/archives/55854734.html)
+- [ISUCON11 予選当日マニュアル](./docs/manual.md)
