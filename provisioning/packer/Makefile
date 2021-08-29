@@ -4,7 +4,7 @@ MAKEFILE_DIR:=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
 default: generate
 
-files-generated:  files-generated/REVISION files-generated/isucon11-qualify.tar files-generated/isucon11-portal.tar files-generated/initial-data.sql files-generated/initialize.json
+files-generated:  files-generated/REVISION files-generated/isucon11-qualify.tar files-generated/isucon11-portal.tar files-generated/initial-data.sql files-generated/initialize.json files-generated/images.tgz
 
 files-generated/REVISION:
 	mkdir -p files-generated/
@@ -32,6 +32,11 @@ files-generated/initial-data.sql:
 files-generated/initialize.json:
 	mkdir -p files-generated/
 	aws s3 cp s3://isucon11-qualify-dev/initialize.json files-generated/initialize.json
+
+files-generated/images.tgz:
+	mkdir -p files-generated/
+	aws s3 cp s3://isucon11-qualify-dev/images.tgz files-generated/images.tgz
+
 
 generate: output target/contestant.json target/bench.json target/standalone.json
 

@@ -19,6 +19,20 @@
     owner: isucon
     group: isucon
 
+- name: "roles/bench/tasks/bench: Remove images for development"
+  become_user: isucon
+  file:
+    state: absent
+    dest: /home/isucon/bench/images
+
+- name: "roles/bench/tasks/bench: Deploy images"
+  become_user: isucon
+  copy:
+    src: images
+    dest: /home/isucon/bench/images
+    owner: isucon
+    group: isucon
+
 - name: "roles/bench/tasks/bench: Build Web Application Go"
   become_user: isucon
   args:
@@ -27,3 +41,4 @@
     PATH: "/home/isucon/local/go/bin:{{ ansible_env.PATH }}"
   shell: |
     make build RELEASE=1
+

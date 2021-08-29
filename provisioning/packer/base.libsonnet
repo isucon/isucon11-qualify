@@ -135,6 +135,7 @@
         'sudo mv /dev/shm/files-generated/isucon11-portal.tar /dev/shm/ansible/roles/bench.supervisor/files/',
         'sudo mv /dev/shm/files-generated/initial-data.sql /dev/shm/ansible/roles/contestant/files/',
         'sudo mv /dev/shm/files-generated/initialize.json /dev/shm/ansible/roles/bench/files/',
+        'sudo mv /dev/shm/files-generated/images.tgz /dev/shm/ansible/roles/bench/files/',
         'sudo cp /dev/shm/files/tls-cert.pem /dev/shm/ansible/roles/contestant/files/etc/nginx/certificates',
         'sudo cp /dev/shm/files/tls-key.pem /dev/shm/ansible/roles/contestant/files/etc/nginx/certificates',
         'sudo echo "[target]\n127.0.0.1" >> /dev/shm/ansible/hosts',
