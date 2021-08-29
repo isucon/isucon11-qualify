@@ -27,9 +27,9 @@
 
 - name: "roles/bench/tasks/bench: Deploy images"
   become_user: isucon
-  copy:
-    src: images
-    dest: /home/isucon/bench/images
+  unarchive:
+    src: images.tgz
+    dest: /home/isucon/bench/
     owner: isucon
     group: isucon
 

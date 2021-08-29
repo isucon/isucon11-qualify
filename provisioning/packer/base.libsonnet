@@ -147,7 +147,7 @@
     run_ansible: {
       type: 'shell',
       inline: [
-        '( cd /dev/shm/ansible && sudo ansible-playbook -u root -i ' + $.arg_variant + '.hosts -t aws -t ' + $.arg_variant + ' site.yml )',
+        '( cd /dev/shm/ansible && sudo ansible-playbook -u root -i ' + $.arg_variant + '.hosts -c local -t aws -t ' + $.arg_variant + ' --skip-tags qualify site.yml )',
       ],
     },
     remove_ansible: {
