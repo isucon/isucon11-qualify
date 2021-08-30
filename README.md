@@ -26,7 +26,7 @@ JWT を生成・検証するための公開鍵・秘密鍵はそれぞれ以下�
 
 * 競技者 VM * 3
     * InstanceType: c5.large
-    * VolumeType: gp3
+    * VolumeType: gp3 (20GB)
 * ベンチ VM * 1
     * InstanceType: c4.xlarge
     * VolumeType: gp3 (20GB)
