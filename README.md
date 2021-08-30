@@ -29,7 +29,7 @@ JWT を生成・検証するための公開鍵・秘密鍵はそれぞれ以下�
     * VolumeType: gp3
 * ベンチ VM * 1
     * InstanceType: c4.xlarge
-    * VolumeType: gp3
+    * VolumeType: gp3 (20GB)
 
 ## AWS 上での過去問環境の構築方法
 
