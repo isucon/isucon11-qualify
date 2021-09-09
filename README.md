@@ -33,7 +33,13 @@ JWT を生成・検証するための公開鍵・秘密鍵はそれぞれ以下�
 
 ## AWS 上での過去問環境の構築方法
 
-[provisioning/cf-kakomon](./provisioning/cf-kakomon) を参照してください。
+### 用意された AMI を利用する場合
+
+[provisioning/cf-kakomon](./provisioning/cf-kakomon) を参照してください。なお AMI は ISUCON11 運営の解散を目処に公開を停止する予定です。上記イメージが参照不可である場合ひとつ下の手順で構築してください。
+
+### AMI を自前で作成し構築する場合
+
+手順準備中です。
 
 ## Links
 
