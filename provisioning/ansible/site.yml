@@ -5,7 +5,6 @@
     - contestant
     - bench
     - standalone
-  become: true
   roles:
     - common
     - langs
@@ -13,7 +12,6 @@
 - name: "contestant roles"
   hosts: [contestant]
   tags: [contestant]
-  become: true
   roles:
     - langs.go
     - langs.nodejs
@@ -23,23 +21,30 @@
     - langs.ruby
     - langs.rust
     - contestant
+
+- name: "contestant roles for the qualify day"
+  hosts: [contestant]
+  tags: [qualify]
+  roles:
     - contestant.envchecker
 
 - name: "bench roles"
   hosts: [bench]
   tags: [bench]
-  become: true
   roles:
     - langs.go
     - langs.rust
     - bench
+
+- name: "bench roles for the qualify day"
+  hosts: [bench]
+  tags: [qualify]
+  roles:
     - bench.node_exporter
     - bench.supervisor
 
-- name: "bench (standalone) roles"
+- name: "standalone roles"
   hosts: [standalone]
-  tags: [standalone]
-  become: true
   roles:
     - langs.go
     - langs.nodejs

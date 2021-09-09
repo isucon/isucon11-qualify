@@ -4,7 +4,7 @@ MAKEFILE_DIR:=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
 default: generate
 
-files-generated:  files-generated/REVISION files-generated/isucon11-qualify.tar files-generated/isucon11-portal.tar files-generated/initial-data.sql files-generated/initialize.json
+files-generated:  files-generated/REVISION files-generated/isucon11-qualify.tar files-generated/isucon11-portal.tar files-generated/initial-data.sql files-generated/initialize.json files-generated/images.tgz
 
 files-generated/REVISION:
 	mkdir -p files-generated/
@@ -33,6 +33,11 @@ files-generated/initialize.json:
 	mkdir -p files-generated/
 	aws s3 cp s3://isucon11-qualify-dev/initialize.json files-generated/initialize.json
 
+files-generated/images.tgz:
+	mkdir -p files-generated/
+	aws s3 cp s3://isucon11-qualify-dev/images.tgz files-generated/images.tgz
+
+
 generate: output target/contestant.json target/bench.json target/standalone.json
 
 output:
@@ -43,10 +48,20 @@ target/contestant.json: files-generated output base.libsonnet contestant.jsonnet
 	jsonnet --jpath . contestant.jsonnet > target/contestant.json
 	packer validate target/contestant.json
 
+target/contestant_kakomon.json: files-generated output base.libsonnet contestant_kakomon.jsonnet
+	mkdir -p target/
+	jsonnet --jpath . contestant_kakomon.jsonnet > target/contestant_kakomon.json
+	packer validate target/contestant_kakomon.json
+
 target/bench.json: files-generated output base.libsonnet bench.jsonnet
 	mkdir -p target/
 	jsonnet --jpath . bench.jsonnet > target/bench.json
 	packer validate target/bench.json
+
+target/bench_kakomon.json: files-generated output base.libsonnet bench_kakomon.jsonnet
+	mkdir -p target/
+	jsonnet --jpath . bench_kakomon.jsonnet > target/bench_kakomon.json
+	packer validate target/bench_kakomon.json
 
 target/standalone.json: files-generated base.libsonnet standalone.jsonnet
 	mkdir -p target/
@@ -58,8 +73,12 @@ build: build-contestant build-bench
 
 build-contestant: files-generated target/contestant.json
 	packer build -var "revision=$(shell cat files-generated/REVISION)" target/contestant.json
+build-contestant_kakomon: files-generated target/contestant_kakomon.json
+	packer build -var "revision=$(shell cat files-generated/REVISION)" target/contestant_kakomon.json
 build-bench: files-generated target/bench.json
 	packer build -var "revision=$(shell cat files-generated/REVISION)" target/bench.json
+build-bench_kakomon: files-generated target/bench_kakomon.json
+	packer build -var "revision=$(shell cat files-generated/REVISION)" target/bench_kakomon.json
 build-standalone: files-generated target/standalone.json
 	packer build -var "revision=$(shell cat files-generated/REVISION)" target/standalone.json
 
