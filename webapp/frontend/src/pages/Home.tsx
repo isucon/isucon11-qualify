@@ -27,7 +27,7 @@ const LandingPage = () => {
 
 const LoginPage = () => {
   return (
-    <div className="absolute flex items-center justify-center p-10 min-w-full h-full">
+    <div className="flex items-center justify-center p-10 min-w-full h-full">
       <Card>
         <IsuList />
       </Card>

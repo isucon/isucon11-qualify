@@ -86,7 +86,17 @@ func (s *Scenario) WithInitializeTimeout(t time.Duration) *Scenario {
 	return s
 }
 
+func (s *Scenario) separatedTransport() agent.AgentOption {
+	return func(a *agent.Agent) error {
+		transport := agent.DefaultTransport.Clone()
+		transport.MaxIdleConnsPerHost = 100
+		a.HttpClient.Transport = transport
+		return nil
+	}
+}
+
 func (s *Scenario) NewAgent(opts ...agent.AgentOption) (*agent.Agent, error) {
+	opts = append([]agent.AgentOption{s.separatedTransport()}, opts...)
 	opts = append(opts, agent.WithBaseURL(s.BaseURL), agent.WithUserAgent(useragent.UserAgent()))
 	return agent.NewAgent(opts...)
 }

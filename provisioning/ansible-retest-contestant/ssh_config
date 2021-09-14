@@ -1,0 +1,6 @@
+Host *
+  User isucon-admin
+  ControlMaster auto
+  ControlPath ~/.ssh/%C
+  ControlPersist 60s
+  IdentityFile <privkey-path>

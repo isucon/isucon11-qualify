@@ -1,18 +1,16 @@
 # development
 
-開発用資材置場です。
+**このディレクトリは予選問題開発用です。**
 
-開発する前に S3 から必要なデータを取ってくる必要があるため、 `初期データについて` の項はご一読ください。
+開発する前に 必要なデータを取ってくる必要があるため、 `初期データについて` の項はご一読ください。
+
+なお、8/30現在作問者向けの案内のままになっています。
 
 ## 初期データについて
 
 benchmarkerを動かすのには初期データが必要です。
 
-初期データはbenchmarker用とDB用にそれぞれあるのでS3から取得して配置してください。
-なお、isucon11 AWS アカウントへのログイン方法は[こちら](https://scrapbox.io/ISUCON11/AWS%E3%82%A2%E3%82%AB%E3%82%A6%E3%83%B3%E3%83%88)を参考にしてください。
-
-* https://s3.console.aws.amazon.com/s3/buckets/isucon11-qualify-dev?region=ap-northeast-1&tab=objects
-
+初期データはbenchmarker用とDB用にそれぞれあるので[releases](https://github.com/isucon/isucon11-qualify/releases/tag/public)から取得して配置してください。
 ダウンロードしたデータはそれぞれ以下に配置する必要があります。
 
 * initialize.json (benchmarker用の初期データ) : `bench/data/` 以下に `initialize.json` という名前で配置
