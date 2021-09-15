@@ -41,6 +41,10 @@ JWT を生成・検証するための公開鍵・秘密鍵はそれぞれ以下�
 
 手順準備中です。
 
+#### git リポジトリに含まれていないファイルの配布
+
+https://github.com/isucon/isucon11-qualify/releases/tag/public から取得できます
+
 ## Links
 
 - [ISUCON11 予選レギュレーション](https://isucon.net/archives/55854734.html)
