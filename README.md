@@ -49,5 +49,5 @@ https://github.com/isucon/isucon11-qualify/releases/tag/public から取得で�
 
 - [ISUCON11 予選レギュレーション](https://isucon.net/archives/55854734.html)
 - [ISUCON11 予選当日マニュアル](./docs/manual.md)
-
-
+- [ISUCON11 予選問題の解説と講評](https://isucon.net/archives/56044867.html)
+- [ISUCON11 予選問題実践攻略法](https://isucon.net/archives/56082639.html)
