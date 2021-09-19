@@ -346,6 +346,96 @@ impl actix_web::ResponseError for ReqwestError {
     }
 }
 
+/*
+ * sqlx の MySQL ドライバには
+ *
+ * - commit()/rollback() していないトランザクション (sqlx::Transaction) が drop される
+ *   - このとき drop 後に自動的に ROLLBACK が実行される
+ * - fetch_one()/fetch_optional() のように MySQL からのレスポンスを最後まで読まない関数を最後に使っ
+ *   ている
+ *
+ * の両方を満たす場合に、sqlx::Transaction が drop された後に panic する不具合がある。
+ * panic しても正常にレスポンスは返されておりアプリケーションとしての動作には影響無い。
+ *
+ * この不具合を回避するため、fetch() したストリームを最後まで詠み込むような
+ * fetch_one()/fetch_optional() をここで定義し、アプリケーションコードではトランザクションに関して
+ * これらの関数を使うことにする。
+ *
+ * 上記のワークアラウンド以外にも、sqlx::Transaction が drop される前に必ず commit()/rollback() を
+ * 呼ぶように気をつけて実装することでも不具合を回避できる。
+ *
+ * - https://github.com/launchbadge/sqlx/issues/1078
+ * - https://github.com/launchbadge/sqlx/issues/1358
+ *
+ * この関数は ISUCON11 予選本番当日には存在せず、後日不具合が発覚したため後から追加された。
+ * 当日はベンチマーカーによるアプリケーション互換性チェックのときに実際に panic が発生していたが、
+ * アプリケーション互換性チェックは正常に通過し、負荷走行中も悪影響はほとんどなかったと考えられる。
+ */
+
+async fn fetch_one_as<'q, 'c, O>(
+    query: sqlx::query::QueryAs<'q, sqlx::MySql, O, sqlx::mysql::MySqlArguments>,
+    tx: &mut sqlx::Transaction<'c, sqlx::MySql>,
+) -> sqlx::Result<O>
+where
+    O: 'q + Send + Unpin + for<'r> sqlx::FromRow<'r, sqlx::mysql::MySqlRow>,
+{
+    match fetch_optional_as(query, tx).await? {
+        Some(row) => Ok(row),
+        None => Err(sqlx::Error::RowNotFound),
+    }
+}
+
+async fn fetch_one_scalar<'q, 'c, O>(
+    query: sqlx::query::QueryScalar<'q, sqlx::MySql, O, sqlx::mysql::MySqlArguments>,
+    tx: &mut sqlx::Transaction<'c, sqlx::MySql>,
+) -> sqlx::Result<O>
+where
+    O: 'q + Send + Unpin,
+    (O,): for<'r> sqlx::FromRow<'r, sqlx::mysql::MySqlRow>,
+{
+    match fetch_optional_scalar(query, tx).await? {
+        Some(row) => Ok(row),
+        None => Err(sqlx::Error::RowNotFound),
+    }
+}
+
+async fn fetch_optional_as<'q, 'c, O>(
+    query: sqlx::query::QueryAs<'q, sqlx::MySql, O, sqlx::mysql::MySqlArguments>,
+    tx: &mut sqlx::Transaction<'c, sqlx::MySql>,
+) -> sqlx::Result<Option<O>>
+where
+    O: Send + Unpin + for<'r> sqlx::FromRow<'r, sqlx::mysql::MySqlRow>,
+{
+    let mut rows = query.fetch(tx);
+    let mut resp = None;
+    while let Some(row) = rows.next().await {
+        let row = row?;
+        if resp.is_none() {
+            resp = Some(row);
+        }
+    }
+    Ok(resp)
+}
+
+async fn fetch_optional_scalar<'q, 'c, O>(
+    query: sqlx::query::QueryScalar<'q, sqlx::MySql, O, sqlx::mysql::MySqlArguments>,
+    tx: &mut sqlx::Transaction<'c, sqlx::MySql>,
+) -> sqlx::Result<Option<O>>
+where
+    O: 'q + Send + Unpin,
+    (O,): for<'r> sqlx::FromRow<'r, sqlx::mysql::MySqlRow>,
+{
+    let mut rows = query.fetch(tx);
+    let mut resp = None;
+    while let Some(row) = rows.next().await {
+        let row = row?;
+        if resp.is_none() {
+            resp = Some(row);
+        }
+    }
+    Ok(resp)
+}
+
 async fn require_signed_in<'e, 'c, E>(
     executor: E,
     session: actix_session::Session,
@@ -370,16 +460,13 @@ where
     }
 }
 
-async fn get_jia_service_url<'e, 'c, E>(executor: E) -> sqlx::Result<String>
-where
-    'c: 'e,
-    E: 'e + sqlx::Executor<'c, Database = sqlx::MySql>,
-{
-    let config: Option<Config> =
+async fn get_jia_service_url(tx: &mut sqlx::Transaction<'_, sqlx::MySql>) -> sqlx::Result<String> {
+    let config: Option<Config> = fetch_optional_as(
         sqlx::query_as("SELECT * FROM `isu_association_config` WHERE `name` = ?")
-            .bind("jia_service_url")
-            .fetch_optional(executor)
-            .await?;
+            .bind("jia_service_url"),
+        tx,
+    )
+    .await?;
     Ok(config
         .map(|c| c.url)
         .unwrap_or_else(|| DEFAULT_JIA_SERVICE_URL.to_owned()))
@@ -503,13 +590,14 @@ async fn get_isu_list(
 
     let mut response_list = Vec::new();
     for isu in isu_list {
-        let last_condition: Option<IsuCondition> = sqlx::query_as(
-            "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` DESC LIMIT 1"
+        let last_condition: Option<IsuCondition> = fetch_optional_as(
+            sqlx::query_as(
+                "SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY `timestamp` DESC LIMIT 1"
+            ).bind(&isu.jia_isu_uuid),
+            &mut tx
         )
-            .bind(&isu.jia_isu_uuid)
-            .fetch_optional(&mut tx)
-            .await
-            .map_err(SqlxError)?;
+        .await
+        .map_err(SqlxError)?;
 
         let formatted_condition = if let Some(last_condition) = last_condition {
             let condition_level = calculate_condition_level(&last_condition.condition);
@@ -658,13 +746,14 @@ async fn post_isu(
         .await
         .map_err(SqlxError)?;
 
-    let isu: Isu =
+    let isu: Isu = fetch_one_as(
         sqlx::query_as("SELECT * FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?")
             .bind(&jia_user_id)
-            .bind(&jia_isu_uuid)
-            .fetch_one(&mut tx)
-            .await
-            .map_err(SqlxError)?;
+            .bind(&jia_isu_uuid),
+        &mut tx,
+    )
+    .await
+    .map_err(SqlxError)?;
 
     tx.commit().await.map_err(SqlxError)?;
 
@@ -753,12 +842,14 @@ async fn get_isu_graph(
 
     let mut tx = pool.begin().await.map_err(SqlxError)?;
 
-    let count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
+    let count: i64 = fetch_one_scalar(
+        sqlx::query_scalar(
+            "SELECT COUNT(*) FROM `isu` WHERE `jia_user_id` = ? AND `jia_isu_uuid` = ?",
+        )
+        .bind(&jia_user_id)
+        .bind(jia_isu_uuid.as_ref()),
+        &mut tx,
     )
-    .bind(&jia_user_id)
-    .bind(jia_isu_uuid.as_ref())
-    .fetch_one(&mut tx)
     .await
     .map_err(SqlxError)?;
     if count == 0 {
@@ -1161,11 +1252,13 @@ async fn post_isu_condition(
 
     let mut tx = pool.begin().await.map_err(SqlxError)?;
 
-    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM `isu` WHERE `jia_isu_uuid` = ?")
-        .bind(jia_isu_uuid.as_ref())
-        .fetch_one(&mut tx)
-        .await
-        .map_err(SqlxError)?;
+    let count: i64 = fetch_one_scalar(
+        sqlx::query_scalar("SELECT COUNT(*) FROM `isu` WHERE `jia_isu_uuid` = ?")
+            .bind(jia_isu_uuid.as_ref()),
+        &mut tx,
+    )
+    .await
+    .map_err(SqlxError)?;
     if count == 0 {
         return Err(actix_web::error::ErrorNotFound("not found: isu"));
     }
