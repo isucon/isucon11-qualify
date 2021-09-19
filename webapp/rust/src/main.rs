@@ -366,6 +366,10 @@ impl actix_web::ResponseError for ReqwestError {
  *
  * - https://github.com/launchbadge/sqlx/issues/1078
  * - https://github.com/launchbadge/sqlx/issues/1358
+ *
+ * この関数は ISUCON11 予選本番当日には存在せず、後日不具合が発覚したため後から追加された。
+ * 当日はベンチマーカーによるアプリケーション互換性チェックのときに実際に panic が発生していたが、
+ * アプリケーション互換性チェックは正常に通過し、負荷走行中も悪影響はほとんどなかったと考えられる。
  */
 
 async fn fetch_one_as<'q, 'c, O>(
