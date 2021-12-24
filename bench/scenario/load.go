@@ -695,7 +695,6 @@ func (s *Scenario) requestGraphScenario(ctx context.Context, step *isucandar.Ben
 	nowVirtualTime := s.ToVirtualTime(time.Now())
 	// 割り算で切り捨てを発生させている(day単位にしている)
 	virtualToday := trancateTimestampToDate(nowVirtualTime)
-	virtualToday -= OneDay
 
 	graphResponses, errs := getIsuGraphUntilLastViewed(ctx, user, targetIsu, virtualToday)
 	if len(errs) > 0 {
@@ -792,7 +791,7 @@ func getNewLastCompletedGraphTime(graphResponses []*service.GraphResponse, virtu
 		for hour, g := range *gr {
 			// 12時以降のデータがあるならその前日のグラフは完成している
 			if hour >= 12 && g.Data != nil {
-				completedDay := virtualToday - (OneDay * int64(behindDay))
+				completedDay := virtualToday - (OneDay * int64(behindDay+1))
 				if lastCompletedGraphTime < completedDay {
 					lastCompletedGraphTime = completedDay
 				}
@@ -869,7 +868,7 @@ func getIsuGraphUntilLastViewed(
 		// 一日前
 		virtualDay -= 24 * 60 * 60
 		// すでに見たグラフなら終わる
-		if virtualDay == targetIsu.LastCompletedGraphTime {
+		if virtualDay <= targetIsu.LastCompletedGraphTime {
 			return graph, nil
 		}
 
