@@ -1,0 +1,9 @@
+- Stage 0. initial 14500
+- Stage 1 (Stage 0) Disable middleware logger + set debug false + add two indexes 45500
+- Stage 2 (Stage 1) Specify cols to select (mainly don't select isu.image) 53000
+- Stage 3 (Stage 2) LIMIT 1 in select isu_condition in getTrend() 102000
+- Stage 4 (Stage 3) Cache control header for getIsuIcon 123000
+- Stage 5 (Stage 4) Use where with timestamp in generateIsuGraphResponse() 135000
+- Stage 6 (Stage 5) Use WHERE IN in getIsuConditionsFromDB(), and `set drop rate to 0.6`, and `sleep 1sec` in getTrend() 250000
+- Stage 7 (Stage 6) `set drop rate to 0.0` 41000
+- Stage 8 (Stage 6) 
