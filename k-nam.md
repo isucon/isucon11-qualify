@@ -7,3 +7,4 @@
 - Stage 6 (Stage 5) Use WHERE IN in getIsuConditionsFromDB(), and `set drop rate to 0.6`, and `sleep 1sec` in getTrend() 250000
 - Stage 7 (Stage 6) `set drop rate to 0.0` 41000
 - Stage 8 (Stage 6) Don't use tx and `SetMaxIdleConns(50)` 270000
+- Stage 9 (Stage 8) Bulk insert postIsuCondition 390000 and `set drop rate to 0.0` 2490000

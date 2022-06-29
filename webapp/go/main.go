@@ -1153,7 +1153,7 @@ func getTrend(c echo.Context) error {
 // ISUからのコンディションを受け取る
 func postIsuCondition(c echo.Context) error {
 	// TODO: 一定割合リクエストを落としてしのぐようにしたが、本来は全量さばけるようにすべき
-	dropProbability := 0.6
+	dropProbability := 0.0
 	if rand.Float64() <= dropProbability {
 		c.Logger().Warnf("drop post isu condition request")
 		return c.NoContent(http.StatusAccepted)
@@ -1182,6 +1182,7 @@ func postIsuCondition(c echo.Context) error {
 		return c.String(http.StatusNotFound, "not found: isu")
 	}
 
+	conditions := []IsuCondition{}
 	for _, cond := range req {
 		timestamp := time.Unix(cond.Timestamp, 0)
 
@@ -1189,16 +1190,27 @@ func postIsuCondition(c echo.Context) error {
 			return c.String(http.StatusBadRequest, "bad request body")
 		}
 
-		_, err = db.Exec(
-			"INSERT INTO `isu_condition`"+
-				"	(`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`)"+
-				"	VALUES (?, ?, ?, ?, ?)",
-			jiaIsuUUID, timestamp, cond.IsSitting, cond.Condition, cond.Message)
+		isuCondition := IsuCondition{
+			JIAIsuUUID: jiaIsuUUID,
+			Timestamp:  timestamp,
+			IsSitting:  cond.IsSitting,
+			Condition:  cond.Condition,
+			Message:    cond.Message,
+		}
+		conditions = append(conditions, isuCondition)
+	}
+
+	rowsToInsert := addIsuConditionToPool(conditions)
+
+	if len(rowsToInsert) > 0 {
+		_, err = db.NamedExec("INSERT INTO `isu_condition`"+
+			" (`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`)"+
+			" VALUES (:jia_isu_uuid, :timestamp, :is_sitting, :condition, :message)",
+			rowsToInsert)
 		if err != nil {
-			c.Logger().Errorf("db error: %v", err)
+			fmt.Printf("insert error %v", err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
-
 	}
 
 	return c.NoContent(http.StatusAccepted)
