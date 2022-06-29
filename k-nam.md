@@ -6,4 +6,4 @@
 - Stage 5 (Stage 4) Use where with timestamp in generateIsuGraphResponse() 135000
 - Stage 6 (Stage 5) Use WHERE IN in getIsuConditionsFromDB(), and `set drop rate to 0.6`, and `sleep 1sec` in getTrend() 250000
 - Stage 7 (Stage 6) `set drop rate to 0.0` 41000
-- Stage 8 (Stage 6) 
+- Stage 8 (Stage 6) Don't use tx and `SetMaxIdleConns(50)` 270000
