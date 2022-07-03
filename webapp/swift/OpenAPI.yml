@@ -27,6 +27,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/InternalServerFault'
+      security:
+      - sigv4: []
   /auth: # サインアップ・サインイン
     post:
       operationId: auth
@@ -51,6 +53,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/InternalServerFault'
+      security:
+      - sigv4: []
   /signout: # サウンアウト
     post:
       operationId: signout
@@ -168,6 +172,39 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/InternalServerFault'
+      security:
+      - sigv4: []
+  /isu/{jia_isu_uuid}/icon:
+    get:
+      operationId: IsuIcon
+      parameters:
+      - name: jia_isu_uuid
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          description: 200 response
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+        401:
+          description: 401 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedFault'
+        500:
+          description: 500 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerFault'
+      security:
+      - sigv4: []
 
   /customer/{id}/email:
     put:
@@ -537,6 +574,6 @@ components:
   securitySchemes:
     sigv4:
       type: apiKey
-      name: Authorization
+      name: Bearer
       in: header
       x-amazon-apigateway-authtype: awsSigv4
