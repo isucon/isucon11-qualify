@@ -295,6 +295,24 @@ paths:
                 $ref: '#/components/schemas/InternalServerFault'
       security:
       - sigv4: []
+  /trend: # ISUの性格毎の最新のコンディション情報
+    get:
+      operationId: trend
+      responses:
+        200:
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrendList'
+        500:
+          description: 500 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerFault'
+      security:
+      - sigv4: []
 
   /customer/{id}/email:
     put:
@@ -703,6 +721,47 @@ components:
       type: array
       items:
         $ref: '#/components/schemas/ConditionItem'
+    TrendList:
+      type: array
+      items:
+        $ref: '#/components/schemas/Trend'
+    Trend:
+      required:
+      - character
+      - info
+      - warning
+      - critical
+      - condition
+      - condition_level
+      - message
+      type: object
+      properties:
+        character:
+          maxLength: 2048
+          minLength: 1
+          type: string
+        info:
+          type: array
+          items:
+            $ref: '#/components/schemas/TrendCondition'
+        warning:
+          type: array
+          items:
+            $ref: '#/components/schemas/TrendCondition'
+        critical:
+          type: array
+          items:
+            $ref: '#/components/schemas/TrendCondition'
+    TrdCondition:
+      required:
+        - isu_id
+        - timestamp
+      type: object
+      properties:
+          isu_id:
+            type: integer
+          timestamp:
+            type: integer
 
     UnauthorizedFault:
       type: object
