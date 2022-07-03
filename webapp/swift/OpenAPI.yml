@@ -89,8 +89,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/InternalServerFault'
-  /isu: # ISUの一覧を取得
-    get:
+  /isu: # ISUの一覧を取得/ISUを登録
+    get: # ISUの一覧を取得
       operationId: ListIsu
       responses:
         200:
@@ -111,7 +111,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/InternalServerFault'
-    post:
+    post: # ISUを登録
       operationId: RegisterIsu
       responses:
         201:
@@ -138,7 +138,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/InternalServerFault'
-  /isu/{jia_isu_uuid}:
+  /isu/{jia_isu_uuid}: #ISUの情報を取得
     get:
       operationId: GetIsu
       parameters:
@@ -174,7 +174,7 @@ paths:
                 $ref: '#/components/schemas/InternalServerFault'
       security:
       - sigv4: []
-  /isu/{jia_isu_uuid}/icon:
+  /isu/{jia_isu_uuid}/icon: #ISUのアイコンを取得
     get:
       operationId: IsuIcon
       parameters:
