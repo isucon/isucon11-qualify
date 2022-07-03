@@ -7,7 +7,7 @@ servers:
 paths:
   /api/initialize: # サービスを初期化
     post:
-      operationId: initialize
+      operationId: Initialize
       requestBody:
         content:
           application/json:
@@ -42,7 +42,7 @@ paths:
       - sigv4: []
   /api/auth: # サインアップ・サインイン
     post:
-      operationId: auth
+      operationId: Auth
       requestBody:
         content:
           application/json: {}
@@ -88,7 +88,7 @@ paths:
                 $ref: '#/components/schemas/InternalServerFault'
   /api/user/me: # サインインしている自分自身の情報を取得
     get:
-      operationId: user-me
+      operationId: UserMe
       responses:
         200:
           description: 200 response
@@ -394,7 +394,7 @@ paths:
                 $ref: '#/components/schemas/InternalServerFault'
   /api/trend: # ISUの性格毎の最新のコンディション情報
     get:
-      operationId: trend
+      operationId: Trend
       responses:
         200:
           description: 200 response
