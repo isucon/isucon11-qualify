@@ -464,10 +464,6 @@ components:
       maxLength: 2048
       minLength: 1
       type: string
-    JiaIsuUuid:
-      maxLength: 2048
-      minLength: 1
-      type: string
     IsuName:
       maxLength: 2048
       minLength: 1
@@ -518,7 +514,9 @@ components:
         id:
           type: integer
         jia_isu_uuid:
-          $ref: '#/components/schemas/JiaIsuUuid'
+          maxLength: 2048
+          minLength: 1
+          type: string
         name:
           $ref: '#/components/schemas/IsuName'
         character:
@@ -537,7 +535,9 @@ components:
       type: object
       properties:
         jia_isu_uuid:
-          $ref: '#/components/schemas/JiaIsuUuid'
+          maxLength: 2048
+          minLength: 1
+          type: string
         isu_name:
           $ref: '#/components/schemas/IsuName'
         timestamp:
@@ -565,7 +565,9 @@ components:
         id:
           type: integer
         jia_isu_uuid:
-          $ref: '#/components/schemas/JiaIsuUuid'
+          maxLength: 2048
+          minLength: 1
+          type: string
         name:
           $ref: '#/components/schemas/IsuName'
         character:
