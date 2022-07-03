@@ -297,6 +297,12 @@ paths:
       - sigv4: []
     post: # ISUからのコンディションを受け取る
       operationId: PostCondition
+      parameters:
+      - name: jia_isu_uuid
+        in: path
+        required: true
+        schema:
+          type: string
       responses:
         202:
           description: 202 response
