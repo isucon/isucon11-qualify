@@ -141,7 +141,7 @@ paths:
       operationId: RegisterIsu
       requestBody:
         content:
-          application/json:
+          multipart/form-data: # https://swagger.io/docs/specification/describing-request-body/multipart-requests/
             schema:
               required:
                 - jia_isu_uuid
@@ -152,6 +152,12 @@ paths:
                   type: string
                 isu_name:
                   type:string
+                image:
+                  type: string
+                  format: binary
+            encoding:
+              image:
+                contentType: image/jpeg
         required: true
       responses:
         201:
