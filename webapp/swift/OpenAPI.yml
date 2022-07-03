@@ -253,8 +253,8 @@ paths:
                 $ref: '#/components/schemas/InternalServerFault'
       security:
       - sigv4: []
-  /condition/{jia_isu_uuid}: # ISUのコンディションを取得
-    get:
+  /condition/{jia_isu_uuid}: # ISUのコンディションを取得/ISUからのコンディションを受け取る
+    get: # ISUのコンディションを取得
       operationId: IsuCondition
       parameters:
       - name: jia_isu_uuid
@@ -295,6 +295,31 @@ paths:
                 $ref: '#/components/schemas/InternalServerFault'
       security:
       - sigv4: []
+    post: # ISUからのコンディションを受け取る
+      operationId: PostCondition
+      responses:
+        202:
+          description: 202 response
+          content:
+            application/json:
+        400:
+          description: 400 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestBodyFault'
+        404:
+          description: 404 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnknownResourceFault'
+        500:
+          description: 500 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerFault'
   /trend: # ISUの性格毎の最新のコンディション情報
     get:
       operationId: trend
