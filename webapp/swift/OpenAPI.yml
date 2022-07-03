@@ -98,7 +98,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/IsuListAttributes'
+                $ref: '#/components/schemas/IsuList'
         401:
           description: 401 response
           content:
@@ -226,7 +226,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GraphListAttributes'
+                $ref: '#/components/schemas/GraphList'
         400:
           description: 400 response
           content:
@@ -491,7 +491,7 @@ components:
           maxLength: 2048
           minLength: 1
           type: string
-    IsuListItem:
+    IsuItem:
       required:
       - id
       - jia_isu_uuid
@@ -550,10 +550,10 @@ components:
           maxLength: 2048
           minLength: 1
           type: string
-    IsuListAttributes:
+    IsuList:
       type: array
       items:
-        $ref: '#/components/schemas/IsuListItem'
+        $ref: '#/components/schemas/IsuItem'
     IsuAttributes:
       required:
       - id
@@ -576,7 +576,7 @@ components:
           maxLength: 2048
           minLength: 1
           type: string
-    GraphListItem:
+    GraphItem:
       required:
       - start_at
       - end_at
@@ -603,10 +603,10 @@ components:
           type: integer
         percentage:
           $ref: '#/components/schemas/ConditionsPercentage'
-    GraphListAttributes:
+    GraphList:
       type: array
       items:
-        $ref: '#/components/schemas/GraphListItem'
+        $ref: '#/components/schemas/GraphItem'
     ConditionsPercentage:
       required:
       - sitting
