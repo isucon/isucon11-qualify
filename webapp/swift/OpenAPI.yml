@@ -111,7 +111,7 @@ paths:
       operationId: RegisterIsu
       responses:
         201:
-          description: 200 response
+          description: 201 response
           content:
             application/json:
               schema:
@@ -134,8 +134,34 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/InternalServerFault'
-
-
+  /isu/{jia_isu_uuid}:
+    get:
+      operationId: GetIsu
+      responses:
+        200:
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IsuAttributes'
+        401:
+          description: 401 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedFault'
+        404:
+          description: 404 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnknownResourceFault'
+        500:
+          description: 500 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerFault'
 
   /customer/{id}/email:
     put:
@@ -379,7 +405,7 @@ components:
     Timestamp:
       type: integer
     IsSitting:
-      type: bool
+      type: boolean
     IsuCondition:
       maxLength: 2048
       minLength: 1
