@@ -480,8 +480,6 @@ components:
       maxLength: 2048
       minLength: 1
       type: string
-    Timestamp:
-      type: integer
     IsSitting:
       type: boolean
     IsuCondition:
@@ -545,7 +543,7 @@ components:
         isu_name:
           $ref: '#/components/schemas/IsuName'
         timestamp:
-          $ref: '#/components/schemas/Timestamp'
+          type: integer
         is_sitting:
           $ref: '#/components/schemas/IsSitting'
         condition:
