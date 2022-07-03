@@ -1,0 +1,510 @@
+openapi: 3.0.3
+info:
+  title: ISUCONDITON
+  version: 2022-07-03
+servers:
+- url: /
+paths:
+  /initialize: #サービスを初期化
+    post:
+      operationId: initialize
+      responses:
+        200:
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InitializeAttributes'
+        400:
+          description: 400 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestBodyFault'
+        500:
+          description: 500 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerFault'
+  /auth: # サインアップ・サインイン
+    post:
+      operationId: auth
+      responses:
+        200:
+          description: 200 response
+        400:
+          description: 400 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestBodyFault'
+        403:
+          description: 403 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenFault'
+        500:
+          description: 500 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerFault'
+  /signout: # サウンアウト
+    post:
+      operationId: signout
+      responses:
+        200:
+          description: 200 response
+        500:
+          description: 500 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerFault'
+  /user/me: # サインインしている自分自身の情報を取得
+    get:
+      operationId: user-me
+      responses:
+        200:
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InitializeAttributes'
+        401:
+          description: 401 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedFault'
+        500:
+          description: 500 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerFault'
+  /isu: # ISUの一覧を取得
+    get:
+      operationId: ListIsu
+      responses:
+        200:
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IsuListAttributes'
+        401:
+          description: 401 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedFault'
+        500:
+          description: 500 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerFault'
+    post:
+      operationId: RegisterIsu
+      responses:
+        201:
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IsuAttributes'
+        401:
+          description: 401 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedFault'
+        409:
+          description: 409 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConflictFault'
+        500:
+          description: 500 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerFault'
+
+
+
+  /customer/{id}/email:
+    put:
+      operationId: AddCustomerEmailAddress
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              required:
+              - emailAddress
+              - notifyOnAllActions
+              - notifyOnImportantAction
+              type: object
+              properties:
+                emailAddress:
+                  type: string
+                isPrimary:
+                  type: boolean
+                notifyOnImportantAction:
+                  type: boolean
+                notifyOnAllActions:
+                  type: boolean
+        required: false
+      responses:
+        200:
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerEmailAddressIdentity'
+        400:
+          description: 400 response
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/CustomerEmailAddressLimitExceededFault"
+                  - $ref: "#/components/schemas/CustomerEmailAddressAlreadyExistsFault"
+        404:
+          description: 404 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnknownResourceFault'
+        409:
+          description: 409 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConcurrencyFault'
+      security:
+      - sigv4: []
+      x-amazon-apigateway-integration:
+        responses:
+          200:
+            statusCode: "200"
+          400:
+            statusCode: "400"
+        uri: http://${stageVariables.LoadBalancerDNSName}:8080/customer/{id}/email
+        passthroughBehavior: when_no_templates
+        connectionType: VPC_LINK
+        connectionId: ${stageVariables.VpcLinkId}
+        httpMethod: PUT
+        type: http
+      x-codegen-request-body-name: addDetails
+
+components:
+  schemas:
+    BirthYear:
+      type: integer
+    ConcurrencyFault:
+      type: object
+      properties:
+        message:
+          $ref: '#/components/schemas/ErrorMessage'
+    CoreCustomerAttributes:
+      required:
+      - birthYear
+      - firstName
+      - lastName
+      type: object
+      properties:
+        firstName:
+          $ref: '#/components/schemas/FirstName'
+        lastName:
+          $ref: '#/components/schemas/LastName'
+        birthYear:
+          $ref: '#/components/schemas/BirthYear'
+        gender:
+          $ref: '#/components/schemas/Gender'
+    CreateCustomerRequest:
+      required:
+      - birthYear
+      - firstName
+      - lastName
+      type: object
+      properties:
+        firstName:
+          $ref: '#/components/schemas/FirstName'
+        lastName:
+          $ref: '#/components/schemas/LastName'
+        birthYear:
+          $ref: '#/components/schemas/BirthYear'
+        gender:
+          $ref: '#/components/schemas/Gender'
+    CustomerAttributes:
+      required:
+      - birthYear
+      - emailAddresses
+      - firstName
+      - lastName
+      type: object
+      properties:
+        firstName:
+          $ref: '#/components/schemas/FirstName'
+        lastName:
+          $ref: '#/components/schemas/LastName'
+        birthYear:
+          $ref: '#/components/schemas/BirthYear'
+        gender:
+          $ref: '#/components/schemas/Gender'
+        emailAddresses:
+          $ref: '#/components/schemas/CustomerEmailAddressAttributesList'
+    CustomerEmailAddressAttributes:
+      required:
+      - emailAddress
+      - notifyOnAllActions
+      - notifyOnImportantAction
+      type: object
+      properties:
+        emailAddress:
+          $ref: '#/components/schemas/CustomerEmailAddress'
+        notifyOnImportantAction:
+          $ref: '#/components/schemas/NotifyOnImportantAction'
+        notifyOnAllActions:
+          $ref: '#/components/schemas/NotifyOnAllActions'
+    CustomerEmailAddressAttributesList:
+      type: array
+      items:
+        $ref: '#/components/schemas/CustomerEmailAddressAttributes'
+    CustomerEmailAddressIdentity:
+      required:
+      - id
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/CustomerEmailAddress'
+    CustomerEmailAddressAlreadyExistsFault:
+      type: object
+      properties:
+        message:
+          $ref: '#/components/schemas/ErrorMessage'
+    CustomerEmailAddressLimitExceededFault:
+      type: object
+      properties:
+        message:
+          $ref: '#/components/schemas/ErrorMessage'
+    CustomerEmailAddress:
+      maxLength: 254
+      minLength: 1
+      type: string
+    CustomerID:
+      maxLength: 150
+      minLength: 1
+      type: string
+    CustomerIDList:
+      type: array
+      items:
+        $ref: '#/components/schemas/CustomerID'
+    CustomerIdentity:
+      required:
+      - id
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/CustomerID'
+    FirstName:
+      maxLength: 300
+      minLength: 1
+      type: string
+    Gender:
+      type: string
+      enum:
+      - FEMALE
+      - MALE
+      - OTHER
+    LastName:
+      maxLength: 300
+      minLength: 1
+      type: string
+    ListCustomersResponse:
+      required:
+      - customerIDs
+      type: object
+      properties:
+        customerIDs:
+          $ref: '#/components/schemas/CustomerIDList'
+        nextPageToken:
+          $ref: '#/components/schemas/NextPageToken'
+    NextPageToken:
+      maxLength: 2048
+      minLength: 1
+      type: string
+    NotifyOnAllActions:
+      type: boolean
+    NotifyOnImportantAction:
+      type: boolean
+
+
+
+    ErrorMessage:
+      type: string
+    Language:
+      maxLength: 2048
+      minLength: 1
+      type: string
+    JiaUserId:
+      maxLength: 2048
+      minLength: 1
+      type: string
+    IsuId:
+      type: integer
+    JiaIsuUuid:
+      maxLength: 2048
+      minLength: 1
+      type: string
+    IsuName:
+      maxLength: 2048
+      minLength: 1
+      type: string
+    IsuCharacter:
+      maxLength: 2048
+      minLength: 1
+      type: string
+    Timestamp:
+      type: integer
+    IsSitting:
+      type: bool
+    IsuCondition:
+      maxLength: 2048
+      minLength: 1
+      type: string
+    IsuConditionLevel:
+      maxLength: 2048
+      minLength: 1
+      type: string
+    IsuMessage:
+      maxLength: 2048
+      minLength: 1
+      type: string
+
+    InitializeAttributes:
+      required:
+      - language
+      type: object
+      properties:
+        language:
+          $ref: '#/components/schemas/Language'
+    GetMeAttributes:
+      required:
+      - jia_user_id
+      type: object
+      properties:
+        jia_user_id:
+          $ref: '#/components/schemas/JiaUserId'
+    IsuListItem:
+      required:
+      - id
+      - jia_isu_uuid
+      - name
+      - character
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/IsuId'
+        jia_isu_uuid:
+          $ref: '#/components/schemas/JiaIsuUuid'
+        name:
+          $ref: '#/components/schemas/IsuName'
+        character:
+          $ref: '#/components/schemas/IsuCharacter'
+        latest_isu_condition:
+          $ref: '#/components/schemas/JiaUserId'
+    IsuConditionAttributes:
+      required:
+      - jia_isu_uuid
+      - isu_name
+      - timestamp
+      - is_sitting
+      - condition
+      - condition_level
+      - message
+      type: object
+      properties:
+        jia_isu_uuid:
+          $ref: '#/components/schemas/JiaIsuUuid'
+        name:
+          $ref: '#/components/schemas/IsuName'
+        timestamp:
+          $ref: '#/components/schemas/Timestamp'
+        is_sitting:
+          $ref: '#/components/schemas/IsSitting'
+        condition:
+          $ref: '#/components/schemas/IsuCondition'
+        condition_level:
+          $ref: '#/components/schemas/IsuConditionLevel'
+        message:
+          $ref: '#/components/schemas/IsuMessage'
+    IsuListAttributes:
+      type: array
+      items:
+        $ref: '#/components/schemas/IsuListItem'
+    IsuAttributes:
+      required:
+      - id
+      - jia_isu_uuid
+      - name
+      - character
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/IsuId'
+        jia_isu_uuid:
+          $ref: '#/components/schemas/JiaIsuUuid'
+        name:
+          $ref: '#/components/schemas/IsuName'
+        character:
+          $ref: '#/components/schemas/IsuCharacter'
+
+    UnauthorizedFault:
+      type: object
+      properties:
+        message:
+          $ref: '#/components/schemas/ErrorMessage'
+    BadRequestBodyFault:
+      type: object
+      properties:
+        message:
+          $ref: '#/components/schemas/ErrorMessage'
+    ForbiddenFault:
+      type: object
+      properties:
+        message:
+          $ref: '#/components/schemas/ErrorMessage'
+    UnknownResourceFault:
+      type: object
+      properties:
+        message:
+          $ref: '#/components/schemas/ErrorMessage'
+    ConflictFault:
+      type: object
+      properties:
+        message:
+          $ref: '#/components/schemas/ErrorMessage'
+    InternalServerFault:
+      type: object
+      properties:
+        message:
+          $ref: '#/components/schemas/ErrorMessage'
+
+  securitySchemes:
+    sigv4:
+      type: apiKey
+      name: Authorization
+      in: header
+      x-amazon-apigateway-authtype: awsSigv4
