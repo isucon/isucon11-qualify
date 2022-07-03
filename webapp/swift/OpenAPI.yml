@@ -468,8 +468,6 @@ components:
       maxLength: 2048
       minLength: 1
       type: string
-    IsuId:
-      type: integer
     JiaIsuUuid:
       maxLength: 2048
       minLength: 1
@@ -522,7 +520,7 @@ components:
       type: object
       properties:
         id:
-          $ref: '#/components/schemas/IsuId'
+          type: integer
         jia_isu_uuid:
           $ref: '#/components/schemas/JiaIsuUuid'
         name:
@@ -569,7 +567,7 @@ components:
       type: object
       properties:
         id:
-          $ref: '#/components/schemas/IsuId'
+          type: integer
         jia_isu_uuid:
           $ref: '#/components/schemas/JiaIsuUuid'
         name:
