@@ -76,7 +76,14 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/InitializeAttributes'
+                required:
+                - jia_user_id
+                type: object
+                properties:
+                  jia_user_id:
+                    maxLength: 2048
+                    minLength: 1
+                    type: string
         401:
           description: 401 response
           content:
@@ -356,15 +363,6 @@ components:
       type: object
       properties:
         language:
-          maxLength: 2048
-          minLength: 1
-          type: string
-    GetMeAttributes:
-      required:
-      - jia_user_id
-      type: object
-      properties:
-        jia_user_id:
           maxLength: 2048
           minLength: 1
           type: string
