@@ -464,10 +464,6 @@ components:
       maxLength: 2048
       minLength: 1
       type: string
-    IsuName:
-      maxLength: 2048
-      minLength: 1
-      type: string
     IsuCharacter:
       maxLength: 2048
       minLength: 1
@@ -518,7 +514,9 @@ components:
           minLength: 1
           type: string
         name:
-          $ref: '#/components/schemas/IsuName'
+          maxLength: 2048
+          minLength: 1
+          type: string
         character:
           $ref: '#/components/schemas/IsuCharacter'
         latest_isu_condition:
@@ -539,7 +537,9 @@ components:
           minLength: 1
           type: string
         isu_name:
-          $ref: '#/components/schemas/IsuName'
+          maxLength: 2048
+          minLength: 1
+          type: string
         timestamp:
           type: integer
         is_sitting:
@@ -569,7 +569,9 @@ components:
           minLength: 1
           type: string
         name:
-          $ref: '#/components/schemas/IsuName'
+          maxLength: 2048
+          minLength: 1
+          type: string
         character:
           $ref: '#/components/schemas/IsuCharacter'
     GraphAttributes:
