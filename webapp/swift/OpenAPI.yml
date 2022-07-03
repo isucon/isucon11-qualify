@@ -8,6 +8,17 @@ paths:
   /api/initialize: # サービスを初期化
     post:
       operationId: initialize
+      requestBody:
+        content:
+          application/json:
+            schema:
+              required:
+                - jia_service_url
+              type: object
+              properties:
+                jia_service_url:
+                  type: string
+        required: true
       responses:
         200:
           description: 200 response
@@ -32,6 +43,10 @@ paths:
   /api/auth: # サインアップ・サインイン
     post:
       operationId: auth
+      requestBody:
+        content:
+          application/json: {}
+        required: false
       responses:
         200:
           description: 200 response
@@ -58,6 +73,10 @@ paths:
   /api/signout: # サウンアウト
     post:
       operationId: signout
+      requestBody:
+        content:
+          application/json: {}
+        required: false
       responses:
         200:
           description: 200 response
