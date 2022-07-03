@@ -137,6 +137,12 @@ paths:
   /isu/{jia_isu_uuid}:
     get:
       operationId: GetIsu
+      parameters:
+      - name: jia_isu_uuid
+        in: path
+        required: true
+        schema:
+          type: string
       responses:
         200:
           description: 200 response
