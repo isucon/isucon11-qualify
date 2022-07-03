@@ -120,6 +120,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/IsuAttributes'
+        400:
+          description: 400 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestBodyFault'
         401:
           description: 401 response
           content:
@@ -221,6 +227,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GraphListAttributes'
+        400:
+          description: 400 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestBodyFault'
         401:
           description: 401 response
           content:
