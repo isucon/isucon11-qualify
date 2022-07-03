@@ -45,7 +45,13 @@ paths:
       operationId: Auth
       requestBody:
         content:
-          application/json: {}
+          application/json:
+            schema:
+              type: object
+              properties:
+                dummy:
+                  type: string
+ 
         required: false
       responses:
         200:
@@ -72,10 +78,15 @@ paths:
       - sigv4: []
   /api/signout: # サウンアウト
     post:
-      operationId: signout
+      operationId: Signout
       requestBody:
         content:
-          application/json: {}
+          application/json:
+            schema:
+              type: object
+              properties:
+                dummy:
+                  type: string
         required: false
       responses:
         200:
@@ -124,7 +135,10 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/IsuList'
+                type: object
+                properties:
+                  items:
+                    $ref: '#/components/schemas/IsuList'
         401:
           description: 401 response
           content:
@@ -151,7 +165,7 @@ paths:
                 jia_isu_uuid:
                   type: string
                 isu_name:
-                  type:string
+                  type: string
                 image:
                   type: string
                   format: binary
@@ -238,11 +252,11 @@ paths:
       responses:
         200:
           description: 200 response
-          content:
-            image/png:
-              schema:
-                type: string
-                format: binary
+          # content:
+          #   image/png:
+          #     schema:
+          #       type: string
+          #       format: binary
         401:
           description: 401 response
           content:
@@ -272,7 +286,10 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GraphList'
+                type: object
+                properties:
+                  items:
+                    $ref: '#/components/schemas/GraphList'
         400:
           description: 400 response
           content:
@@ -314,7 +331,10 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ConditionItemList'
+                type: object
+                properties:
+                  items:
+                    $ref: '#/components/schemas/ConditionItemList'
         400:
           description: 400 response
           content:
@@ -372,8 +392,6 @@ paths:
       responses:
         202:
           description: 202 response
-          content:
-            application/json:
         400:
           description: 400 response
           content:
@@ -401,7 +419,10 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TrendList'
+                type: object
+                properties:
+                  items:
+                    $ref: '#/components/schemas/TrendList'
         500:
           description: 500 response
           content:
@@ -624,7 +645,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/TrendCondition'
-    TrdCondition:
+    TrendCondition:
       required:
         - isu_id
         - timestamp

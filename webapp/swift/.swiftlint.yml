@@ -1,0 +1,9 @@
+disabled_rules:
+  - trailing_whitespace
+  - void_return
+included:
+  - Sources
+line_length: 150
+function_body_length:
+  warning: 50
+  error: 75

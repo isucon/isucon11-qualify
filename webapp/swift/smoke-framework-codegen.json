@@ -1,6 +1,6 @@
 {
   "baseName": "EmptyExample",
-  "modelFilePath": "OpenAPI30.yaml",
+  "modelFilePath": "OpenAPI.yml",
   "modelFormat": "OPENAPI3_0",
   "generationType": "serverWithPlugin",
   "operationStubGenerationRule": {
@@ -19,7 +19,7 @@
       "birthYear": "1985",
       "firstName": "\"John\"",
       "lastName": "\"Smith\"",
-      "id": "\"com.mycompany.pe.customer.53E2BFA1-E55C-42FE-8110-77A68C069EF4\"",
+      "id": "123",
       "emailAddress": "\"me@example.com\""
     }
   }
