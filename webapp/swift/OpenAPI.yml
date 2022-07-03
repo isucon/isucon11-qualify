@@ -139,6 +139,20 @@ paths:
                 $ref: '#/components/schemas/InternalServerFault'
     post: # ISUを登録
       operationId: RegisterIsu
+      requestBody:
+        content:
+          application/json:
+            schema:
+              required:
+                - jia_isu_uuid
+                - isu_name
+              type: object
+              properties:
+                jia_isu_uuid:
+                  type: string
+                isu_name:
+                  type:string
+        required: true
       responses:
         201:
           description: 201 response
@@ -329,6 +343,26 @@ paths:
         required: true
         schema:
           type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              required:
+                - is_sitting
+                - condition
+                - message
+                - timestamp
+              type: object
+              properties:
+                is_sitting:
+                  type: boolean
+                condition:
+                  type: string
+                message:
+                  type: string
+                timestamp:
+                  type: integer
+        required: true
       responses:
         202:
           description: 202 response
