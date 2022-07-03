@@ -549,9 +549,6 @@ components:
       - info
       - warning
       - critical
-      - condition
-      - condition_level
-      - message
       type: object
       properties:
         character:
