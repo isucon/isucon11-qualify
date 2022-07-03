@@ -464,10 +464,6 @@ components:
       maxLength: 2048
       minLength: 1
       type: string
-    IsuConditionLevel:
-      maxLength: 2048
-      minLength: 1
-      type: string
     IsuMessage:
       maxLength: 2048
       minLength: 1
@@ -541,7 +537,9 @@ components:
           minLength: 1
           type: string
         condition_level:
-          $ref: '#/components/schemas/IsuConditionLevel'
+          maxLength: 2048
+          minLength: 1
+          type: string
         message:
           $ref: '#/components/schemas/IsuMessage'
     IsuListAttributes:
