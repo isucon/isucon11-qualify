@@ -253,7 +253,48 @@ paths:
                 $ref: '#/components/schemas/InternalServerFault'
       security:
       - sigv4: []
-
+  /condition/{jia_isu_uuid}: # ISUのコンディションを取得
+    get:
+      operationId: IsuCondition
+      parameters:
+      - name: jia_isu_uuid
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConditionItemList'
+        400:
+          description: 400 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestBodyFault'
+        401:
+          description: 401 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedFault'
+        404:
+          description: 404 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnknownResourceFault'
+        500:
+          description: 500 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerFault'
+      security:
+      - sigv4: []
 
   /customer/{id}/email:
     put:
@@ -623,6 +664,45 @@ components:
           type: integer
         is_overweight:
           type: integer
+    ConditionItem:
+      required:
+      - jia_isu_uuid
+      - isu_name
+      - timestamp
+      - is_sitting
+      - condition
+      - condition_level
+      - message
+      type: object
+      properties:
+        jia_isu_uuid:
+          maxLength: 2048
+          minLength: 1
+          type: string
+        isu_name:
+          maxLength: 2048
+          minLength: 1
+          type: string
+        timestamp:
+          type: integer
+        is_sitting:
+          type: boolean
+        condition:
+          maxLength: 2048
+          minLength: 1
+          type: string
+        condition_level:
+          maxLength: 2048
+          minLength: 1
+          type: string
+        message:
+          maxLength: 2048
+          minLength: 1
+          type: string
+    ConditionItemList:
+      type: array
+      items:
+        $ref: '#/components/schemas/ConditionItem'
 
     UnauthorizedFault:
       type: object
