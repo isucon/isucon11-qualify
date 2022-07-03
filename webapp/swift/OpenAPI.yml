@@ -493,7 +493,7 @@ components:
         character:
           $ref: '#/components/schemas/IsuCharacter'
         latest_isu_condition:
-          $ref: '#/components/schemas/JiaUserId'
+          $ref: '#/components/schemas/IsuConditionAttributes'
     IsuConditionAttributes:
       required:
       - jia_isu_uuid
@@ -507,7 +507,7 @@ components:
       properties:
         jia_isu_uuid:
           $ref: '#/components/schemas/JiaIsuUuid'
-        name:
+        isu_name:
           $ref: '#/components/schemas/IsuName'
         timestamp:
           $ref: '#/components/schemas/Timestamp'
