@@ -220,7 +220,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UnauthorizedFault'
+                $ref: '#/components/schemas/GraphListAttributes'
         401:
           description: 401 response
           content:
@@ -564,7 +564,7 @@ components:
           maxLength: 2048
           minLength: 1
           type: string
-    GraphAttributes:
+    GraphListItem:
       required:
       - start_at
       - end_at
@@ -591,6 +591,10 @@ components:
           type: integer
         percentage:
           $ref: '#/components/schemas/ConditionsPercentage'
+    GraphListAttributes:
+      type: array
+      items:
+        $ref: '#/components/schemas/GraphListItem'
     ConditionsPercentage:
       required:
       - sitting
