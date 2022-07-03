@@ -98,7 +98,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/IsuListAttributes'
+                type: array
+                items:
+                  $ref: '#/components/schemas/IsuListItem'
         401:
           description: 401 response
           content:
@@ -538,10 +540,6 @@ components:
           maxLength: 2048
           minLength: 1
           type: string
-    IsuListAttributes:
-      type: array
-      items:
-        $ref: '#/components/schemas/IsuListItem'
     IsuAttributes:
       required:
       - id
