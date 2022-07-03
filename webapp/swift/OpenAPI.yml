@@ -464,10 +464,6 @@ components:
       maxLength: 2048
       minLength: 1
       type: string
-    IsuMessage:
-      maxLength: 2048
-      minLength: 1
-      type: string
 
     InitializeAttributes:
       required:
@@ -541,7 +537,9 @@ components:
           minLength: 1
           type: string
         message:
-          $ref: '#/components/schemas/IsuMessage'
+          maxLength: 2048
+          minLength: 1
+          type: string
     IsuListAttributes:
       type: array
       items:
