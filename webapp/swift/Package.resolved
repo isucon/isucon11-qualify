@@ -1,0 +1,194 @@
+{
+  "pins" : [
+    {
+      "identity" : "async-http-client",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swift-server/async-http-client.git",
+      "state" : {
+        "revision" : "7a4dfe026f6ee0f8ad741b58df74c60af296365d",
+        "version" : "1.9.0"
+      }
+    },
+    {
+      "identity" : "openapikit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mattpolzin/OpenAPIKit.git",
+      "state" : {
+        "revision" : "0c668112f9803c1858ed070f9e8ce84922a0b41f",
+        "version" : "3.0.0-alpha.4"
+      }
+    },
+    {
+      "identity" : "service-model-swift-code-generate",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/amzn/service-model-swift-code-generate.git",
+      "state" : {
+        "revision" : "286181816fccc2b6ec92049ba68426d08cbe0059",
+        "version" : "3.0.0-beta.1"
+      }
+    },
+    {
+      "identity" : "smoke-aws",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/amzn/smoke-aws.git",
+      "state" : {
+        "revision" : "59838cf3d823f36681fdd281c799e6d54f968d5e",
+        "version" : "2.42.44"
+      }
+    },
+    {
+      "identity" : "smoke-aws-credentials",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/amzn/smoke-aws-credentials.git",
+      "state" : {
+        "revision" : "9b262b5d1c647fd1ab0deef0494461a08003b817",
+        "version" : "2.3.0"
+      }
+    },
+    {
+      "identity" : "smoke-aws-generate",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/amzn/smoke-aws-generate.git",
+      "state" : {
+        "revision" : "2d2902403408d4c7a9f6c69c90975cc048759f95",
+        "version" : "3.0.0-beta.1"
+      }
+    },
+    {
+      "identity" : "smoke-framework",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/amzn/smoke-framework.git",
+      "state" : {
+        "revision" : "d7bfc24fb6e54fe4d112b36b46e7671577cd63ac",
+        "version" : "2.13.1"
+      }
+    },
+    {
+      "identity" : "smoke-framework-application-generate",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/amzn/smoke-framework-application-generate",
+      "state" : {
+        "revision" : "7be9e3be5880b8f5fe0b17ca2be9f92e66aa101c",
+        "version" : "3.0.0-beta.2"
+      }
+    },
+    {
+      "identity" : "smoke-http",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/amzn/smoke-http.git",
+      "state" : {
+        "revision" : "6100bbea63e759b6a23e9e43bd08ded034dbeec0",
+        "version" : "2.12.1"
+      }
+    },
+    {
+      "identity" : "swaggerparser",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tachyonics/SwaggerParser.git",
+      "state" : {
+        "revision" : "c0eb70485c59a9d7dd6765dcd303b49fdb3040ee",
+        "version" : "0.6.4"
+      }
+    },
+    {
+      "identity" : "swift-argument-parser",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-argument-parser",
+      "state" : {
+        "revision" : "6b2aa2748a7881eebb9f84fb10c01293e15b52ca",
+        "version" : "0.5.0"
+      }
+    },
+    {
+      "identity" : "swift-crypto",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-crypto.git",
+      "state" : {
+        "revision" : "ddb07e896a2a8af79512543b1c7eb9797f8898a5",
+        "version" : "1.1.7"
+      }
+    },
+    {
+      "identity" : "swift-log",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-log.git",
+      "state" : {
+        "revision" : "5d66f7ba25daf4f94100e7022febf3c75e37a6c7",
+        "version" : "1.4.2"
+      }
+    },
+    {
+      "identity" : "swift-metrics",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-metrics.git",
+      "state" : {
+        "revision" : "eadb828f878fed144387e3845866225bb7082c56",
+        "version" : "2.3.0"
+      }
+    },
+    {
+      "identity" : "swift-nio",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-nio.git",
+      "state" : {
+        "revision" : "d6e3762e0a5f7ede652559f53623baf11006e17c",
+        "version" : "2.39.0"
+      }
+    },
+    {
+      "identity" : "swift-nio-extras",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-nio-extras.git",
+      "state" : {
+        "revision" : "f73ca5ee9c6806800243f1ac415fcf82de9a4c91",
+        "version" : "1.10.2"
+      }
+    },
+    {
+      "identity" : "swift-nio-http2",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-nio-http2.git",
+      "state" : {
+        "revision" : "50c25c132b140e62b45e90b5a76f13ded02c8a46",
+        "version" : "1.20.1"
+      }
+    },
+    {
+      "identity" : "swift-nio-ssl",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-nio-ssl.git",
+      "state" : {
+        "revision" : "b5260a31c2a72a89fa684f5efb3054d8725a2316",
+        "version" : "2.18.0"
+      }
+    },
+    {
+      "identity" : "swift-nio-transport-services",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-nio-transport-services.git",
+      "state" : {
+        "revision" : "8ab824b140d0ebcd87e9149266ddc353e3705a3e",
+        "version" : "1.11.4"
+      }
+    },
+    {
+      "identity" : "xmlcoding",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/LiveUI/XMLCoding.git",
+      "state" : {
+        "revision" : "f0fbfe17e73f329e13a6133ff5437f7b174049fd",
+        "version" : "0.4.1"
+      }
+    },
+    {
+      "identity" : "yams",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/jpsim/Yams.git",
+      "state" : {
+        "revision" : "9ff1cc9327586db4e0c8f46f064b6a82ec1566fa",
+        "version" : "4.0.6"
+      }
+    }
+  ],
+  "version" : 2
+}
