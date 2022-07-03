@@ -5,7 +5,7 @@ info:
 servers:
 - url: /
 paths:
-  /initialize: #サービスを初期化
+  /initialize: # サービスを初期化
     post:
       operationId: initialize
       responses:
@@ -138,7 +138,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/InternalServerFault'
-  /isu/{jia_isu_uuid}: #ISUの情報を取得
+  /isu/{jia_isu_uuid}: # ISUの情報を取得
     get:
       operationId: GetIsu
       parameters:
@@ -174,7 +174,7 @@ paths:
                 $ref: '#/components/schemas/InternalServerFault'
       security:
       - sigv4: []
-  /isu/{jia_isu_uuid}/icon: #ISUのアイコンを取得
+  /isu/{jia_isu_uuid}/icon: # ISUのアイコンを取得
     get:
       operationId: IsuIcon
       parameters:
