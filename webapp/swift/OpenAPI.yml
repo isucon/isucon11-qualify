@@ -464,10 +464,6 @@ components:
       maxLength: 2048
       minLength: 1
       type: string
-    IsuCharacter:
-      maxLength: 2048
-      minLength: 1
-      type: string
     IsSitting:
       type: boolean
     IsuCondition:
@@ -518,7 +514,9 @@ components:
           minLength: 1
           type: string
         character:
-          $ref: '#/components/schemas/IsuCharacter'
+          maxLength: 2048
+          minLength: 1
+          type: string
         latest_isu_condition:
           $ref: '#/components/schemas/IsuConditionAttributes'
     IsuConditionAttributes:
@@ -573,7 +571,9 @@ components:
           minLength: 1
           type: string
         character:
-          $ref: '#/components/schemas/IsuCharacter'
+          maxLength: 2048
+          minLength: 1
+          type: string
     GraphAttributes:
       required:
       - start_at
