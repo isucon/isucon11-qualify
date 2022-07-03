@@ -460,10 +460,6 @@ components:
 
     ErrorMessage:
       type: string
-    Language:
-      maxLength: 2048
-      minLength: 1
-      type: string
 
     InitializeAttributes:
       required:
@@ -471,7 +467,9 @@ components:
       type: object
       properties:
         language:
-          $ref: '#/components/schemas/Language'
+          maxLength: 2048
+          minLength: 1
+          type: string
     GetMeAttributes:
       required:
       - jia_user_id
