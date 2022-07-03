@@ -205,6 +205,43 @@ paths:
                 $ref: '#/components/schemas/InternalServerFault'
       security:
       - sigv4: []
+  /isu/{jia_isu_uuid}/graph: # ISUのコンディショングラフ描画のための情報を取得
+    get:
+      operationId: IsuGraph
+      parameters:
+      - name: jia_isu_uuid
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedFault'
+        401:
+          description: 401 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedFault'
+        404:
+          description: 404 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnknownResourceFault'
+        500:
+          description: 500 response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerFault'
+      security:
+      - sigv4: []
+
 
   /customer/{id}/email:
     put:
@@ -539,6 +576,49 @@ components:
           $ref: '#/components/schemas/IsuName'
         character:
           $ref: '#/components/schemas/IsuCharacter'
+    GraphAttributes:
+      required:
+      - start_at
+      - end_at
+      - condition_timestamps
+      type: object
+      properties:
+        start_at:
+          type: string
+        end_at:
+          type: string
+        data:
+          $ref: '#/components/schemas/GraphDataPoint'
+        condition_timestamps:
+          type: array
+          items:
+            type: integer
+    GraphDataPoint:
+      required:
+      - score
+      - percentage
+      type: object
+      properties:
+        score:
+          type: integer
+        percentage:
+          $ref: '#/components/schemas/ConditionsPercentage'
+    ConditionsPercentage:
+      required:
+      - sitting
+      - is_broken
+      - is_dirty
+      - is_overweight
+      type: object
+      properties:
+        sitting:
+          type: integer
+        is_broken:
+          type: integer
+        is_dirty:
+          type: integer
+        is_overweight:
+          type: integer
 
     UnauthorizedFault:
       type: object
