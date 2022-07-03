@@ -464,10 +464,6 @@ components:
       maxLength: 2048
       minLength: 1
       type: string
-    IsuCondition:
-      maxLength: 2048
-      minLength: 1
-      type: string
     IsuConditionLevel:
       maxLength: 2048
       minLength: 1
@@ -541,7 +537,9 @@ components:
         is_sitting:
           type: boolean
         condition:
-          $ref: '#/components/schemas/IsuCondition'
+          maxLength: 2048
+          minLength: 1
+          type: string
         condition_level:
           $ref: '#/components/schemas/IsuConditionLevel'
         message:
