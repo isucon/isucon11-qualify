@@ -10,6 +10,10 @@ down:
 up-go:
 	docker-compose -f docker-compose-dev.yml up --build -- backend-go mysql-backend jiaapi-mock
 
+.PHONY: up-go-d
+up-go:
+	docker-compose -f docker-compose-dev.yml up -d --build -- backend-go mysql-backend jiaapi-mock
+
 .PHONY: up-rust
 up-rust:
 	docker-compose -f docker-compose-dev.yml up --build -- backend-rust mysql-backend jiaapi-mock
