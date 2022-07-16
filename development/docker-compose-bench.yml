@@ -62,3 +62,6 @@ services:
     depends_on:
       - mysql-backend
       - backend
+
+  redis:
+    image: redis:6
