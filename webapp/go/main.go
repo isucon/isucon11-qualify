@@ -894,9 +894,9 @@ func calculateGraphDataPoint(isuConditions []IsuCondition) (GraphDataPoint, erro
 	for _, condition := range isuConditions {
 		badConditionsCount := 0
 
-		if !isValidConditionFormat(condition.Condition) {
-			return GraphDataPoint{}, fmt.Errorf("invalid condition format")
-		}
+		//if !isValidConditionFormat(condition.Condition) {
+		//	return GraphDataPoint{}, fmt.Errorf("invalid condition format")
+		//}
 
 		for _, condStr := range strings.Split(condition.Condition, ",") {
 			keyValue := strings.Split(condStr, "=")
