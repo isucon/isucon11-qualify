@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
+	goredis "github.com/go-redis/redis/v8"
 	"github.com/go-sql-driver/mysql"
 	"github.com/gorilla/sessions"
 	"github.com/jmoiron/sqlx"
@@ -44,6 +45,7 @@ const (
 
 var (
 	db                  *sqlx.DB
+	redis               *goredis.Client
 	sessionStore        sessions.Store
 	mySQLConnectionData *MySQLConnectionEnv
 
@@ -246,6 +248,13 @@ func main() {
 	}
 	db.SetMaxOpenConns(10)
 	defer db.Close()
+
+	// Redis を追加
+	redis = goredis.NewClient(&goredis.Options{
+		Addr:     os.Getenv("REDIS_ADDR"),
+		Password: "",
+		DB:       0,
+	})
 
 	postIsuConditionTargetBaseURL = os.Getenv("POST_ISUCONDITION_TARGET_BASE_URL")
 	if postIsuConditionTargetBaseURL == "" {

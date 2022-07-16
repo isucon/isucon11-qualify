@@ -12,6 +12,7 @@ services:
       MYSQL_USER: isucon
       MYSQL_PASS: isucon
       POST_ISUCONDITION_TARGET_BASE_URL: http://backend-go:3000
+      REDIS_ADDR: redis:6379
     entrypoint: dockerize -wait tcp://mysql-backend:3306 -timeout 60s
     command: air -c /development/air.toml
     ports:
@@ -26,6 +27,7 @@ services:
       - "../development/mysql-backend/2_Init.sql:/webapp/sql/1_InitData.sql"
     depends_on:
       - mysql-backend
+
   # MEMO: 各言語用のコンテナをここ以下に列挙
   # backend-python:
   # ...
