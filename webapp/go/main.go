@@ -1204,7 +1204,7 @@ func postIsuCondition(c echo.Context) error {
 		return c.String(http.StatusNotFound, "not found: isu")
 	}
 
-	chunkSize := 1000
+	chunkSize := 2000
 	originalSql := "INSERT INTO `isu_condition`" +
 		"  (`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`)" +
 		"  VALUES"
